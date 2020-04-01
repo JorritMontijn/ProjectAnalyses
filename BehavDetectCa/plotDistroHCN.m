@@ -1,0 +1,9 @@
+dblStart = -0.15;
+dblStop = 0.15;
+dblStep = 0.025;
+vecBins = (dblStart+dblStep/2):dblStep:(dblStop-dblStep/2);
+vecValSorted = sort(vecStimDetectActInc,'ascend');
+vecBarLow = hist(vecValSorted(1:floor((numel(vecValSorted))/3)),vecBins);
+vecBarMid = hist(vecValSorted(ceil((numel(vecValSorted))/3):floor((numel(vecValSorted))*(2/3))),vecBins);
+vecBarHigh = hist(vecValSorted(ceil((numel(vecValSorted))*(2/3)):end),vecBins);
+bar(vecBins,[vecBarLow' vecBarMid' vecBarHigh'],'stacked')

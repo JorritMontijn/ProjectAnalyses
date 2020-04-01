@@ -1,0 +1,68 @@
+%% define structure
+%{
+sNeuron = struct;
+sNeuron(1).Area = {'NOT','V1','SC'};
+sNeuron(1).MouseType = {'WT','Albino'};
+sNeuron(1).Mouse = 'MB4';
+sNeuron(1).Date = '20190315';
+sNeuron(1).DepthCh = 6;
+sNeuron(1).DepthMicron = 2000;
+sNeuron(1).IdxSU = 1;
+sNeuron(1).IdxClust = 201;
+sNeuron(1).Recording = struct;
+Recording(1).StimType = {'DG'};
+Recording(1).SpikeTimes = {};
+Recording(1).vecStimOnTime = [];
+Recording(1).vecStimOffTime = [];
+Recording(1).cellStimObject = {};
+Recording(1).vecStimOriDegrees = [];
+Recording(1).vecEyeTimestamps = [];
+Recording(1).matEyeData = [];
+%}
+
+%% load data
+strPath = 'D:\Data\Processed\ePhys\DriftingGratings\';
+strFile = ['NeuronAggregate' strSelectArea '_' strDate '_B' strBlock '.mat'];
+strTarget = [strPath strFile];
+if exist(strTarget,'file')
+	sLoad = load(strTarget);
+	sNeuron = sLoad.sNeuron;
+	sRecording = sLoad.sRecording;
+	clear sLoad;
+else
+	sNeuron = [];
+	sRecording = [];
+end
+
+%% append data
+intNew = numel(sNeuron)+1;
+dblDepthCh = SU_depth_ch(intSaveSU);
+dblDepthMicron = SU_depth_micron(intSaveSU);
+strRecIdx = flat(num2str(double(strcat('DG',strSelectArea,strSelectMouseType,strMouse,strDate,strBlock,num2str(dblRecDepth)))'))';
+%add neuron
+sNeuron(intNew).Area = strSelectArea;
+sNeuron(intNew).MouseType = strSelectMouseType;
+sNeuron(intNew).Mouse = strMouse;
+sNeuron(intNew).Date = strDate;
+sNeuron(intNew).Block = strBlock;
+sNeuron(intNew).DepthCh = dblDepthCh;
+sNeuron(intNew).DepthMicron = dblDepthMicron;
+sNeuron(intNew).IdxSU = intSaveSU;
+sNeuron(intNew).IdxClust = vecSingleUnitClusters(intSaveSU);
+sNeuron(intNew).SpikeTimes = SU_st{intSaveSU};
+sNeuron(intNew).RecIdx = strRecIdx;
+
+%add recording
+if isempty(sRecording)
+	sRecording = struct;
+	sRecording.RecIdx = strRecIdx;
+	sRecording.StimType = 'DG';
+	sRecording.vecStimOnTime = vecStimOnTime;
+	sRecording.vecStimOffTime = vecStimOffTime;
+	sRecording.cellStimObject = cellStimObject;
+	sRecording.vecStimOriDegrees = vecStimOriDegrees;
+	sRecording.vecEyeTimestamps = vecEyeTimestamps;
+	sRecording.matEyeData = matEyeData;
+end
+%% save structure
+save(strTarget,'sNeuron','sRecording');

@@ -34,3 +34,6 @@ for intCellType=1:numel(sSesAggregate.cellType)
 		sSesAggregate.(strCellType) = sSesAggregate.(strCellType)(indKeepAgg);
 	end
 end
+
+%% done, set switch
+boolLoad=false;

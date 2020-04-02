@@ -42,8 +42,6 @@ elseif intLoadSet == 8 && boolLoad
 	strDate = '20140425';
 	intBlockGratings = 9;
 	intBlockPlaids = 10;
-	
-	
 end
 
 %% construct target file locations

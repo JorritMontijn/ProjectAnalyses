@@ -1,7 +1,7 @@
 function sSesAggregate = buildMultiSesAggregate(ses,sSesAggregate)
 	%UNTITLED2 Summary of this function goes here
 	%   Detailed explanation goes here
-	
+	%%
 	if ~exist('sSesAggregate','var') || isempty(sSesAggregate)
 		sSesAggregate = ses;
 	else

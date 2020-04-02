@@ -1,9 +1,17 @@
 StimulusTextures/**
 
+PlaidProcessing/**
+
 Scenes/**
+
 backup/**
+
 *.asv
+
 *.tif
+
 *.pdf
+
 *.mat
+
 data/**

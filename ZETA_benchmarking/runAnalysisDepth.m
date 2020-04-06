@@ -29,7 +29,7 @@ vecDepthCorrection{3}{1} = 0;%11
 vecDepthCorrection{3}{2} = 0;%12
 vecDepthCorrection{3}{3} = 0;%13
 
-vecRunAnal = [3 3];
+vecRunAnal = [3 2];
 
 %% load data
 cellRecPath = strsplit(cellRec{vecRunAnal(1)}{vecRunAnal(2)},filesep);
@@ -69,7 +69,7 @@ hTic = tic;
 
 %% include
 %indIncludeZ = any(matMeanP(:,2) > 0.05 & matZetaP(:,2)<0.05,2)
-indIncludeZ = any(matZetaP<(0.05/size(matZetaP,2)),2);
+indIncludeZ = 1;%any(matZetaP<(0.05/size(matZetaP,2)),2);
 indIncludeC = (vecContam < 0.1) | vecKSG;
 indInclude = indIncludeZ(:) & indIncludeC(:);
 
@@ -77,7 +77,7 @@ indInclude = indIncludeZ(:) & indIncludeC(:);
 intMaxBlock = numel(sAP.cellStim);
 intResampNum = 50;
 intPlot = 0;%3;
-intLatencyPeaks =0;
+intLatencyPeaks =4;
 vecRestrictRange = [];%[0.025 0.1];
 boolVerbose = false;
 hTic=tic;
@@ -161,7 +161,7 @@ if 0
 	export_fig([strFigDir sprintf('%sB%02d_N%03d_%s.pdf',strRecIdx,intBlock,intNeuron,strStimType)]);
 end
 %%
-indInclude2 = indInclude & (vecZETA(:) > 2);
+indInclude2 = indInclude;% & (vecZETA(:) > 2);
 vecPlotDegs = mod(sOut.vecUniqueDegs+180,360)
 cellArea = {sAP.sCluster(:).Area};
 indNeuronsNOT = contains(cellArea(:),'optic tract') | contains(cellArea(:),'Lateral posterior nucleus');
@@ -232,13 +232,13 @@ plot(vecPlotDegs,vecRpO)
 xlim([0 360]);
 xlabel('Stim ori (deg)');
 ylabel('Mean rate');
-title(sprintf('Resp NOT or LP'));
+title(sprintf('Resp LP'));
 h=colorbar;
 fixfig;
 
 
-dblTopNOT = -2000;
-dblBotNOT = -3000;
+dblTopNOT = -1000;
+dblBotNOT = -1800;
 vecRpO = nanmean(matAggResp(:,vecCorrectedDepth < dblTopNOT & vecCorrectedDepth > dblBotNOT),2);
 		
 subplot(2,3,5)
@@ -251,8 +251,8 @@ h=colorbar;
 fixfig;
 
 
-dblTopNOT = -2200;
-dblBotNOT = -2350;
+dblTopNOT = -3000;
+dblBotNOT = -3500;
 vecRpO = nanmean(matAggResp(:,vecCorrectedDepth < dblTopNOT & vecCorrectedDepth > dblBotNOT),2);
 		
 subplot(2,3,6)

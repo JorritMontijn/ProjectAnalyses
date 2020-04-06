@@ -35,11 +35,11 @@ strDataMasterPath = 'D:\Data\Processed\ePhys\';
 strDataTargetPath = 'D:\Data\Results\OriMetric\Data\';
 strFigPath = 'D:\Data\Results\OriMetric\TuningCurves\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
-vecRandTypes = [1];%1=normal,2=rand
+vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
-vecResamples = 100;%[10:10:100];
-vecRunAreas = [10:24];%[1:4];%1:6;%1:5;
+vecResamples = 10:10:90;%[10:10:100];
+vecRunAreas = [7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2:3;
 cellRepStr = {...

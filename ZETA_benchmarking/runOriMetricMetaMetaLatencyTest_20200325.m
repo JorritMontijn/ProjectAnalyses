@@ -14,17 +14,17 @@ cellUniqueAreas = {...
 	'Lateral posterior nucleus',...Area 9
 	...'Anterior pretectal nucleus',...Area 10
 	'Nucleus of the optic tract',...Area 11
-	...'Superior colliculus',...Area 12
+	'Superior colliculus',...Area 12
 	'Anteromedial visual',...Area 13
 	'posteromedial visual',...Area 14
 	'Anterolateral visual',...Area 15
 	'Lateral visual',...Area 16
 	'Rostrolateral area',...Area 17
-	'Anterior area',...Area 18
-	'Subiculum',...Area 19
+	...'Anterior area',...Area 18
+	...'Subiculum',...Area 19
 	'Field CA1',...Area 20
 	'Field CA2',...Area 21
-	'Field CA3',...Area 22
+	...'Field CA3',...Area 22
 	'Dentate gyrus',...Area 23
 	'Retrosplenial'...Area 24
 	};
@@ -70,6 +70,7 @@ matNumCells = [];
 matSignifZ = [];
 matSignifHz = [];
 intIdx = 0;
+intRandIdx=1; %1=normal,2=rand
 for intArea=1:numel(cellUniqueAreas)
 	if intArea==3 || intArea==4 || intArea==5 || intArea==6,continue;end
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
@@ -83,12 +84,13 @@ for intArea=1:numel(cellUniqueAreas)
 	end
 	for intStimType=vecRunStims
 		intIdx = intIdx + 1;
+		strRand = cellRunRand{intRandIdx};
 		strStim = cellRunStim{intStimType};
-		strName = replace([strArea strStim],cellRepStr(:,1),cellRepStr(:,2));
+		strName = replace([strArea strRand strStim],cellRepStr(:,1),cellRepStr(:,2));
 		cellDatasetNames{intIdx} = strName;
 		
 		%% load data
-		strRunType = [strArea strStim];
+		strRunType = [strArea strRand strStim];
 		sDir=dir([strPath 'ZetaDataMSD' strRunType 'Resamp100*']);
 		if isempty(sDir),continue;end
 		strFile = sDir(1).name;
@@ -105,18 +107,12 @@ for intArea=1:numel(cellUniqueAreas)
 			vecT = sLoad.cellInterpT{intN};
 			vecD = sLoad.cellDeriv{intN};
 			vecP(intN) = sLoad.vecP(intN);
-			if isempty(vecT) || vecP(intN) > 0.01,continue;end
-			[dblPeakRate,dblPeakTime,dblPeakWidth,vecPeakStartStop,intPeakLoc,vecPeakStartStopIdx] = ...
-				getPeak(vecD,vecT,[0 inf]);
-			[dblOnset,dblValue] = getOnset(vecD,vecT,dblPeakTime,[0 inf]);
-			if dblOnset > 0.5 || dblOnset < 0.015
-				vecD = mean(vecD) - vecD;
-				vecD(vecD<0)=0;
-				[dblPeakRate,dblPeakTime,dblPeakWidth,vecPeakStartStop,intPeakLoc,vecPeakStartStopIdx] = ...
-					getPeak(vecD,vecT,[0.015 1]);
-				[dblOnset,dblValue] = getOnset(vecD,vecT,dblPeakTime,[0.015 1]);
+			if isempty(vecT) || (vecP(intN) > 0.01 && intRandIdx == 1),
+				continue;
 			end
-			vecOnset(intN) = dblOnset;
+			%%
+			[dblOnset,dblValueOn,dblBaseVal,dblPeakT] = getOnset(smooth(vecD,5),vecT,[],[0 1],1);
+			[dblOffset,dblValueOff,dblBaseVal,dblOffPeakT] = getOnset(smooth(vecD,5),vecT,[],[1 1.5],1);
 			%z
 			vecZ = zscore(vecD);
 			intOnsetIdx = find(vecT>dblOnset,1);
@@ -124,21 +120,29 @@ for intArea=1:numel(cellUniqueAreas)
 			if isempty(dblOnZ),dblOnZ = nan;end
 			vecOnZ(intN) = dblOnZ;
 
+			intOffsetIdx = find(vecT>dblOffset,1);
+			dblOffZ = vecZ(intOffsetIdx);
+			if isempty(dblOffZ),dblOffZ = nan;end
+			vecOffZ(intN) = dblOffZ;
+
 			%{
 			%plot
 			clf;
 			plot(vecT,vecD)
 			hold on
-			scatter(dblOnset,dblValue)
+			scatter(dblOnset,dblValueOn,'o');
+			scatter(dblOffset,dblValueOff,'x');
 			hold off
-			title(sprintf('%s, N%d; p=%.3f, Onset=%d, z=%.1f',strArea,intN,sLoad.vecP(intN),round(dblOnset*1000),dblOnZ))
+			title(sprintf('%s, N%d; p=%.4f, Onset=%d, z=%.1f, Offset=%d, z=%.1f',strArea,intN,sLoad.vecP(intN),round(dblOnset*1000),dblOnZ,round(dblOffset*1000),dblOffZ))
 			pause
-%}
+			%}
+			if abs(dblOnZ) > abs(dblOffZ)
+				vecOnset(intN) = dblOnset;
+			else
+				vecOnset(intN) = dblOffset-1;
+			end
 		end
-		vecOnset(vecP>0.001) = 0.5;
-		vecOnset(vecOnset>0.2) = 0.5;
-		vecOnset(vecOnset<0.035) = 0.5;
-		
+		%vecOnset(vecP>0.01) = 0.5;
 		
 		cellOnZ{intIdx} = vecOnZ;
 		cellP{intIdx} = vecP;
@@ -148,44 +152,34 @@ for intArea=1:numel(cellUniqueAreas)
 end
 
 %% prep data
+cellP2 = cellP;
 cellOnset2 = cellOnset;
 cellOnZ2 = cellOnZ;
 cellDatasetNames2 = cellDatasetNames;
 indRem = cellfun(@isempty,cellOnset2);
-indRem(10:end) = true;
+%indRem(7:end) = true;
 cellOnset2(indRem) = [];
 cellOnZ2(indRem) = [];
+cellP2(indRem) = [];
 cellDatasetNames2(indRem) = [];
 cellOnset2 = cellfun(@(x) min(x,0.5),cellOnset2,'uniformoutput',false);
-cellOnset3 = cellfun(@(x) x(x<0.5),cellOnset2,'uniformoutput',false);
+%cellOnset2 = cellfun(@(x,y) x(y<0.001),cellOnset2,cellP2,'uniformoutput',false);
+%cellOnset3 = cellfun(@(x) min(x,0.1),cellOnset2,'uniformoutput',false);
+vecRunSubset = [1:7];
 
-vecSdOnset = cellfun(@std,cellOnset3);
-vecOrderOnset = cellfun(@mean,cellOnset3)-vecSdOnset;
+vecSdOnset = cellfun(@std,cellOnset2);
+vecOrderOnset = cellfun(@mean,cellOnset2(vecRunSubset))-vecSdOnset(vecRunSubset);
 [d,vecReorder]=sort(vecOrderOnset,'ascend');
-cellOnset2 = cellOnset2(vecReorder);
-cellOnset3 = cellOnset3(vecReorder);
-cellDatasetNames2 = cellDatasetNames2(vecReorder);
-
-%scatter(abs(cell2vec(cellOnZ)),cell2vec(cellOnset))
+%cellOnset2 = cellOnset2(vecReorder);
+%cellDatasetNames2 = cellDatasetNames2(vecReorder);
 
 %% plot
+matC=lines(numel(cellDatasetNames2));
 figure
 subplot(2,2,1);
 hold on;
 for intRec=1:numel(cellOnset2)
-	stairs(1000*sort(cellOnset2{intRec}),linspace(0,1,numel(cellOnset2{intRec})));
-end
-hold off;
-ylabel('Fraction of cells');
-xlabel('Onset latency (ms)');
-fixfig;
-
-subplot(2,2,2);
-hold on;
-for intRec=1:numel(cellOnset3)
-	vecUseOnsets = cellOnset3{intRec};
-	vecUseOnsets(vecUseOnsets>=0.5) = [];
-	stairs(sort(vecUseOnsets)*1000,linspace(0,1,numel(vecUseOnsets)));
+	stairs(1000*sort(cellOnset2{intRec}),linspace(0,1,numel(cellOnset2{intRec})),'Color',matC(intRec,:));
 end
 hold off;
 legend(cellDatasetNames2,'location','best');
@@ -193,28 +187,70 @@ ylabel('Fraction of cells');
 xlabel('Onset latency (ms)');
 fixfig;
 
+subplot(2,2,2);
+hold on;
+for intRec=vecRunSubset
+	vecUseOnsets = cellOnset2{intRec};
+	vecUseOnsets(vecUseOnsets>=0.5) = [];
+	stairs(sort(vecUseOnsets)*1000,linspace(0,1,numel(vecUseOnsets)));
+end
+hold off;
+ylabel('Fraction of cells');
+xlabel('Onset latency (ms)');
+fixfig;
+
 
 subplot(2,2,3);
 hold on
-matC=lines(numel(cellDatasetNames2));
 vecAllOnsets=[];
 cellAreas = {};
-for intArea=1:numel(cellDatasetNames2)
-vecUseOnsets = cellOnset3{intArea};
+intC=0;
+cellAreaPlot={};
+for intArea=vecRunSubset
+	intC=intC+1;
+	cellAreaPlot{intC} = cellDatasetNames2{intArea};
+	
+	vecUseOnsets = cellOnset2{intArea};
 	vecUseOnsets(vecUseOnsets>=0.5) = [];
 	
-vecAllOnsets((end+1):(end+numel(vecUseOnsets))) = vecUseOnsets;
-cellAreas((end+1):(end+numel(vecUseOnsets))) = cellfill(cellDatasetNames2{intArea},[1 numel(vecUseOnsets)]);
-errorbar(intArea,1000*cellfun(@mean,cellOnset3(intArea)),1000*cellfun(@std,cellOnset3(intArea)),'x','Color',matC(intArea,:))
+	vecAllOnsets((end+1):(end+numel(vecUseOnsets))) = vecUseOnsets;
+	cellAreas((end+1):(end+numel(vecUseOnsets))) = cellfill(cellDatasetNames2{intArea},[1 numel(vecUseOnsets)]);
+	errorbar(intC,1000*mean(vecUseOnsets),1000*std(vecUseOnsets),'x','Color',matC(intArea,:))
+	
 end
 
-set(gca,'xtick',1:numel(cellDatasetNames2),'xticklabel',cellDatasetNames2);
-xlim([0 numel(cellDatasetNames2)+1]);
-ylim([0 120])
+set(gca,'xtick',1:numel(vecRunSubset),'xticklabel',cellAreaPlot);
+xlim([0 numel(vecRunSubset)+1]);
+%ylim([0 120])
+ylabel('Onset latency (ms)');
+fixfig
+
+
+subplot(2,2,4);
+hold on
+vecAllOnsets=[];
+cellAreas = {};
+intC=0;
+cellAreaPlot={};
+for intArea=vecRunSubset
+	intC=intC+1;
+	cellAreaPlot{intC} = cellDatasetNames2{intArea};
+	
+	vecUseOnsets = cellOnset2{intArea};
+	vecUseOnsets(vecUseOnsets>=0.5) = [];
+	
+	vecAllOnsets((end+1):(end+numel(vecUseOnsets))) = vecUseOnsets;
+	cellAreas((end+1):(end+numel(vecUseOnsets))) = cellfill(cellDatasetNames2{intArea},[1 numel(vecUseOnsets)]);
+	bplot(vecUseOnsets*1000,intC);
+	
+end
+
+set(gca,'xtick',1:numel(vecRunSubset),'xticklabel',cellAreaPlot);
+xlim([0 numel(vecRunSubset)+1]);
+%ylim([0 120])
 ylabel('Onset latency (ms)');
 fixfig
 maxfig;
-
 return
 %% save
 drawnow;

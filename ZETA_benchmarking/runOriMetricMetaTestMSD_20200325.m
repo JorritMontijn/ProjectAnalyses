@@ -24,7 +24,7 @@ cellRunRand = {...
 
 %parameters to run
 intRunRandType = 2; %1=normal, 2=rand
-intRunStimType = 3; %1 for non-NPX, 2=DG, 3=NM
+intRunStimType = 2; %1 for non-NPX, 2=DG, 3=NM
 intRunArea = 8; %area, 1-8; 7+ is NPX
 
 

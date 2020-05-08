@@ -33,15 +33,15 @@ cellUniqueAreas = {...
 
 strDataMasterPath = 'D:\Data\Processed\ePhys\';
 strDataTargetPath = 'F:\Data\Results\ZETA\Data\';
-strFigPath = 'F:\Data\Results\ZETA\Examples\';
-intMakePlots =4; %0=none, 1=normal plot, 2=including raster
+strFigPath = 'F:\Data\Results\ZETA\NatMovs\';
+intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = [1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = [7:16];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
-vecRunStim = 2;%2:3;
+vecRunStim = 3;%2:3;
 cellRepStr = {...
 	'RunDriftingGratings','-DG';...
 	'RunNaturalMovie','-NM';...
@@ -138,55 +138,10 @@ if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
 	cellRecIdx = {sAggStim.Rec};
 	fprintf('Found %d cells from %d recordings in "%s" [%s]\n',intNeurons,numel(cellRecIdx),strRunType,getTime);
 	
-elseif contains(strRunType,'V1') || contains(strRunType,'SC')
-	%% find data
-	strDataSourcePath = [strDataMasterPath 'DriftingGratings\'];
-	sFiles = dir([strDataSourcePath '*' strArea '_*.mat']);
-	cellFiles = {sFiles(:).name}';
-
-	%% go through files
-	sAggRec = struct;
-	sAggNeuron = struct;
-	for intFile=1:numel(cellFiles)
-		%% load
-		sLoad = load([strDataSourcePath cellFiles{intFile}]);
-		sNeuron = sLoad.sNeuron;
-		sRecording = sLoad.sRecording;
-
-		%% aggregate data
-		if intFile == 1
-			sAggRec= sRecording;
-			sAggNeuron = sNeuron;
-		else
-			sAggRec(end+1) = sRecording;
-			sAggNeuron((end+1):(end+numel(sNeuron))) = sNeuron;
-		end
-	end
-	intNeurons = numel(sAggNeuron);
-	cellRecIdx = {sAggRec.RecIdx};
-elseif contains(strRunType,'Retina')
-	%% find data
-	strDataSourcePath = strDataMasterPath;
-	sFiles = dir([strDataSourcePath '*' strArea '_*.mat']);
-	cellFiles = {sFiles(:).name}';
-	sLoad = load([strDataSourcePath cellFiles{1}]);
-	cellRetData = sLoad.LightFlash_For_J;
-	intNeurons = size(cellRetData,1)-2;
-elseif contains(strRunType,'Poisson')
-	intNeurons = 100;
 elseif contains(strRunType,'CaNM')
 	%% find data
 	strDataSourcePath = 'D:\Data\Processed\imagingGCaMP\';
 	sFiles = dir([strDataSourcePath '20150511xyt02_ses.mat']);
-	cellFiles = {sFiles(:).name}';
-	sLoad = load([strDataSourcePath cellFiles{1}]);
-	ses = sLoad.ses;
-	intNeurons = numel(ses.neuron);
-	vecOn = ses.structStim.FrameOn;
-	cellData = {ses.neuron(:).dFoF};
-elseif contains(strRunType,'CaDG')
-	strDataSourcePath = 'D:\Data\Processed\imagingGCaMP\';
-	sFiles = dir([strDataSourcePath '20150511xyt01_ses.mat']);
 	cellFiles = {sFiles(:).name}';
 	sLoad = load([strDataSourcePath cellFiles{1}]);
 	ses = sLoad.ses;
@@ -233,7 +188,7 @@ for intResampleIdx = 1:numel(vecResamples)
 			strMouse = sThisNeuron.Mouse;
 			strBlock = '';
 			strArea = strName;
-			strDate = sThisNeuron.Date;
+			strDate = sThisNeuron.Exp;
 			intSU = sThisNeuron.Cluster;
 			intClust = sThisNeuron.IdxClust;
 
@@ -241,70 +196,17 @@ for intResampleIdx = 1:numel(vecResamples)
 			sThisRec = sAggStim(strcmpi(strRecIdx,cellRecIdx));
 			vecStimOnTime = [];
 			vecStimOffTime = [];
+			vecFrameRate = [];
 			for intRec=1:numel(sThisRec.cellStim)
 				vecStimOnTime = cat(2,vecStimOnTime,sThisRec.cellStim{intRec}.structEP.vecStimOnTime);
 				vecStimOffTime = cat(2,vecStimOffTime,sThisRec.cellStim{intRec}.structEP.vecStimOffTime);
+				vecFrameRate = cat(2,vecFrameRate,sThisRec.cellStim{intRec}.structEP.FrameRate);
 			end
 			
 			vecTrialStarts = [];
 			vecTrialStarts(:,1) = vecStimOnTime;
 			vecTrialStarts(:,2) = vecStimOffTime;
-		elseif contains(strRunType,'V1') || contains(strRunType,'SC')
-			%% get neuronal data
-			sThisNeuron = sAggNeuron(intNeuron);
-			vecSpikeTimes = sThisNeuron.SpikeTimes;
-			strRecIdx = sThisNeuron.RecIdx;
-			strMouse = sThisNeuron.Mouse;
-			strBlock = sThisNeuron.Block;
-			strArea = sThisNeuron.Area;
-			strDate = sThisNeuron.Date;
-			intSU = sThisNeuron.IdxSU;
-			intClust = sThisNeuron.IdxClust;
-
-			%% get matching recording data
-			sThisRec = sAggRec(strcmpi(strRecIdx,cellRecIdx));
-			vecStimOnTime = sThisRec.vecStimOnTime;
-			vecStimOffTime = sThisRec.vecStimOffTime;
-			vecStimOriDegrees = sThisRec.vecStimOriDegrees;
-			vecStimOriRads = deg2rad(vecStimOriDegrees);
-			vecEyeTimestamps = sThisRec.vecEyeTimestamps;
-			matEyeData = sThisRec.matEyeData;
-			vecTrialStarts = [];
-			vecTrialStarts(:,1) = vecStimOnTime;
-			vecTrialStarts(:,2) = vecStimOffTime;
-		elseif contains(strRunType,'Retina')
-			%% generate
-			strCellID = cellRetData{intNeuron+2,1};
-			cellStr = strsplit(strCellID,'_');
-			cellStr2 = strsplit(cellStr{2},'-');
-			strRecIdx = cellStr2{1};
-			strMouse = 'Kamermans';
-			strBlock = cellStr2{1};
-			strDate = cellStr{1};
-			intSU = intNeuron;
-			intClust = str2double(cellStr2{2}(2));
-
-			%get data
-			cellData = cellRetData(3:end,2);
-			matN = cellData{intNeuron};
-
-			%get trial timing
-			intOn = find(cellRetData{3,3}(:,2)==1,1);
-			dblStimOn = cellRetData{3,3}(intOn,1);
-			intOff = find(cellRetData{3,3}(intOn:end,2)==0,1) + intOn - 1;
-			dblStimOff = cellRetData{3,3}(intOff,1);
-			dblTrialDur=cellRetData{3,3}(end-1,1);
-			%build vectors
-			vecAllTrialStarts = (matN(:,2)-1)*dblTrialDur;
-			vecTrialStartTime = ((1:max(matN(:,2)))-1)'*dblTrialDur;
-			vecStimOnTime = vecTrialStartTime + dblStimOn;
-			vecStimOffTime = vecTrialStartTime + dblStimOff;
-
-			%put in output
-			vecSpikeTimes = matN(:,1) + vecAllTrialStarts;
-			vecTrialStarts(:,1) = vecStimOnTime;
-			vecTrialStarts(:,2) = vecStimOffTime;
-		elseif contains(strRunType,'CaNM') || contains(strRunType,'CaDG')
+		elseif contains(strRunType,'CaNM')
 			%% generate
 			strRecIdx = ses.session;
 			strMouse = getFlankedBy(ses.experiment,'_','.mat','last');
@@ -328,27 +230,6 @@ for intResampleIdx = 1:numel(vecResamples)
 			vecTraceAct = vecdFoF;
 			vecTrialStarts(:,1) = vecStimOnTime;
 			vecTrialStarts(:,2) = vecStimOffTime;
-		elseif contains(strRunType,'Poisson')
-			%% generate
-			strRecIdx = 'x';
-			strMouse = 'Artificial';
-			strBlock = '1';
-			strDate = getDate();
-			intSU = intNeuron;
-			intClust = intNeuron;
-
-			%set parameters
-			dblBaseRate = exprnd(5);
-			dblPrefRate = dblBaseRate+exprnd(20);
-			dblKappa = rand(1)*5+5;
-			vecTrialAngles=repmat([0:45:360],[1 20]);
-			dblTrialDur=2;
-			vecStimOnTime = dblTrialDur*(1:numel(vecTrialAngles))';
-			vecStimOffTime = vecStimOnTime + 1;
-
-			vecTrialStarts(:,1) = vecStimOnTime;
-			vecTrialStarts(:,2) = vecStimOffTime;
-			[vecSpikeTimes,dblPrefOri] = getGeneratedSpikingData(vecTrialAngles,vecTrialStarts,dblBaseRate,dblPrefRate,dblKappa,true);
 		end
 
 		%% get visual responsiveness
@@ -402,13 +283,30 @@ for intResampleIdx = 1:numel(vecResamples)
 			dblPeakWidth = sRate.dblPeakWidth;
 		end 
 		
+		%% get bin-wise approach
+		%get data
+		dblFrameDur = 1/mean(vecFrameRate);
+		dblStimDur = median(diff(vecStimOnTime));
+		vecBinEdges = 0:dblFrameDur:20;
+		vecBinCenters = vecBinEdges(2:end)-dblFrameDur/2;
+		intBins = numel(vecBinCenters);
+		intTrials = numel(vecStimOnTime);
+		matResp = nan(intTrials,intBins);
+		for intTrial=1:intTrials
+			matResp(intTrial,:) = histcounts(vecSpikeTimes,vecBinEdges+vecStimOnTime(intTrial));
+		end
+		
+		%test
+		[dblAnovaP,tbl,stats] = anova1(matResp,[],'off');
+		
+		%% save output
 		% assign data
 		dblMeanD = sZETA.dblMeanD;
 		vecNumSpikes(intNeuron) = intSpikeNum;
 		vecZeta(intNeuron) = dblZeta;
 		vecP(intNeuron) = sZETA.dblP;
-		vecHzD(intNeuron) = dblMeanD;
-		vecHzP(intNeuron) = sZETA.dblMeanP;
+		vecHzD(intNeuron) = 0;
+		vecHzP(intNeuron) = dblAnovaP;
 		vecPeakT(intNeuron) = dblPeakTime;
 		vecPeakW(intNeuron) = dblPeakWidth;
 		vecOnset(intNeuron) = dblOnset;
@@ -427,10 +325,10 @@ for intResampleIdx = 1:numel(vecResamples)
 			vecHandles = get(gcf,'children');
 			ptrFirstSubplot = vecHandles(find(contains(get(vecHandles,'type'),'axes'),1,'last'));
 			axes(ptrFirstSubplot);
-			title(sprintf('%s-N%d, %s-%s,U%d/C%d',strArea,intNeuron,strDate,strBlock,intSU,intClust));
+			title(sprintf('%s-N%d, %s-%s,U%d/C%d,p=%.3e',strArea,intNeuron,strDate,strBlock,intSU,intClust,dblAnovaP));
 			drawnow;
 
-			strFileName = sprintf('%s%s-%sSU%dC%d',strArea,strDate,strBlock,intSU,intClust);
+			strFileName = sprintf('NatMov%s%s-N%d%sSU%dC%d',strArea,strDate,intNeuron,strBlock,intSU,intClust);
 			export_fig([strFigPath strFileName 'Zeta' strArea 'Resamp' num2str(intResampleNum) '.tif']);
 			%print(gcf, '-dpdf', [strFigPath strFileName 'Zeta' strRunType 'Resamp' num2str(intResampleNum) '.pdf']);
 			export_fig([strFigPath strFileName 'Zeta_EF_' strArea 'Resamp' num2str(intResampleNum) '.pdf']);
@@ -446,7 +344,7 @@ for intResampleIdx = 1:numel(vecResamples)
 	%cellZeta = cell(1,intNeurons);
 	%cellArea = cell(1,intNeurons);
 	if boolSave
-		save([strDataTargetPath 'ZetaDataMSD' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
+		save([strDataTargetPath 'ZetaDataNatMov' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
 			'vecOnset','vecPeakT','vecPeakW','vecNumSpikes','vecZeta','vecP','vecHzD','vecHzP','cellD','cellInterpT','cellArea','cellDeriv','cellPeakT','cellPeakI');
 	end
 end

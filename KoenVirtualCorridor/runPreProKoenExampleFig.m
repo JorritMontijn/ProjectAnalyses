@@ -55,7 +55,7 @@ matSoma_dFoF = nan(size(matSomaF));
 matNp_dFoF = nan(size(matSomaF));
 %% recalc dfof
 fprintf('Recalculating dF/F0 for %d cells [%s]\n',intNeurons,getTime);
-parfor intNeuron=1:intNeurons
+for intNeuron=6%1:intNeurons
 	%soma
 	matSoma_dFoF(:,intNeuron) = calcdFoF(matSomaF(:,intNeuron), dblSamplingFreq);
 	
@@ -69,13 +69,46 @@ mat_dFoF = matSoma_dFoF - dblNpFactor*matNp_dFoF;
 %mat_dFoF = mat_dFoF - (mean(mat_dFoF,1) - min(mat_dFoF,[],1))/2;
 mat_dFoF = mat_dFoF - sum(mat_dFoF.*(mat_dFoF<0),1)./intFrames;
 
-vec_dFoF = mat_dFoF(:,7);
+vec_dFoF = mat_dFoF(:,intNeuron);
 
+vecStart = sLoad2.info.StimTimes;
+vecFrameTimes= sLoad2.info.Frametimes;
+dblDur = min(diff(vecStart));
+intFramesPerTrial = floor(dblDur*dblSamplingFreq);
+intTrials = numel(vecStart);
+matResp = nan(intFramesPerTrial,intTrials-1);
+for intTrial=1:(intTrials-1)
+	intStart = find(vecFrameTimes>vecStart(intTrial),1);
+	matResp(:,intTrial) = vec_dFoF(intStart:(intStart+intFramesPerTrial-1));
+end
+
+%% get mismatch trials and plot
+vecT = (1:intFramesPerTrial)/dblSamplingFreq;
+indMismatchLoc = sLoad2.info.Stim.log.stimlog(1:(intTrials-1),5)>0;
+subplot(10,1,1)
+imagesc(vecT,1:sum(indMismatchLoc),matResp(:,indMismatchLoc)',[0 1.4])
+
+axis xy
+subplot(10,1,[2 3 4 5 6 7 8 9 10])
+imagesc(vecT,1:sum(~indMismatchLoc),matResp(:,~indMismatchLoc)',[0 1.4])
+axis xy
+
+if 0
+		%% save
+		strTargetDir = 'F:\Data\Results\ZETA\';
+		strFigName = sprintf('Example_dFof');
+		fprintf('Saving figures [%s] ... \n',getTime)
+		export_fig([strTargetDir strFigName '.tif']);
+		export_fig([strTargetDir strFigName '.pdf']);
+		fprintf('\bDone! [%s]\n',getTime);
+		
+	end
+return
 %% detect spikes
 fprintf('Running spike detection on %d cells [%s]\n',intNeurons,getTime)
 %parameters
-dblSpikeTau = 0.7; %0.7
-dblThresholdFactor = 0.25; %0.25
+dblSpikeTau = 0.7;
+dblThresholdFactor = 0.25;
 intBlockSize = 4133;
 
 %pre-allocate
@@ -88,7 +121,7 @@ cellSpikeTimes = cell(1,intNeurons);
 %detect spikes
 vecT = (1:intFrames)/dblSamplingFreq;
 dblTotDur = vecT(end);
-parfor intNeuron=1:intNeurons
+for intNeuron=6%=1:intNeurons
 	%soma
 	vec_dFoF = mat_dFoF(:,intNeuron)';
 	[vecFramesAP, vecNumberAP, vecSpikes, vecExpFit, vecSpikeTimes] = doDetectSpikes(vec_dFoF,dblSamplingFreq,dblSpikeTau,intBlockSize,dblThresholdFactor);
@@ -99,7 +132,7 @@ parfor intNeuron=1:intNeurons
 	cellSpikeTimes{intNeuron} = vecSpikeTimes;
 	
 	%%{
-	if 0
+	if 1
 		%% plot
 	clf;
 	subplot(2,3,[1 2 4 5])
@@ -146,7 +179,7 @@ end
 
 %% save data
 sInfo = sLoad2.info;
-strFileOut = [strDataPath 'DelierPreProSpikes2.mat'];
+strFileOut = [strDataPath 'DelierPreProSpikes.mat'];
 fprintf('Saving data to "%s" [%s]   ...   \n',strFileOut,getTime);
 save(strFileOut,...
 	'sInfo','cellSpikeTimes','mat_dFoF','matSoma_dFoF','matNp_dFoF','matExpFit','matSpikes','cellNumberAP','cellFramesAP',...

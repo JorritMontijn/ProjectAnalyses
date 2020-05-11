@@ -32,7 +32,7 @@ cellUniqueAreas = {...
 
 
 strDataMasterPath = 'D:\Data\Processed\ePhys\';
-strDataTargetPath = 'F:\Data\Results\ZETA\Data\';
+strDataTargetPath = 'F:\Data\Results\ZETA\NatMovs\';
 strFigPath = 'F:\Data\Results\ZETA\NatMovs\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand

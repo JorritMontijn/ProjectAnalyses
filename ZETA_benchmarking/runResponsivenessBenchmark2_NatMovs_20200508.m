@@ -32,13 +32,13 @@ cellUniqueAreas = {...
 
 
 strDataMasterPath = 'D:\Data\Processed\ePhys\';
-strDataTargetPath = 'F:\Data\Results\ZETA\NatMovs\';
+strDataTargetPath = 'F:\Data\Processed\ZETA\NatMovs\';
 strFigPath = 'F:\Data\Results\ZETA\NatMovs\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
-vecResamples = 100;%10:10:90;%[10:10:100];
+vecBinDurs = sort([(2.^(-9:9))*(1/60)]);
 vecRunAreas = [7:16];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 3;%2:3;
@@ -75,7 +75,7 @@ end
 for intRunStim=vecUseRunStim
 	for intRandType=vecRandTypes
 		%reset vars
-		clearvars -except vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
+		clearvars -except vecBinDurs vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
 		strArea = cellUniqueAreas{intArea};
 		strRunStim = cellRunStim{intRunStim};
 
@@ -152,7 +152,6 @@ for intRunStim=vecUseRunStim
 
 
 		%% pre-allocate output variables
-		vecBinDurs = 0.001:0.001:0.1;
 		intBinNum = numel(vecBinDurs);
 		vecNumSpikes = nan(1,intNeurons);
 		matBinAnova = nan(intBinNum,intNeurons);
@@ -237,8 +236,6 @@ for intRunStim=vecUseRunStim
 
 			%% get bin-wise approach
 			%get data
-			vecBinDurs = 0.001:0.001:0.1;
-			intBinNum = numel(vecBinDurs);
 			for intBinIdx=1:intBinNum
 
 				dblFrameDur = vecBinDurs(intBinIdx);
@@ -249,7 +246,7 @@ for intRunStim=vecUseRunStim
 				intTrials = numel(vecStimOnTime);
 				matResp = nan(intTrials,intBins);
 				for intTrial=1:intTrials
-					matResp(intTrial,:) = histcounts(vecSpikeTimes,vecBinEdges+vecStimOnTime(intTrial));
+					matResp(intTrial,:) = histcounts(vecSpikeTimes,vecBinEdges+matEventTimes(intTrial,1));
 				end
 
 				%test

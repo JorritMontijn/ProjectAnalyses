@@ -68,6 +68,8 @@ matZeta =[];
 matNumCells = [];
 matSignifZ = [];
 matSignifHz = [];
+matBinsAnovaFracP = [];
+matBinsAnovaFracP_corr = [];
 intIdx = 0;
 for intArea=7:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
@@ -88,17 +90,22 @@ for intArea=7:numel(cellUniqueAreas)
 		
 		%% load data
 		strRunType = [strArea strRand strStim];
-		sDir=dir([strPath 'ZetaDataNatMov' strRunType 'Resamp100*']);
+		sDir=dir([strPath 'ZetaData*' strRunType '*']);
 		intFiles=numel(sDir);
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;
 			intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
 			sLoad=load([strPath strFile]);
-			vecZeta = abs(sLoad.vecZeta);
-			vecZP=1-(normcdf(abs(vecZeta))-normcdf(-abs(vecZeta)));
-			matNumCells(intIdx,intRandType) = numel(vecZP);
-			matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
-			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
+			if isfield(sLoad,'vecZeta')
+				vecZP=sLoad.vecP;
+				matNumCells(intIdx,intRandType) = numel(vecZP);
+				matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
+				matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
+			else
+				cellBinsAnovaP{intIdx,intRandType} = sLoad.matBinAnova;
+				matBinsAnovaFracP(intIdx,intRandType,:) = sum(sLoad.matBinAnova<0.05,2);
+				matBinsAnovaFracP_corr(intIdx,intRandType,:) = sum(sLoad.matBinAnova<(0.05/size(sLoad.matBinAnova,1)),2);
+			end
 		end
 	end
 	end
@@ -108,6 +115,8 @@ indRem = any(matNumCells < 20,2);
 matSignifZ(indRem,:) = [];
 matNumCells(indRem,:) = [];
 matSignifHz(indRem,:) = [];
+matBinsAnovaFracP(indRem,:,:) = [];
+matBinsAnovaFracP_corr(indRem,:,:) = [];
 cellDatasetNames(indRem) = [];
 
 [vecP_ZI,matCI_ZI] = binofit(matSignifZ(:,1),matNumCells(:,1),0.25);
@@ -166,3 +175,49 @@ drawnow;
 export_fig(sprintf('%sMetaSummaryFig.tif',strFigPath));
 export_fig(sprintf('%sMetaSummaryFigEF.pdf',strFigPath));
 print(gcf,'-dpdf', sprintf('%sMetaSummaryFig.pdf',strFigPath));
+
+%% make plot
+matBinclude = bsxfun(@rdivide,matBinsAnovaFracP,matNumCells);
+matBinclude_corr = bsxfun(@rdivide,matBinsAnovaFracP_corr,matNumCells);
+
+matBinTP = squeeze(matBinclude(:,1,:));
+matBinFP = squeeze(matBinclude(:,2,:));
+matBinPrecision = matBinTP;% ./ (matBinTP + matBinFP); 
+
+matBinPrecision_corr = squeeze(matBinclude_corr(:,1,:));
+
+vecZTP = vecP_ZI;
+vecZFP = vecP_ZFA;
+vecZPrecision = vecZTP;% ./ (vecZTP + vecZFP); 
+
+vecBinMean = mean(matBinPrecision);
+vecBinSEM = std(matBinPrecision)./sqrt(size(matBinNorm,1));
+
+
+[h,vecP]=ttest2(matBinPrecision,repmat(vecZPrecision,[1 size(matBinPrecision,2)]))
+
+vecBinMean_corr = mean(matBinPrecision_corr);
+vecBinSEM_corr = std(matBinPrecision_corr)./sqrt(size(matBinNorm,1));
+
+clf
+scatter(1/60,0.6,'og')
+hold on
+errorbar(vecBinDurs,vecBinMean,vecBinSEM,'kx')
+errorbar([vecBinDurs(1) vecBinDurs(end)],mean(vecZPrecision)*[1 1],(std(vecZPrecision)/sqrt(size(matBinNorm,1)))*[1 1],'bx-')
+errorbar(vecBinDurs,vecBinMean_corr,vecBinSEM_corr,'x','Color',[0.5 0.5 0.5])
+hold off
+set(gca,'xscale','log')
+
+
+%%
+vecMean = mean(squeeze(matBinNorm(:,1,:)));
+vecSEM = std(squeeze(matBinNorm(:,1,:)));%./sqrt(size(matBinNorm,1));
+
+vecBinDurs = (2.^(0:13))*0.001;
+[h,p]=ttest(squeeze(matBinNorm(:,1,:)),1)
+
+errorbar(vecBinDurs,vecMean,vecSEM)
+set(gca,'xscale','log')
+hold on
+plot(get(gca,'xlim'),[1 1],'k--')
+hold off

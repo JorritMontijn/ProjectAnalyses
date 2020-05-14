@@ -75,7 +75,7 @@ end
 for intRunStim=vecUseRunStim
 	for intRandType=vecRandTypes
 		%reset vars
-		clearvars -except vecBinDurs vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
+		clearvars -except strDataSourcePath vecBinDurs vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
 		strArea = cellUniqueAreas{intArea};
 		strRunStim = cellRunStim{intRunStim};
 
@@ -151,7 +151,7 @@ for intRunStim=vecUseRunStim
 		hTic=tic;
 
 		%% analyze
-		for intNeuron=[1:intNeurons]%31 [33 53]
+		for intNeuron=1%[1:intNeurons]%31 [33 53]
 			%% message
 			if toc(hTic) > 5
 				fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);

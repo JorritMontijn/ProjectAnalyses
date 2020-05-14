@@ -177,47 +177,83 @@ export_fig(sprintf('%sMetaSummaryFigEF.pdf',strFigPath));
 print(gcf,'-dpdf', sprintf('%sMetaSummaryFig.pdf',strFigPath));
 
 %% make plot
+vecBinDurs = sort([(2.^(-9:9))*(1/60)]);
+
 matBinclude = bsxfun(@rdivide,matBinsAnovaFracP,matNumCells);
 matBinclude_corr = bsxfun(@rdivide,matBinsAnovaFracP_corr,matNumCells);
 
 matBinTP = squeeze(matBinclude(:,1,:));
 matBinFP = squeeze(matBinclude(:,2,:));
-matBinPrecision = matBinTP;% ./ (matBinTP + matBinFP); 
+matBinInclusion = matBinTP;% ./ (matBinTP + matBinFP); 
 
-matBinPrecision_corr = squeeze(matBinclude_corr(:,1,:));
+matBinInclusion_corr = squeeze(matBinclude_corr(:,1,:));
 
 vecZTP = vecP_ZI;
 vecZFP = vecP_ZFA;
-vecZPrecision = vecZTP;% ./ (vecZTP + vecZFP); 
+vecZInclusion = vecZTP;% ./ (vecZTP + vecZFP); 
 
-vecBinMean = mean(matBinPrecision);
-vecBinSEM = std(matBinPrecision)./sqrt(size(matBinNorm,1));
+vecBinMean = mean(matBinInclusion);
+vecBinSEM = std(matBinInclusion)./sqrt(size(matBinInclusion,1));
 
 
-[h,vecP]=ttest2(matBinPrecision,repmat(vecZPrecision,[1 size(matBinPrecision,2)]))
+[h,vecP]=ttest(matBinInclusion,repmat(vecZInclusion,[1 size(matBinInclusion,2)]));
+[h,h2,vecP] = fdr_bh(vecP);
 
-vecBinMean_corr = mean(matBinPrecision_corr);
-vecBinSEM_corr = std(matBinPrecision_corr)./sqrt(size(matBinNorm,1));
+[h,vecP_corr]=ttest(matBinInclusion_corr,repmat(vecZInclusion,[1 size(matBinInclusion_corr,2)]));
+[h,h2,vecP_corr] = fdr_bh(vecP_corr);
 
-clf
+vecBinMean_corr = mean(matBinInclusion_corr);
+vecBinSEM_corr = std(matBinInclusion_corr)./sqrt(size(matBinInclusion,1));
+
+figure;
+subplot(2,2,1)
+scatter(1/60,0.6,'og')
+hold on
+errorbar(vecBinDurs,vecBinMean_corr,vecBinSEM_corr,'kx')
+errorbar([vecBinDurs(1) vecBinDurs(end)],mean(vecZInclusion)*[1 1],(std(vecZInclusion)/sqrt(size(matBinInclusion,1)))*[1 1],'bx-')
+hold off
+title('Bonferroni-corrected; blue=ZETA, black=binned ANOVA')
+set(gca,'xscale','log')
+xlabel('Bin size (s)')
+ylim([0 0.7]);
+ylabel('Inclusion rate')
+fixfig;
+
+subplot(2,2,2)
 scatter(1/60,0.6,'og')
 hold on
 errorbar(vecBinDurs,vecBinMean,vecBinSEM,'kx')
-errorbar([vecBinDurs(1) vecBinDurs(end)],mean(vecZPrecision)*[1 1],(std(vecZPrecision)/sqrt(size(matBinNorm,1)))*[1 1],'bx-')
-errorbar(vecBinDurs,vecBinMean_corr,vecBinSEM_corr,'x','Color',[0.5 0.5 0.5])
+errorbar([vecBinDurs(1) vecBinDurs(end)],mean(vecZInclusion)*[1 1],(std(vecZInclusion)/sqrt(size(matBinInclusion,1)))*[1 1],'bx-')
 hold off
+title('Uncorrected; blue=ZETA, black=binned ANOVA')
+set(gca,'xscale','log')
+xlabel('Bin size (s)')
+ylim([0 0.7]);
+ylabel('Inclusion rate')
+fixfig;
+
+subplot(2,2,3)
+hold on
+for intBin=1:numel(vecP_corr)
+	text(vecBinDurs(intBin),0.7,sprintf('%.3f',vecP_corr(intBin)),'rotation',45);
+text(vecBinDurs(intBin),0.3,sprintf('%.3e',vecP_corr(intBin)),'rotation',45);
+end
+hold off
+xlim([min(vecBinDurs) max(vecBinDurs)]);
 set(gca,'xscale','log')
 
+subplot(2,2,4)
+hold on
+for intBin=1:numel(vecP_corr)
+	text(vecBinDurs(intBin),0.7,sprintf('%.3f',vecP(intBin)),'rotation',45);
+text(vecBinDurs(intBin),0.3,sprintf('%.3e',vecP(intBin)),'rotation',45);
+end
+hold off
+xlim([min(vecBinDurs) max(vecBinDurs)]);
+set(gca,'xscale','log')
 
 %%
-vecMean = mean(squeeze(matBinNorm(:,1,:)));
-vecSEM = std(squeeze(matBinNorm(:,1,:)));%./sqrt(size(matBinNorm,1));
+export_fig([strFigPath 'NatMovSummary.tif']);
+export_fig([strFigPath 'NatMovSummary.pdf']);
 
-vecBinDurs = (2.^(0:13))*0.001;
-[h,p]=ttest(squeeze(matBinNorm(:,1,:)),1)
-
-errorbar(vecBinDurs,vecMean,vecSEM)
-set(gca,'xscale','log')
-hold on
-plot(get(gca,'xlim'),[1 1],'k--')
-hold off
+%% relative

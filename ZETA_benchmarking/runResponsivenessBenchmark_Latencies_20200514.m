@@ -31,9 +31,9 @@ cellUniqueAreas = {...
 	};
 
 
-strDataMasterPath = 'D:\Data\Processed\ePhys\';
-strDataTargetPath = 'F:\Data\Processed\ZETA\Latencies\';
-strFigPath = 'F:\Data\Results\ZETA\Latencies\';
+strDataSourcePath =  'D:\Data\Processed\Neuropixels\';
+strDataTargetPath = 'D:\Data\Processed\ZETA\Latencies\';
+strFigPath = 'D:\Data\Results\ZETA\Latencies\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
@@ -88,7 +88,6 @@ for intRunStim=vecUseRunStim
 		%% load data
 		if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
 			%% find data
-			strDataSourcePath = 'F:\Data\Processed\Neuropixels\';
 			sFiles = dir([strDataSourcePath '*.mat']);
 			cellFiles = {sFiles(:).name}';
 			strName = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));

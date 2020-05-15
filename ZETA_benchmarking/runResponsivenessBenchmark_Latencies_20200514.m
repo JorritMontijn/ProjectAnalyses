@@ -30,8 +30,8 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
-
-strDataSourcePath =  'D:\Data\Processed\Neuropixels\';
+strDisk = 'F';
+strDataSourcePath = 'D:\Data\Processed\Neuropixels\';
 strDataTargetPath = 'D:\Data\Processed\ZETA\Latencies\';
 strFigPath = 'D:\Data\Results\ZETA\Latencies\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster

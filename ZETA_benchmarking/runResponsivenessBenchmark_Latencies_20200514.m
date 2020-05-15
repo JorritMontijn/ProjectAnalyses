@@ -30,16 +30,16 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
-strDisk = 'F';
-strDataSourcePath = 'D:\Data\Processed\Neuropixels\';
-strDataTargetPath = 'D:\Data\Processed\ZETA\Latencies\';
-strFigPath = 'D:\Data\Results\ZETA\Latencies\';
+strDisk = 'F:';
+strDataSourcePath = [strDisk '\Data\Processed\Neuropixels\'];
+strDataTargetPath = [strDisk '\Data\Processed\ZETA\Latencies\'];
+strFigPath = [strDisk '\Data\Results\ZETA\Latencies\'];
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
-vecRandTypes = [1];%1=normal,2=rand
+vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecBinDurs = [(2.^(-10:0))*0.1];
-vecRunAreas = 8;%[7:16];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = [7:16];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -145,13 +145,14 @@ for intRunStim=vecUseRunStim
 		vecNumSpikes = nan(1,intNeurons);
 		matBinLatencies = nan(intBinNum,intNeurons);
 		vecZetaLatencies = nan(1,intNeurons);
+		vecSU = nan(1,intNeurons);
 		
 		%% message
 		fprintf('Processing %s, # of bins = %d [%s]\n',strRunType,intBinNum,getTime);
 		hTic=tic;
 
 		%% analyze
-		for intNeuron=1:20%[2 6 11 16]%[1:intNeurons]%31 [33 53]
+		for intNeuron=[1:intNeurons]%31 [33 53]
 			%% message
 			if toc(hTic) > 5
 				fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
@@ -203,14 +204,15 @@ for intRunStim=vecUseRunStim
 			%zeta
 			[dblZeta,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,100,intMakePlots,4,vecRestrictRange);
 			vecZetaLatencies(intNeuron) = vecLatencies(4);
+			vecSU(intNeuron) = intSU;
 			if intMakePlots > 0
 				strTit = sprintf('%s-N%dSU%d',strRunType,intNeuron,intSU);
 			title(subplot(2,3,2),strTit);
 			drawnow;
 			export_fig([strFigPath strTit '.tif']);
 			export_fig([strFigPath strTit '.pdf']);
-			boolSave = false;
-			continue;
+			%boolSave = false;
+			%continue;
 			end
 			%% get bin-wise approach
 			%get data

@@ -35,11 +35,11 @@ strDataMasterPath = 'D:\Data\Processed\ePhys\';
 strDataTargetPath = 'F:\Data\Processed\ZETA\Latencies\';
 strFigPath = 'F:\Data\Results\ZETA\Latencies\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
-vecRandTypes = [1 2];%1=normal,2=rand
+vecRandTypes = [1];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecBinDurs = [(2.^(-10:0))*0.1];
-vecRunAreas = [7:16];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 8;%[7:16];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -152,7 +152,7 @@ for intRunStim=vecUseRunStim
 		hTic=tic;
 
 		%% analyze
-		for intNeuron=[1:intNeurons]%31 [33 53]
+		for intNeuron=1:20%[2 6 11 16]%[1:intNeurons]%31 [33 53]
 			%% message
 			if toc(hTic) > 5
 				fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
@@ -204,7 +204,15 @@ for intRunStim=vecUseRunStim
 			%zeta
 			[dblZeta,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,100,intMakePlots,4,vecRestrictRange);
 			vecZetaLatencies(intNeuron) = vecLatencies(4);
-			
+			if intMakePlots > 0
+				strTit = sprintf('%s-N%dSU%d',strRunType,intNeuron,intSU);
+			title(subplot(2,3,2),strTit);
+			drawnow;
+			export_fig([strFigPath strTit '.tif']);
+			export_fig([strFigPath strTit '.pdf']);
+			boolSave = false;
+			continue;
+			end
 			%% get bin-wise approach
 			%get data
 			for intBinIdx=1:intBinNum
@@ -248,7 +256,7 @@ for intRunStim=vecUseRunStim
 		%cellZeta = cell(1,intNeurons);
 		%cellArea = cell(1,intNeurons);
 		if boolSave
-			save([strDataTargetPath 'ZetaDataBinsLatencies' strRunType strRunStim '.mat' ],...
+			save([strDataTargetPath 'ZetaDataBinsLatencies2' strRunType strRunStim '.mat' ],...
 				'vecBinDurs','matBinLatencies','vecZetaLatencies','vecNumSpikes');
 		end
 	end

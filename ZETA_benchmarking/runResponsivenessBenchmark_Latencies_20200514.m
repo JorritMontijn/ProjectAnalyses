@@ -75,7 +75,7 @@ for intArea=vecRunAreas
 	for intRunStim=vecUseRunStim
 		for intRandType=vecRandTypes
 			%reset vars
-			clearvars -except vecBinDurs vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
+			clearvars -except strDataSourcePath vecBinDurs vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
 			strArea = cellUniqueAreas{intArea};
 			strRunStim = cellRunStim{intRunStim};
 			

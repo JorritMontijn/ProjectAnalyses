@@ -31,9 +31,9 @@ cellUniqueAreas = {...
 	};
 
 
-strDataMasterPath = 'D:\Data\Processed\ePhys\';
-strDataTargetPath = 'F:\Data\Processed\ZETA\NatMovs\';
-strFigPath = 'F:\Data\Results\ZETA\NatMovs\';
+strDataSourcePath = 'D:\Data\Processed\Neuropixels\';
+strDataTargetPath = 'D:\Data\Processed\ZETA\NatMovs\';
+strFigPath = 'D:\Data\Results\ZETA\NatMovs\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
@@ -75,7 +75,7 @@ end
 for intRunStim=vecUseRunStim
 	for intRandType=vecRandTypes
 		%reset vars
-		clearvars -except vecBinDurs vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
+		clearvars -except strDataSourcePath vecBinDurs vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
 		strArea = cellUniqueAreas{intArea};
 		strRunStim = cellRunStim{intRunStim};
 
@@ -88,7 +88,6 @@ for intRunStim=vecUseRunStim
 		%% load data
 		if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
 			%% find data
-			strDataSourcePath = 'F:\Data\Processed\Neuropixels\';
 			sFiles = dir([strDataSourcePath '*.mat']);
 			cellFiles = {sFiles(:).name}';
 			strName = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));

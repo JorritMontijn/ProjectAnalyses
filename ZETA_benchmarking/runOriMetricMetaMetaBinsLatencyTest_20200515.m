@@ -1,7 +1,8 @@
 clear all;
 %close all;
-strPath = 'F:\Data\Processed\ZETA\Latencies\';
-strFigPath = 'F:\Data\Results\ZETA\Latencies\';
+strDisk = 'D';
+strPath = [strDisk ':\Data\Processed\ZETA\Latencies\'];
+strFigPath = [strDisk ':\Data\Results\ZETA\Latencies\'];
 cellUniqueAreas = {...
 	'V1',...Area 1
 	'SC',...Area 2

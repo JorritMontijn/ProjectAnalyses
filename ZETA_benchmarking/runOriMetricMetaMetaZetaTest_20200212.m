@@ -7,7 +7,7 @@ cellUniqueAreas = {...
 	'SC',...Area 2
 	'Poisson',...Area 3
 	'Retina',...Area 4
-	'CaNM',...Area 5
+	...%'CaNM',...Area 5
 	'CaDG',...Area 6
 	'lateral geniculate',...Area 7
 	'Primary visual',...Area 8
@@ -33,7 +33,7 @@ cellUniqueAreas = {...
 cellRunStim = {...
 	'',...Stim 1 
 	'RunDriftingGratings',...Stim 2 
-	'RunNaturalMovie'...Stim 3
+	%'RunNaturalMovie'...Stim 3
 	};
 cellRunRand = {...
 	'',...Rand 1 
@@ -74,7 +74,7 @@ for intArea=1:numel(cellUniqueAreas)
 	if intArea < 7
 		vecRunStims = 1;
 	else
-		vecRunStims = [2 3];
+		vecRunStims = 2:numel(cellRunStim);
 	end
 	for intStimType=vecRunStims
 		intIdx = intIdx + 1;
@@ -161,7 +161,7 @@ set(gca,'xtick',1:4,'xticklabel',{getGreek('Mu'),getGreek('Zeta'),['FA ' getGree
 ylabel('Fraction of significant cells')
 fixfig;
 maxfig()
-
+return
 drawnow;
 export_fig(sprintf('%sMetaSummaryFig.tif',strFigPath));
 export_fig(sprintf('%sMetaSummaryFigEF.pdf',strFigPath));

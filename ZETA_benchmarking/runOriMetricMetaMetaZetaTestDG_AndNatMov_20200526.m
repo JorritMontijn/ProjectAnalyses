@@ -1,7 +1,8 @@
 clear all;
 %close all;
-strPath = 'D:\Data\Processed\ZETA\NatMovs\';
-strFigPath = 'D:\Data\Results\ZETA\NatMovs\';
+strDataPath1 = 'D:\Data\Processed\ZETA\Latencies';
+strDataPath2 = 'D:\Data\Results\OriMetric\Data\';
+strFigPath = 'D:\Data\Results\OriMetric\';
 cellUniqueAreas = {...
 	'V1',...Area 1
 	'SC',...Area 2
@@ -68,15 +69,13 @@ matZeta =[];
 matNumCells = [];
 matSignifZ = [];
 matSignifHz = [];
-matBinsAnovaFracP = [];
-matBinsAnovaFracP_corr = [];
 intIdx = 0;
-for intArea=7:numel(cellUniqueAreas)
+for intArea=1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 7
 		vecRunStims = 1;
 	else
-		vecRunStims = [3];
+		vecRunStims = 2:numel(cellRunStim);
 	end
 	for intStimType=vecRunStims
 		intIdx = intIdx + 1;
@@ -90,22 +89,23 @@ for intArea=7:numel(cellUniqueAreas)
 		
 		%% load data
 		strRunType = [strArea strRand strStim];
-		sDir=dir([strPath 'ZetaDataBins*' strRunType '*']);
+		if strcmpi(strArea,'CaNM') || intStimType == 3
+			sDir=dir([strDataPath1 'ZetaDataMSD' strRunType 'Resamp100*']);
+			continue;
+		else
+			sDir=dir([strDataPath2 'ZetaDataMSD' strRunType 'Resamp100*']);
+		end
 		intFiles=numel(sDir);
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;
+			strPath = sDir(intFile).folder;
 			intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
-			sLoad=load([strPath strFile]);
-			if isfield(sLoad,'vecZeta')
-				vecZP=sLoad.vecP;
-				matNumCells(intIdx,intRandType) = numel(vecZP);
-				matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
-				matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
-			else
-				cellBinsAnovaP{intIdx,intRandType} = sLoad.matBinAnova;
-				matBinsAnovaFracP(intIdx,intRandType,:) = sum(sLoad.matBinAnova<0.05,2);
-				matBinsAnovaFracP_corr(intIdx,intRandType,:) = sum(sLoad.matBinAnova<(0.05/size(sLoad.matBinAnova,1)),2);
-			end
+			sLoad=load([strPath filesep strFile]);
+			vecZeta = abs(sLoad.vecZeta);
+			vecZP=1-(normcdf(abs(vecZeta))-normcdf(-abs(vecZeta)));
+			matNumCells(intIdx,intRandType) = numel(vecZP);
+			matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
+			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
 		end
 	end
 	end
@@ -115,8 +115,6 @@ indRem = any(matNumCells < 20,2);
 matSignifZ(indRem,:) = [];
 matNumCells(indRem,:) = [];
 matSignifHz(indRem,:) = [];
-matBinsAnovaFracP(indRem,:,:) = [];
-matBinsAnovaFracP_corr(indRem,:,:) = [];
 cellDatasetNames(indRem) = [];
 
 [vecP_ZI,matCI_ZI] = binofit(matSignifZ(:,1),matNumCells(:,1),0.25);
@@ -170,90 +168,8 @@ set(gca,'xtick',1:4,'xticklabel',{getGreek('Mu'),getGreek('Zeta'),['FA ' getGree
 ylabel('Fraction of significant cells')
 fixfig;
 maxfig()
-
+return
 drawnow;
 export_fig(sprintf('%sMetaSummaryFig.tif',strFigPath));
 export_fig(sprintf('%sMetaSummaryFigEF.pdf',strFigPath));
 print(gcf,'-dpdf', sprintf('%sMetaSummaryFig.pdf',strFigPath));
-
-%% make plot
-vecBinDurs = sort([(2.^(-9:9))*(1/60)]);
-
-matBinclude = bsxfun(@rdivide,matBinsAnovaFracP,matNumCells);
-matBinclude_corr = bsxfun(@rdivide,matBinsAnovaFracP_corr,matNumCells);
-
-matBinTP = squeeze(matBinclude(:,1,:));
-matBinFP = squeeze(matBinclude(:,2,:));
-matBinInclusion = matBinTP;% ./ (matBinTP + matBinFP); 
-
-matBinInclusion_corr = squeeze(matBinclude_corr(:,1,:));
-
-vecZTP = vecP_ZI;
-vecZFP = vecP_ZFA;
-vecZInclusion = vecZTP;% ./ (vecZTP + vecZFP); 
-
-vecBinMean = mean(matBinInclusion);
-vecBinSEM = std(matBinInclusion)./sqrt(size(matBinInclusion,1));
-
-
-[h,vecP]=ttest(matBinInclusion,repmat(vecZInclusion,[1 size(matBinInclusion,2)]));
-[h,h2,vecP] = fdr_bh(vecP);
-
-[h,vecP_corr]=ttest(matBinInclusion_corr,repmat(vecZInclusion,[1 size(matBinInclusion_corr,2)]));
-[h,h2,vecP_corr] = fdr_bh(vecP_corr);
-
-vecBinMean_corr = mean(matBinInclusion_corr);
-vecBinSEM_corr = std(matBinInclusion_corr)./sqrt(size(matBinInclusion,1));
-
-figure;
-subplot(2,2,1)
-scatter(1/60,0.6,'og')
-hold on
-errorbar(vecBinDurs,vecBinMean_corr,vecBinSEM_corr,'kx')
-errorbar([vecBinDurs(1) vecBinDurs(end)],mean(vecZInclusion)*[1 1],(std(vecZInclusion)/sqrt(size(matBinInclusion,1)))*[1 1],'bx-')
-hold off
-title('Bonferroni-corrected; blue=ZETA, black=binned ANOVA')
-set(gca,'xscale','log')
-xlabel('Bin size (s)')
-ylim([0 0.7]);
-ylabel('Inclusion rate')
-fixfig;
-
-subplot(2,2,2)
-scatter(1/60,0.6,'og')
-hold on
-errorbar(vecBinDurs,vecBinMean,vecBinSEM,'kx')
-errorbar([vecBinDurs(1) vecBinDurs(end)],mean(vecZInclusion)*[1 1],(std(vecZInclusion)/sqrt(size(matBinInclusion,1)))*[1 1],'bx-')
-hold off
-title('Uncorrected; blue=ZETA, black=binned ANOVA')
-set(gca,'xscale','log')
-xlabel('Bin size (s)')
-ylim([0 0.7]);
-ylabel('Inclusion rate')
-fixfig;
-
-subplot(2,2,3)
-hold on
-for intBin=1:numel(vecP_corr)
-	text(vecBinDurs(intBin),0.7,sprintf('%.3f',vecP_corr(intBin)),'rotation',45);
-text(vecBinDurs(intBin),0.3,sprintf('%.3e',vecP_corr(intBin)),'rotation',45);
-end
-hold off
-xlim([min(vecBinDurs) max(vecBinDurs)]);
-set(gca,'xscale','log')
-
-subplot(2,2,4)
-hold on
-for intBin=1:numel(vecP_corr)
-	text(vecBinDurs(intBin),0.7,sprintf('%.3f',vecP(intBin)),'rotation',45);
-text(vecBinDurs(intBin),0.3,sprintf('%.3e',vecP(intBin)),'rotation',45);
-end
-hold off
-xlim([min(vecBinDurs) max(vecBinDurs)]);
-set(gca,'xscale','log')
-
-%%
-export_fig([strFigPath 'NatMovSummary.tif']);
-export_fig([strFigPath 'NatMovSummary.pdf']);
-
-%% relative

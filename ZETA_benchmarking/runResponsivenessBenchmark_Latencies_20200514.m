@@ -30,7 +30,7 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
-strDisk = 'D:';
+strDisk = 'F:';
 strDataSourcePath = [strDisk '\Data\Processed\Neuropixels\'];
 strDataTargetPath = [strDisk '\Data\Processed\ZETA\Latencies\'];
 strFigPath = [strDisk '\Data\Results\ZETA\Latencies\'];
@@ -39,7 +39,7 @@ vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecBinDurs = [(2.^(-10:0))*0.1];
-vecRunAreas = [7:16];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 8;%[7:16];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -152,7 +152,7 @@ for intArea=vecRunAreas
 			hTic=tic;
 			
 			%% analyze
-			for intNeuron=[1:intNeurons]%31 [33 53]
+			for intNeuron=[6 9]%[1:intNeurons]%31 [33 53]
 				%% message
 				if toc(hTic) > 5
 					fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);

@@ -1,6 +1,6 @@
 clear all;
 %close all;
-strDisk = 'D';
+strDisk = 'F';
 strPath = [strDisk ':\Data\Processed\ZETA\Latencies\'];
 strFigPath = [strDisk ':\Data\Results\ZETA\Latencies\'];
 cellUniqueAreas = {...
@@ -60,9 +60,12 @@ cellRepStr = {...
 
 
 %% prep
+vecDatasetIdx = [];
 intRandIdx=1; %1=normal,2=rand
 intIdx = 0;
-for intArea=8:numel(cellUniqueAreas)
+matAggBinLatencies = [];
+vecAggZetaLatencies = [];
+for intArea=8%7:numel(cellUniqueAreas)
 	if intArea==3 || intArea==4 || intArea==5 || intArea==6,continue;end
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 7
@@ -78,27 +81,80 @@ for intArea=8:numel(cellUniqueAreas)
 	strRand = cellRunRand{intRandIdx};
 	strName = replace(strArea,cellRepStr(:,1),cellRepStr(:,2));
 	cellDatasetNames{intIdx} = strName;
+	vecDatasetIdx(intIdx) = intArea;
 	
 	%% load data
 	strRunType = [strArea strRand];
-	sDir=dir([strPath 'ZetaDataBinsLatencies2' strRunType '*']);
+	sDir=dir([strPath 'ZetaDataBinsLatencies2' strRunType 'Run*']);
 	if isempty(sDir),continue;end
 	strFile = sDir(1).name;
 	sLoad=load([strPath strFile]);
 	
-	%%
-	for intNeuron=1:numel(sLoad.vecZetaLatencies)
-		clf;
+	%add data
+	matAggBinLatencies = cat(2,matAggBinLatencies,sLoad.matBinLatencies);
+	vecAggZetaLatencies = cat(2,vecAggZetaLatencies,sLoad.vecZetaLatencies);
+	
+	%% plot two example neurons
+	if 0
+	for intNeuron=[6 9]%1:numel(sLoad.vecZetaLatencies)
+		close;
+		figure;
 		hold on
 		scatter(sLoad.vecBinDurs,sLoad.matBinLatencies(:,intNeuron),'k');
 		plot(sLoad.vecBinDurs,ones(size(sLoad.vecBinDurs))*sLoad.vecZetaLatencies(intNeuron),'b');
 		hold off
+		ylim([0 0.1])
+		ylabel('Onset time (s)');
+		xlabel('Bin size (s)');
 		title(sprintf('%s, N%d, Onset=%.3f',strArea,intNeuron,sLoad.vecZetaLatencies(intNeuron)))
 		set(gca,'xscale','log')
-		pause
+		fixfig;
+		export_fig(sprintf('%sBinsPlot_N%d.tif',strFigPath,intNeuron));
+		export_fig(sprintf('%sBinsPlot_N%d.pdf',strFigPath,intNeuron));
 	end
-	return
+	end
 end
+%% per bin: MSE of difference between ZETA and bin-based onset latency
+clf;
+%remove nans
+vecRem = any(isnan(matAggBinLatencies),1) | any(isnan(vecAggZetaLatencies),1);
+matAggBinLatencies(:,vecRem) = [];
+vecAggZetaLatencies(vecRem) = [];
+
+matSE = abs(matAggBinLatencies - vecAggZetaLatencies);
+vecMSE = median(matSE,2);
+vecSd = std(matSE,[],2);
+dblPercError = 0.5-((0.5-normcdf(-1))/sqrt(size(matSE,2)));
+dblPercError=normcdf(-1);
+matCI = getCI(matSE,2,dblPercError,1);
+%bplot(matSE')%,'box',50,'whisker',normcdf(-0.0.05)*100)
+
+
+vecLowVar = vecMSE-matCI(:,1);
+vecHighVar = matCI(:,2)-vecMSE;
+
+vecLowVar = sqrt(pi/2)*(vecLowVar./sqrt(size(matSE,2)));
+vecHighVar = sqrt(pi/2)*(vecHighVar./sqrt(size(matSE,2)));
+
+%vecLowVar = sqrt(pi/2)*(vecSd./sqrt(size(matSE,2)));
+%vecHighVar = sqrt(pi/2)*(vecSd./sqrt(size(matSE,2)));
+
+%plot(sLoad.vecBinDurs,vecMSE)
+errorbar(sLoad.vecBinDurs,vecMSE,vecLowVar,vecHighVar)
+set(gca,'xscale','log')
+%set(gca,'yscale','log')
+ylabel(sprintf('L1-error (Absolute Deviations) (s)'));
+xlabel('Bin size (s)');
+title(sprintf('n=%d,ZETA vs bins, sqrt(pi/2)*(CI(m +/- sigma)/sqrt(n))',size(matSE,2)))
+fixfig;
+return
+%% save
+drawnow;
+export_fig(sprintf('%sMetaMetaOnsetErrors_Areas%d-%d.tif',strFigPath,min(vecDatasetIdx),max(vecDatasetIdx)));
+export_fig(sprintf('%sMetaMetaOnsetErrors_Areas%d-%d.pdf',strFigPath,min(vecDatasetIdx),max(vecDatasetIdx)));
+%}
+return
+
 %% list
 %[6 9]
 %% prep data

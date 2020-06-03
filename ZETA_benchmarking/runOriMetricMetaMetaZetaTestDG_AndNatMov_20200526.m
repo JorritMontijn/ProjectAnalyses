@@ -1,6 +1,6 @@
 clear all;
 %close all;
-strDataPath1 = 'D:\Data\Processed\ZETA\Latencies';
+strDataPath1 = 'D:\Data\Processed\ZETA\NatMovs\';
 strDataPath2 = 'D:\Data\Results\OriMetric\Data\';
 strFigPath = 'D:\Data\Results\OriMetric\';
 cellUniqueAreas = {...
@@ -89,24 +89,55 @@ for intArea=1:numel(cellUniqueAreas)
 		
 		%% load data
 		strRunType = [strArea strRand strStim];
-		if strcmpi(strArea,'CaNM') || intStimType == 3
-			sDir=dir([strDataPath1 'ZetaDataMSD' strRunType 'Resamp100*']);
-			continue;
+		if strcmpi(strArea,'CaNM')
+			
+			
+		elseif intStimType == 3
+			%load anova
+			
+			sDir=dir([strDataPath1 'ZetaDataBinsNatMov' strRunType '*']);
+			
+			intFiles=numel(sDir);
+			for intFile=1:intFiles
+				strFile = sDir(intFile).name;
+				strPath = sDir(intFile).folder;
+				intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
+				sLoad=load([strPath filesep strFile]);
+				matSignifHz(intIdx,intRandType) = sum(sLoad.matBinAnova(10,:)<0.05);
+			end
+			
+			%load zeta
+			sDir=dir([strDataPath2 'ZetaDataMSD' strRunType 'Resamp100*']);
+			intFiles=numel(sDir);
+			for intFile=1:intFiles
+				strFile = sDir(intFile).name;
+				strPath = sDir(intFile).folder;
+				intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
+				sLoad=load([strPath filesep strFile]);
+				vecZeta = abs(sLoad.vecZeta);
+				vecZP=1-(normcdf(abs(vecZeta))-normcdf(-abs(vecZeta)));
+				matNumCells(intIdx,intRandType) = numel(vecZP);
+				matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
+			end
+		
 		else
 			sDir=dir([strDataPath2 'ZetaDataMSD' strRunType 'Resamp100*']);
+			%load data
+			intFiles=numel(sDir);
+			for intFile=1:intFiles
+				strFile = sDir(intFile).name;
+				strPath = sDir(intFile).folder;
+				intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
+				sLoad=load([strPath filesep strFile]);
+				vecZeta = abs(sLoad.vecZeta);
+				vecZP=1-(normcdf(abs(vecZeta))-normcdf(-abs(vecZeta)));
+				matNumCells(intIdx,intRandType) = numel(vecZP);
+				matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
+				matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
+			end
+			
 		end
-		intFiles=numel(sDir);
-		for intFile=1:intFiles
-			strFile = sDir(intFile).name;
-			strPath = sDir(intFile).folder;
-			intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
-			sLoad=load([strPath filesep strFile]);
-			vecZeta = abs(sLoad.vecZeta);
-			vecZP=1-(normcdf(abs(vecZeta))-normcdf(-abs(vecZeta)));
-			matNumCells(intIdx,intRandType) = numel(vecZP);
-			matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
-			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
-		end
+		
 	end
 	end
 end

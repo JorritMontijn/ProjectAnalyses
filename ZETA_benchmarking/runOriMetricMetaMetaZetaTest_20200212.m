@@ -153,7 +153,7 @@ subplot(4,6,24)
 plot(repmat([1 2],[intDataset 1])',[vecP_HzI vecP_ZI]','g')
 hold on
 plot(repmat([3 4],[intDataset 1])',[vecP_HzFA vecP_ZFA]','r')
-title(sprintf('Incl p=%.3f, FA p=%.3f',pI,pF));
+title(sprintf('Incl Z=%.3f,M=%.3f,p=%.3f; \nFA Z=%.3f,M=%.3f,p=%.3f',mean(vecP_ZI),mean(vecP_HzI),pI,mean(vecP_ZFA),mean(vecP_HzFA),pF));
 hold off	
 xlim([0.5 4.5])
 ylim([0 1])

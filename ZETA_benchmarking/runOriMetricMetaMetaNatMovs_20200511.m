@@ -170,7 +170,7 @@ set(gca,'xtick',1:4,'xticklabel',{getGreek('Mu'),getGreek('Zeta'),['FA ' getGree
 ylabel('Fraction of significant cells')
 fixfig;
 maxfig()
-
+return
 drawnow;
 export_fig(sprintf('%sMetaSummaryFig.tif',strFigPath));
 export_fig(sprintf('%sMetaSummaryFigEF.pdf',strFigPath));

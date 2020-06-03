@@ -1,7 +1,8 @@
 clear all;
 %close all;
-strPath = 'F:\Data\Processed\ZETA\NatMovs\';
-strFigPath = 'F:\Data\Results\ZETA\NatMovs\';
+strDisk = 'D:';
+strPath = [strDisk '\Data\Processed\ZETA\NatMovs\'];
+strFigPath = [strDisk '\Data\Results\ZETA\NatMovs\'];
 cellUniqueAreas = {...
 	'V1',...Area 1
 	'SC',...Area 2

@@ -151,8 +151,9 @@ for intArea=vecRunAreas
 			fprintf('Processing %s, # of bins = %d [%s]\n',strRunType,intBinNum,getTime);
 			hTic=tic;
 			
-			%% analyze
-			for intNeuron=[6 9]%[1:intNeurons]%31 [33 53]
+			%% analyze 
+			for intNeuron=103%1:intNeurons%[33:intNeurons]%31 [33 53][6 9] 103
+				
 				%% message
 				if toc(hTic) > 5
 					fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
@@ -177,7 +178,7 @@ for intArea=vecRunAreas
 					vecStimOnTime = [];
 					vecStimOffTime = [];
 					vecFrameRate = [];
-					for intRec=1:numel(sThisRec.cellStim)
+					for intRec=1%:numel(sThisRec.cellStim)
 						vecStimOnTime = cat(2,vecStimOnTime,sThisRec.cellStim{intRec}.structEP.vecStimOnTime);
 						vecStimOffTime = cat(2,vecStimOffTime,sThisRec.cellStim{intRec}.structEP.vecStimOffTime);
 						vecFrameRate = cat(2,vecFrameRate,sThisRec.cellStim{intRec}.structEP.FrameRate);
@@ -202,6 +203,19 @@ for intArea=vecRunAreas
 				close;close;
 				
 				%zeta
+				%{
+				sOpt = struct;
+		sOpt.handleFig =-1;
+		[vecMean,vecSEM,vecWindowBinCenters] = doPEP(vecSpikeTimes,0:0.025:dblUseMaxDur,matEventTimes(:,1),sOpt);
+		errorbar(vecWindowBinCenters,vecMean,vecSEM);
+		ylim([0 max(get(gca,'ylim'))]);
+		title(sprintf('Mean spiking over trials'));
+		xlabel('Time from event (s)');
+		ylabel('Mean spiking rate (Hz)');
+		fixfig
+		pause
+		continue
+				%}
 				[dblZeta,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,100,intMakePlots,4,vecRestrictRange);
 				vecZetaLatencies(intNeuron) = vecLatencies(4);
 				vecSU(intNeuron) = intSU;
@@ -209,11 +223,46 @@ for intArea=vecRunAreas
 					strTit = sprintf('%s-N%dSU%d',strRunType,intNeuron,intSU);
 					title(subplot(2,3,2),strTit);
 					drawnow;
+					pause
 					export_fig([strFigPath strTit '.tif']);
 					export_fig([strFigPath strTit '.pdf']);
-					%boolSave = false;
-					%continue;
+					boolSave = false;
+					continue;
 				end
+				%%{
+				%% calculate mean-rate difference
+		%pre-allocate
+		intMaxRep = size(matEventTimes,1);
+		vecEventStops = matEventTimes(:,2);
+		vecStimHz = zeros(intMaxRep,1);
+		vecBaseHz = zeros(intMaxRep,1);
+		dblMedianBaseDur = median(matEventTimes(2:end,1) - matEventTimes(1:(end-1),2));
+		
+		%go through trials to build spike time vector
+		for intEvent=1:intMaxRep
+			%get times
+			dblStartT = matEventTimes(intEvent,1);
+			dblStopT = dblStartT + dblUseMaxDur;
+			dblPreT = dblStartT - dblMedianBaseDur;
+			
+			% build trial assignment
+			vecStimHz(intEvent) = sum(vecSpikeTimes < dblStopT & vecSpikeTimes > dblStartT)/(dblStopT - dblStartT);
+			vecBaseHz(intEvent) = sum(vecSpikeTimes < dblStartT & vecSpikeTimes > dblPreT)/dblMedianBaseDur;
+		end
+		
+		%get metrics
+		dblMeanD = mean(vecStimHz - vecBaseHz) / ( (std(vecStimHz) + std(vecBaseHz))/2);
+		[h,dblMeanP]=ttest(vecStimHz,vecBaseHz);
+		
+				figure
+				bplot([vecBaseHz vecStimHz])
+				
+				xlabel('Base/stim')
+				ylabel('Firing rate (Hz)')
+				xlim([0 3]);
+				fixfig;
+				title(sprintf('p=%.3f',dblMeanP))
+				%}
 				%% get bin-wise approach
 				%get data
 				for intBinIdx=1:intBinNum

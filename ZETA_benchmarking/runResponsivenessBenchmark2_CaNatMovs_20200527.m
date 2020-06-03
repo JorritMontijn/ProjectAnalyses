@@ -30,15 +30,15 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
-
-strDataSourcePath = 'D:\Data\Processed\Neuropixels\';
-strDataTargetPath = 'D:\Data\Processed\ZETA\NatMovs\';
-strFigPath = 'D:\Data\Results\ZETA\NatMovs\';
+strDisk = 'F:';
+strDataSourcePath = [strDisk '\Data\Processed\Neuropixels\'];
+strDataTargetPath = [strDisk '\Data\Processed\ZETA\NatMovs\'];
+strFigPath = [strDisk '\Data\Results\ZETA\NatMovs\'];
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
-vecBinDurs = sort([(2.^(-9:9))*(1/60)]);
+vecBinDurs = sort([(2.^(0:9))*(1/60)]);
 vecRunAreas = 5%[7:16];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 3;%2:3;
@@ -221,22 +221,23 @@ for intRunStim=vecUseRunStim
 			end
 
 			%% get visual responsiveness
-			%get trial dur
-			dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
-			%set derivative params
-			if contains(strRunType,'Rand')
-				dblDur = dblUseMaxDur;
-				vecJitter = 2*dblDur*rand([numel(vecStimOnTime) 1])-dblDur;
-				matEventTimes = bsxfun(@plus,vecTrialStarts,vecJitter);
-			else
-				matEventTimes = vecTrialStarts;
-			end
-			close;close;
+			
 
 			%% get bin-wise approach
 			%get data
 			for intBinIdx=1:intBinNum
-
+				%get trial dur
+				dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
+				%set derivative params
+				if contains(strRunType,'Rand')
+					dblDur = dblUseMaxDur;
+					vecJitter = 2*dblDur*rand([numel(vecStimOnTime) 1])-dblDur;
+					matEventTimes = bsxfun(@plus,vecTrialStarts,vecJitter);
+				else
+					matEventTimes = vecTrialStarts;
+				end
+				close;close;
+				
 				dblFrameDur = vecBinDurs(intBinIdx);
 				dblStimDur = median(diff(vecStimOnTime));
 				vecBinEdges = 0:dblFrameDur:20;
@@ -245,7 +246,12 @@ for intRunStim=vecUseRunStim
 				intTrials = numel(vecStimOnTime);
 				matResp = nan(intTrials,intBins);
 				for intTrial=1:intTrials
-					[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecTraceT,vecTraceAct,vecBinEdges+matEventTimes(intTrial,1));
+					[vecCounts,vecMeans] = makeBins(vecTraceT,vecTraceAct,vecBinEdges+matEventTimes(intTrial,1));
+					try
+						vecMeans = interp1(vecBinCenters(vecCounts>0),vecMeans(vecCounts>0),vecBinCenters);
+					catch
+						vecMeans(:) = nanmean(vecMeans);
+					end
 					matResp(intTrial,:) = vecMeans;
 				end
 
@@ -253,11 +259,14 @@ for intRunStim=vecUseRunStim
 				dblAnovaP = anova1(matResp,[],'off');
 				matBinAnova(intBinIdx,intNeuron) = dblAnovaP;
 			end
-
+			%% zeta
+			[dblZetaP,vecLatencies,sZETA,sRate] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,100,intMakePlots,vecRestrictRange);
+			
 			%% save output
 			% assign data
-			vecNumSpikes(intNeuron) = numel(vecSpikeTimes);
-
+			vecNumSpikes(intNeuron) = sum(vecTraceAct)/numel(vecTraceAct);
+			vecZetaP(intNeuron) = dblZetaP;
+			vecSU(intNeuron) = intSU;
 		end
 		%save
 		%vecNumSpikes = nan(1,intNeurons);
@@ -269,7 +278,7 @@ for intRunStim=vecUseRunStim
 		%cellArea = cell(1,intNeurons);
 		if boolSave
 			save([strDataTargetPath 'ZetaDataBinsNatMov' strRunType strRunStim '.mat' ],...
-				'matBinAnova','vecNumSpikes');
+				'vecSU','vecZetaP','matBinAnova','vecNumSpikes');
 		end
 	end
 end

@@ -30,10 +30,10 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
-
-strDataMasterPath = 'D:\Data\Processed\ePhys\';
-strDataTargetPath = 'F:\Data\Results\ZETA\NatMovs\';
-strFigPath = 'F:\Data\Results\ZETA\NatMovs\';
+strDisk = 'D:';
+strDataMasterPath = [strDisk '\Data\Processed\ePhys\'];
+strDataTargetPath = [strDisk '\Data\Results\ZETA\NatMovs\'];
+strFigPath = [strDisk '\Data\Results\ZETA\NatMovs\'];
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];

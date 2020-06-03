@@ -38,7 +38,7 @@ Hoop dat je er wat aan hebt. Ik hoor het wel als je vragen hebt.
 %% load data
 clear all;
 strDataPath = 'F:\Data\Processed\VirtualTunnel\Delier\';
-strDataFile = 'DelierPreProSpikes.mat';
+strDataFile = 'DelierPreProSpikes2.mat';
 load([strDataPath strDataFile]);
 
 
@@ -85,8 +85,8 @@ for intMM=1:intMismatchNum
 end
 
 %% prep analysis
-dblUseMaxDur = 3;%round(min(diff(vecStartT)));
-intResampNum = 100;
+dblUseMaxDur = 2;%round(min(diff(vecStartT)));
+intResampNum = 1000;
 intPlot = 0;
 intLatencyPeaks = 4;
 boolVerbose = false;
@@ -118,20 +118,21 @@ intBinNum = numel(vecBinSizes);
 cellAlignType = {'Start','Grey','Reward','Mismatch'};
 intNeurons = numel(cellSpikeTimes);
 
-intIters = 3;
-matRespD = nan(2,intNeurons,intIters);
+intIters = 1;
+matRespZeta = nan(2,intNeurons,intIters);
 matRespD2 = nan(2,intNeurons,intIters);
 matRespBins = nan(2,intNeurons,intBinNum,intIters);
 
 %figure;
 hTic = tic;
 for intIter=1:intIters
+	%%
 	for intNeuron=1:intNeurons
 		if toc(hTic) > 5
 			hTic = tic;
 			fprintf('Iter %d/%d, neuron %d/%d [%s]\n',intIter,intIters,intNeuron,intNeurons,getTime);
 		end
-	%%
+	%
 	clf;
 	sOptions = struct;
 	sOptions.handleFig = -1;
@@ -147,8 +148,13 @@ for intIter=1:intIters
 			strAlignType = 'Mismatch';
 		end
 		%zeta
-		[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(cellSpikeTimes{intNeuron},vecEventT,dblUseMaxDur,intResampNum,0,intLatencyPeaks);
-		matRespD(intAlignType,intNeuron,intIter) = abs(sZETA.dblZETA);
+		intLatencyPeaks=0;
+		[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(cellSpikeTimes{intNeuron},vecEventT-dblUseMaxDur/2,dblUseMaxDur,intResampNum,intPlot,intLatencyPeaks);
+		%title(sprintf('N%d, %s',intNeuron,strAlignType));
+		
+		%pause;close;continue;
+		matRespZetaP(intAlignType,intNeuron,intIter) = dblZetaP;
+		matRespZeta(intAlignType,intNeuron,intIter) = abs(sZETA.dblZETA);
 		if isempty(sMSD) || isempty(sMSD.vecRate)
 			dblRate = 0;
 		else
@@ -160,8 +166,10 @@ for intIter=1:intIters
 		%matRespD(intAlignType,intNeuron) = max(imfilt(sMSD.vecRate',vecFilt));
 		for intBinIdx=1:intBinNum
 			dblBinSize = vecBinSizes(intBinIdx);
-			[vecMean,vecSEM,vecWindowBinCenters] = doPEP(cellSpikeTimes{intNeuron},0:dblBinSize:(dblUseMaxDur+dblBinSize/2),vecEventT,sOptions);
+			[vecMean,vecSEM,vecWindowBinCenters,matPET] = doPEP(cellSpikeTimes{intNeuron},0:dblBinSize:(dblUseMaxDur+dblBinSize/2),vecEventT,sOptions);
 			matRespBins(intAlignType,intNeuron,intBinIdx,intIter) = max(vecMean);
+			p=anova1(matPET,[],'off');
+			matRespBins2(intAlignType,intNeuron,intBinIdx,intIter) = p;
 			
 			if dblBinSize==(1/dblSamplingFreq) && intPlot
 				subplot(4,2,3+(intAlignType-1))
@@ -232,23 +240,30 @@ if 0
 end
 end
 %% get effect sizes per iters
-vecD = nan(intIter,1);
-vecD2 = nan(intIter,1);
-matD_Bins = nan(intBinNum,intIter);
+intIters=1;
+intIter=1;
+vecD = nan(intIters,1);
+vecD2 = nan(intIters,1);
+matD_Bins = nan(intBinNum,intIters);
 intSingleFrameBin = find(vecBinSizes==(1/dblSamplingFreq));
-for intIter=1:intIters
-	[h2,p2]=ttest(matRespD(1,:,intIter),matRespD(2,:,intIter));
-	vecD(intIter) = getCohensD(matRespD(2,:,intIter),matRespD(1,:,intIter));
-	vecD2(intIter) = getCohensD(matRespD2(2,:,intIter),matRespD2(1,:,intIter));
-	
-	
-	for intBinIdx=1:intBinNum
-		matD_Bins(intBinIdx,intIter) = getCohensD(matRespBins(2,:,intBinIdx,intIter),matRespBins(1,:,intBinIdx,intIter));
-	end
-end
-matAvRespBins = nanmean(matRespBins(:,:,:,1),4);
-matAvRespD = nanmean(matRespD(:,:,1),3);
-matAvRespD2 = nanmean(matRespD2(:,:,1),3);
+
+vecDeltaZeta = matRespZeta(2,:,intIter)' - matRespZeta(1,:,intIter)';
+matDeltaZanova = squeeze(-norminv(matRespBins2(2,:,:,intIter)/2) - -norminv(matRespBins2(1,:,:,intIter)/2));
+
+vecZeta = sum(matRespZetaP<0.05,2)/size(matRespZetaP,2)
+
+matAnova=squeeze(sum(matRespBins2<(0.05/size(matRespBins2,3)),2)/size(matRespBins2,2));
+
+vecIncludeMC_Anova=sum(any(matRespBins2<(0.05/size(matRespBins2,3)),3),2)/size(matRespBins2,2)
+
+vecSingleFrame_Anova=sum(matRespBins2(:,:,intSingleFrameBin)<0.05,2)/size(matRespBins2,2)
+
+return
+%% plot
+plot(vecBinSizes,matAnova(2,:));
+hold on
+plot([vecBinSizes(1) vecBinSizes(end)],vecZeta(2)*[1 1]);
+hold off
 
 %% plot
 figure
@@ -313,7 +328,7 @@ maxfig;
 vecNeuronP_Hz = nan(1,intNeurons);
 vecNeuronP_Z = nan(1,intNeurons);
 for intNeuron=1:intNeurons
-	[h,pZ]=ttest(matRespD(1,intNeuron,:),matRespD(2,intNeuron,:));
+	[h,pZ]=ttest(matRespZeta(1,intNeuron,:),matRespZeta(2,intNeuron,:));
 	vecNeuronP_Z(intNeuron) = pZ;
 	
 	[h,pHz]=ttest(matRespBins(1,intNeuron,intSingleFrameBin,:),matRespBins(2,intNeuron,intSingleFrameBin,:));

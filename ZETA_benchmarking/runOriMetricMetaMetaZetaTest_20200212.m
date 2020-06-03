@@ -1,7 +1,7 @@
 clear all;
 %close all;
-strPath = 'D:\Data\Results\OriMetric\Data\';
-strFigPath = 'D:\Data\Results\OriMetric\';
+strPath = 'F:\Data\Results\OriMetric\Data\';
+strFigPath = 'F:\Data\Results\OriMetric\';
 cellUniqueAreas = {...
 	'V1',...Area 1
 	'SC',...Area 2

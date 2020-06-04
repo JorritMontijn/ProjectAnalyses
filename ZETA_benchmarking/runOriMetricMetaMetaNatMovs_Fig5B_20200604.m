@@ -13,7 +13,7 @@ cellUniqueAreas = {...
 	'lateral geniculate',...Area 7
 	'Primary visual',...Area 8
 	'Lateral posterior nucleus',...Area 9
-	'Anterior pretectal nucleus',...Area 10
+	...%'Anterior pretectal nucleus',...Area 10
 	'Nucleus of the optic tract',...Area 11
 	'Superior colliculus',...Area 12
 	'Anteromedial visual',...Area 13
@@ -99,7 +99,9 @@ for intArea=7:numel(cellUniqueAreas)
 			sLoad=load([strPath strFile]);
 			if isfield(sLoad,'vecZeta')
 				vecZP=sLoad.vecP;
+				cellAreasZ{intIdx} = sLoad.cellArea{1};
 				matNumCells(intIdx,intRandType) = numel(vecZP);
+				cellZetaP{intIdx,intRandType} = vecZP;
 				matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
 				matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
 			elseif isfield(sLoad,'vecZetaP')
@@ -110,6 +112,7 @@ for intArea=7:numel(cellUniqueAreas)
 				matBinsAnovaFracP(intIdx,intRandType,:) = sum(sLoad.matBinAnova<0.05,2);
 				matBinsAnovaFracP_corr(intIdx,intRandType,:) = sum(sLoad.matBinAnova<(0.05/size(sLoad.matBinAnova,1)),2);
 			elseif isfield(sLoad,'matBinAnova')
+				%cellAreasA{intIdx} = sLoad.cellArea{1};
 				cellBinsAnovaP{intIdx,intRandType} = sLoad.matBinAnova;
 				matBinsAnovaFracP(intIdx,intRandType,:) = sum(sLoad.matBinAnova<0.05,2);
 				matBinsAnovaFracP_corr(intIdx,intRandType,:) = sum(sLoad.matBinAnova<(0.05/size(sLoad.matBinAnova,1)),2);
@@ -122,6 +125,8 @@ end
 indRem = any(matNumCells < 20,2);
 matSignifZ(indRem,:) = [];
 matNumCells(indRem,:) = [];
+cellBinsAnovaP(indRem,:) = [];
+cellZetaP(indRem,:) = [];
 matBinsAnovaFracP(indRem,:,:) = [];
 matBinsAnovaFracP_corr(indRem,:,:) = [];
 cellDatasetNames(indRem) = [];
@@ -129,6 +134,65 @@ cellDatasetNames(indRem) = [];
 [vecP_ZI,matCI_ZI] = binofit(matSignifZ(:,1),matNumCells(:,1),0.25);
 [vecP_ZFA,matCI_ZFA] = binofit(matSignifZ(:,2),matNumCells(:,2),0.25);
 
+%% what if any?
+vecTotCells = sum(matNumCells,1);
+vecAlpha=0.0001:0.0001:1;
+vecAlpha=1.01.^[-10000:0];
+vecTP_Z = nan(1,numel(vecAlpha));
+vecTP_A = nan(1,numel(vecAlpha));
+vecFP_Z = nan(1,numel(vecAlpha));
+vecFP_A = nan(1,numel(vecAlpha));
+for intAlpha=1:numel(vecAlpha)
+	dblAlpha=vecAlpha(intAlpha);
+	
+	%bins signifcalt
+intBins = size(cellBinsAnovaP{1},1);
+vecIncl = any(matBinsAnovaFracP_corr,3);
+y=cellfun(@(x) any(x<dblAlpha),cellBinsAnovaP,'uniformoutput',false);
+matInclA=cellfun(@(x) sum(x)/numel(x),y);
+matInclA(cellfun(@isempty,cellBinsAnovaP)) = nan;
+
+%zeta signicfalt
+matInclZ = cellfun(@(x) sum(x<dblAlpha)/numel(x),cellZetaP);
+matInclZ(cellfun(@isempty,cellZetaP)) = nan;
+
+%fisher
+dblZ_TP = sum(matInclZ(:,1) .* matNumCells(:,1));
+dblZ_FP = sum(matInclZ(:,2) .* matNumCells(:,2));
+
+dblA_TP = sum(matInclA(:,1) .* matNumCells(:,1));
+dblA_FP = sum(matInclA(:,2) .* matNumCells(:,2));
+
+mat2x2 = [dblZ_TP dblA_TP; dblZ_FP dblA_FP];
+%[p,chi2stat] = chi2test(mat2x2)
+
+% [h, p, stats] = fishertest(mat2x2)
+
+ vecTP = [dblZ_TP vecTotCells(1) dblA_TP vecTotCells(2)];
+pTP=bino2test(vecTP);
+
+ vecFP = [dblZ_FP vecTotCells(1) dblA_FP vecTotCells(2)];
+pFP=bino2test(vecFP);
+
+vecTP_Z(intAlpha) = dblZ_TP/vecTotCells(1);
+vecTP_A(intAlpha) = dblA_TP/vecTotCells(1);
+vecFP_Z(intAlpha) = dblZ_FP/vecTotCells(2);
+vecFP_A(intAlpha) = dblA_FP/vecTotCells(2);
+end
+% plot
+ plot(vecFP_Z,vecTP_Z)
+ hold on
+  plot(vecFP_A,vecTP_A,'r')
+ hold off
+xlim([0 1]);ylim([0 1])
+fixfig;
+
+dblStepAUC = 0.001;
+vecAUC_edges = dblStepAUC:dblStepAUC:1;
+vecAUC_centers = vecAUC_edges(2:end) - dblStepAUC/2;
+[vecCountsZ,vecMeansZ] = makeBins(vecFP_Z,vecTP_Z,vecAUC_edges);
+vecAUC = interp1(
+[vecCountsA,vecMeansA] = makeBins(vecFP_A,vecTP_A,vecAUC_edges);
 
 %% make plot
 vecBinDurs = sort([(2.^(-9:9))*(1/60)]);

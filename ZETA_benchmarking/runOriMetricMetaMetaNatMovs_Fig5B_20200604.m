@@ -13,7 +13,7 @@ cellUniqueAreas = {...
 	'lateral geniculate',...Area 7
 	'Primary visual',...Area 8
 	'Lateral posterior nucleus',...Area 9
-	...%'Anterior pretectal nucleus',...Area 10
+	'Anterior pretectal nucleus',...Area 10
 	'Nucleus of the optic tract',...Area 11
 	'Superior colliculus',...Area 12
 	'Anteromedial visual',...Area 13
@@ -134,10 +134,10 @@ cellDatasetNames(indRem) = [];
 [vecP_ZI,matCI_ZI] = binofit(matSignifZ(:,1),matNumCells(:,1),0.25);
 [vecP_ZFA,matCI_ZFA] = binofit(matSignifZ(:,2),matNumCells(:,2),0.25);
 
-%% what if any?
+%% plot ROC
 vecTotCells = sum(matNumCells,1);
 vecAlpha=0.0001:0.0001:1;
-vecAlpha=1.01.^[-10000:0];
+vecAlpha=[10.^[-10:-5] 1.01.^[-1000:0]];
 vecTP_Z = nan(1,numel(vecAlpha));
 vecTP_A = nan(1,numel(vecAlpha));
 vecFP_Z = nan(1,numel(vecAlpha));
@@ -185,14 +185,47 @@ end
   plot(vecFP_A,vecTP_A,'r')
  hold off
 xlim([0 1]);ylim([0 1])
+xlabel('False positive rate');
+ylabel('Inclusion rate');
 fixfig;
 
-dblStepAUC = 0.001;
+dblStepAUC = 0.01;
 vecAUC_edges = dblStepAUC:dblStepAUC:1;
 vecAUC_centers = vecAUC_edges(2:end) - dblStepAUC/2;
 [vecCountsZ,vecMeansZ] = makeBins(vecFP_Z,vecTP_Z,vecAUC_edges);
-vecAUC = interp1(
+vecAUC_Z = interp1(vecAUC_centers(~isnan(vecMeansZ)),vecMeansZ(~isnan(vecMeansZ)),vecAUC_centers);
+dblAUC_Z = sum(vecAUC_Z(~isnan(vecAUC_Z)))/sum(~isnan(vecAUC_Z));
 [vecCountsA,vecMeansA] = makeBins(vecFP_A,vecTP_A,vecAUC_edges);
+vecAUC_A = interp1(vecAUC_centers(~isnan(vecMeansA)),vecMeansA(~isnan(vecMeansA)),vecAUC_centers);
+dblAUC_A = sum(vecAUC_A(~isnan(vecAUC_A)))/sum(~isnan(vecAUC_A));
+
+
+%% statistical test AUC
+x=cellfun(@(x) min(x,[],1),cellBinsAnovaP,'uniformoutput',false);
+vecP_TP_A=cell2vec(x(:,1));
+vecP_FP_A=cell2vec(x(:,2));
+
+vecP_TP_Z=cell2vec(cellZetaP(:,1));
+vecP_FP_Z=cell2vec(cellZetaP(:,2));
+
+vecAllA = cat(1,vecP_TP_A,vecP_FP_A);
+vecAllZ = cat(1,vecP_TP_Z,vecP_FP_Z);
+
+vecClass = cat(1,0*vecP_TP_A,0*vecP_FP_A+1);
+[AUC_A,AUC_A_ci,AUC_A_se] = auc([vecClass vecAllA],0.05,'mann-whitney');
+[AUC_Z,AUC_Z_ci,AUC_Z_se] = auc([vecClass vecAllZ],0.05,'mann-whitney');
+
+% Observed data
+m0 = AUC_A - AUC_Z;
+s0 = (AUC_A_se + AUC_Z_se)/2;
+z = m0/s0;
+AUC_p = 1 - abs(normcdf(z)-normcdf(-z));
+
+title(sprintf('Z=%.3f/%.3f(B);A=%.3f/sd=%.3f (R); p=%.3f',AUC_Z,AUC_Z_se,AUC_A,AUC_A_se,AUC_p));
+drawnow;
+%%
+export_fig([strFigPath 'Fig5C_ROC.tif']);
+export_fig([strFigPath 'Fig5C_ROC.pdf']);
 
 %% make plot
 vecBinDurs = sort([(2.^(-9:9))*(1/60)]);

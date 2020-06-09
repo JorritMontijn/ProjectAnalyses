@@ -68,7 +68,7 @@ for intPopIdx=1:intPops
 	intCells = sum(indUseCells);
 	intCutOffCellNr = 16;
 	vecCellsPerPop(intPopIdx) = intCells;
-	if ismember(intPopIdx,vecRemoveSessions)
+	if intCells < intCutOffCellNr
 		fprintf('Pop %d, Number of cells is %d, which is under %d, skipping... [%s]\n',intPopIdx,intCells,intCutOffCellNr,getTime);
 		continue;
 	end

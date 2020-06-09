@@ -105,7 +105,7 @@ for intPopIdx=1:intPops
 	%indKeepTrials = abs(vecTrialVisOriChange) > 0;
 	dblCutOff = 0.4;
 	dblFracCorr = sum(vecTrialCorrect(indKeepTrials))/sum(indKeepTrials);
-	if ismember(intPopIdx,vecRemoveSessions)
+	if dblFracCorr < dblCutOff%|| ismember(intPopIdx,vecRemoveSessions)
 		fprintf('Pop %d, Correct response proportion is %.3f, which is under %.3f, skipping... [%s]\n',intPopIdx,dblFracCorr,dblCutOff,getTime);
 		continue;
 	end

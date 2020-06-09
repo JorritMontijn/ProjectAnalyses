@@ -188,6 +188,13 @@ for intPopIdx=1:intPops
 	vecTrialEndITISecs = trialData.itiEnd(indSesTrials)./dblTimeConversion;
 	vecTrialRespSecs = trialData.responseLatency(indSesTrials)./dblTimeConversion;
 	
+	dblCutOff = 0.4;
+	dblFracCorr = sum(vecTrialCorrect)/numel(vecTrialCorrect);
+	if dblFracCorr < dblCutOff%|| ismember(intPopIdx,vecRemoveSessions)
+		fprintf('Pop %d, Correct response proportion is %.3f, which is under %.3f, skipping... [%s]\n',intPopIdx,dblFracCorr,dblCutOff,getTime);
+		continue;
+	end
+	
 	%message
 	fprintf('Analyzing pop %d/%d; %d neurons, %d trials [%s]\n',intPopIdx,intPops,intCells,numel(vecTrialCorrect),getTime);
 	

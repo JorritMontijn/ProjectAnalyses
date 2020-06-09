@@ -14,15 +14,6 @@ intResamplings = 10;
 boolShuffle = false;
 dblLambda = 1/10;
 boolSavePlots = true;
-strFigDir = 'D:\Data\Results\BumpsMatthijs\';
-
-% parameters for window of interest:
-dblStartBaseT = -0.4;
-dblStopBaseT = -0.2;
-dblStartEp1T = 0;
-dblStopEp1T = 0.2;
-dblStartEp2T = 0.2;
-dblStopEp2T = 0.4;
 
 %get neuronal activity from t=0 - t=0.4
 dblBinSizeSecs = 100/1000;%25/1000;
@@ -33,12 +24,8 @@ vecBinStartT = vecBinOffsets;
 intBins = numel(vecBinStartT);
 vecRemoveSessions = [3 6 9]; %due to bad performance
 
-%% load data
-fprintf('Loading data... [%s]\n',getTime);
-[Data] = MOL_GetData('D:\Data\Processed\MatthijsOudeLohuis\','CHDET',{'ChangeDetectionConflict'},{'2003' '2009' '2010' '2011' '2012' '2013'},[],{'sessionData' 'trialData' 'spikeData'});
-sessionData     = Data.sessionData;
-trialData       = Data.trialData;
-spikeData       = Data.spikeData;
+%% HEADER, load data
+MOL_Header;
 
 %% Remove last 20 trials:
 trialData = MOL_RemoveLastnTrials(trialData,20);
@@ -123,7 +110,7 @@ for intPopIdx=1:intPops
 		continue;
 	end
 	fprintf('Rec%d; %d vis trials, %d av trials, %d aud trials\n',intPopIdx,sum(indKeepTrials),sum(abs(vecTrialAudFreqChange) > 0 & abs(vecTrialVisOriChange) > 0),sum(abs(vecTrialAudFreqChange) > 0 & abs(vecTrialVisOriChange) == 0));
-	continue
+	%continue
 	
 	%message
 	fprintf('Analyzing pop %d/%d; %d neurons, %d trials [%s]\n',intPopIdx,intPops,intCells,sum(indKeepTrials),getTime);

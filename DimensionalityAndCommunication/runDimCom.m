@@ -107,7 +107,7 @@ dblStartEp2T = 0.2;
 dblStopEp2T = 0.4;
 
 %% load data
-[Data] = MOL_GetData('D:\Data\Processed\MatthijsOudeLohuis\','CHDET',{'ChangeDetectionConflict'},{'2003' '2009' '2010' '2011' '2012' '2013'},[],{'sessionData' 'trialData' 'spikeData'});
+[Data] = MOL_GetData('F:\Data\Processed\BumpsMatthijs\','CHDET',{'ChangeDetectionConflict'},{'2003' '2009' '2010' '2011' '2012' '2013'},[],{'sessionData' 'trialData' 'spikeData'});
 sessionData     = Data.sessionData;
 trialData       = Data.trialData;
 spikeData       = Data.spikeData;

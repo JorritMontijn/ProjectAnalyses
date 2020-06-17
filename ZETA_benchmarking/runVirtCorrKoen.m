@@ -122,11 +122,11 @@ intIters = 3;
 matRespD = nan(2,intNeurons,intIters);
 matRespD2 = nan(2,intNeurons,intIters);
 matRespBins = nan(2,intNeurons,intBinNum,intIters);
-
+intPlot=4
 %figure;
 hTic = tic;
 for intIter=1:intIters
-	for intNeuron=1:intNeurons
+	for intNeuron=6%1:intNeurons
 		if toc(hTic) > 5
 			hTic = tic;
 			fprintf('Iter %d/%d, neuron %d/%d [%s]\n',intIter,intIters,intNeuron,intNeurons,getTime);
@@ -188,7 +188,7 @@ for intIter=1:intIters
 			
 			subplot(4,2,5+(intAlignType-1))
 			hold on
-			line(repmat(sZETA.vecSpikeT,[1 50]),sZETA.matRandDiff(:,randperm(intResampNum,50)),'color',[0.5 0.5 0.5]);
+			line(repmat(sZETA.vecSpikeT,[1 50]),sZETA.matRandD(:,randperm(intResampNum,50)),'color',[0.5 0.5 0.5]);
 			plot(sZETA.vecSpikeT,sZETA.vecD,'Color',lines(1));
 			hold off
 			xlabel('Time (s)');

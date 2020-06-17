@@ -1,7 +1,7 @@
 clear all;
 %close all;
-strPath = 'F:\Data\Results\OriMetric\Data\';
-strFigPath = 'F:\Data\Results\OriMetric\';
+strPath = 'F:\Data\Processed\ZETA\Inclusion\';
+strFigPath = 'F:\Data\Results\ZETA\Inclusion\';
 cellUniqueAreas = {...
 	'V1',...Area 1
 	'SC',...Area 2
@@ -104,6 +104,8 @@ for intArea=1:numel(cellUniqueAreas)
 	end
 end
 %%
+[P_V1,CI_V1] = binofit(matSignifZ(6,1),matNumCells(6,1),0.05);
+
 indRem = any(matNumCells < 20,2);
 matSignifZ(indRem,:) = [];
 matNumCells(indRem,:) = [];

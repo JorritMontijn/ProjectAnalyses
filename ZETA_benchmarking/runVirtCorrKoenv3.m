@@ -43,7 +43,9 @@ De grootte vd stimuli is maar 0.027 op dezelfde schaal (0.027% van 0.5), dus dat
 
 %% load data
 clear all;
-strDataPath = 'F:\Data\Processed\VirtualTunnel\Delier\';
+strDisk = 'F:';
+strDataPath = [strDisk '\Data\Processed\VirtualTunnel\Delier\'];
+strTargetPath = [strDisk '\Data\Results\ZETA\VirtCorr\'];
 strDataFile = 'DelierPreProSpikes.mat';
 load([strDataPath strDataFile]);
 
@@ -177,10 +179,15 @@ maxfig;
 normaxes('xy');
 
 %% calculate mismatch-modulated cells
+vecVisTimZetaP
+vecMisMatZetaP
+vecVisLocZetaP
+
 vecMismatchTrials;
 vecMismatchT;
 vecMismatchLoc;
 intMismatchNum;
 
+save([strTargetPath 'ProcDatav3.mat'],'vecVisTimZetaP','vecMisMatZetaP','vecVisLocZetaP','vecMismatchTrials','vecMismatchT','vecMismatchLoc','intMismatchNum');
 
 %% compare mismatch and visual responsiveness

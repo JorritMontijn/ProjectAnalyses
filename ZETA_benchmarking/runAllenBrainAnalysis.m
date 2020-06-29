@@ -17,12 +17,13 @@ load(strcat(strDataSourceAgg,strDataFile));
 
 %% classify neurons by onset latency
 cellCellType = {'none','artifact','VIP','late','sustained'};
-
+intSignZETA = 0;
+intConsider = 0;
 for intSes=4:numel(sSes)
 	%get peak times
 	vecPeaks = sSes(intSes).matLatencies(3,:);
 	vecOnsets = sSes(intSes).matLatencies(4,:);
-	
+
 	%classify
 	vecCellType = ones(size(vecPeaks));
 	indConsider = vecPeaks > 0.5;
@@ -32,7 +33,9 @@ for intSes=4:numel(sSes)
 	indPossiblyVisual = indConsider & (vecPeaks > 0.54);
 	vecCellType = vecCellType + indArtifact*1 + indVIP*2 + indLate*3 + indPossiblyVisual*4;
 	fprintf('Ses %d: none=%d, artifact=%d, VIP=%d, late=%d, sustained=%d\n',intSes,sum(vecCellType==1),sum(vecCellType==2),sum(vecCellType==3),sum(vecCellType==4),sum(vecCellType==5));
-
+	intSignZETA = intSignZETA + sum(~isnan(vecPeaks));
+	intConsider = intConsider + sum(indConsider);
+	
 	%rate
 	hTic = tic;
 	vecPreRate = nan(size(vecCellType));
@@ -125,12 +128,18 @@ for intSes=4:numel(sSes)
 		cellBinRateT{intNeuron} = vecWindowBinCenters;
 		cellBinRate{intNeuron} = vecMean;
 	
-		if 0
+		if 0%indLate(intNeuron)
+			%%
+			[dblZetaP,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,2,3,intLatencyPeaks);
+			title(subplot(2,3,1),sprintf('Ses%dN%d,Pre=%.1fHz,Dur=%.1fHz,Post=%.1fHz,Late=%.1fHz,Sust=%.1fHz',...
+				intSes,intNeuron,mean(vecThisPreRate),mean(vecThisDurRate),mean(vecThisPostRate),mean(vecThisLateRate),mean(vecThisSustRate)));
+			pause
+			close;
 			%% save
 			strDir = 'F:\Data\Results\ZETA\AllenBrainVisualEphys\';
 			strFile = sprintf('ExampleNeuron_%dN%d',vecSessions(intSes),intNeuron);
-			export_fig([strDir strFile '.tif']);
-			export_fig([strDir strFile '.pdf']);
+			%export_fig([strDir strFile '.tif']);
+			%export_fig([strDir strFile '.pdf']);
 		end
 	end
 	
@@ -152,6 +161,10 @@ for intSes=4:numel(sSes)
 	sSes(intSes).cellBinRate = cellBinRate;
 	
 end
+intSignZETA
+intConsider
+	
+
 %% aggregate all cells
 vecAggMeanRate = [];
 vecAggPeaks = [];
@@ -232,15 +245,19 @@ matActBinnedZ = zscore(matActBinned,[],2);
 vecPreMean = mean(matActBinnedZ(:,1:floor(size(matActBinnedZ,2)/2)),2);
 matActBinnedZ = bsxfun(@minus,matActBinnedZ,vecPreMean);
 
+matC = lines(4);
 %VIP
 indVip = vecAggCellType==3;
 matR = matActBinnedZ(indVip,:);
 vecMeanVip = mean(matR,1);
-vecSemVip = std(matR,[],1)./sum(indVip);
+vecSemVip = std(matR,[],1)./sqrt(sum(indVip));
 figure
 subplot(2,2,2)
 hold on
-errorbar(vecPlotT,vecMeanVip,vecSemVip);
+%errorbar(vecPlotT,vecMeanVip,vecSemVip);
+plot(vecPlotT,vecMeanVip,'color',matC(1,:));
+plot(vecPlotT,vecMeanVip-vecSemVip,'color',matC(1,:));
+plot(vecPlotT,vecMeanVip+vecSemVip,'color',matC(1,:));
 
 %Inh
 [a,vecSigPostRateDiff]=cellfun(@ttest,cellAggPreRate,cellAggPostRate);
@@ -249,9 +266,11 @@ indInh = vecAggCellType>3 ...
 
 matR = matActBinnedZ(indInh,:);
 vecMeanInh = mean(matR,1);
-vecSemInh = std(matR,[],1)./sum(indInh);
-%subplot(2,2,3)
-errorbar(vecPlotT,vecMeanInh,vecSemInh);
+vecSemInh = std(matR,[],1)./sqrt(sum(indInh));
+%errorbar(vecPlotT,vecMeanInh,vecSemInh);
+plot(vecPlotT,vecMeanInh,'color',matC(2,:));
+plot(vecPlotT,vecMeanInh-vecSemInh,'color',matC(2,:));
+plot(vecPlotT,vecMeanInh+vecSemInh,'color',matC(2,:));
 
 
 %act
@@ -261,20 +280,36 @@ indAct = ~indInh & vecAggCellType>3 ...
 
 matR = matActBinnedZ(indAct,:);
 vecMeanAct = mean(matR,1);
-vecSemAct = std(matR,[],1)./sum(indAct);
-%subplot(2,2,3)
+vecSemAct = std(matR,[],1)./sqrt(sum(indAct));
 
-errorbar(vecPlotT,vecMeanAct,vecSemAct);
+
+%errorbar(vecPlotT,vecMeanAct,vecSemAct);
+plot(vecPlotT,vecMeanAct,'color',matC(3,:));
+plot(vecPlotT,vecMeanAct-vecSemAct,'color',matC(3,:));
+plot(vecPlotT,vecMeanAct+vecSemAct,'color',matC(3,:));
+
+
+%other
+indOther = vecAggCellType~=2 & ~indInh & ~indAct & ~indVip;
+matR = matActBinnedZ(indOther,:);
+vecMeanOther = mean(matR,1);
+vecSemOther = std(matR,[],1)./sqrt(sum(indOther));
+%errorbar(vecPlotT,vecMeanOther,vecSemOther,'k');
+plot(vecPlotT,vecMeanOther,'color',matC(4,:));
+plot(vecPlotT,vecMeanOther-vecSemOther,'color',matC(4,:));
+plot(vecPlotT,vecMeanOther+vecSemOther,'color',matC(4,:));
+
+
 xlabel('Time after opto start (ms)')
 ylabel('Normalized firing rate');
-legend({'VIP','Inh','dAct'});
+legend({'VIP','Inh','dAct','Other'});
 fixfig;
 
 indKeep = indVip | indInh | indAct;
 vecType = indVip*1 + indInh*2 + indAct*3;
 matActSubBinnedZ = matActBinnedZ(indKeep,:);
 [dummy,vecReorder] = sort(vecType(indKeep));
-subplot(2,2,1)
+hS1=subplot(2,2,1)
 imagesc(vecPlotT,1:size(matActSubBinnedZ,1),matActSubBinnedZ(vecReorder,:))
 ylabel('Neuron');
 xlabel('Time after opto start (ms)');
@@ -296,6 +331,41 @@ title(sprintf('ttest,p=%.3e;inh n=%d,act n=%d',p,sum(indInh),sum(indAct)));
 fixfig;
 maxfig;
 
-%save figure
+% cluster
+hS3=subplot(2,2,4);
+matCorr = corr(matActSubBinnedZ(vecReorder,:)');
+imagesc(matCorr,[-1 1]);
+colorbar;
+colormap(hS3,redblue);
+
+%{
+%% cluster
+vecD = pdist(matActSubBinnedZ);
+matD = squareform(vecD);
+[intClustNum,vecSilhouetteD]=doFastClustering(matD,50);
+
+Z = linkage(matActSubBinnedZ,'ward');
+vecClusterID = cluster(Z,'maxclust',intClustNum);
+
+hS5=subplot(2,3,5);
+[dummy,vecReorder2] = sort(vecClusterID);
+
+imagesc(vecPlotT,1:size(matActSubBinnedZ,1),matActSubBinnedZ(vecReorder2,:))
+ylabel('Neuron');
+xlabel('Time after opto start (ms)');
+h=colorbar;
+ylabel(h,'Norm. Act');
+fixfig;
+
+% cluster
+hS6=subplot(2,3,6);
+matCorr = corr(matActSubBinnedZ(vecReorder2,:)');
+imagesc(matCorr,[-1 1]);
+colorbar;
+colormap(hS6,redblue);
+%}
+%%
+return
+%% save figure
 export_fig([strFigTarget 'VIP_disinhibition.tif']);
 export_fig([strFigTarget 'VIP_disinhibition.pdf']);

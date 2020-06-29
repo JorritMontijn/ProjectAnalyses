@@ -134,7 +134,7 @@ MM-Mod, N=31
 %}
 %% plot
 figure;
-subplot(2,3,1)
+subplot(2,3,3)
 scatter(vecVisLocZetaP,vecVisTimZetaP,[],vecMisMatZetaP)
 %scatter(vecVisLocZetaP,vecVisTimZetaP,[],log10(vecMisMatZetaP))
 colormap('bluepurplered');
@@ -147,11 +147,15 @@ title(sprintf('%d neurons,%d mismatch trials',numel(vecVisLocZetaP),numel(vecMis
 %set(gca,'xscale','log','yscale','log')
 
 %[rLT,pLT]=corr(log10(vecVisLocZetaP)',log10(vecVisTimZetaP'));
-[rLT,pLT]=corr(vecVisLocZetaP',vecVisTimZetaP');
-subplot(2,3,2)
+subplot(2,3,1)
 vecX = linspace(min(vecVisLocZetaP),max(vecVisLocZetaP),100)';
 mdl = fitlm(vecVisLocZetaP',vecVisTimZetaP');                                  % Fit Data
 vecB = mdl.Coefficients.Estimate;                      % Coefficients
+[r,p,le,ue] = corrcoef(vecVisLocZetaP',vecVisTimZetaP');
+rLT = r(end,1);
+pLT = p(end,1);
+lLT = le(end,1);
+uLT = ue(end,1);
 [vecFitY,vecFitY_CI] = predict(mdl, vecX);
 %errorfill(vecX,vecFitY,vecFitY-vecFitY_CI(:,1),vecFitY_CI(:,2)-vecFitY);
 plot(vecX,vecFitY,'b');
@@ -159,39 +163,53 @@ hold on
 plot(vecX,vecFitY_CI(:,1),'b');
 plot(vecX,vecFitY_CI(:,2),'b');
 scatter(vecVisLocZetaP,vecVisTimZetaP,'k')
+[h,pLvsT]=ttest(vecVisLocZetaP,vecVisTimZetaP);
 hold off
 xlabel('Location-modulation (ZETA)');
 ylabel('Time-modulation (ZETA)');
 %set(gca,'xscale','log','yscale','log')
-title(sprintf('r(Loc,Time)=%.3f,p=%.3f',rLT,pLT));
+title(sprintf('r(Loc,Time)=%.3f,p=%.3f; L vs T,p=%.3e',rLT,pLT,pLvsT));
 fixfig;
 
 %[rLM,pLM]=corr(log10(vecVisLocZetaP)',log10(vecMisMatZetaP'));
-[rLM,pLM]=corr(vecVisLocZetaP',vecMisMatZetaP');
-subplot(2,3,4)
+subplot(2,3,2)
 vecX = linspace(min(vecVisLocZetaP),max(vecVisLocZetaP),100)';
 mdl = fitlm(vecVisLocZetaP',vecMisMatZetaP');                                  % Fit Data
 vecB = mdl.Coefficients.Estimate;                      % Coefficients
+CI = coefCI(mdl);
+dblLocMis = vecB(2);
+[r,p,le,ue] = corrcoef(vecVisLocZetaP',vecMisMatZetaP');
+rLM = r(end,1);
+pLM = p(end,1);
+lLM = le(end,1);
+uLM = ue(end,1);
 [vecFitY,vecFitY_CI] = predict(mdl, vecX);
 %errorfill(vecX,vecFitY,vecFitY-vecFitY_CI(:,1),vecFitY_CI(:,2)-vecFitY);
 plot(vecX,vecFitY,'b');
 hold on
 plot(vecX,vecFitY_CI(:,1),'b');
 plot(vecX,vecFitY_CI(:,2),'b');
+[h,pLvsM]=ttest(vecVisLocZetaP,vecMisMatZetaP);
 scatter(vecVisLocZetaP,vecMisMatZetaP,'k');
 hold off;
 xlabel('Location-modulation (ZETA)');
 ylabel('Mismatch-modulation (ZETA)');
 %set(gca,'xscale','log','yscale','log')
-title(sprintf('r(Loc,MisM)=%.3f,p=%.3f',rLM,pLM));
+title(sprintf('r(Loc,MisM)=%.3f,p=%.3f; L vs M,p=%.3e',rLM,pLM,pLvsM));
 fixfig;
 
 %[rTM,pTM]=corr(log10(vecVisTimZetaP)',log10(vecMisMatZetaP'));
-[rTM,pTM]=corr(vecVisTimZetaP',vecMisMatZetaP');
-subplot(2,3,5)
+subplot(2,3,4)
 vecX = linspace(min(vecVisTimZetaP),max(vecVisTimZetaP),100)';
 mdl = fitlm(vecVisTimZetaP',vecMisMatZetaP');                                  % Fit Data
 vecB = mdl.Coefficients.Estimate;                      % Coefficients
+[r,p,le,ue] = corrcoef(vecVisTimZetaP',vecMisMatZetaP');
+rTM = r(end,1);
+pTM = p(end,1);
+lTM = le(end,1);
+uTM = ue(end,1);
+dblTimMis = vecB(2);
+vecCI_TimMis = CI(2,:);
 [vecFitY,vecFitY_CI] = predict(mdl, vecX);
 %errorfill(vecX,vecFitY,vecFitY-vecFitY_CI(:,1),vecFitY_CI(:,2)-vecFitY);
 plot(vecX,vecFitY,'b');
@@ -199,14 +217,30 @@ xlim([0 4]);ylim([0 4]);
 hold on
 plot(vecX,vecFitY_CI(:,1),'b');
 plot(vecX,vecFitY_CI(:,2),'b');
+[h,pTvsM]=ttest(vecVisTimZetaP,vecMisMatZetaP);
 scatter(vecVisTimZetaP,vecMisMatZetaP,'k');
 xlabel('Time-modulation (ZETA)');
 ylabel('Mismatch-modulation (ZETA)');
 %set(gca,'xscale','log','yscale','log')
-title(sprintf('r(Time,MisM)=%.3f,p=%.3f',rTM,pTM));
+title(sprintf('r(Time,MisM)=%.3f,p=%.3f; T vs M,p=%.3e',rTM,pTM,pTvsM));
 fixfig;
 maxfig;
 normaxes('xy');
+
+subplot(2,3,5)
+vecM = [rLT rLM rTM];
+vecUE = [uLT uLM uTM] - vecM;
+vecLE = vecM - [lLT lLM lTM];
+xlim([0 1])
+plot([0.1 0.9],[0 0],'k--');
+hold on
+errorbar([0.2 0.5 0.8],vecM,vecLE,vecUE,'x');
+set(gca,'xtick',[0.2 0.5 0.8],'xticklabel',{'LT','LM','TM'});
+ylabel('Pearson correlation');
+fixfig;
+
+
+
 
 %% calculate mismatch-modulated cells
 vecVisTimZetaP

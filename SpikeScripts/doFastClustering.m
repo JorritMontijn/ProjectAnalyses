@@ -11,7 +11,7 @@ function [intNumberOfClustersThatIsOptimal,vecSilhouetteDistances] = doFastClust
 	
 	%get silhouette distances
 	matLinkage = linkage(matDist,'ward');
-	vecSilhouetteDistances = zeros(1,intN);
+	vecSilhouetteDistances = nan(1,intN);
 	
 	for intNumberOfClusters=2:intN
 		%fprintf('Cluster size %d\n',intNumberOfClusters);

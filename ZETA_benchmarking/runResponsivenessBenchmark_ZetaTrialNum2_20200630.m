@@ -42,7 +42,7 @@ boolSave = true;
 intResampleNum = 100;%10:10:90;%[10:10:100];
 vecSubsampleTrials = 100:100:4000;
 intSubsampleNum = numel(vecSubsampleTrials);
-vecRunAreas = 8%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -243,6 +243,8 @@ for intArea=vecRunAreas
 			
 		end
 		if boolSave
+			fprintf('Saving data for %s [%s]\n',['ZetaDataTrialNum2' strRunType strRunStim],getTime);
+			
 			save([strDataTargetPath 'ZetaDataTrialNum2' strRunType strRunStim '.mat' ],...
 				'vecSubsampleTrials','matUseP','matAllP','matCorrP');
 		end

@@ -132,8 +132,8 @@ for intSes=1:numel(vecSessions)
 	%cull cells
 	vecUseCells = find(indInclude & contains(cellAreas(:),'VIS'));
 	intNeurons = numel(vecUseCells);
-	vecPreOnsets = vecOptoEventsT - 500/1000;
 	dblUseMaxDur = 1;%100/1000;
+	vecPreOnsets = vecOptoEventsT - dblUseMaxDur/2;
 	vecZetaP = nan(1,intNeurons);
 	hTic = tic;
 	for intNeuron=1:intNeurons
@@ -162,7 +162,7 @@ for intSes=1:numel(vecSessions)
 	sSes(intSes).cellSpikes = cellSpikes(vecUseCells);
 	sSes(intSes).cellAreas = cellAreas(vecUseCells);
 	sSes(intSes).vecOptoEventsT = vecOptoEventsT;
-	
+	sSes(intSes).dblUseMaxDur = dblUseMaxDur;
 end
 
 %% saving data

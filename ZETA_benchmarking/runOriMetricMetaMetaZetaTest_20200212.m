@@ -119,19 +119,8 @@ cellDatasetNames(indRem) = [];
 [vecP_HzFA,matCI_HzFA] = binofit(matSignifHz(:,2),matNumCells(:,2),0.25);
 figure
 for intDataset=1:size(matSignifZ,1)
-	matTable = zeros(2,2);
-	matTable(1,1) = matSignifZ(intDataset,1);
-	matTable(1,2) = matNumCells(intDataset,1)-matSignifZ(intDataset,1);
-	matTable(2,1) = matSignifHz(intDataset,1);
-	matTable(2,2) = matNumCells(intDataset,1)-matSignifHz(intDataset,1);
-	[hI,pI] = fishertest(matTable);
-	
-	matTable = zeros(2,2);
-	matTable(1,1) = matSignifZ(intDataset,2);
-	matTable(1,2) = matNumCells(intDataset,2)-matSignifZ(intDataset,2);
-	matTable(2,1) = matSignifHz(intDataset,2);
-	matTable(2,2) = matNumCells(intDataset,2)-matSignifHz(intDataset,2);
-	[hF,pF] = fishertest(matTable);
+	[hI,pI] = bino2test(matSignifZ(intDataset,1),matNumCells(intDataset,1),matSignifHz(intDataset,1),matNumCells(intDataset,1));
+	[hF,pF] = bino2test(matSignifZ(intDataset,2),matNumCells(intDataset,2),matSignifHz(intDataset,2),matNumCells(intDataset,2));
 	
 	subplot(4,6,intDataset)
 	errorbar(2,vecP_ZI(intDataset),matCI_ZI(intDataset,1)-vecP_ZI(intDataset),matCI_ZI(intDataset,2)-vecP_ZI(intDataset),'bx')

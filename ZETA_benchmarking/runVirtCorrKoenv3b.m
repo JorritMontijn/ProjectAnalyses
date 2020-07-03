@@ -93,31 +93,36 @@ intIters=100;
 vecVisLocZetaP = nan(intIters,intNeurons);
 vecVisTimZetaP = nan(intIters,intNeurons);
 vecMisMatZetaP = nan(1,intNeurons);
-intPlot = 0;
+intPlot = 3;
 
-for intNeuron=1:intNeurons
+for intNeuron=6%1:intNeurons
 		if toc(hTic) > 5
 			hTic = tic;
 			fprintf('Neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
 		end
 	%%
 	for intIter=1:intIters
+		intUsePlot = 0;
+		if intIter==intIters
+			intUsePlot = intPlot;
+		end
 		vecRandNormalTrials = sort(vecNormalTrials(randperm(numel(vecNormalTrials),numel(vecRealMismatchT))));
-	vecSpikeLocations = interp1(vecAllT,vecAllTrialLocs,cellSpikeTimes{intNeuron});
-	%location normal
-	vecNormalOn = vecEventOn(vecRandNormalTrials);
-	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(vecSpikeLocations,vecNormalOn,0.5,intResampNum,intPlot,intLatencyPeaks);
-	vecVisLocZetaP(intIter,intNeuron) = sZETA.dblZETA;
-	
-	%time normal
-	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(cellSpikeTimes{intNeuron},vecStartT(vecRandNormalTrials),2,intResampNum,intPlot,intLatencyPeaks);
-	vecVisTimZetaP(intIter,intNeuron) = sZETA.dblZETA;
+		vecSpikeLocations = interp1(vecAllT,vecAllTrialLocs,cellSpikeTimes{intNeuron});
+		%location normal
+		vecNormalOn = vecEventOn(vecRandNormalTrials);
+		[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(vecSpikeLocations,vecNormalOn,0.5,intResampNum,intUsePlot,intLatencyPeaks);
+		vecVisLocZetaP(intIter,intNeuron) = sZETA.dblZETA;
+		
+		%time normal
+		[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(cellSpikeTimes{intNeuron},vecStartT(vecRandNormalTrials),2,intResampNum,intUsePlot,intLatencyPeaks);
+		vecVisTimZetaP(intIter,intNeuron) = sZETA.dblZETA;
 	end
 	
 	%mismatch
 	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(cellSpikeTimes{intNeuron},vecRealMismatchT,2,intResampNum,intPlot,intLatencyPeaks);
 	vecMisMatZetaP(intNeuron) = sZETA.dblZETA;
-	
+	pause
+	close all
 end
 vecVisLocZetaP = mean(vecVisLocZetaP,1);
 vecVisTimZetaP = mean(vecVisTimZetaP,1);

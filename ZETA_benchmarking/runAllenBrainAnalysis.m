@@ -13,24 +13,28 @@ vecSessions = sCSV.id(contains(sCSV.genotype,'Vip'));
 
 strDataSourceAgg = strcat(strDataSource,'Aggregates\');
 strDataFile = 'AggSes2020-06-24.mat'; %VIP
+%strDataFile = 'AggSes2020-07-01.mat'; %VIP
 load(strcat(strDataSourceAgg,strDataFile));
 
 %% classify neurons by onset latency
 cellCellType = {'none','artifact','VIP','late','sustained'};
 intSignZETA = 0;
 intConsider = 0;
+dblEpochEnd = 100/1000;
+vecPeakWindow = [10/1000 30/1000];
 for intSes=4:numel(sSes)
 	%get peak times
 	vecPeaks = sSes(intSes).matLatencies(3,:);
 	vecOnsets = sSes(intSes).matLatencies(4,:);
 
 	%classify
+	dblStartT = 0.5;
 	vecCellType = ones(size(vecPeaks));
-	indConsider = vecPeaks > 0.5;
-	indArtifact = indConsider & (vecPeaks < 0.501);
-	indVIP = indConsider & (vecPeaks < 0.510) & ~indArtifact;
-	indLate = indConsider & (vecPeaks < 0.540) & ~indArtifact & ~indVIP;
-	indPossiblyVisual = indConsider & (vecPeaks > 0.54);
+	indConsider = vecPeaks > dblStartT;
+	indArtifact = indConsider & (vecPeaks < (dblStartT + 0.001));
+	indVIP = indConsider & (vecPeaks < (dblStartT + 0.010)) & ~indArtifact;
+	indLate = indConsider & (vecPeaks < (dblStartT + vecPeakWindow(2))) & ~indArtifact & ~indVIP;
+	indPossiblyVisual = indConsider & (vecPeaks > (dblStartT + vecPeakWindow(2)));
 	vecCellType = vecCellType + indArtifact*1 + indVIP*2 + indLate*3 + indPossiblyVisual*4;
 	fprintf('Ses %d: none=%d, artifact=%d, VIP=%d, late=%d, sustained=%d\n',intSes,sum(vecCellType==1),sum(vecCellType==2),sum(vecCellType==3),sum(vecCellType==4),sum(vecCellType==5));
 	intSignZETA = intSignZETA + sum(~isnan(vecPeaks));
@@ -58,7 +62,7 @@ for intSes=4:numel(sSes)
 	vecTestCells = find(indVIP | indLate | indPossiblyVisual);
 	vecRealVIPs = [];
 	intResampNum = 100;
-	vecPreOnsets = sSes(intSes).vecOptoEventsT - 500/1000;
+	vecPreOnsets = sSes(intSes).vecOptoEventsT - dblStartT;
 	intPlot = 3;
 	intLatencyPeaks = 4;
 	for intUseNeuron = 1:numel(vecTestCells)
@@ -70,8 +74,8 @@ for intSes=4:numel(sSes)
 		vecBinE = sort(cat(1,sSes(intSes).vecOptoEventsT-50/1000,...
 			sSes(intSes).vecOptoEventsT,...
 			sSes(intSes).vecOptoEventsT+10/1000,...
-			sSes(intSes).vecOptoEventsT+30/1000,...
-			sSes(intSes).vecOptoEventsT+50/1000,...
+			sSes(intSes).vecOptoEventsT+vecPeakWindow(2),...
+			sSes(intSes).vecOptoEventsT+60/1000,...
 			sSes(intSes).vecOptoEventsT+100/1000));
 		vecBinDur = diff(vecBinE);
 		
@@ -103,11 +107,12 @@ for intSes=4:numel(sSes)
 		end
 		
 		%plot
-		dblStimT = 0.1;
+		dblStimT = dblEpochEnd;
 		dblUseMaxDur = dblStimT*2;
 		matEventTimes = sSes(intSes).vecOptoEventsT-dblStimT;
 		intPlot=0;
-		[dblZetaP,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,2,intPlot,intLatencyPeaks);
+		%[dblZetaP,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,2,intPlot,intLatencyPeaks,vecPeakWindow);
+		[vecIFR,sRate] = getIFR(vecSpikeTimes,matEventTimes,dblUseMaxDur);
 		title(subplot(2,3,1),sprintf('Ses%dN%d,Pre=%.1fHz,Dur=%.1fHz,Post=%.1fHz,Late=%.1fHz,Sust=%.1fHz',...
 			intSes,intNeuron,mean(vecThisPreRate),mean(vecThisDurRate),mean(vecThisPostRate),mean(vecThisLateRate),mean(vecThisSustRate)));
 		
@@ -213,8 +218,7 @@ for intSes=4:numel(sSes)
 	cellAggBinRate = cat(2,cellAggBinRate,sSes(intSes).cellBinRate(indKeep));
 
 end
-
-
+%%
 %build mean activity vector
 matActBinned = [];
 intKeepN = numel(cellAggRateT);
@@ -222,23 +226,28 @@ vecPeakPosT = nan(1,intKeepN);
 vecPeakNegT = nan(1,intKeepN);
 for intNeuron=1:intKeepN
 	%vecAct = makeBins(cellAggRateT{intNeuron},cellAggRate{intNeuron},vecBinEdges);
-	vecAct = cellAggBinRate{intNeuron};
-	matActBinned(intNeuron,:) = vecAct;
-	intStart = floor(numel(vecAct)/2);
-	[pks,locs] = findpeaks(vecAct(intStart:end));
-	[dummy,intPk]=max(pks);
-	if isempty(intPk)
+	vecActBinned = cellAggBinRate{intNeuron};
+	matActBinned(intNeuron,:) = vecActBinned;
+	
+	vecT = cellAggRateT{intNeuron}-dblStimT;
+	if isempty(vecT),continue;end
+	vecAct = cellAggRate{intNeuron};
+	indPossT = vecT>vecPeakWindow(1) & vecT<vecPeakWindow(2);
+	vecPossT = vecT(indPossT);
+	[a,intPosT]=max(vecAct(indPossT));
+	dblPeakPosT = vecPossT(intPosT);
+	if isempty(dblPeakPosT)
 		vecPeakPosT(intNeuron) = nan;
 	else
-		vecPeakPosT(intNeuron) = vecPlotT(intStart+locs(intPk));
+		vecPeakPosT(intNeuron) = dblPeakPosT;
 	end
 	
-	[pks,locs] = findpeaks(-vecAct(intStart:end));
-	[dummy,intPk]=max(pks);
-	if isempty(intPk)
+	[a,intNegT]=min(vecAct(indPossT));
+	dblPeakNegT = vecPossT(intNegT);
+	if isempty(dblPeakNegT)
 		vecPeakNegT(intNeuron) = nan;
 	else
-		vecPeakNegT(intNeuron) = vecPlotT(intStart+locs(intPk));
+		vecPeakNegT(intNeuron) = dblPeakNegT;
 	end
 end
 matActBinnedZ = zscore(matActBinned,[],2);
@@ -319,24 +328,37 @@ ylabel(h,'Norm. Act');
 fixfig;
 grid off;
 
-[h,p]=ttest2(vecPeakNegT(indInh),vecPeakPosT(indAct));
+[p,h,stats] = ranksum(vecPeakNegT(indInh),vecPeakPosT(indAct));
 subplot(2,2,3)
 hold on;
-bplot(vecPeakNegT(indInh),1);
-bplot(vecPeakPosT(indAct),2);
+bplot(1000*vecPeakNegT(indInh),1);
+bplot(1000*vecPeakPosT(indAct),2);
 set(gca,'xtick',[1 2],'xticklabel',{'Inh','Act'});
 ylabel('Peak latency (ms)');
 hold off
-title(sprintf('ttest,p=%.3e;inh n=%d,act n=%d',p,sum(indInh),sum(indAct)));
+title(sprintf('Mann-Whitney,p=%.3e;inh n=%d (%.3fs),act n=%d (%.3fs)',p,sum(indInh),nanmedian(vecPeakNegT(indInh)),sum(indAct),nanmedian(vecPeakPosT(indAct))));
+ylim(1000*[0 vecPeakWindow(2)])
 fixfig;
 maxfig;
 
 % cluster
+matC=lines(4);
 hS3=subplot(2,2,4);
-matCorr = corr(matActSubBinnedZ(vecReorder,:)');
-imagesc(matCorr,[-1 1]);
-colorbar;
-colormap(hS3,redblue);
+dblStep = 2.5/1000;
+vecDistroE = (vecPeakWindow(1)-dblStep):dblStep:vecPeakWindow(2);
+vecDistroC = vecDistroE(2:end) - median(diff(vecDistroE))/2;
+vecDistroNeg = histcounts(vecPeakNegT(indInh),vecDistroE);
+vecDistroNegStairs = [vecDistroNeg vecDistroNeg(end)];
+vecDistroPos = histcounts(vecPeakPosT(indAct),vecDistroE);
+vecDistroPosStairs = [vecDistroPos vecDistroPos(end)];
+stairs(vecDistroE(1:end)*1000,vecDistroNegStairs/sum(vecDistroNegStairs),'color',matC(2,:))
+hold on;
+stairs(vecDistroE(1:end)*1000,vecDistroPosStairs/sum(vecDistroPosStairs),'color',matC(3,:))
+hold off;
+xlabel('Peak/trough time (ms)')
+ylabel('Fraction of cells');
+xlim([0 vecPeakWindow(2)]*1000);
+fixfig;
 
 %{
 %% cluster

@@ -48,7 +48,7 @@ if (~exist('sData','var') && ~exist('sSimRun','var')) || ~exist('strLastSim','va
 	%clearvars -except intLoadSim strSimulation strFigDir bool*
 	if ~exist('boolLoadLGN','var'),boolLoadLGN=false;end
 	strLastSim = strSimulation;
-	strPath = 'D:\Data\SimAggregates\';
+	strPath = 'F:\Data\Results\SimAggregates\';
 	if exist([strPath 'Simulation_' strSimulation '_prepro.mat'],'file')
 		indLoadedPrePros(1) = true;
 		sLoadPrePro = load([strPath 'Simulation_' strSimulation '_prepro.mat']); %matModelResp

@@ -136,26 +136,5 @@ elseif intLoadSim == 150 && boolLoad
 	
 	
 elseif intLoadSim == 200 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise0_0_2018-08-09';
-elseif intLoadSim == 202 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise0_2_2018-08-09';
-elseif intLoadSim == 204 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise0_4_2018-08-09';
-elseif intLoadSim == 206 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise0_6_2018-08-09';
-elseif intLoadSim == 208 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise0_8_2018-08-09';
-elseif intLoadSim == 210 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise1_0_2018-08-09';
-elseif intLoadSim == 212 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise1_2_2018-08-09';
-elseif intLoadSim == 214 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise1_4_2018-08-09';
-elseif intLoadSim == 216 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise1_6_2018-08-09';
-elseif intLoadSim == 218 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise1_8_2018-08-09';
-elseif intLoadSim == 220 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise2_0_2018-08-09';
-	
+	strSimulation = 'xAreaDistributed_Noise0.0_2020-07-20';
 end

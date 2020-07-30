@@ -1,8 +1,8 @@
 %% analyze input strength dependency for dimensionality of pop responses
 
 %% initialize
-intType = 1;
-	close all
+intType = 5;
+	%close all
 	clearvars -except intType
 vecRunAreas = [1];
 
@@ -50,7 +50,7 @@ if intType == 4
 	vecRunSims =[ 102:2:110 150];%[112:2:120];%200:2:220;
 end
 if intType == 5
-	vecRunSims =[ 100 110];%[112:2:120];%200:2:220;
+	vecRunSims =[100];%[112:2:120];%200:2:220;
 end
 for intLoadSim=vecRunSims
 	clearvars -except intSubSample* vecDoShuff vecRunSims intLoadSim bool* vecRunAreas intSamples
@@ -62,8 +62,8 @@ for intLoadSim=vecRunSims
 	%% RUN: #header
 	strBlockNr = getFlankedBy(mfilename,'Block','');
 	strBlockNr = strBlockNr(1);
-	strFigDir = ['D:\Data\Results\Block' strBlockNr '\'];
-	strDataDir = ['D:\Data\Results\Data' strBlockNr '\'];
+	strFigDir = ['F:\Data\Results\SimFigs\Block' strBlockNr '\'];
+	strDataDir = ['F:\Data\Results\SimFigs\Data' strBlockNr '\'];
 	if isempty(strBlockNr),error;end
 	
 	if boolLoad
@@ -290,6 +290,7 @@ for intLoadSim=vecRunSims
 				%figure(hFigDD);
 				drawnow;
 				export_fig([strFigDir  'Block' strBlockNr '_Area' num2str(intWithinArea) '_' strSizeN strSizeT strTag '.tif']);
+				export_fig([strFigDir  'Block' strBlockNr '_Area' num2str(intWithinArea) '_' strSizeN strSizeT strTag '.jpg']);
 				export_fig([strFigDir  'Block' strBlockNr '_Area' num2str(intWithinArea) '_' strSizeN strSizeT strTag '.pdf']);
 			end
 			

@@ -32,14 +32,14 @@ cellUniqueAreas = {...
 
 
 strDataMasterPath = 'D:\Data\Processed\ePhys\';
-strDataTargetPath = 'F:\Data\Results\ZETA\Data\';
+strDataTargetPath = 'F:\Data\Processed\ZETA\Inclusion\';
 strFigPath = 'F:\Data\Results\ZETA\Examples\';
-intMakePlots =4; %0=none, 1=normal plot, 2=including raster
+intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
-boolSave = false;
+boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = 8%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 3;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -173,7 +173,7 @@ elseif contains(strRunType,'Retina')
 	cellRetData = sLoad.LightFlash_For_J;
 	intNeurons = size(cellRetData,1)-2;
 elseif contains(strRunType,'Poisson')
-	intNeurons = 100;
+	intNeurons = 10000;
 elseif contains(strRunType,'CaNM')
 	%% find data
 	strDataSourcePath = 'D:\Data\Processed\imagingGCaMP\';
@@ -342,7 +342,7 @@ for intResampleIdx = 1:numel(vecResamples)
 			dblBaseRate = exprnd(5);
 			dblPrefRate = dblBaseRate+exprnd(20);
 			dblKappa = rand(1)*5+5;
-			vecTrialAngles=repmat([0:45:360],[1 20]);
+			vecTrialAngles=repmat([0:45:359],[1 20]);
 			dblTrialDur=2;
 			vecStimOnTime = dblTrialDur*(1:numel(vecTrialAngles))';
 			vecStimOffTime = vecStimOnTime + 1;
@@ -365,6 +365,7 @@ for intResampleIdx = 1:numel(vecResamples)
 		end
 		
 		vecTrialNum = unique([vecTrialNum size(matEventTimes,1)]);
+		
 		%if size(matEventTimes,1) > 0,continue;end
 		close;close;
 		if exist('vecTraceAct','var') && ~isempty(vecTraceAct) %calcium imaging

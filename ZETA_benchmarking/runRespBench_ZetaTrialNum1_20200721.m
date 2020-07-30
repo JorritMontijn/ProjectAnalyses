@@ -30,6 +30,7 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
+strAnalysisType = 'B'; %A=500ms, B=300ms; 1=pooled,2=split,3=split,uncorr
 strDisk = 'F:';
 strDataSourcePath = [strDisk '\Data\Processed\Neuropixels\'];
 strDataTargetPath = [strDisk '\Data\Processed\ZETA\TrialNum\'];
@@ -43,6 +44,11 @@ intResampleNum = 100;%10:10:90;%[10:10:100];
 vecSubsampleTrials = 100:100:4000;
 intSubsampleNum = numel(vecSubsampleTrials);
 vecRunAreas = 7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+if contains(strAnalysisType,'A')
+    dblPreDur = 0.5;
+elseif contains(strAnalysisType,'B')
+    dblPreDur = 0.3;
+end
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -77,7 +83,7 @@ for intArea=vecRunAreas
 	end
 	for intRandType=vecRandTypes
 		%reset vars
-		clearvars -except intStim intSubsampleNum vecSubsampleTrials vecTrialNum intResampleNum cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataSourcePath strDataTargetPath strFigPath intMakePlots vecRunTypes
+		clearvars -except strAnalysisType dblPreDur intStim intSubsampleNum vecSubsampleTrials vecTrialNum intResampleNum cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataSourcePath strDataTargetPath strFigPath intMakePlots vecRunTypes
 		strArea = cellUniqueAreas{intArea};
 		strRunStim = cellRunStim{intStim};
 		
@@ -197,7 +203,7 @@ for intArea=vecRunAreas
 			vecD = diff(vecRespBinsDur)';
 			vecHz_Dur = vecR(1:2:end)./vecD(1:2:end);
 			
-			vecRespBinsPre = sort(flat([matEventTimes(:,1)-0.3 matEventTimes(:,1)]));
+			vecRespBinsPre = sort(flat([matEventTimes(:,1)-dblPreDur matEventTimes(:,1)]));
 			vecR = histcounts(vecSpikeTimes,vecRespBinsPre);
 			vecD = diff(vecRespBinsPre)';
 			vecHz_Pre = vecR(1:2:end)./vecD(1:2:end);
@@ -219,33 +225,22 @@ for intArea=vecRunAreas
 				vecUseTrials = sort(randperm(numel(vecHz_Dur),intTrialNum));
 				
 				%% split by orientation
-				dblStep = 360/24;
-				vecBinOriEdges = (-dblStep/2):dblStep:(360-dblStep/2);
-				[vecReps,dummy,dummy,dummy,cellIDs] = makeBins(vecOrientation(vecUseTrials),vecOrientation(vecUseTrials),vecBinOriEdges);
-				vecSubPre = vecHz_Dur(vecUseTrials);
-				vecSubDur = vecHz_Pre(vecUseTrials);
-				intUseComps = sum(vecReps>1);
-				vecP = ones(size(vecReps));
-				for intOri=find(vecReps(:)'>1)
-					vecDur = vecHz_Dur(cellIDs{intOri});
-					vecPre = vecHz_Pre(cellIDs{intOri});
-					
-					[h,vecP(intOri)] = ttest(vecDur,vecPre);
-				end
-				
-				dblCorrP = min(vecP*intUseComps);
+				vecDur = vecHz_Dur(vecUseTrials);
+				vecPre = vecHz_Pre(vecUseTrials);
+				[h,dblCorrP] = ttest(vecDur,vecPre);
 				
 				% assign data
-				matUseP(intNeuron,intSubsampleTrialIdx,:) = vecReps(:)'>1;
-				matAllP(intNeuron,intSubsampleTrialIdx,:) = vecP;
+				matUseP(intNeuron,intSubsampleTrialIdx,:) = 1;%vecReps(:)'>1;
+				matAllP(intNeuron,intSubsampleTrialIdx,:) = 1;%vecP;
 				matCorrP(intNeuron,intSubsampleTrialIdx) = dblCorrP;
 			end
 			
 		end
 		if boolSave
-			fprintf('Saving data for %s [%s]\n',['ZetaDataTrialNum2' strRunType strRunStim],getTime);
-			
-			save([strDataTargetPath 'ZetaDataTrialNum2' strRunType strRunStim '.mat' ],...
+            strFile = ['ZetaDataTrialNum1' strAnalysisType '_' strRunType strRunStim];
+            fprintf('Saving data for %s [%s]\n',strFile,getTime);
+            
+            save([strDataTargetPath strFile '.mat' ],...
 				'vecSubsampleTrials','matUseP','matAllP','matCorrP');
 		end
 	end

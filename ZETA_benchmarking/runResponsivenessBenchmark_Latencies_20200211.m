@@ -70,7 +70,7 @@ for intResampleIdx = 1:numel(vecResamples)
 		%set parameters
 		dblPrefRate = dblBaseRate;
 		dblKappa = rand(1)*5+5;
-		vecTrialAngles=1:100;%repmat([0:45:360],[1 10]);
+		vecTrialAngles=deg2rad(repmat([0:45:360],[1 20]));
 		dblTrialDur=2;
 		vecStimOnTime = dblTrialDur*(1:numel(vecTrialAngles))';
 		vecStimOffTime = vecStimOnTime + 1;

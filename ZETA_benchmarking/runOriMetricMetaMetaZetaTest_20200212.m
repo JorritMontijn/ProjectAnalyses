@@ -95,7 +95,11 @@ for intArea=1:numel(cellUniqueAreas)
 			intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
 			sLoad=load([strPath strFile]);
 			vecZeta = abs(sLoad.vecZeta);
-			vecZP=1-(normcdf(abs(vecZeta))-normcdf(-abs(vecZeta)));
+			if intArea==3 %zeta is already p-value
+				vecZP=vecZeta;
+			else
+				vecZP=1-(normcdf(abs(vecZeta))-normcdf(-abs(vecZeta)));
+			end
 			matNumCells(intIdx,intRandType) = numel(vecZP);
 			matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
 			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
@@ -105,7 +109,9 @@ for intArea=1:numel(cellUniqueAreas)
 end
 %%
 [P_V1,CI_V1] = binofit(matSignifZ(6,1),matNumCells(6,1),0.05);
+[dblP,vecCI] = binofit(matSignifZ(1,1),matNumCells(1,1),0.05);
 
+%%
 indRem = any(matNumCells < 20,2);
 matSignifZ(indRem,:) = [];
 matNumCells(indRem,:) = [];
@@ -119,8 +125,8 @@ cellDatasetNames(indRem) = [];
 [vecP_HzFA,matCI_HzFA] = binofit(matSignifHz(:,2),matNumCells(:,2),0.25);
 figure
 for intDataset=1:size(matSignifZ,1)
-	[hI,pI] = bino2test(matSignifZ(intDataset,1),matNumCells(intDataset,1),matSignifHz(intDataset,1),matNumCells(intDataset,1));
-	[hF,pF] = bino2test(matSignifZ(intDataset,2),matNumCells(intDataset,2),matSignifHz(intDataset,2),matNumCells(intDataset,2));
+	[pIB,zIB] = bino2test(matSignifZ(intDataset,1),matNumCells(intDataset,1),matSignifHz(intDataset,1),matNumCells(intDataset,1));
+	[pFB,zFB] = bino2test(matSignifZ(intDataset,2),matNumCells(intDataset,2),matSignifHz(intDataset,2),matNumCells(intDataset,2));
 	
 	subplot(4,6,intDataset)
 	errorbar(2,vecP_ZI(intDataset),matCI_ZI(intDataset,1)-vecP_ZI(intDataset),matCI_ZI(intDataset,2)-vecP_ZI(intDataset),'bx')
@@ -138,6 +144,11 @@ for intDataset=1:size(matSignifZ,1)
 	fixfig;
 end
 
+%
+[pIB,zIB] = bino2test(matSignifZ(:,1),matNumCells(:,1),matSignifHz(:,1),matNumCells(:,1));
+[pFB,zFB] = bino2test(matSignifZ(:,2),matNumCells(:,2),matSignifHz(:,2),matNumCells(:,2));
+	
+%
 [h,pI]=ttest(vecP_ZI,vecP_HzI);
 [h,pF]=ttest(vecP_ZFA,vecP_HzFA);
 subplot(4,6,24)

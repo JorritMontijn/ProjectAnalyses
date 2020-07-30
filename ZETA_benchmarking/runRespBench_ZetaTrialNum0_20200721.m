@@ -30,7 +30,8 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
-strDisk = 'D:';
+strAnalysisType = 'A'; %A=500ms, B=300ms; 1=pooled,2=split,3=split,uncorr
+strDisk = 'F:';
 strDataSourcePath = [strDisk '\Data\Processed\Neuropixels\'];
 strDataTargetPath = [strDisk '\Data\Processed\ZETA\TrialNum\'];
 strFigPath = [strDisk '\Data\Results\ZETA\Examples\'];
@@ -43,6 +44,11 @@ vecSubsampleTrials = 100:100:4000;
 intSubsampleNum = numel(vecSubsampleTrials);
 intResampleNum = 100;%10:10:90;%[10:10:100];
 vecRunAreas = 7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+if contains(strAnalysisType,'A')
+    dblPreDur = 0.5;
+elseif contains(strAnalysisType,'B')
+    dblPreDur = 0.3;
+end
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -78,7 +84,7 @@ for intArea=vecRunAreas
 	for intRunStim=vecUseRunStim
 		for intRandType=vecRandTypes
 			%reset vars
-			clearvars -except intLatencyPeaks intSubsampleNum vecSubsampleTrials vecTrialNum intResampleNum vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataSourcePath strDataTargetPath strFigPath intMakePlots vecRunTypes
+			clearvars -except strAnalysisType dblPreDur intLatencyPeaks intSubsampleNum vecSubsampleTrials vecTrialNum intResampleNum vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataSourcePath strDataTargetPath strFigPath intMakePlots vecRunTypes
 			strArea = cellUniqueAreas{intArea};
 			strRunStim = cellRunStim{intRunStim};
 			

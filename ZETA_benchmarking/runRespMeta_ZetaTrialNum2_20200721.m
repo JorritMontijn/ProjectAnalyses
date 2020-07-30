@@ -1,8 +1,9 @@
 clear all;
 %close all;
 strDisk = 'F:';
+strAnalysisType = '1A'; %A=500ms, B=300ms; 1=pooled,2=split,3=split,uncorr
 strDataSource = [strDisk '\Data\Processed\ZETA\TrialNum\'];
-strFigPath = [strDisk '\Data\Results\ZETA\TrialNum\'];
+strFigPath = [strDisk '\Data\Results\ZETA\Inclusion\'];
 cellUniqueAreas = {...
 	'V1',...Area 1
 	'SC',...Area 2
@@ -105,8 +106,8 @@ for intArea=8%7:numel(cellUniqueAreas)
 		end
 		%% load data 2
 		strRand = cellRunRand{intRandType};
-		strRunType = [strArea strRand];
-		sDir=dir([strDataSource 'ZetaDataTrialNum2*' strRunType '*']);
+		strRunType = [strrep(strAnalysisType,'3','2') '_' strArea strRand];
+		sDir=dir([strDataSource 'ZetaDataTrialNum*' strRunType '*']);
 		if ~isempty(sDir) && isempty(strRand)
 			cellDatasetNames{intIdx} = strName;
 			sDir = sDir(~contains({sDir.name},'Rand'));
@@ -126,7 +127,13 @@ for intArea=8%7:numel(cellUniqueAreas)
 			cellNumCells2{intIdx,intRandType} = sum(~isnan(matZeta),1);
 			cellTrialNums2{intIdx,intRandType} = vecSubsampleTrials;
 			%cellIncludeM{intIdx,intRandType} = sum(matMinP<0.05,1)/intN;
-			cellIncludeM{intIdx,intRandType} = sum(matCorrP<0.05,1)/intN;
+            if contains(strAnalysisType,'1') || contains(strAnalysisType,'2') %corr
+                cellIncludeM{intIdx,intRandType} = sum(matCorrP<0.05,1)/intN;
+            elseif contains(strAnalysisType,'3') %remove corr
+                cellIncludeM{intIdx,intRandType} = sum((matCorrP/24)<0.05,1)/intN;
+            else
+               error 
+            end
 		end
 	end
 end
@@ -154,22 +161,29 @@ for intDataset=1:size(cellIncludeZ,1)
 	[vecP_HzI,matCI_HzI] = binofit(cellIncludeM{intDataset,1}(vecUseData)*intMaxN,cellNumCells{intDataset,1}(vecUseData),0.25);
 	[vecP_HzFA,matCI_HzFA] = binofit(cellIncludeM{intDataset,2}(vecUseData)*intMaxN,cellNumCells{intDataset,2}(vecUseData),0.25);
 	
+[vecP_ZvsM,vecZ]=bino2test(cellIncludeZ{intDataset,1}(vecUseData).*intMaxN,cellNumCells{intDataset,1}(vecUseData),cellIncludeM{intDataset,1}(vecUseData).*intMaxN,cellNumCells{intDataset,1}(vecUseData));
+[dummy,dummy,vecP_ZvsM_corr] = fdr_bh(vecP_ZvsM);
 
 figure
-	plot(cellTrialNums{intDataset,1}(vecUseData),[vecP_ZI' matCI_ZI],'-b')
+	plot([0 cellTrialNums{intDataset,1}(vecUseData)],[0 0 0; vecP_ZI' matCI_ZI],'-b')
 	hold on
-	plot(cellTrialNums{intDataset,2}(vecUseData),[vecP_ZFA' matCI_ZFA],'-m')
-	plot(cellTrialNums{intDataset,1}(vecUseData),[vecP_HzI' matCI_HzI],'-k')
-	plot(cellTrialNums{intDataset,2}(vecUseData),[vecP_HzFA' matCI_HzFA],'-r')
+	plot([0 cellTrialNums{intDataset,2}(vecUseData)],[0 0 0; vecP_ZFA' matCI_ZFA],'-m')
+	plot([0 cellTrialNums{intDataset,1}(vecUseData)],[0 0 0; vecP_HzI' matCI_HzI],'-k')
+	plot([0 cellTrialNums{intDataset,2}(vecUseData)],[0 0 0; vecP_HzFA' matCI_HzFA],'-r')
 	hold off
 	legend({'Z','Z FA','M','M FA'},'location','best');
 	xlabel('# of stimulus repetitions');
 	ylabel('Fraction of significant cells')
 	%title(sprintf('Incl p=%.3f, FA p=%.3f',pI,pF));
-	title(sprintf('%s; N=%d-%d',cellDatasetNames{intDataset},min(cellNumCells{intDataset,1}),max(cellNumCells{intDataset,1})));
+	title(sprintf('%s; %s, N=%d-%d',cellDatasetNames{intDataset},strAnalysisType,min(cellNumCells{intDataset,1}),max(cellNumCells{intDataset,1})));
 	fixfig;
 end
 %%
+strTag = [strAnalysisType '_' cellDatasetNames{intDataset}];
+drawnow;
+export_fig(sprintf('%sMeta%s.tif',strFigPath,strTag));
+export_fig(sprintf('%sMeta%sEF.pdf',strFigPath,strTag));
+print(gcf,'-dpdf', sprintf('%sMeta%s.pdf',strFigPath,strTag));
 return
 [h,pI]=ttest(vecP_ZI,vecP_HzI);
 [h,pF]=ttest(vecP_ZFA,vecP_HzFA);
@@ -186,7 +200,3 @@ ylabel('Fraction of significant cells')
 fixfig;
 maxfig()
 return
-drawnow;
-export_fig(sprintf('%sMetaSummaryFig.tif',strFigPath));
-export_fig(sprintf('%sMetaSummaryFigEF.pdf',strFigPath));
-print(gcf,'-dpdf', sprintf('%sMetaSummaryFig.pdf',strFigPath));

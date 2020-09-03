@@ -35,13 +35,23 @@ In een aantal trials druk ik tijdens de taak op de mismatch knop, en dan stop ik
 Hoop dat je er wat aan hebt. Ik hoor het wel als je vragen hebt.
 %}
 
+%% define data
+cellFiles = {'Bryu_20200825_002_Split1_normcorr_SPSIG',...
+	'Delier_20191015_002_Split1_normcorr_SPSIG',...
+	'Bauke_20200825_002_Split1_normcorr_SPSIG',...
+	'Just_20200825_003_Split1_normcorr_SPSIG'};
+
 %% load data
-strDataPath = 'F:\Data\Processed\VirtualTunnel\Delier\';
-strDataFile1 = 'Delier_20191017_002_Split1_normcorr_SPSIG.mat';
-strDataFile2 = 'Delier_20191017_002_Split1_normcorr_SPSIG_Res.mat';
+intLoad = 1;
+strDataPath = 'F:\Data\Processed\VirtualTunnel\';
+strDataFile1 = sprintf('%s.mat',cellFiles{intLoad});
+strDataFile2 = sprintf('%s_Res.mat',cellFiles{intLoad});
 fprintf('Loading raw data from "%s" [%s]\n',strDataPath,getTime);
 sLoad1 = load([strDataPath strDataFile1]);
 sLoad2 = load([strDataPath strDataFile2]);
+
+cellSplit = strsplit(strDataFile1,'_');
+strOut = strjoin(cellSplit(1:4),'_');
 
 matCa = sLoad1.sigCorrected;
 
@@ -53,6 +63,7 @@ matNpF = sLoad1.sigBack;
 [intFrames,intNeurons] = size(matSomaF);
 matSoma_dFoF = nan(size(matSomaF));
 matNp_dFoF = nan(size(matSomaF));
+return
 %% recalc dfof
 fprintf('Recalculating dF/F0 for %d cells [%s]\n',intNeurons,getTime);
 parfor intNeuron=1:intNeurons
@@ -76,7 +87,7 @@ fprintf('Running spike detection on %d cells [%s]\n',intNeurons,getTime)
 %parameters
 dblSpikeTau = 0.7; %0.7
 dblThresholdFactor = 0.25; %0.25
-intBlockSize = 4133;
+intBlockSize = 997;
 
 %pre-allocate
 cellFramesAP = cell(1,intNeurons);
@@ -90,6 +101,7 @@ vecT = (1:intFrames)/dblSamplingFreq;
 dblTotDur = vecT(end);
 parfor intNeuron=1:intNeurons
 	%soma
+	intNeuron
 	vec_dFoF = mat_dFoF(:,intNeuron)';
 	[vecFramesAP, vecNumberAP, vecSpikes, vecExpFit, vecSpikeTimes] = doDetectSpikes(vec_dFoF,dblSamplingFreq,dblSpikeTau,intBlockSize,dblThresholdFactor);
 	cellFramesAP{intNeuron} = vecFramesAP;
@@ -98,37 +110,39 @@ parfor intNeuron=1:intNeurons
 	matExpFit(:,intNeuron) = vecExpFit;
 	cellSpikeTimes{intNeuron} = vecSpikeTimes;
 	
-	%%{
+	%{
 	if 0
 		%% plot
 	clf;
 	subplot(2,3,[1 2 4 5])
 	hold on
 	fixfig;
-	plot(vecT,vec_dFoF,'Color',lines(1),'Linewidth',1);
-	h=plot(vecT,vecExpFit,'Color',[0.8 0.1 0.1],'Linewidth',1);
+	plot(vecT,mat_dFoF(:,intNeuron),'Color',lines(1),'Linewidth',1);
+	h=plot(vecT,matExpFit(:,intNeuron),'Color',[0.8 0.1 0.1],'Linewidth',1);
 	h.Color=[0.8 0.1 0.1 0.5];
 	ylabel('dF/F0');
 	xlabel('Time (s)');
 	hold off;
-	title(sprintf('Neuron %d/%d; mean rate is %.1fHz',intNeuron,intNeurons,numel(vecSpikeTimes)/dblTotDur))
+	title(sprintf('Neuron %d/%d; mean rate is %.1fHz',intNeuron,intNeurons,numel(cellSpikeTimes{intNeuron})/dblTotDur))
 	
 	subplot(2,3,3);
 	hold on
 	fixfig;
-	plot(vecT(1:1200),vec_dFoF(1:1200),'Color',lines(1),'Linewidth',1);
-	h=plot(vecT(1:1200),vecExpFit(1:1200),'Color',[0.8 0.1 0.1],'Linewidth',1);
+	plot(vecT(1:1200),mat_dFoF(1:1200,intNeuron),'Color',lines(1),'Linewidth',1);
+	h=plot(vecT(1:1200),matExpFit(1:1200,intNeuron),'Color',[0.8 0.1 0.1],'Linewidth',1);
 	h.Color=[0.8 0.1 0.1 0.5];
+	vecSpT = cellSpikeTimes{intNeuron}(cellSpikeTimes{intNeuron} < vecT(1200));
+	scatter(vecSpT,ones(size(vecSpT))*max(get(gca,'ylim')))
 	ylabel('dF/F0');
 	xlabel('Time (s)');
 	hold off;
 	
 	subplot(2,3,6);
-	scatter(vec_dFoF,vecExpFit)
+	scatter(mat_dFoF(1:1200,intNeuron),matExpFit(1:1200,intNeuron))
 	xlabel('dF/F0')
 	ylabel('ExpFit');
 	fixfig;
-	pause
+	%pause
 	
 	if 0
 		%% save
@@ -141,12 +155,12 @@ parfor intNeuron=1:intNeurons
 		
 	end
 	end
-	%%}
+	%}
 end
 
 %% save data
 sInfo = sLoad2.info;
-strFileOut = [strDataPath 'DelierPreProSpikes2.mat'];
+strFileOut = [strDataPath strOut 'PreProSpikes2.mat'];
 fprintf('Saving data to "%s" [%s]   ...   \n',strFileOut,getTime);
 save(strFileOut,...
 	'sInfo','cellSpikeTimes','mat_dFoF','matSoma_dFoF','matNp_dFoF','matExpFit','matSpikes','cellNumberAP','cellFramesAP',...

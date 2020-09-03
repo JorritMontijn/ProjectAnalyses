@@ -41,12 +41,19 @@ Hoop dat je er wat aan hebt. Ik hoor het wel als je vragen hebt.
 De grootte vd stimuli is maar 0.027 op dezelfde schaal (0.027% van 0.5), dus dat is zeer klein en ik weet niet of je daar rekening mee wilt houden.
 %}
 
-%% load data
+%% define data
 clear all;
+cellFiles = {'Bryu_20200825_002_Split1PreProSpikes2',...
+	'Delier_20191015_002_Split1PreProSpikes2',...
+	'Bauke_20200825_002_Split1PreProSpikes2',...
+	'Just_20200825_003_Split1PreProSpikes2'};
+intFile = 3;
+
+%% load data
 strDisk = 'F:';
-strDataPath = [strDisk '\Data\Processed\VirtualTunnel\Delier\'];
+strDataPath = [strDisk '\Data\Processed\VirtualTunnel\'];
 strTargetPath = [strDisk '\Data\Results\ZETA\VirtCorr\'];
-strDataFile = 'DelierPreProSpikes.mat';
+strDataFile = [cellFiles{intFile} '.mat'];
 load([strDataPath strDataFile]);
 
 
@@ -60,12 +67,10 @@ vecRewardT = sInfo.Stim.log.stimlog(1:intTrials,2);
 vecRewardT(sInfo.Stim.log.stimlog(1:intTrials,2)==0) = [];
 vecGreyT = sInfo.Stim.log.stimlog(1:intTrials,3);
 vecGreyT(sInfo.Stim.log.stimlog(1:intTrials,3)==0) = [];
-vecMismatchTrials = find(sInfo.Stim.log.stimlog(1:intTrials,4)~=0);
+vecMismatchTrials = find(sInfo.Stim.log.stimlog(1:intTrials,4)~=0 & sInfo.Stim.log.stimlog(1:intTrials,5)~=0);
 vecNormalTrials = find(sInfo.Stim.log.stimlog(1:intTrials,4)==0);
-vecMismatchT = sInfo.Stim.log.stimlog(1:intTrials,4);
-vecMismatchT(vecNormalTrials) = [];
-vecMismatchLoc = sInfo.Stim.log.stimlog(1:intTrials,5);
-vecMismatchLoc(sInfo.Stim.log.stimlog(1:intTrials,5)==0) = [];
+vecMismatchT = sInfo.Stim.log.stimlog(vecMismatchTrials,4);
+vecMismatchLoc = sInfo.Stim.log.stimlog(vecMismatchTrials,5);
 intMismatchNum = numel(vecMismatchLoc);
 
 %% select control locations for mismatch at same position
@@ -81,6 +86,8 @@ vecAllTrialLocs = vecAllLocs + vecTrialLocStarts;
 vecMismatchTrialLocs = vecMismatchLoc + vecMismatchTrials.*dblTrialLocLength;
 vecRealMismatchT = vecMismatchT + vecStartT(vecMismatchTrials) - vecLocalT(vecMismatchTrials);
 vecRealNormalT = vecStartT(vecNormalTrials);
+dblCutStartEndLoc = 0.05;
+dblLocLength = 0.5 - dblCutStartEndLoc*2;
 
 %% calculate visually responsive cells
 intNeurons = numel(cellSpikeTimes);
@@ -101,12 +108,12 @@ for intNeuron=1:intNeurons
 			fprintf('Neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
 		end
 	%%
-	for intIter=1:intIters
+	parfor intIter=1:intIters
 		vecRandNormalTrials = sort(vecNormalTrials(randperm(numel(vecNormalTrials),numel(vecRealMismatchT))));
 	vecSpikeLocations = interp1(vecAllT,vecAllTrialLocs,cellSpikeTimes{intNeuron});
 	%location normal
-	vecNormalOn = vecEventOn(vecRandNormalTrials);
-	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(vecSpikeLocations,vecNormalOn,0.5,intResampNum,intPlot,intLatencyPeaks);
+	vecNormalOn = vecEventOn(vecRandNormalTrials) + dblCutStartEndLoc;
+	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(vecSpikeLocations,vecNormalOn,dblLocLength,intResampNum,intPlot,intLatencyPeaks);
 	vecVisLocZetaP(intIter,intNeuron) = sZETA.dblZETA;
 	
 	%time normal
@@ -208,16 +215,19 @@ fixfig;
 maxfig;
 normaxes('xy');
 
+drawnow;
+export_fig([strTargetPath cellFiles{intFile} '_v3.tif']);
+export_fig([strTargetPath cellFiles{intFile} '_v3.pdf']);
 %% calculate mismatch-modulated cells
-vecVisTimZetaP
-vecMisMatZetaP
-vecVisLocZetaP
+vecVisTimZetaP;
+vecMisMatZetaP;
+vecVisLocZetaP;
 
 vecMismatchTrials;
 vecMismatchT;
 vecMismatchLoc;
 intMismatchNum;
 
-save([strTargetPath 'ProcDatav3.mat'],'vecVisTimZetaP','vecMisMatZetaP','vecVisLocZetaP','vecMismatchTrials','vecMismatchT','vecMismatchLoc','intMismatchNum');
+save([strTargetPath cellFiles{intFile} 'ProcDatav3.mat'],'vecVisTimZetaP','vecMisMatZetaP','vecVisLocZetaP','vecMismatchTrials','vecMismatchT','vecMismatchLoc','intMismatchNum');
 
 %% compare mismatch and visual responsiveness

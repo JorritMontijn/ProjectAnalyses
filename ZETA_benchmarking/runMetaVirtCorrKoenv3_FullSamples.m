@@ -7,9 +7,9 @@ cellFiles = {'Delier_20191015_002_Split1',...
 	'Bryu_20200828_002_Split1',...
 	'Just_20200828_002_Split1'};
 
-boolZ = 2;
+boolZ = 1;
 boolOnlyPyr = true;
-intRemUnder = 10;
+intRemUnder = 0;
 
 %% aggregate data
 vecMisMatZetaP = [];
@@ -20,16 +20,21 @@ vecMMNum = [];
 vecVisLocZetaP = [];
 vecVisTimZetaP = [];
 vecInterneuron = [];
+
+vecCorr_MM_Loc = [];
+vecCorr_MM_Tim = [];
+vecCorr_Loc_Tim = [];
+
 strDisk = 'F:';
 strDataPath = [strDisk '\Data\Results\ZETA\VirtCorr\'];
 strDataPathRaw = [strDisk '\Data\Processed\VirtualTunnel\'];
 
 for intFile=1:numel(cellFiles)
 	strDataFileRaw = [cellFiles{intFile} 'PreProSpikes2.mat'];
-	strDataFile = [cellFiles{intFile} 'PreProSpikes2ProcDatav3.mat'];
+	strDataFile = [cellFiles{intFile} 'ProcDatav5.mat'];
 	sLoad = load([strDataPath strDataFile]);
 	sLoad2 = load([strDataPathRaw strDataFileRaw]);
-	%if numel(sLoad.vecMismatchT(:)) < 10,continue;end
+	if numel(sLoad.vecMismatchT(:)) < intRemUnder,continue;end
 	
 	vecMismatchLoc = cat(1,vecMismatchLoc,sLoad.vecMismatchLoc(:));
 	vecMismatchT = cat(1,vecMismatchT,sLoad.vecMismatchT(:));
@@ -37,6 +42,10 @@ for intFile=1:numel(cellFiles)
 	vecInterneuron = cat(1,vecInterneuron,cell2vec({sLoad2.sInfo.rois.red}));
 	vecMMNum = cat(1,vecMMNum,numel(sLoad.vecMismatchT(:)));
 	
+	vecCorr_MM_Loc = cat(1,vecCorr_MM_Loc,corr(sLoad.vecVisLocZetaP(:),sLoad.vecMisMatZetaP(:)));
+	vecCorr_MM_Tim = cat(1,vecCorr_MM_Tim,corr(sLoad.vecMisMatZetaP(:),sLoad.vecVisTimZetaP(:)));
+	vecCorr_Loc_Tim = cat(1,vecCorr_Loc_Tim,corr(sLoad.vecVisLocZetaP(:),sLoad.vecVisTimZetaP(:)));
+
 	if boolZ == 1
 		vecMisMatZetaP = cat(1,vecMisMatZetaP,nanzscore(sLoad.vecMisMatZetaP(:)));
 		vecVisLocZetaP = cat(1,vecVisLocZetaP,nanzscore(sLoad.vecVisLocZetaP(:)));
@@ -149,6 +158,19 @@ fixfig;
 maxfig;
 normaxes('xy');
 
+%{
+subplot(2,3,3)
+
+[h,pML]=ttest(vecCorr_MM_Loc);
+[h,pMT]=ttest(vecCorr_MM_Tim);
+[h,pLT]=ttest(vecCorr_Loc_Tim);
+
+hold on
+bplot(vecCorr_MM_Loc,1);
+bplot(vecCorr_MM_Tim,2);
+bplot(vecCorr_Loc_Tim,3);
+%}
+
 return
 %%
 if boolZ
@@ -161,6 +183,6 @@ if boolOnlyPyr
 else
 	strPyr = 'AllCells';
 end
-strFigFile = sprintf('VirtCorrAgg_%s_%s',strPyr,strZ);
+strFigFile = sprintf('VirtCorrAgg_FullSamples_%s_%s',strPyr,strZ);
 export_fig([strFigFile '.tif'])
 export_fig([strFigFile '.pdf'])

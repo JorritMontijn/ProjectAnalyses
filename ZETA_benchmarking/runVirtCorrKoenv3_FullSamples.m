@@ -52,7 +52,7 @@ cellFiles = {'Delier_20191015_002_Split1',...
 	'Just_20200828_002_Split1'};
 
 intFile = 5;
-for intFile = 1:7
+for intFile = 6%1:7
 		clearvars -except intFile cellFiles;
 %% load data
 strDisk = 'F:';
@@ -92,44 +92,44 @@ vecMismatchTrialLocs = vecMismatchLoc + vecMismatchTrials.*dblTrialLocLength;
 vecRealMismatchT = vecMismatchT + vecStartT(vecMismatchTrials) - vecLocalT(vecMismatchTrials);
 vecRealNormalT = vecStartT(vecNormalTrials);
 dblCutStartEndLoc = 0.05;
-dblLocLength = 0.5 - dblCutStartEndLoc*2;
+
+dblLocLength = 0.5 - dblCutStartEndLoc*2; %0.8
+dblTimeDur = 5;%min(diff(vecStartT)-9); %5
+dblMMDur = 2;%min(vecStartT(vecMismatchTrials+1)  - vecRealMismatchT - 9); %2
 
 %% calculate visually responsive cells
 intNeurons = numel(cellSpikeTimes);
 intResampNum = 250;
 intLatencyPeaks = 4;
 hTic=tic;
-vecStimLocs = ([22.2200   33.3300   44.4440   55.5500   66.6600   77.7770]./100)*2;
+vecStimLocs = ([22.2200   33.3300   44.4440   55.5500   66.6600   77.7770]./100);
 
 intIters=100;
-vecVisLocZetaP = nan(intIters,intNeurons);
-vecVisTimZetaP = nan(intIters,intNeurons);
+vecVisLocZetaP = nan(1,intNeurons);
+vecVisTimZetaP = nan(1,intNeurons);
 vecMisMatZetaP = nan(1,intNeurons);
 intPlot = 0;
 
-for intNeuron=1:intNeurons
-		if toc(hTic) > 5
+
+parfor intNeuron=1:intNeurons
+		%if toc(hTic) > 5
 			hTic = tic;
 			fprintf('Neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
-		end
+		%end
 	%%
-	for intIter=1:intIters
-		vecRandNormalTrials = sort(vecNormalTrials(randperm(numel(vecNormalTrials),numel(vecRealMismatchT))));
+	vecRandNormalTrials = sort(vecNormalTrials(randperm(numel(vecNormalTrials),numel(vecRealMismatchT))));
 	vecSpikeLocations = interp1(vecAllT,vecAllTrialLocs,cellSpikeTimes{intNeuron});
 	%location normal
-	vecNormalOn = vecEventOn(vecRandNormalTrials) + dblCutStartEndLoc;
-	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(vecSpikeLocations,vecNormalOn,dblLocLength,intResampNum,intPlot,intLatencyPeaks);
-	vecVisLocZetaP(intIter,intNeuron) = sZETA.dblZETA;
+	vecNormalOn = vecEventOn + dblCutStartEndLoc;
+	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(vecSpikeLocations*2,vecNormalOn*2,dblLocLength*2,intResampNum,intPlot,intLatencyPeaks);
+	vecVisLocZetaP(intNeuron) = sZETA.dblZETA;
 	
 	%time normal
-	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(cellSpikeTimes{intNeuron},vecStartT(vecRandNormalTrials),2,intResampNum,intPlot,intLatencyPeaks);
-	vecVisTimZetaP(intIter,intNeuron) = sZETA.dblZETA;
-	
-	return
-	end
+	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(cellSpikeTimes{intNeuron},vecStartT+0.1,dblTimeDur,intResampNum,intPlot,intLatencyPeaks);
+	vecVisTimZetaP(intNeuron) = sZETA.dblZETA;
 	
 	%mismatch
-	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(cellSpikeTimes{intNeuron},vecRealMismatchT,2,intResampNum,intPlot,intLatencyPeaks);
+	[dblZetaP,vecLatencies,sZETA,sMSD] = getZeta(cellSpikeTimes{intNeuron},vecRealMismatchT,dblMMDur,intResampNum,intPlot,intLatencyPeaks);
 	vecMisMatZetaP(intNeuron) = sZETA.dblZETA;
 	
 end
@@ -223,18 +223,18 @@ maxfig;
 normaxes('xy');
 
 drawnow;
-export_fig([strTargetPath cellFiles{intFile} '_v3.tif']);
-export_fig([strTargetPath cellFiles{intFile} '_v3.pdf']);
+export_fig([strTargetPath cellFiles{intFile} '_v4.tif']);
+export_fig([strTargetPath cellFiles{intFile} '_v4.pdf']);
 %% calculate mismatch-modulated cells
-vecVisTimZetaP;
-vecMisMatZetaP;
-vecVisLocZetaP;
+vecVisTimZetaP(1)
+vecMisMatZetaP(1)
+vecVisLocZetaP(1)
 
 vecMismatchTrials;
 vecMismatchT;
 vecMismatchLoc;
 intMismatchNum;
 
-save([strTargetPath cellFiles{intFile} 'ProcDatav3.mat'],'vecVisTimZetaP','vecMisMatZetaP','vecVisLocZetaP','vecMismatchTrials','vecMismatchT','vecMismatchLoc','intMismatchNum');
+save([strTargetPath cellFiles{intFile} 'ProcDatav5.mat'],'vecVisTimZetaP','vecMisMatZetaP','vecVisLocZetaP','vecMismatchTrials','vecMismatchT','vecMismatchLoc','intMismatchNum');
 end
 %% compare mismatch and visual responsiveness

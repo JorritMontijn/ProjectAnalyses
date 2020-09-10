@@ -36,13 +36,17 @@ Hoop dat je er wat aan hebt. Ik hoor het wel als je vragen hebt.
 %}
 
 %% define data
-cellFiles = {'Bryu_20200825_002_Split1_normcorr_SPSIG',...
-	'Delier_20191015_002_Split1_normcorr_SPSIG',...
+cellFiles = {'Delier_20191015_002_Split1_normcorr_SPSIG',...
 	'Bauke_20200825_002_Split1_normcorr_SPSIG',...
-	'Just_20200825_003_Split1_normcorr_SPSIG'};
+	'Bryu_20200825_002_Split1_normcorr_SPSIG',...
+	'Just_20200825_003_Split1_normcorr_SPSIG',...
+	'Bauke_20200828_004_Split1_normcorr_SPSIG',...
+	'Bryu_20200828_002_Split1_normcorr_SPSIG',...
+	'Just_20200828_002_Split1_normcorr_SPSIG'};
 
 %% load data
-intLoad = 1;
+for intLoad = 7
+	clearvars -except intLoad cellFiles;
 strDataPath = 'F:\Data\Processed\VirtualTunnel\';
 strDataFile1 = sprintf('%s.mat',cellFiles{intLoad});
 strDataFile2 = sprintf('%s_Res.mat',cellFiles{intLoad});
@@ -63,7 +67,7 @@ matNpF = sLoad1.sigBack;
 [intFrames,intNeurons] = size(matSomaF);
 matSoma_dFoF = nan(size(matSomaF));
 matNp_dFoF = nan(size(matSomaF));
-return
+
 %% recalc dfof
 fprintf('Recalculating dF/F0 for %d cells [%s]\n',intNeurons,getTime);
 parfor intNeuron=1:intNeurons
@@ -166,3 +170,4 @@ save(strFileOut,...
 	'sInfo','cellSpikeTimes','mat_dFoF','matSoma_dFoF','matNp_dFoF','matExpFit','matSpikes','cellNumberAP','cellFramesAP',...
 	'dblSamplingFreq','dblNpFactor','intBlockSize','dblThresholdFactor','dblSpikeTau')
 fprintf('\bDone!\n')
+end

@@ -31,7 +31,7 @@ strDataPathRaw = [strDisk '\Data\Processed\VirtualTunnel\'];
 
 for intFile=1:numel(cellFiles)
 	strDataFileRaw = [cellFiles{intFile} 'PreProSpikes2.mat'];
-	strDataFile = [cellFiles{intFile} 'ProcDatav5.mat'];
+	strDataFile = [cellFiles{intFile} 'ProcDatav5b.mat'];
 	sLoad = load([strDataPath strDataFile]);
 	sLoad2 = load([strDataPathRaw strDataFileRaw]);
 	if numel(sLoad.vecMismatchT(:)) < intRemUnder,continue;end
@@ -41,6 +41,7 @@ for intFile=1:numel(cellFiles)
 	vecMismatchTrials = cat(1,vecMismatchTrials,sLoad.vecMismatchTrials(:));
 	vecInterneuron = cat(1,vecInterneuron,cell2vec({sLoad2.sInfo.rois.red}));
 	vecMMNum = cat(1,vecMMNum,numel(sLoad.vecMismatchT(:)));
+	%vecTrialNum = cat(1,vecMMNum,numel(sLoad.vecMismatchT(:)));
 	
 	vecCorr_MM_Loc = cat(1,vecCorr_MM_Loc,corr(sLoad.vecVisLocZetaP(:),sLoad.vecMisMatZetaP(:)));
 	vecCorr_MM_Tim = cat(1,vecCorr_MM_Tim,corr(sLoad.vecMisMatZetaP(:),sLoad.vecVisTimZetaP(:)));

@@ -5,7 +5,7 @@ strFigPath = 'F:\Data\Results\ZETA\Inclusion\';
 cellUniqueAreas = {...
 	'V1',...Area 1
 	'SC',...Area 2
-	'Poisson',...Area 3
+	...'Poisson',...Area 3
 	'Retina',...Area 4
 	...%'CaNM',...Area 5
 	'CaDG',...Area 6
@@ -16,12 +16,12 @@ cellUniqueAreas = {...
 	'Nucleus of the optic tract',...Area 11
 	'Superior colliculus',...Area 12
 	'Anteromedial visual',...Area 13
-	'posteromedial visual'};%,...Area 14
-%{
+	'posteromedial visual',...%,...Area 14
 	'Anterolateral visual',...Area 15
 	'Lateral visual',...Area 16
 	'Rostrolateral area',...Area 17
-	'Anterior area',...Area 18
+	'Anterior area'};%,...Area 18
+	%{
 	'Subiculum',...Area 19
 	'Field CA1',...Area 20
 	'Field CA2',...Area 21
@@ -71,7 +71,7 @@ matSignifHz = [];
 intIdx = 0;
 for intArea=1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
-	if intArea < 7
+	if intArea < 5%7
 		vecRunStims = 1;
 	else
 		vecRunStims = 2:numel(cellRunStim);
@@ -95,13 +95,26 @@ for intArea=1:numel(cellUniqueAreas)
 			intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
 			sLoad=load([strPath strFile]);
 			vecZeta = abs(sLoad.vecZeta);
-			if intArea==3 %zeta is already p-value
+			if intArea > inf%==4% %zeta is already p-value
 				vecZP=vecZeta;
 			else
 				vecZP=1-(normcdf(abs(vecZeta))-normcdf(-abs(vecZeta)));
 			end
 			matNumCells(intIdx,intRandType) = numel(vecZP);
 			matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
+			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
+		end
+		
+		%% load data
+		strRunType = [strArea strRand strStim];
+		sDir=dir([strPath 'ZetaData2MSD' strRunType 'Resamp100*']);
+		intFiles=numel(sDir);
+		for intFile=1:intFiles
+			strFile = sDir(intFile).name;
+			intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
+			sLoad=load([strPath strFile]);
+			%matNumCells(intIdx,intRandType) = numel(vecZP);
+			%matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
 			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
 		end
 	end

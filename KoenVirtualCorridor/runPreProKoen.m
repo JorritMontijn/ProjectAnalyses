@@ -45,7 +45,7 @@ cellFiles = {'Delier_20191015_002_Split1_normcorr_SPSIG',...
 	'Just_20200828_002_Split1_normcorr_SPSIG'};
 
 %% load data
-for intLoad = 7
+for intLoad = 1:7
 	clearvars -except intLoad cellFiles;
 strDataPath = 'F:\Data\Processed\VirtualTunnel\';
 strDataFile1 = sprintf('%s.mat',cellFiles{intLoad});

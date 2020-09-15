@@ -43,7 +43,7 @@ boolSave = true;
 vecSubsampleTrials = 100:100:4000;
 intSubsampleNum = numel(vecSubsampleTrials);
 intResampleNum = 100;%10:10:90;%[10:10:100];
-vecRunAreas = 7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 8;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 if contains(strAnalysisType,'A')
     dblPreDur = 0.5;
 elseif contains(strAnalysisType,'B')
@@ -158,15 +158,16 @@ for intArea=vecRunAreas
 			matHzP = nan(intNeurons,intSubsampleNum);
 			
 			%% analyze
-			for intNeuron=[1:intNeurons]%31
+			parfor intNeuron=[1:intNeurons]%31
+				fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
 				for intSubsampleTrialIdx=1:intSubsampleNum
 					
 					%% message
-					if toc(hTic) > 5
-						fprintf('Processing neuron %d/%d, %d trials [%s]\n',intNeuron,intNeurons,vecSubsampleTrials(intSubsampleTrialIdx),getTime);
-						hTic=tic;
-					end
-					clear vecTrialStarts;
+					%if toc(hTic) > 5
+					%	fprintf('Processing neuron %d/%d, %d trials [%s]\n',intNeuron,intNeurons,vecSubsampleTrials(intSubsampleTrialIdx),getTime);
+					%	hTic=tic;
+					%end
+					%clear vecTrialStarts;
 					%% get neuronal data
 					sThisNeuron = sAggNeuron(intNeuron);
 					vecSpikeTimes = sThisNeuron.SpikeTimes;
@@ -203,7 +204,8 @@ for intArea=vecRunAreas
 						matEventTimes = vecTrialStarts;
 					end
 					
-					vecTrialNum = unique([vecTrialNum size(matEventTimes,1)]);
+					%vecTrialNum = unique([vecTrialNum size(matEventTimes,1)]);
+					
 					% subsample trials
 					intTrialNum = vecSubsampleTrials(intSubsampleTrialIdx);
 					if intTrialNum > size(matEventTimes,1),break;end
@@ -250,7 +252,7 @@ for intArea=vecRunAreas
 				
 			end
 			if boolSave
-				save([strDataTargetPath 'ZetaDataTrialNum' strRunType strRunStim '.mat' ],...
+				save([strDataTargetPath 'ZetaDatav2TrialNum' strRunType strRunStim '.mat' ],...
 					'vecSubsampleTrials','matZetaP','matZeta','matHzD','matHzP');
 			end
 		end

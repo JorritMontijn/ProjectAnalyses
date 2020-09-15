@@ -52,8 +52,8 @@ cellFiles = {'Delier_20191015_002_Split1',...
 	'Just_20200828_002_Split1'};
 
 intFile = 5;
-for intFile = 6%1:7
-		clearvars -except intFile cellFiles;
+for intFile = 1:7
+		clearvars -except vecMMP vecMisMatNum vecTrialNum intFile cellFiles;
 %% load data
 strDisk = 'F:';
 strDataPath = [strDisk '\Data\Processed\VirtualTunnel\'];
@@ -67,6 +67,7 @@ licktimes = sInfo.Stim.log.licklog(:,2); %in frame or stim time?
 
 vecStartT = sInfo.StimTimes(:,1);
 intTrials = numel(vecStartT);
+vecTrialNum(intFile) = intTrials;
 vecLocalT = sInfo.Stim.log.stimlog(1:intTrials,1);
 vecRewardT = sInfo.Stim.log.stimlog(1:intTrials,2);
 vecRewardT(sInfo.Stim.log.stimlog(1:intTrials,2)==0) = [];
@@ -77,7 +78,9 @@ vecNormalTrials = find(sInfo.Stim.log.stimlog(1:intTrials,4)==0);
 vecMismatchT = sInfo.Stim.log.stimlog(vecMismatchTrials,4);
 vecMismatchLoc = sInfo.Stim.log.stimlog(vecMismatchTrials,5);
 intMismatchNum = numel(vecMismatchLoc);
-
+vecMisMatNum(intFile) = intMismatchNum;
+vecMMP(intFile) = intMismatchNum/intTrials;
+continue;
 %% select control locations for mismatch at same position
 cellControlT = cell(1,intMismatchNum);
 vecAllLocs = sInfo.Stim.log.motionlog(:,3);
@@ -223,8 +226,8 @@ maxfig;
 normaxes('xy');
 
 drawnow;
-export_fig([strTargetPath cellFiles{intFile} '_v4.tif']);
-export_fig([strTargetPath cellFiles{intFile} '_v4.pdf']);
+export_fig([strTargetPath cellFiles{intFile} '_v5b.tif']);
+export_fig([strTargetPath cellFiles{intFile} '_v5b.pdf']);
 %% calculate mismatch-modulated cells
 vecVisTimZetaP(1)
 vecMisMatZetaP(1)
@@ -235,6 +238,6 @@ vecMismatchT;
 vecMismatchLoc;
 intMismatchNum;
 
-save([strTargetPath cellFiles{intFile} 'ProcDatav5.mat'],'vecVisTimZetaP','vecMisMatZetaP','vecVisLocZetaP','vecMismatchTrials','vecMismatchT','vecMismatchLoc','intMismatchNum');
+save([strTargetPath cellFiles{intFile} 'ProcDatav5b.mat'],'vecVisTimZetaP','vecMisMatZetaP','vecVisLocZetaP','vecMismatchTrials','vecMismatchT','vecMismatchLoc','intMismatchNum');
 end
 %% compare mismatch and visual responsiveness

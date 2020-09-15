@@ -31,7 +31,7 @@ cellUniqueAreas = {...
 	};
 
 
-strDataMasterPath = 'D:\Data\Processed\ePhys\';
+strDataMasterPath = 'F:\Data\Processed\ePhys\';
 strDataTargetPath = 'F:\Data\Processed\ZETA\Inclusion\';
 strFigPath = 'F:\Data\Results\ZETA\Examples\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
@@ -39,7 +39,7 @@ vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = 3;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 8%4;%6;%14:16;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -81,62 +81,18 @@ for intRandType=vecRandTypes
 
 if intRandType == 1
 	strRunType = strArea;
+	fprintf('Prepping normal... [%s]\n',getTime);
 elseif intRandType ==2
 	strRunType = [strArea '-Rand'];
+	fprintf('Prepping random... [%s]\n',getTime);
 end
 
 %% load data
 if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
-	%% find data
-	strDataSourcePath = 'D:\Data\Processed\Neuropixels\';
-	sFiles = dir([strDataSourcePath '*.mat']);
-	cellFiles = {sFiles(:).name}';
 	strName = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));
-	
-	%% go through files
-	clear sAggStim;
-	clear sAggNeuron;
-	intNeurons = 0;
-	for intFile=1:numel(cellFiles)
-		%% load
-		fprintf('Loading %s [%s]\n',cellFiles{intFile},getTime);
-		sLoad = load([strDataSourcePath cellFiles{intFile}]);
-		sAP = sLoad.sAP;
-		intNewFile = 1;
-		%check if neuron is in target area
-		for intClust=1:numel(sAP.sCluster)
-			strClustArea = sAP.sCluster(intClust).Area;
-			if ~isempty(strClustArea) && contains(strClustArea,strArea,'IgnoreCase',true) && (sAP.sCluster(intClust).KilosortGood || sAP.sCluster(intClust).Contamination < 0.1)
-				%% aggregate data
-				%check if stim type is present
-				indUseStims = ismember(cellfun(@(x) x.structEP.strFile,sAP.cellStim,'uniformoutput',false),strRunStim);
-				if isempty(indUseStims) || ~any(indUseStims)
-					continue;
-				end
-				%add data
-				if intNeurons == 0
-					intNewFile = 0;
-					sAggNeuron(1) = sAP.sCluster(intClust);
-					sAggStim(1).cellStim = sAP.cellStim(indUseStims);
-					sAggStim(1).Rec = sAggNeuron(end).Rec;
-				elseif ~isempty(indUseStims) && any(indUseStims)
-					sAggNeuron(end+1) = sAP.sCluster(intClust);
-				end
-				if intNewFile
-					sAggStim(end+1).cellStim = sAP.cellStim(indUseStims);
-					sAggStim(end).Rec = sAggNeuron(end).Rec;
-					intNewFile = 0;
-				end
-				intNeurons = intNeurons + 1;
-			end
-		end
-	end
-	if ~exist('sAggStim','var')
-		continue;
-	end
-	
+	[sAggStim,sAggNeuron]=loadDataNpx(strArea,strRunStim);
 	cellRecIdx = {sAggStim.Rec};
-	fprintf('Found %d cells from %d recordings in "%s" [%s]\n',intNeurons,numel(cellRecIdx),strRunType,getTime);
+	intNeurons = numel(sAggNeuron);
 	
 elseif contains(strRunType,'V1') || contains(strRunType,'SC')
 	%% find data
@@ -176,7 +132,7 @@ elseif contains(strRunType,'Poisson')
 	intNeurons = 10000;
 elseif contains(strRunType,'CaNM')
 	%% find data
-	strDataSourcePath = 'D:\Data\Processed\imagingGCaMP\';
+	strDataSourcePath = 'F:\Data\Processed\imagingGCaMP\';
 	sFiles = dir([strDataSourcePath '20150511xyt02_ses.mat']);
 	cellFiles = {sFiles(:).name}';
 	sLoad = load([strDataSourcePath cellFiles{1}]);
@@ -185,7 +141,7 @@ elseif contains(strRunType,'CaNM')
 	vecOn = ses.structStim.FrameOn;
 	cellData = {ses.neuron(:).dFoF};
 elseif contains(strRunType,'CaDG')
-	strDataSourcePath = 'D:\Data\Processed\imagingGCaMP\';
+	strDataSourcePath = 'F:\Data\Processed\imagingGCaMP\';
 	sFiles = dir([strDataSourcePath '20150511xyt01_ses.mat']);
 	cellFiles = {sFiles(:).name}';
 	sLoad = load([strDataSourcePath cellFiles{1}]);
@@ -358,7 +314,7 @@ for intResampleIdx = 1:numel(vecResamples)
 		%set derivative params
 		if contains(strRunType,'Rand')
 			dblDur = dblUseMaxDur;
-			vecJitter = 2*dblDur*rand([numel(vecStimOnTime) 1])-dblDur;
+			vecJitter = 4*dblDur*rand([numel(vecStimOnTime) 1])-dblDur;
 			matEventTimes = bsxfun(@plus,vecTrialStarts,vecJitter);
 		else
 			matEventTimes = vecTrialStarts;
@@ -371,9 +327,9 @@ for intResampleIdx = 1:numel(vecResamples)
 		if exist('vecTraceAct','var') && ~isempty(vecTraceAct) %calcium imaging
 			%continue;
 			if intResampleNum == vecResamples(end)% && vecPlotCells(intNeuron)
-				[dblZeta,vecLatencies,sZETA,sRate] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampleNum,intMakePlots4,vecRestrictRange);
+				[dblZeta,vecLatencies,sZETA,sRate] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampleNum,intMakePlots,0);
 			else
-				[dblZeta,vecLatencies,sZETA,sRate] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampleNum,0,4,vecRestrictRange);
+				[dblZeta,vecLatencies,sZETA,sRate] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampleNum,0,0);
 			end
 			intSpikeNum = mean(vecTraceAct) + std(vecTraceAct);
 			%unpack
@@ -451,7 +407,7 @@ for intResampleIdx = 1:numel(vecResamples)
 	%cellZeta = cell(1,intNeurons);
 	%cellArea = cell(1,intNeurons);
 	if boolSave
-		save([strDataTargetPath 'ZetaDataMSD' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
+		save([strDataTargetPath 'ZetaData2MSD' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
 			'vecOnset','vecPeakT','vecPeakW','vecNumSpikes','vecZeta','vecP','vecHzD','vecHzP','cellD','cellInterpT','cellArea','cellDeriv','cellPeakT','cellPeakI');
 	end
 end

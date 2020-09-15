@@ -2,6 +2,7 @@ clear all;
 %close all;
 strDisk = 'F:';
 strAnalysisType = '1A'; %A=500ms, B=300ms; 1=pooled,2=split,3=split,uncorr
+strZetaType = 'v2'; %{'','v2'}
 strDataSource = [strDisk '\Data\Processed\ZETA\TrialNum\'];
 strFigPath = [strDisk '\Data\Results\ZETA\Inclusion\'];
 cellUniqueAreas = {...
@@ -81,7 +82,7 @@ for intArea=8%7:numel(cellUniqueAreas)
 		%% load data 1
 		strRand = cellRunRand{intRandType};
 		strRunType = [strArea strRand];
-		sDir=dir([strDataSource 'ZetaDataTrialNum' strRunType '*']);
+		sDir=dir([strDataSource 'ZetaData' strZetaType 'TrialNum' strRunType '*']);
 		if ~isempty(sDir) && isempty(strRand)
 			cellDatasetNames{intIdx} = strName;
 			sDir = sDir(~contains({sDir.name},'Rand'));
@@ -101,13 +102,13 @@ for intArea=8%7:numel(cellUniqueAreas)
 			cellNumCells{intIdx,intRandType} = sum(~isnan(matZeta),1);
 			cellTrialNums{intIdx,intRandType} = vecSubsampleTrials;
 			cellIncludeZ{intIdx,intRandType} = sum(matZetaP<0.05,1)/intN;
-			%cellIncludeM{intIdx,intRandType} = sum(matHzP<0.05,1)/intN;
+			cellIncludeM{intIdx,intRandType} = sum(matHzP<0.05,1)/intN;
 			
 		end
 		%% load data 2
 		strRand = cellRunRand{intRandType};
 		strRunType = [strrep(strAnalysisType,'3','2') '_' strArea strRand];
-		sDir=dir([strDataSource 'ZetaDataTrialNum*' strRunType '*']);
+		sDir=dir([strDataSource 'ZetaData' strZetaType 'TrialNum*' strRunType '*']);
 		if ~isempty(sDir) && isempty(strRand)
 			cellDatasetNames{intIdx} = strName;
 			sDir = sDir(~contains({sDir.name},'Rand'));
@@ -139,6 +140,7 @@ for intArea=8%7:numel(cellUniqueAreas)
 end
 
 %%
+if isempty(cellNumCells2),cellNumCells2=cellNumCells;end
 indRem = any(cellfun(@max,cellNumCells) < 20,2);
 indRem2 = any(cellfun(@max,cellNumCells2) < 20,2);
 indRem2(numel(indRem)+1:end) = true;

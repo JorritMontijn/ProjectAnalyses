@@ -102,6 +102,12 @@ if exist('sData','var') && isfield(sData,'cellSpikeTimesCortex') && ~isa(sData.c
 	end
 end
 
+% load connectivity separately
+if ~isfield(sData,'matSynFromTo')
+	load(['F:\Code\Simulations\SimulationsEVS\Connectivity\' sData.strConnFile]);
+	sData = catstruct(sData,sConnectivity');
+end
+	
 %% further processing
 if isfield(sData,'matSynFromTo') && exist('vecOverallT','var')
 	fprintf('Detected previous recording...\n')

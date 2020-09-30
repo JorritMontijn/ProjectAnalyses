@@ -1,4 +1,4 @@
-
+clear all;
 %% define data
 strDataPath = 'F:\Data\Processed\PlaidData\';
 cellStrSes = cell(2,8);
@@ -17,6 +17,7 @@ vecPV = [2 3 4 7 8];
 cellTypes = {'neuron','PV'};
 
 %% recalc params
+intRecalcSwitch = 8;%8
 dblLowerValThresh = 0.5;
 dblSecWindowSize = 30;
 dblNeuropilSubtractionFactor = 0.3;
@@ -26,20 +27,26 @@ sAggStim = [];
 for intRec=1:numel(cellGratings)
 	sLoad = load([strDataPath cellStrSes{2,intRec} '.mat']);
 	sGratSes = sLoad.ses;
-	sGratSes = doRecalcdFoF(sGratSes,8,[],[],dblLowerValThresh,dblSecWindowSize,dblNeuropilSubtractionFactor);
+	if intRecalcSwitch > 0
+		sGratSes = doRecalcdFoF(sGratSes,8,[],[],dblLowerValThresh,dblSecWindowSize,dblNeuropilSubtractionFactor);
+	end
 	matGratResp = getRespMat(sGratSes);
+	matGratPreResp = getRespMat(sGratSes,[],-2);
 	
 	%check for PV
 	matGratRespPV = [];
+	matGratPreRespPV = [];
 	if isfield(sGratSes,'PV')
 		sGratSesPV = sGratSes;
 		sGratSesPV.neuron = sGratSesPV.PV;
-		sGratSesPV = doRecalcdFoF(sGratSesPV,8,[],[],dblLowerValThresh,dblSecWindowSize,dblNeuropilSubtractionFactor);
+		if intRecalcSwitch > 0
+			sGratSesPV = doRecalcdFoF(sGratSesPV,8,[],[],dblLowerValThresh,dblSecWindowSize,dblNeuropilSubtractionFactor);
+		end
 		matGratRespPV = getRespMat(sGratSesPV);
+		matGratPreRespPV = getRespMat(sGratSesPV,[],-2);
 		clear sGratSesPV;
 	end
 	vecOri = sGratSes.structStim.Orientation;
-	matPreResp = getRespMat(sGratSes,[],-2);
 	vecCellTypeGrat = ismember({sGratSes.neuron.type},cellTypes);
 	
 	boolPlot = 0;
@@ -51,14 +58,20 @@ for intRec=1:numel(cellGratings)
 	%% load plaid data
 	sLoad = load([strDataPath cellStrSes{1,intRec} '.mat']);
 	sPlaidSes = sLoad.ses;
-	sPlaidSes = doRecalcdFoF(sPlaidSes,8,[],[],dblLowerValThresh,dblSecWindowSize,dblNeuropilSubtractionFactor);
+	if intRecalcSwitch > 0
+		sPlaidSes = doRecalcdFoF(sPlaidSes,8,[],[],dblLowerValThresh,dblSecWindowSize,dblNeuropilSubtractionFactor);
+	end
+	
 	%check for PV
 	intNumPVs = 0;
 	if isfield(sPlaidSes,'PV')
 		intNumPVs = numel(sPlaidSes.PV);
-		sPlaidSes = doRecalcdFoF(sPlaidSes,8,[],'PV',dblLowerValThresh,dblSecWindowSize,dblNeuropilSubtractionFactor);
+		sPlaidSesPV = sPlaidSes;
+		sPlaidSesPV.neuron = sPlaidSesPV.PV;
+		if intRecalcSwitch > 0
+			sPlaidSesPV = doRecalcdFoF(sPlaidSesPV,8,[],[],dblLowerValThresh,dblSecWindowSize,dblNeuropilSubtractionFactor);
+		end
 	end
-	
 	vecCellTypePlaid = ismember({sPlaidSes.neuron.type},cellTypes);
 	vecCellType = vecCellTypeGrat(1:(min([numel(vecCellTypeGrat) numel(vecCellTypePlaid)])));
 	intNeurons = numel(vecCellType);
@@ -69,6 +82,7 @@ for intRec=1:numel(cellGratings)
 	
 	%% pre-allocate plaid variables
 	intStimDur = 77;
+	intPreDur = 25;
 	intStimNum = numel(sPlaidSes.structStim.Orientation);
 	vecStopFrame = nan(1,intStimNum);
 	vecStartFrame = nan(1,intStimNum);
@@ -78,6 +92,9 @@ for intRec=1:numel(cellGratings)
 	vecPrecedingContrast90 = zeros(1,intStimNum);
 	matPlaidResp = nan(intNeurons,intStimNum);
 	matPlaidRespPV = nan(intNumPVs,intStimNum);
+	matPlaidPreResp = nan(intNeurons,intStimNum);
+	matPlaidPreRespPV = nan(intNumPVs,intStimNum);
+	
 	
 	%% transform stimuli
 	for intStim=1:numel(sPlaidSes.structStim.Orientation)
@@ -88,12 +105,14 @@ for intRec=1:numel(cellGratings)
 		
 		%get data
 		for intNeuron=1:intNeurons
+			matPlaidPreResp(intNeuron,intStim) = mean(sPlaidSes.neuron(intNeuron).dFoF((intStartFrameT-intPreDur):intStartFrameT));
 			matPlaidResp(intNeuron,intStim) = mean(sPlaidSes.neuron(intNeuron).dFoF(intStartFrameT:(intStartFrameT+intStimDur)));
 		end
 		
 		%get data
 		for intPV=1:intNumPVs
-			matPlaidRespPV(intNeuron,intStim) = mean(sPlaidSes.PV(intPV).dFoF(intStartFrameT:(intStartFrameT+intStimDur)));
+			matPlaidPreRespPV(intPV,intStim) = mean(sPlaidSesPV.neuron(intPV).dFoF((intStartFrameT-intPreDur):intStartFrameT));
+			matPlaidRespPV(intPV,intStim) = mean(sPlaidSesPV.neuron(intPV).dFoF(intStartFrameT:(intStartFrameT+intStimDur)));
 		end
 		
 		%assign on/off
@@ -132,6 +151,8 @@ for intRec=1:numel(cellGratings)
 	vecPrecedingContrast90(vecDuplicates) = [];
 	matPlaidResp(:,vecDuplicates) = [];
 	matPlaidRespPV(:,vecDuplicates) = [];
+	matPlaidPreResp(:,vecDuplicates) = [];
+	matPlaidPreRespPV(:,vecDuplicates) = [];
 	matStim(:,vecDuplicates) = [];
 	
 	%% add gratings
@@ -146,9 +167,12 @@ for intRec=1:numel(cellGratings)
 	vecPrecedingContrast0(vecAsgn) = 0;
 	vecPrecedingContrast90(vecAsgn) = 0;
 	matResp = cat(2,matPlaidResp(1:intNeurons,:),matGratResp(1:intNeurons,[vecHorzGrat vecVertGrat]));
+	matPreResp = cat(2,matPlaidPreResp(1:intNeurons,:),matGratPreResp(1:intNeurons,[vecHorzGrat vecVertGrat]));
 	matRespPV = [];
+	matPreRespPV = [];
 	if intNumPVs > 0
 		matRespPV = cat(2,matPlaidRespPV(1:intNumPVs,:),matGratRespPV(1:intNumPVs,[vecHorzGrat vecVertGrat]));
+		matPreRespPV = cat(2,matPlaidPreRespPV(1:intNumPVs,:),matGratPreRespPV(1:intNumPVs,[vecHorzGrat vecVertGrat]));
 	end
 	sRec(intRec).vecStopFrame = vecStopFrame;
 	sRec(intRec).vecStartFrame = vecStartFrame;
@@ -158,6 +182,8 @@ for intRec=1:numel(cellGratings)
 	sRec(intRec).vecPrecedingContrast90 = vecPrecedingContrast90;
 	sRec(intRec).matResp = matResp;
 	sRec(intRec).matRespPV = matRespPV;
+	sRec(intRec).matPreResp = matPreResp;
+	sRec(intRec).matPreRespPV = matPreRespPV;
 	
 	%% add cell vars
 	sRec(intRec).vecPrefDeg = vecPrefDeg;

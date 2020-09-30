@@ -52,7 +52,7 @@ cellFiles = {'Delier_20191015_002_Split1',...
 	'Just_20200828_002_Split1'};
 
 intFile = 5;
-for intFile = 1:7
+for intFile = 6%1:7
 		clearvars -except vecMMP vecMisMatNum vecTrialNum intFile cellFiles;
 %% load data
 strDisk = 'F:';
@@ -80,7 +80,7 @@ vecMismatchLoc = sInfo.Stim.log.stimlog(vecMismatchTrials,5);
 intMismatchNum = numel(vecMismatchLoc);
 vecMisMatNum(intFile) = intMismatchNum;
 vecMMP(intFile) = intMismatchNum/intTrials;
-continue;
+
 %% select control locations for mismatch at same position
 cellControlT = cell(1,intMismatchNum);
 vecAllLocs = sInfo.Stim.log.motionlog(:,3);
@@ -97,7 +97,7 @@ vecRealNormalT = vecStartT(vecNormalTrials);
 dblCutStartEndLoc = 0.05;
 
 dblLocLength = 0.5 - dblCutStartEndLoc*2; %0.8
-dblTimeDur = 5;%min(diff(vecStartT)-9); %5
+dblTimeDur = 2;%min(diff(vecStartT)-9); %5
 dblMMDur = 2;%min(vecStartT(vecMismatchTrials+1)  - vecRealMismatchT - 9); %2
 
 %% calculate visually responsive cells
@@ -107,14 +107,13 @@ intLatencyPeaks = 4;
 hTic=tic;
 vecStimLocs = ([22.2200   33.3300   44.4440   55.5500   66.6600   77.7770]./100);
 
-intIters=100;
 vecVisLocZetaP = nan(1,intNeurons);
 vecVisTimZetaP = nan(1,intNeurons);
 vecMisMatZetaP = nan(1,intNeurons);
 intPlot = 0;
 
-
-parfor intNeuron=1:intNeurons
+%%
+for intNeuron=1:intNeurons%[25 67 79]
 		%if toc(hTic) > 5
 			hTic = tic;
 			fprintf('Neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
@@ -181,6 +180,8 @@ xlabel('Location-modulation (ZETA)');
 ylabel('Time-modulation (ZETA)');
 %set(gca,'xscale','log','yscale','log')
 title(sprintf('r(Loc,Time)=%.3f,p=%.3f',rLT,pLT));
+xlim([0 5]);
+ylim([0 6]);
 fixfig;
 
 %[rLM,pLM]=corr(log10(vecVisLocZetaP)',log10(vecMisMatZetaP'));
@@ -201,6 +202,8 @@ xlabel('Location-modulation (ZETA)');
 ylabel('Mismatch-modulation (ZETA)');
 %set(gca,'xscale','log','yscale','log')
 title(sprintf('r(Loc,MisM)=%.3f,p=%.3f',rLM,pLM));
+xlim([0 5]);
+ylim([0 4]);
 fixfig;
 
 %[rTM,pTM]=corr(log10(vecVisTimZetaP)',log10(vecMisMatZetaP'));
@@ -212,7 +215,6 @@ vecB = mdl.Coefficients.Estimate;                      % Coefficients
 [vecFitY,vecFitY_CI] = predict(mdl, vecX);
 %errorfill(vecX,vecFitY,vecFitY-vecFitY_CI(:,1),vecFitY_CI(:,2)-vecFitY);
 plot(vecX,vecFitY,'b');
-xlim([0 4]);ylim([0 4]);
 hold on
 plot(vecX,vecFitY_CI(:,1),'b');
 plot(vecX,vecFitY_CI(:,2),'b');
@@ -221,10 +223,12 @@ xlabel('Time-modulation (ZETA)');
 ylabel('Mismatch-modulation (ZETA)');
 %set(gca,'xscale','log','yscale','log')
 title(sprintf('r(Time,MisM)=%.3f,p=%.3f',rTM,pTM));
+xlim([0 6]);
+ylim([0 4]);
 fixfig;
 maxfig;
-normaxes('xy');
-
+%normaxes('xy');
+return
 drawnow;
 export_fig([strTargetPath cellFiles{intFile} '_v5b.tif']);
 export_fig([strTargetPath cellFiles{intFile} '_v5b.pdf']);

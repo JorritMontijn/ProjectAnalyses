@@ -28,7 +28,7 @@ boolLoadSpikeTimes = false;
 boolLoadTrialSplit = false;
 boolDoSplitAnalysis = false;
 intSubSampleN = 73;%100;%round(mean(vecNeuronN)); %mean N=100
-intSubSampleT = inf;%805;%805;%round(mean(vecTrialT)); %mean T=805
+intSubSampleT = 1800;%805;%805;%round(mean(vecTrialT)); %mean T=805
 vecDoShuff = [0 1];%0=none, 1=reps per neuron, 2=neurons per trial, 3=xTrials per neuron
 boolUseZscore = true;
 intSamples = 100;
@@ -50,7 +50,7 @@ if intType == 4
 	vecRunSims =[ 102:2:110 150];%[112:2:120];%200:2:220;
 end
 if intType == 5
-	vecRunSims =[100];%[112:2:120];%200:2:220;
+	vecRunSims =[100:2:130];%[112:2:120];%200:2:220;
 end
 for intLoadSim=vecRunSims
 	clearvars -except intSubSample* vecDoShuff vecRunSims intLoadSim bool* vecRunAreas intSamples

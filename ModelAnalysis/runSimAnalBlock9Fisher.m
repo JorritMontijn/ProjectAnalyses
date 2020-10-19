@@ -2,7 +2,7 @@
 
 %% initialize
 intType = 1;
-	close all
+	%close all
 	clearvars -except intType
 vecRunAreas = [1];
 
@@ -17,11 +17,11 @@ vecDoShuff = [0 1];%0=none, 1=reps per neuron, 2=neurons per trial, 3=xTrials pe
 %save figs and data?
 boolSaveFigs = true;
 boolSaveData = true;
-intUseIndepTrials = 4000; %[100 4000]
+intUseIndepTrials = 1500; %[100 4000]
 intUseRepetitionMax = intUseIndepTrials;
 
 if intType == 1
-	vecRunSims = 2;%[-14 -13 -12 -10 -7:-1 11];
+	vecRunSims = 100;%[-14 -13 -12 -10 -7:-1 11];
 end
 for intLoadSim=vecRunSims
 	clearvars -except vecDoShuff vecRunSims intLoadSim bool* vecRunAreas
@@ -55,7 +55,7 @@ for intLoadSim=vecRunSims
 	end
 	
 	%% calculate which parameter to use
-	if ~exist('intUseRepetitionMax','var'),intUseRepetitionMax = 4000;end
+	if ~exist('intUseRepetitionMax','var'),intUseRepetitionMax = 1500;end
 	vecRanges = range(matStimTypeCombos(2:end,:),2);
 	[d,intUseParam]=max(vecRanges); %exclude orientation
 	intUseParam = intUseParam + 1;

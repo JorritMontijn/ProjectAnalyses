@@ -17,7 +17,9 @@ vecPrefOriCenters = vecPrefOriEdges(2:end)-mean(diff(vecPrefOriEdges))/2;
 cellAggPlotData = cell(numel(vecHorzC),intPrefOriGroups);
 
 %%
-for intRec=1:numel(cellPlaids)
+vecPV = [2 3 4 7 8];%example: 7
+
+for intRec=vecPV%1:numel(cellPlaids)
 	%sRec
 	%sRec(intRec).vecStopFrame = vecStopFrame;
 	%sRec(intRec).vecStartFrame = vecStartFrame;
@@ -36,8 +38,8 @@ for intRec=1:numel(cellPlaids)
 	vecPrecedingContrast0 = sRec(intRec).vecPrecedingContrast0;
 	vecPrecedingContrast90 = sRec(intRec).vecPrecedingContrast90;
 	vecPrefDeg = sRec(intRec).vecPrefDeg;
-	matResp = sRec(intRec).matResp;
-	matPreResp = sRec(intRec).matPreResp;
+	matResp = sRec(intRec).matRespPV;
+	matPreResp = sRec(intRec).matPreRespPV;
 	indGrat = vecContrast0 == 100 | vecContrast90 == 100;
 	indPlaid = ~indGrat;
 	
@@ -118,5 +120,17 @@ for intPlot = vecPlot
 	else
 		ylim([0.01 0.045]);
 	end
+	
+	%labels
+	title(sprintf('Horz C%d, Vert C%d',intOri0Contrast,intOri90Contrast));
+	if ismember(intPlot,[4 10 11 13])
+	xlabel('Preferred ori (degs)');
+	end
+	if ismember(intPlot,[1:4:16])
+	ylabel('Avg. dF/F0');
+	end
+	set(gca,'xtick',-45:45:135)
+	fixfig;
 end
 drawnow;
+maxfig([]);

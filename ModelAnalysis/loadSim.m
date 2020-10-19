@@ -97,7 +97,7 @@ elseif intLoadSim == 14 && boolLoad
 
 
 elseif intLoadSim == 100 && boolLoad
-	strSimulation = 'xAreaDistributed_LargeRetNoise00_2020-09-29';
+	strSimulation = 'xAreaDistributed_LargeRetNoise00_2020-10-08';
 elseif intLoadSim == 102 && boolLoad
 	strSimulation = 'xAreaDistributed_LargeRetNoise02_2020-09-29';
 elseif intLoadSim == 104 && boolLoad
@@ -136,5 +136,5 @@ elseif intLoadSim == 150 && boolLoad
 	
 	
 elseif intLoadSim == 200 && boolLoad
-	strSimulation = 'xAreaDistributed_Noise0.0_2020-07-20';
+	strSimulation = 'xAreaDistributed_OnlyFF_Noise00_2020-10-06';
 end

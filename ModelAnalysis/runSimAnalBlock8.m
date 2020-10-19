@@ -1,7 +1,7 @@
 %% analyze input strength dependency for dimensionality of pop responses
 
 %% initialize
-intType = 5;
+intType = 6;
 	%close all
 	clearvars -except intType
 vecRunAreas = [1];
@@ -51,6 +51,9 @@ if intType == 4
 end
 if intType == 5
 	vecRunSims =[100:2:130];%[112:2:120];%200:2:220;
+end
+if intType == 6
+	vecRunSims =100;%[112:2:120];%200:2:220;
 end
 for intLoadSim=vecRunSims
 	clearvars -except intSubSample* vecDoShuff vecRunSims intLoadSim bool* vecRunAreas intSamples

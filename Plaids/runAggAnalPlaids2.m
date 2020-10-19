@@ -17,6 +17,10 @@ vecPrefOriCenters = vecPrefOriEdges(2:end)-mean(diff(vecPrefOriEdges))/2;
 cellAggPlotData = cell(numel(vecHorzC),intPrefOriGroups);
 
 %%
+vecR_25_25 = [];
+vecR_25_50 = [];
+vecR_50_25 = [];
+vecR_50_50 = [];
 cellR_25_25 = {};
 cellR_25_50 = {};
 cellR_50_25 = {};
@@ -60,7 +64,7 @@ for intRec=vecPV
 		indInclPrec = vecPrecedingContrast0 == 0 & vecPrecedingContrast90 == 0;
 	end
 	
-	%calculate COI for all plaids 
+	%calculate COSI for all plaids
 	%{
 	After subtracting this baseline
 	activity, a cross-orientation suppression index is calculated for every condition
@@ -91,10 +95,10 @@ for intRec=vecPV
 	matPlaidR_50_50 = matPreRemResp(:,vecContrast0==50 & vecContrast90==50 & indInclPrec);
 	
 	%coi
-	matCOI_25_25 = (matPlaidR_25_25 - vecMean_0_25 - vecMean_25_0) ./ (vecMean_0_25 + vecMean_25_0);
-	matCOI_25_50 = (matPlaidR_25_50 - vecMean_0_50 - vecMean_25_0) ./ (vecMean_0_50 + vecMean_25_0);
-	matCOI_50_25 = (matPlaidR_50_25 - vecMean_0_25 - vecMean_50_0) ./ (vecMean_0_25 + vecMean_50_0);
-	matCOI_50_50 = (matPlaidR_50_50 - vecMean_0_50 - vecMean_50_0) ./ (vecMean_0_50 + vecMean_50_0);
+	matCOSI_25_25 = (matPlaidR_25_25 - vecMean_0_25 - vecMean_25_0) ./ (vecMean_0_25 + vecMean_25_0);
+	matCOSI_25_50 = (matPlaidR_25_50 - vecMean_0_50 - vecMean_25_0) ./ (vecMean_0_50 + vecMean_25_0);
+	matCOSI_50_25 = (matPlaidR_50_25 - vecMean_0_25 - vecMean_50_0) ./ (vecMean_0_25 + vecMean_50_0);
+	matCOSI_50_50 = (matPlaidR_50_50 - vecMean_0_50 - vecMean_50_0) ./ (vecMean_0_50 + vecMean_50_0);
 	
 	%pv act
 	matPV_25_25 = matPreRemRespPV(:,vecContrast0==25 & vecContrast90==25 & indInclPrec);
@@ -112,12 +116,69 @@ for intRec=vecPV
 	intNumPV = size(matPV_25_25,1);
 	vecPV_source((end+1):(end+intNumPV)) = intRec;
 	for intPV=1:intNumPV
-		cellR_25_25(end+1) = {corr(matCOI_25_25',matPV_25_25(intPV,:)')};
-		cellR_25_50(end+1) = {corr(matCOI_25_50',matPV_25_50(intPV,:)')};
-		cellR_50_25(end+1) = {corr(matCOI_50_25',matPV_50_25(intPV,:)')};
-		cellR_50_50(end+1) = {corr(matCOI_50_50',matPV_50_50(intPV,:)')};
+		cellR_25_25(end+1) = {corr(matCOSI_25_25',matPV_25_25(intPV,:)')};
+		cellR_25_50(end+1) = {corr(matCOSI_25_50',matPV_25_50(intPV,:)')};
+		cellR_50_25(end+1) = {corr(matCOSI_50_25',matPV_50_25(intPV,:)')};
+		cellR_50_50(end+1) = {corr(matCOSI_50_50',matPV_50_50(intPV,:)')};
 	end
 end
+%calc per rec
+intRecs = numel(vecPV);
+for intRecIdx=1:intRecs
+	intRec = vecPV(intRecIdx);
+	vecR_25_25(intRecIdx) = mean(cell2vec(cellR_25_25(vecPV_source==intRec)));
+	vecR_25_50(intRecIdx) = mean(cell2vec(cellR_25_50(vecPV_source==intRec)));
+	vecR_50_25(intRecIdx) = mean(cell2vec(cellR_50_25(vecPV_source==intRec)));
+	vecR_50_50(intRecIdx) = mean(cell2vec(cellR_50_50(vecPV_source==intRec)));
+end
+vecR_Asym = (vecR_25_50+vecR_50_25)/2;
+
+matPlotDotsY = [vecR_25_25; vecR_Asym; vecR_50_50];
+matPlotDotsX = [1*ones(size(vecR_25_25)); 2*ones(size(vecR_Asym)); 3*ones(size(vecR_50_50))];
+close all;
+figure
+subplot(2,3,1)
+hold on
+scatter(1*ones(size(vecR_25_25)),vecR_25_25,'k')
+scatter(2*ones(size(vecR_Asym)),vecR_Asym,'k')
+scatter(3*ones(size(vecR_50_50)),vecR_50_50,'k')
+bplot(vecR_25_25,1)
+bplot(vecR_Asym,2)
+bplot(vecR_50_50,3)
+[h,pAsymvs25]=ttest(vecR_25_25,vecR_Asym)
+[h,pAsymvs50]=ttest(vecR_50_50,vecR_Asym)
+xlim([0.5 3.5])
+ylabel(sprintf('r(PV,Pyr)'))
+set(gca,'xtick',1:3,'xticklabel',{'Iso-25',sprintf('Asym 25/50'),'Iso-50'})
+fixfig;
+
+subplot(2,3,2)
+plot(matPlotDotsX,matPlotDotsY,'k');
+xlim([0.5 3.5])
+ylabel(sprintf('r(PV,Pyr)'))
+set(gca,'xtick',1:3,'xticklabel',{'Iso-25',sprintf('Asym 25/50'),'Iso-50'})
+fixfig;
+
+subplot(2,3,4)
+hold on
+scatter(1*ones(size(vecR_25_25)),vecR_25_25-vecR_Asym,'k')
+scatter(2*ones(size(vecR_50_50)),vecR_50_50-vecR_Asym,'k')
+xlim([0.5 2.5]);
+ylim([-0.5 0.5])
+ylabel(sprintf('%sr(PV,Pyr) rel. to asym',getGreek('Delta')))
+set(gca,'xtick',1:3,'xticklabel',{'Iso-25','Iso-50'})
+title(sprintf('t-test asym vs 25,p=%.3f; vs 50,p=%.3f,n=%d recs',pAsymvs25,pAsymvs50,intRecs))
+fixfig;
+
+
+subplot(2,3,5)
+plot(matPlotDotsX,[vecR_Asym - vecR_Asym;
+	vecR_25_25 - vecR_Asym;
+	vecR_50_50 - vecR_Asym],'k');
+ylabel(sprintf('%sr(PV,Pyr) rel. to asym',getGreek('Delta')))
+set(gca,'xtick',1:3,'xticklabel',{sprintf('Asym 25/50'),'Iso-25','Iso-50'})
+fixfig;
+maxfig;
 
 %% aggregate
 vecEdges = -1:0.1:1;
@@ -127,41 +188,71 @@ vecCorr_25_50 = cell2vec(cellR_25_50);
 vecCorr_50_25 = cell2vec(cellR_50_25);
 vecCorr_50_50 = cell2vec(cellR_50_50);
 
-[p1]=ranksum(vecCorr_25_25,vecCorr_25_50);
-[p2]=ranksum(vecCorr_25_25,vecCorr_50_25);
-[p3]=ranksum(vecCorr_25_50,vecCorr_50_50);
-[p4]=ranksum(vecCorr_25_50,vecCorr_50_25);
-[p5]=ranksum(vecCorr_50_25,vecCorr_50_50);
-[p6]=ranksum(vecCorr_25_25,vecCorr_50_50);
-
 figure
 subplot(2,3,1);
 vecCounts25_25 = histcounts(vecCorr_25_25,vecEdges);
 plot(vecCenters,vecCounts25_25);
 title(sprintf('25/25, median r=%.3f',median(vecCorr_25_25)));
+ylabel('Number of pyr cells')
+xlabel('Avg r with PV population')
+fixfig;
 
 subplot(2,3,2);
 vecCounts25_50 = histcounts(vecCorr_25_50,vecEdges);
 plot(vecCenters,vecCounts25_50);
 title(sprintf('25/50, median r=%.3f',median(vecCorr_25_50)));
+ylabel('Number of pyr cells')
+xlabel('Avg r with PV population')
+fixfig;
 
 subplot(2,3,4);
 vecCounts50_25 = histcounts(vecCorr_50_25,vecEdges);
 plot(vecCenters,vecCounts50_25);
 title(sprintf('50/25, median r=%.3f',median(vecCorr_50_25)));
+ylabel('Number of pyr cells')
+xlabel('Avg r with PV population')
+fixfig;
 
 subplot(2,3,5);
 vecCounts50_50 = histcounts(vecCorr_50_50,vecEdges);
 plot(vecCenters,vecCounts50_50);
 title(sprintf('50/50, median r=%.3f',median(vecCorr_50_50)));
-
+ylabel('Number of pyr cells')
+xlabel('Avg r with PV population')
+fixfig;
 normaxes;
+
+subplot(2,3,3)
+hold on
+vecAsymCorr = [vecCorr_25_50 + vecCorr_50_25]/2;
+bplot(vecCorr_25_25,1,'outliers')
+bplot(vecAsymCorr,2,'outliers')
+bplot(vecCorr_50_50,3,'outliers')
+[p1]=ranksum(vecCorr_25_25,vecAsymCorr);
+[p2]=ranksum(vecCorr_50_50,vecAsymCorr);
+
+set(gca,'xtick',1:3,'xticklabel',{'Iso-25','Asym 25/50','Iso-50'})
+ylabel('Correlation PV/Pyr activity')
+title(sprintf('MW U-test;Asym vs 25,p=%.2e;Asym vs 50,p=%.2e',p1,p2))
+fixfig;
+
+subplot(2,3,6)
+hold on
+vecAsymCorr = [vecCorr_25_50 + vecCorr_50_25];
+[p25_1]=ranksum(vecCorr_25_25,vecCorr_25_50);
+[p25_2]=ranksum(vecCorr_25_25,vecCorr_50_25);
+[p50_1]=ranksum(vecCorr_50_50,vecCorr_25_50);
+[p50_2]=ranksum(vecCorr_50_50,vecCorr_50_25);
+
+bplot(vecCorr_25_25,1,'outliers')
+bplot(vecCorr_25_50,2,'outliers')
+bplot(vecCorr_50_25,3,'outliers')
+bplot(vecCorr_50_50,4,'outliers')
+set(gca,'xtick',1:4,'xticklabel',{'Iso-25','25/50','50/25','Iso-50'})
+ylabel('Correlation PV/Pyr activity')
+title(sprintf('MW;25-A1,p=%.0e;25-A2,p=%.0e;50-A1,p=%.0e;50-A2,p=%.0e;',p25_1,p25_2,p50_1,p50_2))
+fixfig;
+maxfig;
 return
-figure
-subplot(2,3,1)
-plot(vecCenters,vecCounts25_25 + vecCounts50_50);
 
-subplot(2,3,2)
-plot(vecCenters,vecCounts25_50 + vecCounts50_25);
-normaxes;
-
+%% per animal

@@ -151,7 +151,15 @@ for intLoadSim=vecRunSims
 			
 			intN = size(matRawFisher,1);
 			strSizeN = sprintf('N%d',intN);
-		
+			
+			%compare with alternative calculation
+			sParamsAnal.vecGroupSizes = 1200;
+			sParamsAnal.intIters = 2;
+			sParamsAnal.dblLambda = 1;
+			sParamsAnal.dblDiffTheta = dblDiffTheta;
+			sParamsAnal.vecUseStimTypes = [1 2];
+			[matFisherFull,sAgg] = doFisherAnal(matX,vecTrialStimType,sParamsAnal);
+			
 			%% plot
 			figure;
 			dblStep = intN/10;

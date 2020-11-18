@@ -38,8 +38,8 @@ for intRec=vecPV%1:numel(cellPlaids)
 	vecPrecedingContrast0 = sRec(intRec).vecPrecedingContrast0;
 	vecPrecedingContrast90 = sRec(intRec).vecPrecedingContrast90;
 	vecPrefDeg = sRec(intRec).vecPrefDeg;
-	matResp = sRec(intRec).matRespPV;
-	matPreResp = sRec(intRec).matPreRespPV;
+	matResp = sRec(intRec).matResp;
+	matPreResp = sRec(intRec).matPreResp;
 	indGrat = vecContrast0 == 100 | vecContrast90 == 100;
 	indPlaid = ~indGrat;
 	
@@ -118,7 +118,7 @@ for intPlot = vecPlot
 	if intOri0Contrast == 100 || intOri90Contrast == 100
 		ylim([0.01 0.08]);
 	else
-		ylim([0.01 0.045]);
+		ylim([0.01 0.08]); %0.045
 	end
 	
 	%labels

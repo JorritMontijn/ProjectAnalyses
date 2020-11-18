@@ -3,7 +3,7 @@
 clear all;
 close all;
 
-strDataDir = 'D:\Data\Results\Data8\';
+strDataDir = ['F:\Data\Results\SimFigs\Data8\'];
 sFiles = dir([strDataDir '*Subsp*.mat']);
 intFiles = numel(sFiles);
 

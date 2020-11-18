@@ -77,9 +77,11 @@ for intRec=1:numel(cellGratings)
 	intNeurons = numel(vecCellType);
 	vecPrefDeg = vecPrefDeg(1:intNeurons);
 	vecP = sOut.vecFitP(1:intNeurons);
-	[dummy,dummy,vecP_bh] = fdr_bh(vecP);
-	vecInclude = vecP_bh < 0.05;
-	
+	[dummy,dummy,vecP_bh] = fdr_bh(vecP/numel(vecP));
+	vecP_bonf = vecP*numel(vecP);
+	vecInclude_bh = vecP_bh < 0.05;
+	vecInclude = vecP_bonf < 0.05;
+	return
 	%% pre-allocate plaid variables
 	intStimDur = 77;
 	intPreDur = 25;

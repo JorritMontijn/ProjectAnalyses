@@ -4,7 +4,7 @@ clear all;
 %close all;
 
 strFigType = 'Block8';
-strDataDir = 'D:\Data\Results\Data8\';
+strDataDir = ['F:\Data\Results\SimFigs\Data8\'];
 strDataDir2 = 'D:\Data\Results\Data8Merge\';
 sFiles = dir([strDataDir '*Block8*.mat']);
 intFiles = numel(sFiles);

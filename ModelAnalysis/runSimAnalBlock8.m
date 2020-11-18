@@ -1,7 +1,7 @@
 %% analyze input strength dependency for dimensionality of pop responses
 
 %% initialize
-intType = 6;
+intType = 5;
 	%close all
 	clearvars -except intType
 vecRunAreas = [1];
@@ -27,7 +27,7 @@ boolLoadLGN = false;
 boolLoadSpikeTimes = false;
 boolLoadTrialSplit = false;
 boolDoSplitAnalysis = false;
-intSubSampleN = 73;%100;%round(mean(vecNeuronN)); %mean N=100
+intSubSampleN = 100;%100;%round(mean(vecNeuronN)); %mean N=100
 intSubSampleT = 1800;%805;%805;%round(mean(vecTrialT)); %mean T=805
 vecDoShuff = [0 1];%0=none, 1=reps per neuron, 2=neurons per trial, 3=xTrials per neuron
 boolUseZscore = true;

@@ -13,17 +13,9 @@ function vecR = getAnalysisNpxMD(matSpikeCountsArea1,matSpikeCountsArea2,vecOrie
 	%real
 	[vecNoiseParallel1,vecNoiseOrthogonal1] = getNoiseParaOrtho(matSpikeCountsArea1,vecOrientation);
 	
-	% shuffled
-	%matSpikeCountsShuffled = reshape(matSpikeCountsArea1(randperm(numel(matSpikeCountsArea1))),size(matSpikeCountsArea1));
-	%[vecNoiseParallelShuff1,vecNoiseOrthogonalShuff1] = getNoiseParaOrtho(matSpikeCountsShuffled,vecOrientation);
-	
 	%% area 2
 	%real
 	[vecNoiseParallel2,vecNoiseOrthogonal2] = getNoiseParaOrtho(matSpikeCountsArea2,vecOrientation);
-	
-	% shuffled
-	%matSpikeCountsShuffled2 = reshape(matSpikeCountsArea2(randperm(numel(matSpikeCountsArea2))),size(matSpikeCountsArea2));
-	%[vecNoiseParallelShuff2,vecNoiseOrthogonalShuff2] = getNoiseParaOrtho(matSpikeCountsShuffled2,vecOrientation);
 	
 	%% compare
 	dblR_PP = corr(vecNoiseParallel1(:),vecNoiseParallel2(:));

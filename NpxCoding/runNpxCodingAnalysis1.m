@@ -89,8 +89,9 @@ for intRec=1:numel(sAggStim)
 		%real[vecNoiseParallel,vecNoiseOrthogonal,vecNoiseTotal]
 		[vecNoiseParallel1,vecNoiseOrthogonal1,vecNoiseTotal1] = getNoiseParaOrtho(matSpikeCountsArea1,vecOrientation);
 		% shuffled
+		boolRandomFprime = true;
 		matSpikeCountsShuffled1 = matSpikeCountsArea1(:,randperm(size(matSpikeCountsArea1,2)));
-		[vecNoiseParallel1_S,vecNoiseOrthogonal1_S,vecNoiseTotal1_S] = getNoiseParaOrtho(matSpikeCountsShuffled1,vecOrientation);
+		[vecNoiseParallel1_S,vecNoiseOrthogonal1_S,vecNoiseTotal1_S] = getNoiseParaOrtho(matSpikeCountsArea1,vecOrientation,boolRandomFprime);
 		
 		%% select area 2
 		for intArea2=(intArea1):intAreas
@@ -119,7 +120,7 @@ for intRec=1:numel(sAggStim)
 			[vecNoiseParallel2,vecNoiseOrthogonal2,vecNoiseTotal2] = getNoiseParaOrtho(matSpikeCountsArea2,vecOrientation);
 			
 			%matSpikeCountsShuffled2 = reshape(matSpikeCountsArea2(randperm(numel(matSpikeCountsArea2))),size(matSpikeCountsArea2));
-			[vecNoiseParallel2_S,vecNoiseOrthogonal2_S,vecNoiseTotal2_S] = getNoiseParaOrtho(matSpikeCountsShuffled2,vecOrientation);
+			[vecNoiseParallel2_S,vecNoiseOrthogonal2_S,vecNoiseTotal2_S] = getNoiseParaOrtho(matSpikeCountsArea2,vecOrientation,boolRandomFprime);
 			
 			%% compare
 			%real
@@ -207,52 +208,76 @@ matR_PO_S(:,vecRemC) = [];
 
 vecLimC = [-1 1];%max(flat(abs([matR_OP matR_PO])))*[-1 1];
 figure
-subplot(2,4,1)
+subplot(3,4,1)
 imagesc(matR_PP,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PP,[-1 1],redblue);
 title(sprintf('Corr Parallel-parallel var'))
 
-subplot(2,4,2)
+subplot(3,4,2)
 imagesc(matR_OP,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OP,vecLimC,redblue);
 title(sprintf('Corr Orthogonal-parallel var'))
 
-subplot(2,4,3)
+subplot(3,4,3)
 imagesc(matR_OO,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OO,[-1 1],redblue);
 title(sprintf('Corr Orthogonal-Orthogonal var'))
 
-subplot(2,4,4)
+subplot(3,4,4)
 imagesc(matR_PO,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PO,vecLimC,redblue);
 title(sprintf('Corr Parallel-Orthogonal var'))
 
-subplot(2,4,5)
+subplot(3,4,5)
 imagesc(matR_PP_S,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PP_S,[-1 1],redblue);
-title(sprintf('Corr Parallel-parallel var'))
+title(sprintf('Shuffled, Corr Para-para var'))
 
-subplot(2,4,6)
+subplot(3,4,6)
 imagesc(matR_OP_S,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OP_S,vecLimC,redblue);
-title(sprintf('Corr Orthogonal-parallel var'))
+title(sprintf('Shuffled, Corr orth-para var'))
 
-subplot(2,4,7)
+subplot(3,4,7)
 imagesc(matR_OO_S,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OO_S,[-1 1],redblue);
-title(sprintf('Corr Orthogonal-Orthogonal var'))
+title(sprintf('Shuffled, Corr orth-orth var'))
 
-subplot(2,4,8)
+subplot(3,4,8)
 imagesc(matR_PO_S,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PO_S,vecLimC,redblue);
+title(sprintf('Shuffled, Corr Para-orth var'))
+
+subplot(3,4,9)
+imagesc(matR_PP - matR_PP_S,[-1 1]);
+colormap(redbluepurple);
+hcb = nancolorbar(matR_PP - matR_PP_S,[-1 1],redblue);
+title(sprintf('Corr Parallel-parallel var'))
+
+subplot(3,4,10)
+imagesc(matR_OP - matR_OP_S,vecLimC);
+colormap(redbluepurple);
+hcb = nancolorbar(matR_OP - matR_OP_S,vecLimC,redblue);
+title(sprintf('Corr Orthogonal-parallel var'))
+
+subplot(3,4,11)
+imagesc(matR_OO - matR_OO_S,[-1 1]);
+colormap(redbluepurple);
+hcb = nancolorbar(matR_OO - matR_OO_S,[-1 1],redblue);
+title(sprintf('Corr Orthogonal-Orthogonal var'))
+
+subplot(3,4,12)
+imagesc(matR_PO - matR_PO_S,vecLimC);
+colormap(redbluepurple);
+hcb = nancolorbar(matR_PO - matR_PO_S,vecLimC,redblue);
 title(sprintf('Corr Parallel-Orthogonal var'))
 
 %% cross corrs

@@ -5,7 +5,7 @@
 Predict noise in area 2 from noise in area 1, calculate angle between
 prediction and real, and compare with shuffled. If real diff is lower, then
 we found inter-areal structure of high-d noise. Repeat after removing
-independent noise; does difference hold?   
+independent noise; does difference hold?
 
 %}
 %% aim 2
@@ -13,18 +13,30 @@ independent noise; does difference hold?
 "non-visual activity in visual system is globally invariant to stimulus orientation"
 
 1) Predict noise in area y from noise in area x for stimulus z using stimulus
-z; compare with using stimulus z+1,+2... 
+z; compare with using stimulus z+1,+2...
 2) compare this baseline to shuffled where generalizability is destroyed (how?)
 3) compare also to predictability where z+1 is rotated to z, using
 difference in f-primes between z and z+1
 
 Possibly need to reduce to predictive subspace + linear regression as in Semedo et al., fig S6
-%}
 
+%}
+%% to do
+%{
+it now predicts noise & performs decoding within and across areas, but:
+i) we need more repetitions for more areas
+ii) analysis needs to be extended to predict across stimuli
+iii) analysis needs to be extended to predict across stimuli after rotation
+
+=> we can compare predictability of noise between areas; e.g., is subiculum
+driving non-visual noise?
+
+%}
 %% define qualifying areas
 vecN = [];
 vecT = [];
-	
+strFigDir = 'F:\Data\Results\NpxDims\';
+
 cellUseAreas = {...
 	'Subiculum',...
 	'Posterior complex of the thalamus',...
@@ -60,6 +72,10 @@ for intRec=1:numel(sAggStim)
 	% get matching recording data
 	strRec = sAggStim(intRec).Rec;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Rec}));
+	
+	%get short ID
+	cellSplit = strsplit(strRec,'_');
+	strRecID = strjoin(cellSplit(1:2),'_');
 	
 	%remove stimulus sets that are not 24 stim types
 	sThisRec.cellStim(cellfun(@(x) x.structEP.intStimTypes,sThisRec.cellStim) ~= 24) = [];
@@ -97,18 +113,22 @@ for intRec=1:numel(sAggStim)
 		matSpikeCountsArea1 = getSpikeCounts(cellSpikeTimes1,vecStimOnTime,vecStimOffTime);
 		
 		%% split data
-		%prep
-		vecUseStimTypes = unique(vecOrientation);
-		sParams = struct;
-		sParams.intSizeX = 35;
-		sParams.intSizeY = 5;
-		sParams.vecUseStimTypes = vecUseStimTypes;
+		%prep data
 		matData = matSpikeCountsArea1;
 		vecTrialStimType = vecOrientation;
 		%remove nulls
 		matNullNeurons = doDimRemoveNulls(matData,vecTrialStimType);
 		indRem = any(matNullNeurons,2);
 		matData(indRem,:) = [];
+		
+		%prep params
+		vecUseStimTypes = unique(vecOrientation);
+		sParams = struct;
+		sParams.intSizeX = 25;
+		sParams.intSizeY = 10;
+		sParams.vecUseStimTypes = vecUseStimTypes;
+		sParams.intWithinArea = 1;
+		sParams.vecCellArea = ones(1,size(matData,1));
 		%split
 		[cellMatX,	cellNeuronsX,cellMatY,cellNeuronsY,cellTrials] = doDimDataSplits(matData,vecTrialStimType,sParams);
 		%dblLambda = 1;
@@ -142,62 +162,125 @@ for intRec=1:numel(sAggStim)
 		matDecData = cell2mat(cellMatX(1,:)');
 		vecDecStimType = cell2vec(cellfun(@(x,y) y*ones(1,x),vec2cell(cellfun(@(x) size(x,1),cellMatX(1,:))),vec2cell(1:size(cellMatX,2)),'UniformOutput',false));
 		
-		[dblPerformance1,vecDecodedIndexCV,matPosteriorProbability,matWeights,dblMeanErrorDegs,matConfusion1] = ...
-			doCrossValidatedDecodingLR(matDecData,vecDecStimType,2,dblLambda);
-
-		[dblPerformance2,vecDecodedIndexCV,matPosteriorProbability,matWeights,dblMeanErrorDegs,matConfusion2] = ...
-			doCrossValidatedDecodingLR(matData,vecTrialStimType,2,dblLambda);
-
 		
-figure
-subplot(1,2,1)
-imagesc(matConfusion1)
-title(sprintf('%s, hit=%.3f',strArea1,dblPerformance1))
-
-subplot(1,2,2)
-imagesc(matConfusion2)
-title(sprintf('%s, hit=%.3f',strArea1,dblPerformance2))
-
-continue
+		[dblPerformance1,vecDecodedIndexCV,matPosteriorProbability,matWeights,dblMeanErrorDegs,matConfusion1] = ...
+			doCrossValidatedDecodingLR(matData,vecTrialStimType,2,dblLambda);
+		
+		[dblPerformance2,vecDecodedIndexCV,matPosteriorProbability,matWeights,dblMeanErrorDegs,matConfusion2] = ...
+			doCrossValidatedDecodingLR(matDecData,vecDecStimType,2,dblLambda);
+		close all;
+		figure
+		subplot(2,3,1)
+		imagesc(matConfusion1);colorbar;
+		title(sprintf('%s %s, full set, n=%d, diag=%.3f',strRecID,strArea1,size(matData,1),dblPerformance1),'interpreter','none')
+		xlabel('Real stim');
+		ylabel('Decoded stim #');
+		fixfig;
+		grid off
+		
+		subplot(2,3,2)
+		imagesc(matConfusion2);colorbar;
+		title(sprintf('split set, n=%d, diag=%.3f',size(matDecData,2),dblPerformance2),'interpreter','none')
+		xlabel('Real stim');
+		ylabel('Decoded stim #');
+		fixfig;
+		grid off
+		
 		%% run self-prediction
 		intFoldK = 10;
 		%dblLambda = 1/3000;
 		vecRank = 1:sParams.intSizeY;
 		tic
+		dblLambda1 =1/100;
+		dblLambda2 =100;
 		warning('off','MATLAB:sqrtm:SingularMatrix');
-		matPredictionsR2 = doDimPredRRR_CV(cellMatX,cellMatY,vecRank,intFoldK,dblLambda);
+		matPredictionsR2_1 = doDimPredRRR_CV(cellMatX,cellMatY,vecRank,intFoldK,dblLambda1);
+		matPredictionsR2_2 = doDimPredRRR_CV(cellMatX,cellMatY,vecRank,intFoldK,dblLambda2);
 		warning('on','MATLAB:sqrtm:SingularMatrix');
 		toc
+		intReps = size(cellMatX{1},1);
 		
-		figure
-		%plot(squeeze(mean(matPredDimDepR2,1))')
-		plot(squeeze(mean(matPredictionsR2,1))')
+		subplot(2,3,4)
+		plot(squeeze(mean(matPredictionsR2_1,1))')
+		title(sprintf('%s, CV RRRR, %s=%.0f, reps=%d',strArea1,getGreek('lambda'),dblLambda1,intReps),'interpreter','none')
+		xlabel('Dimensionality');
+		ylabel('Noise prediction, R^2');
+		fixfig;
 		
+		subplot(2,3,5)
+		plot(squeeze(mean(matPredictionsR2_2,1))')
+		title(sprintf('CV RRRR, %s=%.0f, reps=%d',getGreek('lambda'),dblLambda2,intReps),'interpreter','none')
+		xlabel('Dimensionality');
+		ylabel('Noise prediction, R^2');
+		fixfig;
+		
+		strFigFile = sprintf('SelfPred_%s_%s_%s',strRecID,strArea1,getDate);
+		maxfig;
+		drawnow;
+		export_fig([strFigDir strFigFile '.tif']);
+		export_fig([strFigDir strFigFile '.pdf']);
 		%vecR2 = getRegInSpace(matX,matSubspace,matY,dblLambda)
-		return
+		
 		%% select area 2
-		for intArea2=(intArea1):intAreas
-			strArea2 = cellUseAreas{intArea2}
+		for intArea2=1:intAreas
+			strArea2 = cellUseAreas{intArea2};
 			indArea2Neurons = contains({sUseNeuron.Area},strArea2,'IgnoreCase',true);
-			if sum(indArea2Neurons) == 0, continue;end
+			if sum(indArea2Neurons) == 0 || intArea1 == intArea2, continue;end
 			
 			%% get orientation responses & single-trial population noise
 			sArea2Neurons = sUseNeuron(indArea2Neurons);
 			
 			%% get spike times
 			cellSpikeTimes2 = {sArea2Neurons.SpikeTimes};
-			if intArea1 == intArea2
-				%real
-				matSpikeCountsArea2 = matSpikeCountsArea1;
-				% shuffle
-				matSpikeCountsShuffled2 = matSpikeCountsShuffled1;
-			else
-				%real
-				matSpikeCountsArea2 = getSpikeCounts(cellSpikeTimes2,vecStimOnTime,vecStimOffTime);
-				% shuffle
-				matSpikeCountsShuffled2 = matSpikeCountsArea2(:,randperm(size(matSpikeCountsArea2,2)));
-			end
+			matSpikeCountsArea2 = getSpikeCounts(cellSpikeTimes2,vecStimOnTime,vecStimOffTime);
 			
+			%remove nulls
+			matData2 = matSpikeCountsArea2;
+			matNullNeurons = doDimRemoveNulls(matData2,vecTrialStimType);
+			indRem = any(matNullNeurons,2);
+			matData2(indRem,:) = [];
+			if size(matData2,1) < (sParams.intSizeY + 2),continue;end
+			
+			%split data
+			sParams.vecCellArea = cat(1,ones(size(matData,1),1),2*ones(size(matData2,1),1));
+			sParams.intWithinArea = 0;
+			matDataCombined = cat(1,matData,matData2);
+			[cellMatX,	cellNeuronsX,cellMatY,cellNeuronsY,cellTrials] = doDimDataSplits(matDataCombined,vecTrialStimType,sParams);
+			
+			%% run across prediction
+			intFoldK = 10;
+			%dblLambda = 1/3000;
+			vecRank = 1:sParams.intSizeY;
+			tic
+			dblLambda1 =1/100;
+			dblLambda2 =100;
+			warning('off','MATLAB:sqrtm:SingularMatrix');
+			matPredictionsR2_1 = doDimPredRRR_CV(cellMatX,cellMatY,vecRank,intFoldK,dblLambda1);
+			matPredictionsR2_2 = doDimPredRRR_CV(cellMatX,cellMatY,vecRank,intFoldK,dblLambda2);
+			warning('on','MATLAB:sqrtm:SingularMatrix');
+			toc
+			intReps = size(cellMatX{1},1);
+			
+			figure;
+			subplot(2,3,1)
+			plot(squeeze(mean(matPredictionsR2_1,1))')
+			title(sprintf('%s,%s => %s, %s=%.0f',strRecID,strArea1,strArea2,getGreek('lambda'),dblLambda1),'interpreter','none')
+			xlabel('Dimensionality');
+			ylabel('Noise prediction, R^2');
+			fixfig;
+			
+			subplot(2,3,2)
+			plot(squeeze(mean(matPredictionsR2_2,1))')
+			title(sprintf('CV RRRR, %s=%.0f, reps=%d',getGreek('lambda'),dblLambda2,intReps),'interpreter','none')
+			xlabel('Dimensionality');
+			ylabel('Noise prediction, R^2');
+			fixfig;
+			
+			strFigFile = sprintf('xPred_%s_%s_%s_%s',strRecID,strArea1,strArea2,getDate);
+			maxfig;
+			drawnow;
+			export_fig([strFigDir strFigFile '.tif']);
+			export_fig([strFigDir strFigFile '.pdf']);
 		end
 	end
 end

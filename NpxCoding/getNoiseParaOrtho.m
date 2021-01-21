@@ -1,7 +1,19 @@
 function [vecNoiseParallel,vecNoiseOrthogonal,vecNoiseTotal] = getNoiseParaOrtho(matSpikeCounts,vecOrientation,boolRandomFprime)
-	%UNTITLED2 Summary of this function goes here
-	%   Detailed explanation goes here
-		
+	%getNoiseParaOrtho Decompose population responses along f'
+	%   [vecNoiseParallel,vecNoiseOrthogonal,vecNoiseTotal] = getNoiseParaOrtho(matSpikeCounts,vecOrientation,boolRandomFprime)
+	%
+	%Inputs:
+	%matSpikeCounts: [Neuron x Trial] Neuronal response matrix
+	%vecOrientation: [1 x Trial] Trial orientation index
+	%boolRandomFprime: [boolean] If true, use random vector instead of f'
+	%
+	%Outputs:
+	%vecNoiseParallel: [1 x Trial] Noise along f' direction
+	%vecNoiseOrthogonal: [1 x Trial] Noise orthogonal to f' direction
+	%vecNoiseTotal: [1 x Trial] Total noise norm
+	%
+	%By Jorrit Montijn
+	
 	%input
 	if ~exist('boolRandomFprime','var') || isempty(boolRandomFprime)
 		boolRandomFprime = false;
@@ -45,7 +57,9 @@ function [vecNoiseParallel,vecNoiseOrthogonal,vecNoiseTotal] = getNoiseParaOrtho
 			vecPoint = matRecenteredPoints(:,intTrial);
 			
 			%project vecPoint onto vecRef and decompose in parallel & orthogonal
-			[vecParallel,vecOrtho] = getProjectPointOnVector(vecRef,vecPoint);
+			vecParallel = ((vecRef'*vecPoint)/(norm(vecRef).^2)).*vecRef;
+			vecOrtho = vecPoint - vecParallel;
+	
 			vecTempNoiseParallel(intRep) = norm(vecParallel);
 			vecTempNoiseOrthogonal(intRep) = norm(vecOrtho);
 			vecTempNoiseTotal(intRep) = norm(vecPoint - vecRef);

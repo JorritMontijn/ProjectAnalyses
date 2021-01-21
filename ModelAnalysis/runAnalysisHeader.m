@@ -263,8 +263,8 @@ elseif isfield(sData,'matSynFromTo')
 	vecPrefSF = sData.vecPrefSF;
 	vecPrefRF_X = sData.vecPrefRF_X;
 	vecPrefRF_Y = sData.vecPrefRF_Y;
-	dblSigmaX = sData.dblSigmaX;
-	dblSigmaY = sData.dblSigmaY;
+	dblSigmaW = sData.dblSigmaW; %X
+	dblSigmaL = sData.dblSigmaL; %Y
 	if isfield(sData,'matPrefGabors')
 		matPrefGabors = sData.matPrefGabors;
 		matFieldsV2 = sData.matFieldsV2;

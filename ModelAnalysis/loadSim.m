@@ -139,5 +139,5 @@ elseif intLoadSim == 200 && boolLoad
 	strSimulation = 'xAreaDistributed_OnlyFF_Noise00_2020-10-06';
 	
 elseif intLoadSim == 999 && boolLoad
-	strSimulation = 'xAreaDistributed_LargeRetOriTuning_2020-11-03';
+	strSimulation = 'xAreaDistributed_LargeRetOriTuning_2021-01-12';
 end

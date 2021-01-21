@@ -168,6 +168,7 @@ for intRec=1:numel(sAggStim)
 		
 		[dblPerformance2,vecDecodedIndexCV,matPosteriorProbability,matWeights,dblMeanErrorDegs,matConfusion2] = ...
 			doCrossValidatedDecodingLR(matDecData,vecDecStimType,2,dblLambda);
+		
 		close all;
 		figure
 		subplot(2,3,1)

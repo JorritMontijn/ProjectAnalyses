@@ -30,6 +30,7 @@ cellUseAreas = {...
 	'Retrosplenial area',...
 	'Anterior area',...
 	};
+strFigDir = 'F:\Data\Results\NpxDims\';
 
 
 %% select all neurons in LP and drifting grating stimuli
@@ -198,22 +199,46 @@ for intArea=1:intAreas
 	intRecs = numel(cellCorr_MuPara{intPlotArea});
 	%plot(repmat(intArea+[-0.5 0.5],[intRecs 1])',[cellCorr_MuPara{intPlotArea}; cellCorr_MuOrth{intPlotArea}])
 	%plot(repmat(intArea+[-0.5 0.5],[intRecs 1])',[cellCorr_MuPara{intPlotArea} - cellCorr_MuOrth{intPlotArea}; cellCorr_MuParaS{intPlotArea} - cellCorr_MuOrthS{intPlotArea}])
-	plot(repmat(intArea+[-0.5 0.5],[intRecs 1])',[cellOrth{intPlotArea} ./ cellPara{intPlotArea}; cellOrthS{intPlotArea} ./ cellParaS{intPlotArea}])
+	plot(repmat(intArea+[-0.2 0.2],[intRecs 1])',[cellOrth{intPlotArea} ./ cellPara{intPlotArea}; cellOrthS{intPlotArea} ./ cellParaS{intPlotArea}])
 	
 	%cellCorr_MuOrth{intArea}
 	%cellCorr_MuOrthS{intArea}
 end
 hold off
 set(gca,'xtick',1:intAreas,'xticklabel',cellUseAreas(vecReorderAreas))
+ylabel('Fraction of variability orthogonal to f''')
 xtickangle(15)
-
-
+title('|Orth|/|Para| vs |Orth_S|/|Para_S|, ordered by decoding performance')
+fixfig;
+maxfig;
 
 subplot(2,3,4)
 scatter(cell2vec(cellOrth),cell2vec(cellPerfLR))
+xlabel('f''-orthogonal magnitude')
+ylabel('LR decoding performance')
+fixfig;
 
 subplot(2,3,5)
 scatter(cell2vec(cellPara),cell2vec(cellPerfLR))
+xlabel('f''-parallel magnitude')
+ylabel('LR decoding performance')
+fixfig;
 
 subplot(2,3,6)
 scatter(cell2vec(cellOrth) ./ cell2vec(cellPara),cell2vec(cellPerfLR))
+xlabel('Orth/para fraction')
+ylabel('LR decoding performance')
+fixfig;
+
+%% TO DO
+%normalize magnitude for pop size
+%compare with shuffled f' rather than shuffled trials
+error('to do!')
+
+%% save fig
+strFigFile = sprintf('OrthParaMagnitudes_%s',getDate);
+maxfig;
+drawnow;
+export_fig([strFigDir strFigFile '.tif']);
+export_fig([strFigDir strFigFile '.pdf']);
+		

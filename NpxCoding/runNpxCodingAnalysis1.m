@@ -30,6 +30,30 @@ cellUseAreas = {...
 	'Retrosplenial area',...
 	'Anterior area',...
 	};
+cellRepStr = {...
+	'RunDriftingGratings','-DG';...
+	'RunNaturalMovie','-NM';...
+	'lateral geniculate','LGN';...
+	'Primary visual','V1';...
+	'Lateral posterior nucleus','LP';...
+	'Anterior pretectal nucleus','APN';...
+	'Posterior complex of the thalamus','PCT';...
+	'Nucleus of the optic tract','NOT';...
+	'Superior colliculus','SC';...
+	'Anteromedial visual','AM';...
+	'posteromedial visual','PM';...
+	'Anterolateral visual','AL';...
+	'Lateral visual','L';...
+	'Rostrolateral area','RL';...
+	'Anterior area','A';...
+	'Subiculum','H-Sub';...
+	'Field CA1','H-CA1';...
+	'Field CA2','H-CA2';...
+	'Field CA3','H-CA3';...
+	'Dentate gyrus','H-DG';...
+	'Retrosplenial','RetSpl';...
+	};
+strFigDir = 'F:\Data\Results\NpxDims\';
 
 
 %% select all neurons in LP and drifting grating stimuli
@@ -77,7 +101,7 @@ for intRec=1:numel(sAggStim)
 	for intArea1=1:intAreas
 		strArea1 = cellUseAreas{intArea1};
 		indArea1Neurons = contains({sUseNeuron.Area},strArea1,'IgnoreCase',true);
-		if sum(indArea1Neurons) == 0, continue;end
+		if sum(indArea1Neurons) < 20, continue;end
 		%% get orientation responses & single-trial population noise
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
 		
@@ -97,18 +121,46 @@ for intRec=1:numel(sAggStim)
 		for intArea2=(intArea1):intAreas
 			strArea2 = cellUseAreas{intArea2}
 			indArea2Neurons = contains({sUseNeuron.Area},strArea2,'IgnoreCase',true);
-			if sum(indArea2Neurons) == 0, continue;end
+			if sum(indArea2Neurons) < 10, continue;end
 			
 			%% get orientation responses & single-trial population noise
 			sArea2Neurons = sUseNeuron(indArea2Neurons);
 			
 			%% get spike times
 			cellSpikeTimes2 = {sArea2Neurons.SpikeTimes};
-			if intArea1 == intArea2
-				%real
-				matSpikeCountsArea2 = matSpikeCountsArea1;
+			if intArea2 == intArea1
+				%% area 1
+				cellSpikeTimes1 = {sArea1Neurons.SpikeTimes};
+				matSpikeCountsArea1 = getSpikeCounts(cellSpikeTimes1,vecStimOnTime,vecStimOffTime);
+				intUseN = floor(size(matSpikeCountsArea1,1)/2);
+				matSpikeCountsArea2 = matSpikeCountsArea1((intUseN+1):(intUseN*2),:);
+				matSpikeCountsArea1 = matSpikeCountsArea1(1:intUseN,:);
+				
+				%real[vecNoiseParallel,vecNoiseOrthogonal,vecNoiseTotal]
+				[vecNoiseParallel1,vecNoiseOrthogonal1,vecNoiseTotal1] = getNoiseParaOrtho(matSpikeCountsArea1,vecOrientation);
+				% shuffled
+				boolRandomFprime = true;
+				matSpikeCountsShuffled1 = matSpikeCountsArea1(:,randperm(size(matSpikeCountsArea1,2)));
+				[vecNoiseParallel1_S,vecNoiseOrthogonal1_S,vecNoiseTotal1_S] = getNoiseParaOrtho(matSpikeCountsArea1,vecOrientation,boolRandomFprime);
+				
 				% shuffle
-				matSpikeCountsShuffled2 = matSpikeCountsShuffled1;
+				matSpikeCountsShuffled2 = matSpikeCountsArea2(:,randperm(size(matSpikeCountsArea2,2)));
+			elseif intArea2 == (intArea1+1)
+				%% area 1
+				cellSpikeTimes1 = {sArea1Neurons.SpikeTimes};
+				matSpikeCountsArea1 = getSpikeCounts(cellSpikeTimes1,vecStimOnTime,vecStimOffTime);
+				
+				%real[vecNoiseParallel,vecNoiseOrthogonal,vecNoiseTotal]
+				[vecNoiseParallel1,vecNoiseOrthogonal1,vecNoiseTotal1] = getNoiseParaOrtho(matSpikeCountsArea1,vecOrientation);
+				% shuffled
+				boolRandomFprime = true;
+				matSpikeCountsShuffled1 = matSpikeCountsArea1(:,randperm(size(matSpikeCountsArea1,2)));
+				[vecNoiseParallel1_S,vecNoiseOrthogonal1_S,vecNoiseTotal1_S] = getNoiseParaOrtho(matSpikeCountsArea1,vecOrientation,boolRandomFprime);
+				
+				%area 2
+				matSpikeCountsArea2 = getSpikeCounts(cellSpikeTimes2,vecStimOnTime,vecStimOffTime);
+				% shuffle
+				matSpikeCountsShuffled2 = matSpikeCountsArea2(:,randperm(size(matSpikeCountsArea2,2)));
 			else
 				%real
 				matSpikeCountsArea2 = getSpikeCounts(cellSpikeTimes2,vecStimOnTime,vecStimOffTime);
@@ -176,6 +228,13 @@ for intRec=1:numel(sAggStim)
 end
 toc
 %% average & remove empty rows
+%shorten names
+cellAreaAbbr = cell(size(cellUseAreas));
+for intArea=1:numel(cellAreaAbbr)
+	cellAreaAbbr{intArea} = cellRepStr{cellfun(@contains,cellfill(cellUseAreas{intArea},size(cellRepStr(:,1))),cellRepStr(:,1)),2};
+end
+
+%proc data
 matR_PP = nanmean(matR_PP_All(:,:,:,1),3);
 matR_OP = nanmean(matR_OP_All(:,:,:,1),3);
 matR_PO = nanmean(matR_PO_All(:,:,:,1),3);
@@ -213,73 +272,115 @@ imagesc(matR_PP,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PP,[-1 1],redblue);
 title(sprintf('Corr Parallel-parallel var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,2)
 imagesc(matR_OP,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OP,vecLimC,redblue);
 title(sprintf('Corr Orthogonal-parallel var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,3)
 imagesc(matR_OO,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OO,[-1 1],redblue);
 title(sprintf('Corr Orthogonal-Orthogonal var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,4)
 imagesc(matR_PO,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PO,vecLimC,redblue);
 title(sprintf('Corr Parallel-Orthogonal var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,5)
 imagesc(matR_PP_S,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PP_S,[-1 1],redblue);
 title(sprintf('Shuffled, Corr Para-para var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,6)
 imagesc(matR_OP_S,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OP_S,vecLimC,redblue);
 title(sprintf('Shuffled, Corr orth-para var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,7)
 imagesc(matR_OO_S,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OO_S,[-1 1],redblue);
 title(sprintf('Shuffled, Corr orth-orth var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,8)
 imagesc(matR_PO_S,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PO_S,vecLimC,redblue);
 title(sprintf('Shuffled, Corr Para-orth var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,9)
 imagesc(matR_PP - matR_PP_S,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PP - matR_PP_S,[-1 1],redblue);
-title(sprintf('Corr Parallel-parallel var'))
+title(sprintf('Diff, Corr Parallel-parallel var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,10)
 imagesc(matR_OP - matR_OP_S,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OP - matR_OP_S,vecLimC,redblue);
-title(sprintf('Corr Orthogonal-parallel var'))
+title(sprintf('Diff, Corr Orthogonal-parallel var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,11)
 imagesc(matR_OO - matR_OO_S,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_OO - matR_OO_S,[-1 1],redblue);
-title(sprintf('Corr Orthogonal-Orthogonal var'))
+title(sprintf('Diff, Corr Orthogonal-Orthogonal var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
 subplot(3,4,12)
 imagesc(matR_PO - matR_PO_S,vecLimC);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_PO - matR_PO_S,vecLimC,redblue);
-title(sprintf('Corr Parallel-Orthogonal var'))
+title(sprintf('Diff, Corr Parallel-Orthogonal var'))
+set(gca,'ytick',1:numel(cellAreaAbbr),'yticklabel',cellAreaAbbr)
+set(gca,'xtick',1:numel(cellAreaAbbr),'xticklabel',cellAreaAbbr)
+xtickangle(gca,45);
 
+strFigFile = sprintf('CorrOrthPara_%s',getDate);
+			maxfig;
+			drawnow;
+			export_fig([strFigDir strFigFile '.tif']);
+			export_fig([strFigDir strFigFile '.pdf']);
+			
 %% cross corrs
 matR_xR = nanmean(mat_xR_All(:,:,:,1),3);
 matR_xR_S = nanmean(mat_xR_All(:,:,:,2),3);
@@ -296,3 +397,74 @@ imagesc(matR_xR_S,[-1 1]);
 colormap(redbluepurple);
 hcb = nancolorbar(matR_xR_S,[-1 1],redblue);
 title(sprintf('xCorr Shuffled'))
+
+%% means
+intRecs = size(matR_PP_All,3);
+matTril3 = repmat(tril(true(size(matR_PP_All,[1 2]))),[1 1 intRecs]);
+matDiag3 = repmat(logical(eye(size(matR_PP_All,[1 2]))),[1 1 intRecs]);
+matR_PP_D = matR_PP_All(:,:,:,1) - matR_PP_All(:,:,:,2);
+matR_OP_D = matR_OP_All(:,:,:,1) - matR_OP_All(:,:,:,2);
+matR_PO_D = matR_PO_All(:,:,:,1) - matR_PO_All(:,:,:,2);
+matR_OO_D = matR_OO_All(:,:,:,1) - matR_OO_All(:,:,:,2);
+
+vecSelfD_PP = matR_PP_D(matDiag3);
+vecSelfD_OP = matR_OP_D(matDiag3);
+vecSelfD_PO = matR_PO_D(matDiag3);
+vecSelfD_OO = matR_OO_D(matDiag3);
+vecSelfD_PP = vecSelfD_PP(~isnan(vecSelfD_PP));
+vecSelfD_OP = vecSelfD_OP(~isnan(vecSelfD_OP));
+vecSelfD_PO = vecSelfD_PO(~isnan(vecSelfD_PO));
+vecSelfD_OO = vecSelfD_OO(~isnan(vecSelfD_OO));
+
+vecCrossAreaD_PP = matR_PP_D(matTril3);
+vecCrossAreaD_OP = matR_OP_D(matTril3);
+vecCrossAreaD_PO = matR_PO_D(matTril3);
+vecCrossAreaD_OO = matR_OO_D(matTril3);
+vecCrossAreaD_PP = vecCrossAreaD_PP(~isnan(vecCrossAreaD_PP));
+vecCrossAreaD_OP = vecCrossAreaD_OP(~isnan(vecCrossAreaD_OP));
+vecCrossAreaD_PO = vecCrossAreaD_PO(~isnan(vecCrossAreaD_PO));
+vecCrossAreaD_OO = vecCrossAreaD_OO(~isnan(vecCrossAreaD_OO));
+
+%t-tests
+[h,pSPP0] = ttest(vecSelfD_PP);
+[h,pSOO0] = ttest(vecSelfD_OO);
+[h,pSPO] = ttest(vecSelfD_PP,vecSelfD_OO);
+
+[h,pCPP0] = ttest(vecCrossAreaD_PP);
+[h,pCOO0] = ttest(vecCrossAreaD_OO);
+[h,pCPO] = ttest(vecCrossAreaD_PP,vecCrossAreaD_OO);
+
+%plot
+figure
+subplot(2,3,1)
+hold on
+%plot([0 5],[0 0],'color',0*[0.5 0.5 0.5]);
+bplot(vecSelfD_PP,1,'outliers','linewidth',10);
+bplot(vecSelfD_OO,2,'outliers','linewidth',10);
+ylabel('dCorr var magnitude over shuff')
+hold off
+title(sprintf('r(Self);PP-0,p=%.3f;OO-0,p=%.3f;PP-OO,p=%.3f',pSPP0,pSOO0,pSPO))
+set(gca,'xtick',1:2,'xticklabel',{'Para-para','Orth-orth'});
+xtickangle(gca,45)
+fixfig;
+%grid off
+
+subplot(2,3,2)
+hold on
+%plot([0 5],[0 0],'k--');
+bplot(vecCrossAreaD_PP,1,'outliers','linewidth',10);
+bplot(vecCrossAreaD_OO,2,'outliers','linewidth',10);
+ylabel('dCorr var magnitude over shuff')
+hold off
+title(sprintf('r(Across);PP-0,p=%.3f;OO-0,p=%.3f;PP-OO,p=%.3f',pCPP0,pCOO0,pCPO))
+set(gca,'xtick',1:2,'xticklabel',{'Para-para','Orth-orth'});
+xtickangle(gca,45)
+fixfig;
+maxfig;
+
+strFigFile = sprintf('MeanCorrOrthParaOverShuff_%s',getDate);
+maxfig;
+drawnow;
+export_fig([strFigDir strFigFile '.tif']);
+export_fig([strFigDir strFigFile '.pdf']);
+		

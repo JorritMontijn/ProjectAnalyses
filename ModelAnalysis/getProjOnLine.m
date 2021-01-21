@@ -1,6 +1,8 @@
 function [vecProjectedPoints1D,dblRefNorm,matProjectedPointsShuffled,vecProjectedPointsClass2] = getProjOnLine(matPoints,varRef,intIters)
-	%UNTITLED Summary of this function goes here
-	%   Detailed explanation goes here
+	%getProjOnLine Summary of this function goes here
+	%   getProjOnLine(matPoints,matPoints2,intIters)
+	%OR:
+	%   getProjOnLine(matPoints,vecRef,intIters)
 	
 	%get data
 	intD=size(matPoints,2);

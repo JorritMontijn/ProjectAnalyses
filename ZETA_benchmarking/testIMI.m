@@ -49,66 +49,33 @@ estimate and the LIF model.
 
 
 %% select all neurons in LP and drifting grating stimuli
-[sAggStim,sAggNeuron]=loadDataNpx('lateral posterior nucleus','driftinggrating');
+clearvars;
+strArea = 'primary visual';
+[sAggStim,sAggNeuron]=loadDataNpx(strArea,'driftinggrating');
 
-%% get data for neuron #16 (original neuron #30)
-intNeuronToAnalyze = 16;
+%% get data for lateral geniculate neuron #16 (original neuron #30)
+intNeuronToAnalyze = 3;
 sNeuron = sAggNeuron(intNeuronToAnalyze);
 vecSpikeTimes = sNeuron.SpikeTimes;
 vecStimOnTime = sAggStim(1).cellStim{1}.structEP.vecStimOnTime;
 vecStimOffTime = sAggStim(1).cellStim{1}.structEP.vecStimOffTime;
 dblTrialDur = min(vecStimOffTime-vecStimOnTime);
 vecOrientation = sAggStim(1).cellStim{1}.structEP.Orientation;
+boolJitter = true;
+strRand = '';
+strFigPath = 'F:\Data\Results\ZETA\Inclusion\';
 
 %jitter
-%vecStimOnTime = vecStimOnTime + 2*(rand(size(vecStimOnTime))-0.5)*dblTrialDur*2;
+if boolJitter
+vecStimOnTime = vecStimOnTime + 2*(rand(size(vecStimOnTime))-0.5)*dblTrialDur*2;
+strRand = 'Jittered';
+end
 vecStimOnTime = sort(vecStimOnTime);
 
 %% fit
-tic
 [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,vecStimOnTime,dblTrialDur,4,2);
-toc
-return
-%% plot
-subplot(2,3,3)
-	plot(sMIMI.vecX,sMIMI.vecY);
-	%errorbar(vecX,vecY,vecY_sem);
-	hold on
-	plot(sMIMI.vecX,sMIMI.vecFitY,'k--');
-	hold off
-xlabel('Time after stimulus onset (s)');
-ylabel('Mean firing rate (Hz)');
-legend('Data','MIMI model fit');
 
-%plot mean rates
-subplot(2,3,4)
-scatter(sort(sMIMI.vecY),sort(sMIMI.vecFitY))
-vecLim = [min([get(gca,'xlim') get(gca,'ylim')]) max([get(gca,'xlim') get(gca,'ylim')])];
-xlim(vecLim);ylim(vecLim);
-hold on
-plot(vecLim,vecLim,'--','color',[0.5 0.5 0.5])
-
-%% transform to probabilities from poisson process
-subplot(2,3,5)
-vecResid = sMIMI.residual;
-vecResidNoMod = sMIMI.vecY-mean(sMIMI.vecY);
-histx(sMIMI.vecFitY)
-title(sprintf('mean fit y=%.3f,sd fit y=%.3f',mean(sMIMI.vecFitY),std(sMIMI.vecFitY)))
-
-%% are fitted values normal?
-%k-s test
-[h,pKS,ksstat,cv] = kstest(zscore(sMIMI.vecFitY));
-
-
-subplot(2,3,6)
-vecQ = normcdf(sMIMI.vecFitY,mean(sMIMI.vecFitY));
-
-hold on
-scatter(linspace(0,1,numel(vecQ)),sort(vecQ))
-
-vecLim = [0 1];
-xlim(vecLim);ylim(vecLim);
-plot(vecLim,vecLim,'--','color',[0.5 0.5 0.5]);
-hold off
-title(sprintf('K-S test,p=%.3f',pKS))
-fixfig;
+strFigFile = sprintf('TMZ_Example_%sN%d%s',strArea,intNeuronToAnalyze,strRand);
+drawnow;
+export_fig([strFigPath strFigFile '.tif']);
+export_fig([strFigPath strFigFile '.pdf']);

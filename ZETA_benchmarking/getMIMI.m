@@ -78,7 +78,7 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 		
 		%plot
 		%% plot
-		subplot(2,3,2)
+		hPeak=subplot(2,3,2);
 		plot(sMIMI_fit.vecX,sMIMI_fit.vecY);
 		hold on
 		plot(sMIMI_fit.vecX,sMIMI_fit.vecFitY,'k--');
@@ -155,10 +155,9 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 			vecLatencies = vecLatencies(1:intLatencyPeaks);
 			vecLatencyVals = vecLatencyVals(1:intLatencyPeaks);
 			if intPlot > 0
+				axes(hPeak);
 				hold on
-				scatter(dblPeakTime,sMIMI_fit.vecFitY(intPeakLoc),'gx');
 				if intLatencyPeaks > 1
-					scatter(dblOnset,dblOnsetVal,'rx');
 					title(sprintf('Pk=%.0fms,On=%.2fms',dblPeakTime*1000,dblOnset*1000));
 				else
 					title(sprintf('Pk=%.0fms',dblPeakTime*1000));

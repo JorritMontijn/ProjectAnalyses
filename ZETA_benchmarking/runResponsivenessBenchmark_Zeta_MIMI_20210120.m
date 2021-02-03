@@ -168,7 +168,7 @@ for intArea=vecRunAreas
 				cellArea = cell(1,intNeurons);
 					
 				%% analyze
-				for intNeuron=16%[1:intNeurons]%31
+				for intNeuron=[1:intNeurons]%31
 					%% load or generate data
 					if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
 						%% get neuronal data

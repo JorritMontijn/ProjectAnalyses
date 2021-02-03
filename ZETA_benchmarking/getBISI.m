@@ -39,13 +39,13 @@ function [dblP] = getBISI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNu
 	
 	%% get ISI distro
 	vecUseSpikeTimes = vecSpikeTimes(vecSpikeTimes < (max(vecStartOnly)+3*dblUseMaxDur) & (vecSpikeTimes > (min(vecStartOnly)-3*dblUseMaxDur)));
+	if numel(vecRealDiff) < 3 || numel(vecUseSpikeTimes) < 4
+		return
+	end
 	vecISI = diff(vecUseSpikeTimes);
 	intSpikes = numel(vecRealDiff);
 	matRandDiff = nan(intSpikes,intResampleNum);
 	dblT0 = vecUseSpikeTimes(1);
-	if numel(vecRealDiff) < 3 || numel(vecUseSpikeTimes) < 4
-		return
-	end
 	
 	%% run bootstraps
 	parfor intResampling=1:intResampleNum

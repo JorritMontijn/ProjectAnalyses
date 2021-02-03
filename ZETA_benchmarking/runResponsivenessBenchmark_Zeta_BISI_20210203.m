@@ -159,16 +159,16 @@ for intArea=vecRunAreas
 				
 				%% pre-allocate output variables
 				vecComputTimeZETA = nan(1,intNeurons);
-				vecComputTimeMIMI = nan(1,intNeurons);
+				vecComputTimeISI = nan(1,intNeurons);
 				vecNumSpikes = nan(1,intNeurons);
-				vecMIMIP = nan(1,intNeurons);
+				vecISIP = nan(1,intNeurons);
 				vecZetaP = nan(1,intNeurons);
 				vecHzD = nan(1,intNeurons);
 				vecHzP = nan(1,intNeurons);
 				cellArea = cell(1,intNeurons);
 					
 				%% analyze
-				for intNeuron=16%[1:intNeurons]%31
+				for intNeuron=[1:intNeurons]%31
 					%% load or generate data
 					if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
 						%% get neuronal data
@@ -265,30 +265,31 @@ for intArea=vecRunAreas
 					
 					%ZETA
 					hTicZ=tic;
-					intPlot = 0;
-					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,0);
+					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,0,0);
 					dblComputTimeZETA = toc(hTicZ);
+					
 					%MIMI
 					hTicM = tic;
-					[dblMIMI_P,vecLatenciesMIMI,sMIMI] = getMIMI(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intPlot,0);
-					dblComputTimeMIMI = toc(hTicM);
+					boolUseGumbel = true;
+					dblISIP = getBISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,boolUseGumbel);
+					dblComputTimeISI = toc(hTicM);
 					
 					intSpikeNum = numel(vecSpikeTimes);
 					
 					% assign data
 					vecNumSpikes(intNeuron) = intSpikeNum;
-					vecMIMIP(intNeuron) = dblMIMI_P;
+					vecISIP(intNeuron) = dblISIP;
 					vecZetaP(intNeuron) = dblZetaP;
 					vecHzD(intNeuron) = sZETA.dblMeanD;
 					vecHzP(intNeuron) = sZETA.dblMeanP;
 					cellArea{intNeuron} = strArea;
 					vecComputTimeZETA(intNeuron) = dblComputTimeZETA;
-					vecComputTimeMIMI(intNeuron) = dblComputTimeMIMI;
+					vecComputTimeISI(intNeuron) = dblComputTimeISI;
 					
 					%% message
 					%if toc(hTicMessage) > 5 && intNeuron > 1
-						fprintf('Processed neuron %d/%d, ZETA took %.1fs, MIMI took %.1fs [%s]\n',intNeuron,intNeurons,...
-							vecComputTimeZETA(intNeuron),vecComputTimeMIMI(intNeuron),getTime);
+						fprintf('Processed neuron %d/%d, ZETA took %.1fs, ISI took %.1fs [%s]\n',intNeuron,intNeurons,...
+							vecComputTimeZETA(intNeuron),vecComputTimeISI(intNeuron),getTime);
 						%hTicMessage=tic;
 					%end
 					%clear vecTrialStarts;
@@ -296,8 +297,8 @@ for intArea=vecRunAreas
 				end
 				%save
 				if boolSave
-					save([strDataTargetPath 'ZetaMIMI' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
-						'vecNumSpikes','vecMIMIP','vecZetaP','vecHzD','vecHzP','cellArea','vecComputTimeZETA','vecComputTimeMIMI');
+					save([strDataTargetPath 'ZetaBISI' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
+						'vecNumSpikes','vecISIP','vecZetaP','vecHzD','vecHzP','cellArea','vecComputTimeZETA','vecComputTimeISI','boolUseGumbel');
 				end
 			end
 		end

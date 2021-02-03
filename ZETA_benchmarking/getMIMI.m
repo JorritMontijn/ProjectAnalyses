@@ -40,10 +40,10 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 	
 	%get coeffs
 	if ~exist('intCoeffsL1','var') || isempty(intCoeffsL1)
-		intCoeffsL1 = 14;
+		intCoeffsL1 = 16;
 	end
 	if ~exist('intCoeffsG1','var') || isempty(intCoeffsG1)
-		intCoeffsG1 = 14;
+		intCoeffsG1 = 16;
 	end
 	
 	%% build onset/offset vectors
@@ -52,8 +52,16 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 	%% fit MIMI
 	sMIMI_fit = fitMIMI(intCoeffsL1,intCoeffsG1,vecSpikeTimes,vecEventStarts,dblUseMaxDur,boolVerbose);
 	
+	%
+	intTrials = numel(vecEventStarts);
+	intBins = numel(sMIMI_fit.vecY);
+	dblLambda = mean(sMIMI_fit.vecY);
+	vecH0 = mean(poissrnd(dblLambda,[intTrials intBins]),1);
+	vecQ0 = sort(zscore(vecH0));
+	vecQ1 = sort(zscore(sMIMI_fit.vecFitY));
+		
 	%get KS p
-	[h,dblMIMI_P,ksstat,cv] = kstest(zscore(sMIMI_fit.vecFitY));
+	[h,dblMIMI_P,ksstat] = kstest2(sMIMI_fit.vecFitY,vecH0);
 	
 	
 	%% plot
@@ -109,14 +117,12 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 		ylabel('Count (bins)');
 		fixfig
 		
-		%% are fitted values normal?
+		%% are fitted values deviating from sum of poissons?
 		subplot(2,3,5)
-		vecQ = normcdf(sMIMI_fit.vecFitY,mean(sMIMI_fit.vecFitY));
 		
 		hold on
-		scatter(linspace(0,1,numel(vecQ)),sort(vecQ))
-		
-		vecLim = [0 1];
+		scatter(vecQ0,vecQ1)
+		vecLim = [min([get(gca,'xlim') get(gca,'ylim')]) max([get(gca,'xlim') get(gca,'ylim')])];
 		xlim(vecLim);ylim(vecLim);
 		plot(vecLim,vecLim,'--','color',[0.5 0.5 0.5]);
 		hold off

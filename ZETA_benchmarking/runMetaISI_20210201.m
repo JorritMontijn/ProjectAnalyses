@@ -54,18 +54,27 @@ cellRepStr = {...
 };
 
 %% prep
+boolUseGumbel = true;
+intUseISItype = 2;%0=ISI,1=GISI,2=BISI
 cellDatasetNames = {};
 matZeta =[];
 matNumCells = [];
 matSignifZ = [];
 matSignifHz = [];
-matSignifMIMI = [];
+matSignifISI = [];
 
+if intUseISItype == 1
+	strTest = 'GISI';
+elseif intUseISItype == 2
+	strTest = 'BISI';
+else
+	strTest = 'ISI';
+end
 
-cellComputTimeMIMI = [];
+cellComputTimeISI = [];
 cellComputTimeZETA = [];
 cellHzP = [];
-cellMIMIP = [];
+cellISIP = [];
 cellNumSpikes = [];
 cellZetaP = [];
 intIdxNpx = 0;
@@ -90,7 +99,7 @@ for intArea=1:numel(cellUniqueAreas)
 		
 		%% load data
 		strRunType = [strArea strRand strStim];
-		sDir=dir([strPath 'ZetaMIMI' strRunType 'Resamp100*']);
+		sDir=dir([strPath 'Zeta' strTest strRunType 'Resamp100*']);
 		intFiles=numel(sDir);
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;
@@ -100,12 +109,12 @@ for intArea=1:numel(cellUniqueAreas)
 			
 			matSignifZ(intIdx,intRandType) = sum(sLoad.vecZetaP<0.05)/numel(sLoad.vecZetaP);
 			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05)/numel(sLoad.vecHzP);
-			matSignifMIMI(intIdx,intRandType) = sum(sLoad.vecMIMIP<0.05)/numel(sLoad.vecMIMIP);
+			matSignifISI(intIdx,intRandType) = sum(sLoad.vecISIP<0.05)/numel(sLoad.vecISIP);
 			
-			cellComputTimeMIMI{intIdx,intRandType} = sLoad.vecComputTimeMIMI;
+			cellComputTimeISI{intIdx,intRandType} = sLoad.vecComputTimeISI;
 			cellComputTimeZETA{intIdx,intRandType} = sLoad.vecComputTimeZETA;
 			cellHzP{intIdx,intRandType} = sLoad.vecHzP;
-			cellMIMIP{intIdx,intRandType} = sLoad.vecMIMIP;
+			cellISIP{intIdx,intRandType} = sLoad.vecISIP;
 			cellNumSpikes{intIdx,intRandType} = sLoad.vecNumSpikes;
 			cellZetaP{intIdx,intRandType} = sLoad.vecZetaP;
 			
@@ -116,7 +125,7 @@ for intArea=1:numel(cellUniqueAreas)
 	%plot ROC
 	if size(cellHzP,1) >= intIdx && ~isempty(cellHzP{intIdx,1}) && intStimType == 2
 		intIdxNpx = intIdxNpx + 1;
-		clf;
+		figure;
 		%vecH(intIdxNpx) = subplot(4,3,intIdxNpx);
 		subplot(2,2,1)
 		maxfig;
@@ -127,7 +136,7 @@ for intArea=1:numel(cellUniqueAreas)
 			if intPlotType == 1
 				cellData = cellHzP;
 			elseif intPlotType == 2
-				cellData = cellMIMIP;
+				cellData = cellISIP;
 			else
 				cellData = cellZetaP;
 			end
@@ -147,8 +156,8 @@ for intArea=1:numel(cellUniqueAreas)
 		xlabel('False positive fraction');
 		ylabel('Inclusion fraction');
 		fixfig;
-		legend({'Mean-rate t-test','MIMI model + K-S test','ZETA'},'location','best')
-		title(sprintf('%s, AUCs: t=%.3f; MIMI=%.3f, Z=%.3f',strArea,vecAUC))
+		legend({'Mean-rate t-test',[strTest ' shuffle'],'ZETA'},'location','best')
+		title(sprintf('%s, AUCs: t=%.3f; ISI=%.3f, Z=%.3f',strArea,vecAUC))
 		
 		%shuffled p MIMI
 		subplot(2,2,2)
@@ -156,28 +165,28 @@ for intArea=1:numel(cellUniqueAreas)
 		vecBinsP = 0:dblStep:1;
 		vecBinsPlot = (dblStep/2):dblStep:(1-dblStep/2);
 		vecCountsHzP = histcounts(cellHzP{intIdx,2},vecBinsP);
-		vecCountsMIMIP = histcounts(cellMIMIP{intIdx,2},vecBinsP);
+		vecCountsISIP = histcounts(cellISIP{intIdx,2},vecBinsP);
 		vecCountsZETAP = histcounts(cellZetaP{intIdx,2},vecBinsP);
 		hold on
 		plot(vecBinsPlot,vecCountsHzP,'k');
-		plot(vecBinsPlot,vecCountsMIMIP,'r');
+		plot(vecBinsPlot,vecCountsISIP,'r');
 		plot(vecBinsPlot,vecCountsZETAP,'b');
 		hold off
 		title(sprintf('False positive p-value distribution'));
 		xlabel('p-value of shuffled control');
 		ylabel('Number of cells (count)');
 		fixfig;
-		legend({'Mean-rate t-test','MIMI model + K-S test','ZETA'},'location','best')
+		legend({'Mean-rate t-test',[strTest ' shuffle'],'ZETA'},'location','best')
 		
 		%comput time
 		subplot(2,2,3)
 		
-		vecBinsC = logspace(log10(min(cellComputTimeZETA{intIdx,1}))-1,log10(max(cellComputTimeMIMI{intIdx,1}))+1,31);
+		vecBinsC = logspace(log10(min(cellComputTimeZETA{intIdx,1}))-1,log10(max(cellComputTimeISI{intIdx,1}))+1,31);
 		vecBinsPlotC = vecBinsC;
-		vecCountsMIMIC = histcounts(cellComputTimeMIMI{intIdx,1},vecBinsC);
+		vecCountsISIC = histcounts(cellComputTimeISI{intIdx,1},vecBinsC);
 		vecCountsZETAC = histcounts(cellComputTimeZETA{intIdx,1},vecBinsC);
 		hold on
-		plot(vecBinsPlotC(2:end),vecCountsMIMIC,'r');
+		plot(vecBinsPlotC(2:end),vecCountsISIC,'r');
 		plot(vecBinsPlotC(2:end),vecCountsZETAC,'b');
 		hold off
 		title(sprintf('Computation time comparison'));
@@ -185,11 +194,11 @@ for intArea=1:numel(cellUniqueAreas)
 		xlabel('Computation time per cell (s)');
 		ylabel('Number of cells (count)');
 		fixfig;
-		legend({'MIMI model + K-S test','ZETA'},'location','best')
+		legend({[strTest ' shuffle'],'ZETA'},'location','best')
 		
 		% save figure
 		drawnow;
-		strFigName = sprintf('TMZ_ROC_%s',strArea);
+		strFigName = sprintf('%s_ROC_%s',strTest,strArea);
 		export_fig([strFigPath strFigName '.tif']);
 		export_fig([strFigPath strFigName '.pdf']);
 

@@ -30,16 +30,16 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
-
-strDataMasterPath = 'F:\Data\Processed\ePhys\';
-strDataTargetPath = 'F:\Data\Processed\ZETA\Inclusion\';
-strFigPath = 'F:\Data\Results\ZETA\Examples\';
+strDrive = 'D:';
+strDataMasterPath = [strDrive '\Data\Processed\ePhys\'];
+strDataTargetPath = [strDrive '\Data\Processed\ZETA\Inclusion\'];
+strFigPath = [strDrive '\Data\Results\ZETA\Examples\'];
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = 8%4;%6;%14:16;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = [7 9:16];%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -247,6 +247,8 @@ for intArea=vecRunAreas
 						vecTrialStarts(:,1) = vecStimOnTime;
 						vecTrialStarts(:,2) = vecStimOffTime;
 						[vecSpikeTimes,dblPrefOri] = getGeneratedSpikingData(vecTrialAngles,vecTrialStarts,dblBaseRate,dblPrefRate,dblKappa,true);
+					else
+						continue;
 					end
 					
 					%% get visual responsiveness

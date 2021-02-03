@@ -1,4 +1,10 @@
-function [dblP] = getBISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,boolUseGumbel)
+function [dblP] = getBISI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
+	
+	%% check inputs and pre-allocate error output
+	dblP = 1;
+	if numel(vecSpikeTimes) < 3
+		return;
+	end
 	
 	%% prep data
 	%ensure orientation
@@ -19,11 +25,6 @@ function [dblP] = getBISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResamp
 		intResampleNum = 0;
 	end
 	
-	%get boolPlot
-	if ~exist('boolUseGumbel','var') || isempty(boolUseGumbel)
-		boolUseGumbel = true;
-	end
-	
 	%% build onset/offset vectors
 	vecEventStarts = matEventTimes(:,1);
 	
@@ -42,6 +43,9 @@ function [dblP] = getBISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResamp
 	intSpikes = numel(vecRealDiff);
 	matRandDiff = nan(intSpikes,intResampleNum);
 	dblT0 = vecUseSpikeTimes(1);
+	if numel(vecRealDiff) < 3 || numel(vecUseSpikeTimes) < 4
+		return
+	end
 	
 	%% run bootstraps
 	parfor intResampling=1:intResampleNum

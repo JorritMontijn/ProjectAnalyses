@@ -39,7 +39,7 @@ vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = [7 9:16];%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = [7:16];%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -268,7 +268,7 @@ for intArea=vecRunAreas
 					%ZETA
 					hTicZ=tic;
 					intPlot = 0;
-					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,0);
+					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,intPlot,0);
 					dblComputTimeZETA = toc(hTicZ);
 					%MIMI
 					hTicM = tic;

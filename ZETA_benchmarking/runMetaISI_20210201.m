@@ -54,6 +54,7 @@ cellRepStr = {...
 };
 
 %% prep
+boolSavePlots = true;
 boolUseGumbel = true;
 intUseISItype = 2;%0=ISI,1=GISI,2=BISI
 cellDatasetNames = {};
@@ -70,6 +71,9 @@ elseif intUseISItype == 2
 else
 	strTest = 'ISI';
 end
+
+vecZETA_AUC = [];
+vecISI_AUC = [];
 
 cellComputTimeISI = [];
 cellComputTimeZETA = [];
@@ -195,15 +199,37 @@ for intArea=1:numel(cellUniqueAreas)
 		ylabel('Number of cells (count)');
 		fixfig;
 		legend({[strTest ' shuffle'],'ZETA'},'location','best')
-		
+		if boolSavePlots
 		% save figure
 		drawnow;
 		strFigName = sprintf('%s_ROC_%s',strTest,strArea);
 		export_fig([strFigPath strFigName '.tif']);
 		export_fig([strFigPath strFigName '.pdf']);
+		end
+		%save data
+		vecHz_AUC(intIdx) = vecAUC(1);
+		vecZETA_AUC(intIdx) = vecAUC(2);
+		vecISI_AUC(intIdx) = vecAUC(3);
 
 	end
 	end
 
 end
+
+%remove empty
+indRem = vecZETA_AUC==0;
+vecHz_AUC(indRem) = [];
+vecZETA_AUC(indRem) = [];
+vecISI_AUC(indRem) = [];
+
+[h,pAUCs]=ttest(vecZETA_AUC,vecISI_AUC);
+
+% inclusion at 5%
+matInclusionHz = cellfun(@(x) sum(x < 0.05)/numel(x),cellHzP);
+matInclusionISI = cellfun(@(x) sum(x < 0.05)/numel(x),cellISIP);
+matInclusionZETA = cellfun(@(x) sum(x < 0.05)/numel(x),cellZetaP);
+
+[h,pTP]=ttest(matInclusionISI(~indRem,1),matInclusionZETA(~indRem,1));
+[h,pFP]=ttest(matInclusionISI(~indRem,2),matInclusionZETA(~indRem,2));
+
 

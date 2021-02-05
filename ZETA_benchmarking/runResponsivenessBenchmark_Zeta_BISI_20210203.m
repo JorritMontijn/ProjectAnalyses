@@ -39,7 +39,7 @@ vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = 8%4;%6;%14:16;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 10:16;%4;%6;%14:16;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -265,13 +265,12 @@ for intArea=vecRunAreas
 					
 					%ZETA
 					hTicZ=tic;
-					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,0,0);
+					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,0,0);
 					dblComputTimeZETA = toc(hTicZ);
 					
 					%MIMI
 					hTicM = tic;
-					boolUseGumbel = true;
-					dblISIP = getBISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,boolUseGumbel);
+					dblISIP = getBISI(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum);
 					dblComputTimeISI = toc(hTicM);
 					
 					intSpikeNum = numel(vecSpikeTimes);
@@ -280,8 +279,8 @@ for intArea=vecRunAreas
 					vecNumSpikes(intNeuron) = intSpikeNum;
 					vecISIP(intNeuron) = dblISIP;
 					vecZetaP(intNeuron) = dblZetaP;
-					vecHzD(intNeuron) = sZETA.dblMeanD;
-					vecHzP(intNeuron) = sZETA.dblMeanP;
+					%vecHzD(intNeuron) = sZETA.dblMeanD;
+					%vecHzP(intNeuron) = sZETA.dblMeanP;
 					cellArea{intNeuron} = strArea;
 					vecComputTimeZETA(intNeuron) = dblComputTimeZETA;
 					vecComputTimeISI(intNeuron) = dblComputTimeISI;
@@ -298,7 +297,7 @@ for intArea=vecRunAreas
 				%save
 				if boolSave
 					save([strDataTargetPath 'ZetaBISI' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
-						'vecNumSpikes','vecISIP','vecZetaP','vecHzD','vecHzP','cellArea','vecComputTimeZETA','vecComputTimeISI','boolUseGumbel');
+						'vecNumSpikes','vecISIP','vecZetaP','vecHzD','vecHzP','cellArea','vecComputTimeZETA','vecComputTimeISI');
 				end
 			end
 		end

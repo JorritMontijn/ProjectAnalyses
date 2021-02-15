@@ -49,6 +49,26 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 	%% build onset/offset vectors
 	vecEventStarts = matEventTimes(:,1);
 	
+	%% check inputs
+	vecLatencies = [];
+	if numel(vecSpikeTimes) < 3 || numel(vecEventStarts) < 3
+		dblMIMI_P = 1;
+		sMIMI = struct;
+		sMIMI.dblMIMI_P = dblMIMI_P;
+		sMIMI.vecSpikeT = [];
+		sMIMI.dblUseMaxDur = [];
+		sMIMI.vecLatencyVals = [];
+		sRate = [];
+		warning([mfilename ':InsufficientSamples'],'Insufficient samples to calculate MIMI');
+		
+		%build placeholder outputs
+		if numel(vecLatencies) < intLatencyPeaks
+			vecLatencies(end+1:intLatencyPeaks) = nan;
+		end
+		
+		return
+	end
+	
 	%% fit MIMI
 	sMIMI_fit = fitMIMI(intCoeffsL1,intCoeffsG1,vecSpikeTimes,vecEventStarts,dblUseMaxDur,boolVerbose);
 	
@@ -59,7 +79,7 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 	vecH0 = mean(poissrnd(dblLambda,[intTrials intBins]),1);
 	vecQ0 = sort(zscore(vecH0));
 	vecQ1 = sort(zscore(sMIMI_fit.vecFitY));
-		
+	
 	%get KS p
 	[h,dblMIMI_P,ksstat] = kstest2(sMIMI_fit.vecFitY,vecH0);
 	

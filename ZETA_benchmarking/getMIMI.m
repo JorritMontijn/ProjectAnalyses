@@ -1,4 +1,4 @@
-function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intPlot,intLatencyPeaks,vecRestrictRange,boolVerbose,intCoeffsL1,intCoeffsG1)
+function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intPlot,intLatencyPeaks,vecRestrictRange,boolVerbose,intCoeffsL1,intCoeffsG1,vecCoeffs0)
 	
 	%% prep data
 	%ensure orientation
@@ -45,6 +45,9 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 	if ~exist('intCoeffsG1','var') || isempty(intCoeffsG1)
 		intCoeffsG1 = 16;
 	end
+	if ~exist('vecCoeffs0','var') || isempty(vecCoeffs0)
+		vecCoeffs0 = [];
+	end
 	
 	%% build onset/offset vectors
 	vecEventStarts = matEventTimes(:,1);
@@ -70,22 +73,42 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 	end
 	
 	%% fit MIMI
-	sMIMI_fit = fitMIMI(intCoeffsL1,intCoeffsG1,vecSpikeTimes,vecEventStarts,dblUseMaxDur,boolVerbose);
+	sMIMI_fit = fitMIMI(intCoeffsL1,intCoeffsG1,vecSpikeTimes,vecEventStarts,dblUseMaxDur,boolVerbose,vecCoeffs0);
 	
 	%
-	intTrials = numel(vecEventStarts);
-	intBins = numel(sMIMI_fit.vecY);
-	dblLambda = mean(sMIMI_fit.vecY);
-	vecH0 = mean(poissrnd(dblLambda,[intTrials intBins]),1);
-	vecQ0 = sort(zscore(vecH0));
-	vecQ1 = sort(zscore(sMIMI_fit.vecFitY));
+	J = sMIMI_fit.jacobian;
+	resid = sMIMI_fit.residual;
+	beta = sMIMI_fit.FitCoeffs;
+	n = length(resid);
+	p = intCoeffsL1;
+	v = n-p;
+	% approximation when a column is zero vector
+	temp = find(max(abs(J)) == 0);
+	if ~isempty(temp)
+		J(:,temp) = sqrt(eps(class(J)));
+	end
 	
-	%get KS p
-	[h,dblMIMI_P,ksstat] = kstest2(sMIMI_fit.vecFitY,vecH0);
+	% calculate covariance matrix
+	[~,R] = qr(J,0);
+	Rinv = R\eye(size(R));
+	diag_info = sum(Rinv.*Rinv,2);
+	%get se
+	rmse = norm(resid) / sqrt(v);
+	se = sqrt(diag_info) * rmse;
+	
+	%d' matrix
+	matDprime = nan(p,p);
+	for intC1=1:p
+		for intC2=(intC1+1):p
+			matDprime(intC1,intC2) = abs(beta(intC1) - beta(intC2))/sqrt(0.5*(se(intC1).^2+se(intC2).^2));
+		end
+	end
+	%get p
+	dblMIMI_P=normcdf(-max(matDprime(:)))*2;
 	
 	
 	%% plot
-	if intPlot > 1
+	if intPlot > 0
 		%make maximized figure
 		figure
 		drawnow;
@@ -94,7 +117,7 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 		figure(gcf);
 		drawnow;
 		
-		if intPlot > 2
+		if intPlot > 1
 			subplot(2,3,1)
 			plotRaster(vecSpikeTimes,vecEventStarts(:,1),dblUseMaxDur,10000);
 			xlabel('Time from event (s)');
@@ -111,7 +134,7 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 		hold on
 		plot(sMIMI_fit.vecX,sMIMI_fit.vecFitY,'k--');
 		hold off
-		title(sprintf('Mean spiking over trials'));
+		title(sprintf('Mean spiking over trials,p=%.3f',dblMIMI_P));
 		xlabel('Time from event (s)');
 		ylabel('Mean spiking rate (Hz)');
 		fixfig
@@ -138,8 +161,8 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 		fixfig
 		
 		%% are fitted values deviating from sum of poissons?
+		%{
 		subplot(2,3,5)
-		
 		hold on
 		scatter(vecQ0,vecQ1)
 		vecLim = [min([get(gca,'xlim') get(gca,'ylim')]) max([get(gca,'xlim') get(gca,'ylim')])];
@@ -150,7 +173,7 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 		xlabel('Theoretical quantile');
 		ylabel('Observed quantile');
 		fixfig;
-		
+		%}
 	end
 	
 	%% calculate MSD statistics

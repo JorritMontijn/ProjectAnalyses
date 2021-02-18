@@ -39,7 +39,7 @@ vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = [10:16];%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = [16:24];%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -90,10 +90,11 @@ for intArea=vecRunAreas
 			%% load data
 			if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
 				[sAggStim,sAggNeuron]=loadDataNpx(strArea,strRunStim);
+				if isempty(sAggStim),continue;end
 				cellRecIdx = {sAggStim.Rec};
 				intNeurons = numel(sAggNeuron);
 				strArea = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));
-				
+				if intNeurons < 10,continue;end
 			end
 			
 			for intResampleIdx = 1:numel(vecResamples)

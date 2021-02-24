@@ -1,10 +1,11 @@
 clear all;
 close all;
-strPath = 'D:\Data\Results\OriMetric\Data\';
-strFigPath = 'D:\Data\Results\OriMetric\';
+%strPath = 'F:\Data\Results\OriMetric\Data\';
+strPath = 'F:\Data\Processed\ZETA\Latencies\';
+strFigPath = 'F:\Data\Results\OriMetric\';
 
 %% load data
-sDir=dir([strPath 'ZetaDataPPL2Poisson*']);
+sDir=dir([strPath 'ZetaDataPPL3Poisson*']);
 intFiles=numel(sDir);
 mapC = redbluepurple(intFiles);
 sLoad1=load([strPath sDir(1).name]);

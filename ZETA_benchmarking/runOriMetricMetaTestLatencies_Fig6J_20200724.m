@@ -5,7 +5,7 @@ strPath = [strDisk '\Data\Processed\ZETA\Latencies\'];
 strFigPath = [strDisk '\Data\Results\ZETA\Latencies\'];
 
 %% load data
-sDir=dir([strPath 'ZetaDataPPL2bPoisson*']);
+sDir=dir([strPath 'ZetaDataPPL3bPoisson*']);
 intFiles=numel(sDir);
 mapC = redbluepurple(intFiles);
 sLoad=load([strPath sDir(1).name]);
@@ -14,6 +14,8 @@ sLoad=load([strPath sDir(1).name]);
 vecJitter = nan(1,intFiles);
 vecBaseRate = nan(1,intFiles);
 matLatencies = nan(intNeurons,intFiles);
+matLatenciesM = nan(intNeurons,intFiles);
+
 matRealLatencies = nan(intNeurons,intFiles);
 matBinLatencies = nan(intBins,intNeurons,intFiles);
 intC = 0;
@@ -26,6 +28,7 @@ for intFile=1:intFiles
 	%get params
 	vecJitter(intFile) = sLoad.dblJitter;
 	vecBaseRate(intFile) = sLoad.dblBaseRate;
+	matLatenciesM(:,intFile)= sLoad.vecLatenciesM - sLoad.vecRealLatencies;
 	matLatencies(:,intFile) = sLoad.vecLatencies - sLoad.vecRealLatencies;
 	matRealLatencies(:,intFile) = sLoad.vecRealLatencies;
 	matBinLatencies(:,:,intFile) = sLoad.matBinLatencies - repmat(sLoad.vecRealLatencies,[intBins 1]);
@@ -57,10 +60,11 @@ matPeakEst = squeeze(matBinLatencies(5,:,vecJitterIdx));
 vecMeanEstBin = geomean(abs(matPeakEst),1);
 
 vecMeanEstZ = geomean(abs(matLatencies(:,vecJitterIdx)),1);
-
-plot(vecReordered,vecMeanEstBin,'k')
+vecMeanEstM = geomean(abs(matLatenciesM(:,vecJitterIdx)),1);
+plot(vecReordered,vecMeanEstBin,'y')
 hold on
 plot(vecReordered,vecMeanEstZ,'b')
+plot(vecReordered,vecMeanEstM,'k--')
 hold off
 xlabel('Jitter (ms)');
 ylabel('L1 error (s)');
@@ -76,6 +80,7 @@ for intBin=1:numel(vecBinDurs)
 	plot(vecReordered,squeeze(geomean(abs(matBinLatencies(intBin,:,vecJitterIdx)),2)),'color',mapC(intBin,:))
 end
 plot(vecReordered,vecMeanEstZ,'b')
+plot(vecReordered,vecMeanEstM,'k--')
 hold off
 h=colorbar;
 title(h,'Bin sizes')
@@ -95,21 +100,32 @@ median(matLatencies(:,vecJitterIdx),1)
 %% calculate data
 intUseData = vecJitter==max(vecJitter) & vecBaseRate == max(vecBaseRate);
 
+
+%zeta
 vecTheseLatencies = matLatencies(:,intUseData);
 vecTheseLatencies = abs(vecTheseLatencies - 0.1);
-matTheseBinLatencies = matBinLatencies(:,:,intUseData);
-matTheseBinLatencies = abs(matTheseBinLatencies - 0.1);
 dblM = geomean(vecTheseLatencies);
 
 dblPercError=normcdf(-1);
 vecLowHigh = (sqrt(pi/2)*(getCI(vecTheseLatencies,1,dblPercError,1)))./sqrt(size(intNeurons,2));
 
+%mimi
+vecTheseLatenciesM = matLatenciesM(:,intUseData);
+vecTheseLatenciesM = abs(vecTheseLatenciesM - 0.1);
+dblM_M = geomean(vecTheseLatenciesM);
+
+vecLowHighM = (sqrt(pi/2)*(getCI(vecTheseLatenciesM,1,dblPercError,1)))./sqrt(size(intNeurons,2));
+
+%bins
+matTheseBinLatencies = matBinLatencies(:,:,intUseData);
+matTheseBinLatencies = abs(matTheseBinLatencies - 0.1);
 vecMedians = geomean(matTheseBinLatencies,2);
 matLowHigh = (sqrt(pi/2)*(getCI(matTheseBinLatencies,2,dblPercError,1)))./sqrt(size(intNeurons,2));
 vecMSE = mean((matTheseBinLatencies - 0.1).^2,2);
 figure
 errorbar(vecBinDurs([1 end]),dblM*[1 1],[1 1]*(vecLowHigh(1)),[1 1]*(vecLowHigh(2)));
 hold on
+errorbar(vecBinDurs([1 end]),dblM_M*[1 1],[1 1]*(vecLowHighM(1)),[1 1]*(vecLowHighM(2)));
 errorbar(vecBinDurs,vecMedians,(matLowHigh(:,1)),(matLowHigh(:,2)));
 hold on
 set(gca,'xscale','log')

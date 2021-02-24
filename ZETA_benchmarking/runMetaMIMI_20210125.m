@@ -116,7 +116,7 @@ for intArea=1:numel(cellUniqueAreas)
 	%plot ROC
 	if size(cellHzP,1) >= intIdx && ~isempty(cellHzP{intIdx,1}) && intStimType == 2
 		intIdxNpx = intIdxNpx + 1;
-		clf;
+		figure;
 		%vecH(intIdxNpx) = subplot(4,3,intIdxNpx);
 		subplot(2,2,1)
 		maxfig;
@@ -134,6 +134,10 @@ for intArea=1:numel(cellUniqueAreas)
 		intCells = numel(cellData{intIdx,1});
 		vecBothData = cat(2,cellData{intIdx,1},cellData{intIdx,2});
 		vecBothLabels = cat(2,zeros(size(cellData{intIdx,1})),ones(size(cellData{intIdx,2})));
+		%remove nans
+		indRem = isnan(vecBothData);
+		vecBothData(indRem) = [];
+		vecBothLabels(indRem) = [];
 		vecThresholds = sort(vecBothData);
 		vecTP = sum(cellData{intIdx,1}<vecThresholds',2)/intCells;
 		vecFP = sum(cellData{intIdx,2}<vecThresholds',2)/intCells;
@@ -190,8 +194,8 @@ for intArea=1:numel(cellUniqueAreas)
 		% save figure
 		drawnow;
 		strFigName = sprintf('TMZ_ROC_%s',strArea);
-		export_fig([strFigPath strFigName '.tif']);
-		export_fig([strFigPath strFigName '.pdf']);
+		%export_fig([strFigPath strFigName '.tif']);
+		%export_fig([strFigPath strFigName '.pdf']);
 
 	end
 	end

@@ -13,7 +13,7 @@ vecRunTypes = 1;%[1 2];
 boolSave = true;
 vecBaseRate = 2^5;%2.^(-1:1:5);
 vecJitters = [1:1:10];
-intNeurons = 10;
+intNeurons = 1000;
 intTrialReps = 20;
 intBinNum = numel(vecBinDurs);
 

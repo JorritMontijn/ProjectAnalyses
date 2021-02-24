@@ -1,7 +1,7 @@
 clear all;
 %close all;
-strPath = 'F:\Data\Processed\ZETA\Inclusion\';
-strFigPath = 'F:\Data\Results\ZETA\Inclusion\';
+strPath = 'D:\Data\Processed\ZETA\Inclusion\';
+strFigPath = 'D:\Data\Results\ZETA\Inclusion\';
 cellUniqueAreas = {...
 	'V1',...Area 1
 	'SC',...Area 2
@@ -85,7 +85,7 @@ for intArea=1:numel(cellUniqueAreas)
 		%set var
 		strRand = cellRunRand{intRandType};
 		
-		
+		%{
 		%% load data
 		strRunType = [strArea strRand strStim];
 		sDir=dir([strPath 'ZetaDataMSD' strRunType 'Resamp100*']);
@@ -104,7 +104,7 @@ for intArea=1:numel(cellUniqueAreas)
 			matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
 			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
 		end
-		
+		%}
 		%% load data
 		strRunType = [strArea strRand strStim];
 		sDir=dir([strPath 'ZetaData2MSD' strRunType 'Resamp100*']);
@@ -113,8 +113,8 @@ for intArea=1:numel(cellUniqueAreas)
 			strFile = sDir(intFile).name;
 			intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
 			sLoad=load([strPath strFile]);
-			%matNumCells(intIdx,intRandType) = numel(vecZP);
-			%matSignifZ(intIdx,intRandType) = sum(vecZP<0.05);
+			matNumCells(intIdx,intRandType) = numel(sLoad.vecP);
+			matSignifZ(intIdx,intRandType) = sum(sLoad.vecP<0.05);
 			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05);
 		end
 	end

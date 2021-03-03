@@ -97,7 +97,7 @@ for intArea=1:numel(cellUniqueAreas)
 			intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
 			sLoad=load([strPath strFile]);
 			
-			
+			%remove nans
 			matSignifZ(intIdx,intRandType) = sum(sLoad.vecZetaP<0.05)/numel(sLoad.vecZetaP);
 			matSignifHz(intIdx,intRandType) = sum(sLoad.vecHzP<0.05)/numel(sLoad.vecHzP);
 			matSignifMIMI(intIdx,intRandType) = sum(sLoad.vecMIMIP<0.05)/numel(sLoad.vecMIMIP);
@@ -122,37 +122,43 @@ for intArea=1:numel(cellUniqueAreas)
 		maxfig;
 		hold on;
 		vecAUC = nan(1,3);
-		cellColorPlot = {'k','r','b'};
-		for intPlotType=1:3
+		cellColorPlot = {'k','b','r',[0.7 0 0.7]};
+		for intPlotType=1:4
 			if intPlotType == 1
 				cellData = cellHzP;
-			elseif intPlotType == 2
-				cellData = cellMIMIP;
-			else
+			elseif intPlotType == 2 
 				cellData = cellZetaP;
+			else
+				cellData = cellMIMIP;
 			end
-		intCells = numel(cellData{intIdx,1});
-		vecBothData = cat(2,cellData{intIdx,1},cellData{intIdx,2});
-		vecBothLabels = cat(2,zeros(size(cellData{intIdx,1})),ones(size(cellData{intIdx,2})));
-		%remove nans
-		indRem = isnan(vecBothData);
-		vecBothData(indRem) = [];
-		vecBothLabels(indRem) = [];
-		vecThresholds = sort(vecBothData);
-		vecTP = sum(cellData{intIdx,1}<vecThresholds',2)/intCells;
-		vecFP = sum(cellData{intIdx,2}<vecThresholds',2)/intCells;
-		
-		plot(vecFP,vecTP,cellColorPlot{intPlotType});
-		
-		 [dblAUC,Aci] = auc(cat(1,vecBothLabels,vecBothData)');
-		 vecAUC(intPlotType) = dblAUC;
+			if intPlotType == 3
+				
+			else
+				cellData{intIdx,1}(cellNumSpikes{intIdx,1} < 1000) = nan;
+				cellData{intIdx,2}(cellNumSpikes{intIdx,2} < 1000) = nan;
+			end
+			
+			vecBothData = cat(2,cellData{intIdx,1},cellData{intIdx,2});
+			vecBothLabels = cat(2,zeros(size(cellData{intIdx,1})),ones(size(cellData{intIdx,2})));
+			%remove nans
+			indRem = isnan(vecBothData);
+			vecBothData(indRem) = [];
+			vecBothLabels(indRem) = [];
+			vecThresholds = sort(vecBothData);
+			vecTP = sum(cellData{intIdx,1}<=vecThresholds',2)/sum(~isnan(cellData{intIdx,1}));
+			vecFP = sum(cellData{intIdx,2}<=vecThresholds',2)/sum(~isnan(cellData{intIdx,2}));
+			
+			plot(vecFP,vecTP,'Color',cellColorPlot{intPlotType});
+			
+			[dblAUC,Aci] = auc(cat(1,vecBothLabels,vecBothData)');
+			vecAUC(intPlotType) = dblAUC;
 		end
 		hold off;
 		xlabel('False positive fraction');
 		ylabel('Inclusion fraction');
 		fixfig;
-		legend({'Mean-rate t-test','MIMI model + K-S test','ZETA'},'location','best')
-		title(sprintf('%s, AUCs: t=%.3f; MIMI=%.3f, Z=%.3f',strArea,vecAUC))
+		legend({'Mean-rate t-test','ZETA','MIMI model','MIMI, n_s>1000'},'location','best')
+		title(sprintf('%s, AUCs: t=%.3f; Z=%.3f, MIMI=%.3f, MIMI,ns=%.3f',strArea,vecAUC))
 		
 		%shuffled p MIMI
 		subplot(2,2,2)
@@ -161,17 +167,21 @@ for intArea=1:numel(cellUniqueAreas)
 		vecBinsPlot = (dblStep/2):dblStep:(1-dblStep/2);
 		vecCountsHzP = histcounts(cellHzP{intIdx,2},vecBinsP);
 		vecCountsMIMIP = histcounts(cellMIMIP{intIdx,2},vecBinsP);
+		cellMIMIP_ns = cellMIMIP;
+		cellMIMIP_ns{intIdx,2}(cellNumSpikes{intIdx,2} < 1000) = nan;
+		vecCountsMIMIP_ns = histcounts(cellMIMIP_ns{intIdx,2},vecBinsP);
 		vecCountsZETAP = histcounts(cellZetaP{intIdx,2},vecBinsP);
 		hold on
 		plot(vecBinsPlot,vecCountsHzP,'k');
-		plot(vecBinsPlot,vecCountsMIMIP,'r');
 		plot(vecBinsPlot,vecCountsZETAP,'b');
+		plot(vecBinsPlot,vecCountsMIMIP,'r');
+		plot(vecBinsPlot,vecCountsMIMIP_ns,'color',[0.7 0 0.7]);
 		hold off
 		title(sprintf('False positive p-value distribution'));
 		xlabel('p-value of shuffled control');
 		ylabel('Number of cells (count)');
 		fixfig;
-		legend({'Mean-rate t-test','MIMI model + K-S test','ZETA'},'location','best')
+		legend({'Mean-rate t-test','ZETA','MIMI model','MIMI, n_s>1000'},'location','best')
 		
 		%comput time
 		subplot(2,2,3)
@@ -189,13 +199,37 @@ for intArea=1:numel(cellUniqueAreas)
 		xlabel('Computation time per cell (s)');
 		ylabel('Number of cells (count)');
 		fixfig;
-		legend({'MIMI model + K-S test','ZETA'},'location','best')
+		legend({'MIMI model','ZETA'},'location','best')
 		
+		
+		%normal p
+		subplot(2,2,4)
+		dblStep = 0.05;
+		vecBinsP = 0:dblStep:1;
+		vecBinsPlot = (dblStep/2):dblStep:(1-dblStep/2);
+		vecCountsHzP = histcounts(cellHzP{intIdx,1},vecBinsP);
+		vecCountsMIMIP = histcounts(cellMIMIP{intIdx,1},vecBinsP);
+		cellMIMIP_ns = cellMIMIP;
+		cellMIMIP_ns{intIdx,1}(cellNumSpikes{intIdx,1} < 1000) = nan;
+		vecCountsMIMIP_ns = histcounts(cellMIMIP_ns{intIdx,1},vecBinsP);
+		vecCountsZETAP = histcounts(cellZetaP{intIdx,1},vecBinsP);
+		hold on
+		plot(vecBinsPlot,vecCountsHzP,'k');
+		plot(vecBinsPlot,vecCountsZETAP,'b');
+		plot(vecBinsPlot,vecCountsMIMIP,'r');
+		plot(vecBinsPlot,vecCountsMIMIP_ns,'color',[0.7 0 0.7]);
+		hold off
+		title(sprintf('Real data p-value distribution'));
+		xlabel('p-value of real data');
+		ylabel('Number of cells (count)');
+		fixfig;
+		legend({'Mean-rate t-test','ZETA','MIMI model','MIMI, n_s>1000'},'location','best')
+		return
 		% save figure
 		drawnow;
 		strFigName = sprintf('TMZ_ROC_%s',strArea);
-		%export_fig([strFigPath strFigName '.tif']);
-		%export_fig([strFigPath strFigName '.pdf']);
+		export_fig([strFigPath strFigName '.tif']);
+		export_fig([strFigPath strFigName '.pdf']);
 
 	end
 	end

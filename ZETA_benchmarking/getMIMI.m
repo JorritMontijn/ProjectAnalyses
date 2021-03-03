@@ -52,36 +52,33 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 	%% build onset/offset vectors
 	vecEventStarts = matEventTimes(:,1);
 	
-	%% check inputs
-	vecLatencies = [];
-	if numel(vecSpikeTimes) < 3 || numel(vecEventStarts) < 3
-		dblMIMI_P = 1;
-		sMIMI = struct;
-		sMIMI.dblMIMI_P = dblMIMI_P;
-		sMIMI.vecSpikeT = [];
-		sMIMI.dblUseMaxDur = [];
-		sMIMI.vecLatencyVals = [];
-		sRate = [];
-		warning([mfilename ':InsufficientSamples'],'Insufficient samples to calculate MIMI');
-		
-		%build placeholder outputs
-		if numel(vecLatencies) < intLatencyPeaks
-			vecLatencies(end+1:intLatencyPeaks) = nan;
-		end
-		
-		return
-	end
+	%% default outputs
+	vecLatencies = nan(1,intLatencyPeaks);
+	dblMIMI_P = 1;
+	sMIMI = struct;
+	sMIMI.dblMIMI_P = dblMIMI_P;
+	sMIMI.vecSpikeT = [];
+	sMIMI.dblUseMaxDur = [];
+	sMIMI.vecLatencyVals = [];
+	sRate = [];
 	
 	%% fit MIMI
 	sMIMI_fit = fitMIMI(intCoeffsL1,intCoeffsG1,vecSpikeTimes,vecEventStarts,dblUseMaxDur,boolVerbose,vecCoeffs0);
+	if isempty(sMIMI_fit)
+		warning([mfilename ':InsufficientSamples'],'Insufficient samples to calculate MIMI');
+		return
+	end
 	
-	%
+	%get properties
+	vecX = sMIMI_fit.vecX;
 	J = sMIMI_fit.jacobian;
 	resid = sMIMI_fit.residual;
 	beta = sMIMI_fit.FitCoeffs;
 	n = length(resid);
 	p = intCoeffsL1;
 	v = n-p;
+	%{
+	%% significance
 	% approximation when a column is zero vector
 	temp = find(max(abs(J)) == 0);
 	if ~isempty(temp)
@@ -105,8 +102,14 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 	end
 	%get p
 	dblMIMI_P=normcdf(-max(matDprime(:)))*2;
-	
-	
+	%}
+	%% alt significance
+	[ypred,delta] = nlpredci(@mIMI,vecX,beta,resid,'Jacobian',full(J),'PredOpt','observation','Alpha',0.05);
+	matDprime = abs(ypred - ypred')./sqrt(0.5*(delta.^2+delta'.^2));
+	dblMIMI_P=(normcdf(-max(matDprime(:)))*2);
+	%dblMIMI_P=dblMIMI_P*numel(beta);
+	dblMIMI_P(dblMIMI_P>1)=1;
+
 	%% plot
 	if intPlot > 0
 		%make maximized figure
@@ -154,7 +157,8 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 		
 		%% transform to probabilities from poisson process
 		subplot(2,3,4)
-		histx(sMIMI_fit.vecFitY)
+		[n, xout] = histx(sMIMI_fit.vecFitY);
+		plot(xout,n);
 		title(sprintf('mean fit y=%.3f,sd fit y=%.3f',mean(sMIMI_fit.vecFitY),std(sMIMI_fit.vecFitY)))
 		xlabel('Fitted spiking rate (Hz)');
 		ylabel('Count (bins)');

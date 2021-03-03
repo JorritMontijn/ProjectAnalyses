@@ -11,7 +11,7 @@ vecRunTypes = 1;%[1 2];
 boolSave = true;
 vecResamples = 100;%[3 5:5:50];%100];
 vecBaseRate = 2.^(-1:0.5:5);
-vecJitters = [1:0.5:10];
+vecJitters = 9:0.5:10;%[1:0.5:10];
 
 %set var
 for intJitterIdx=1:numel(vecJitters)

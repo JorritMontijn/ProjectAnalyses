@@ -30,7 +30,7 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
-strDrive = 'D:';
+strDrive = 'F:';
 strDataMasterPath = [strDrive '\Data\Processed\ePhys\'];
 strDataTargetPath = [strDrive '\Data\Processed\ZETA\Inclusion\'];
 strFigPath = [strDrive '\Data\Results\ZETA\Examples\'];
@@ -39,7 +39,7 @@ vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = [16:24];%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 8;%[7:24];%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -112,9 +112,10 @@ for intArea=vecRunAreas
 				vecHzD = nan(1,intNeurons);
 				vecHzP = nan(1,intNeurons);
 				cellArea = cell(1,intNeurons);
-					
+				cellMimiStruct = cell(1,intNeurons);
+				
 				%% analyze
-				parfor intNeuron=[1:intNeurons]%31
+				for intNeuron=[1:intNeurons]%31 %20    24    62    79    97   117
 					%% load or generate data
 					if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
 						%% get neuronal data
@@ -155,19 +156,38 @@ for intArea=vecRunAreas
 					end
 					
 					%vecTrialNum = unique([vecTrialNum size(matEventTimes,1)]);
+					matEventTimes = matEventTimes(1:480,:);
+					
+					% reduce spikes
+					dblStartT = max([vecSpikeTimes(1) min(matEventTimes(:,1))-dblUseMaxDur*5]);
+					dblStopT = max(matEventTimes(:,1))+dblUseMaxDur*5;
+					vecSpikeTimes(vecSpikeTimes < dblStartT | vecSpikeTimes > dblStopT) = [];
+					if numel(vecSpikeTimes) < 3
+						continue;
+					end
 					
 					%ZETA
 					hTicZ=tic;
-					intPlot = 0;
+					intPlot = 4;
 					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,intPlot,0);
 					dblComputTimeZETA = toc(hTicZ);
+					drawnow;
+					export_fig([strFigPath sprintf('ExampleZETA_SU%d_%s.tif',intSU,strArea)]);
+					export_fig([strFigPath sprintf('ExampleZETA_SU%d_%s.pdf',intSU,strArea)]);
+					
 					%MIMI
 					hTicM = tic;
 					[dblMIMI_P,vecLatenciesMIMI,sMIMI] = getMIMI(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intPlot,0);
 					dblComputTimeMIMI = toc(hTicM);
-					
 					intSpikeNum = numel(vecSpikeTimes);
+					drawnow;
+					export_fig([strFigPath sprintf('ExampleMIMI_SU%d_%s.tif',intSU,strArea)]);
+					export_fig([strFigPath sprintf('ExampleMIMI_SU%d_%s.pdf',intSU,strArea)]);
 					
+					[dblR2,dblSS_tot,dblSS_res] = getR2(sMIMI.vecY,sMIMI.vecFitY);
+					
+					return
+					%return
 					% assign data
 					vecNumSpikes(intNeuron) = intSpikeNum;
 					vecMIMIP(intNeuron) = dblMIMI_P;
@@ -175,6 +195,7 @@ for intArea=vecRunAreas
 					vecHzD(intNeuron) = sZETA.dblMeanD;
 					vecHzP(intNeuron) = sZETA.dblMeanP;
 					cellArea{intNeuron} = strArea;
+					cellMimiStruct{intNeuron} = sMIMI;
 					vecComputTimeZETA(intNeuron) = dblComputTimeZETA;
 					vecComputTimeMIMI(intNeuron) = dblComputTimeMIMI;
 					
@@ -190,7 +211,7 @@ for intArea=vecRunAreas
 				%save
 				if boolSave
 					save([strDataTargetPath 'ZetaMIMI' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
-						'vecNumSpikes','vecMIMIP','vecZetaP','vecHzD','vecHzP','cellArea','vecComputTimeZETA','vecComputTimeMIMI');
+						'vecNumSpikes','vecMIMIP','vecZetaP','vecHzD','vecHzP','cellArea','cellMimiStruct','vecComputTimeZETA','vecComputTimeMIMI');
 				end
 			end
 		end

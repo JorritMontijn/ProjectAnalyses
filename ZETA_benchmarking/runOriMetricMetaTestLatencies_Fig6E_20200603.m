@@ -1,5 +1,5 @@
 clear all;
-close all;
+%close all;
 %strPath = 'F:\Data\Results\OriMetric\Data\';
 strPath = 'F:\Data\Processed\ZETA\Latencies\';
 strFigPath = 'F:\Data\Results\OriMetric\';
@@ -15,24 +15,38 @@ vecJitter = nan(1,intFiles);
 vecBaseRate = nan(1,intFiles);
 vecResampNum = nan(1,intFiles);
 matPeakT = nan(intNeurons,intFiles);
+matPeakTM = nan(intNeurons,intFiles);
 matPeakW = nan(intNeurons,intFiles);
 intC = 0;
 for intFile=1:intFiles
 	strFile = sDir(intFile).name;
+	dblBaseRate = str2double(getFlankedBy(strFile,'PeakRate','Jitter'));
+	if isnan(dblBaseRate) || dblBaseRate > 16,continue;end
 	%get params
 	vecJitter(intFile) = str2double(getFlankedBy(strFile,'Jitter','Resamp'));
 	vecResampNum(intFile) = str2double(getFlankedBy(strFile,'Resamp','.mat'));
-	vecBaseRate(intFile) = str2double(getFlankedBy(strFile,'PeakRate','Jitter'));
-	
+	vecBaseRate(intFile) = dblBaseRate;
 	%get data
 	sLoad=load([strPath strFile]);
-	matPeakT(:,intFile) = sLoad.vecPeakT;
-	matPeakW(:,intFile) = sLoad.vecPeakW;
+	matPeakT(:,intFile) = sLoad.vecLatenciesZ;
+	matPeakTM(:,intFile) = sLoad.vecLatenciesM;
+	%matPeakW(:,intFile) = sLoad.vecPeakW;
 end
+%remove nans
+indRem = isnan(vecBaseRate);
+vecJitter(indRem) = [];
+vecResampNum(indRem) = [];
+vecBaseRate(indRem) = [];
+matPeakT(:,indRem) = [];
+matPeakTM(:,indRem) = [];
+%matPeakW(:,indRem) = [];
+	
+%get stats
+matPeakT = matPeakTM;
 vecJitter = vecJitter*2;
 matPeakT = ((matPeakT-0.1)*1000);
 matLowHigh = getCI(matPeakT,1,0.05);
-vecMean = mean(matPeakT,1);
+vecMean = nanmean(matPeakT,1);
 matPeakW = (matPeakW*1000);
 matLowHighW = getCI(matPeakW,1,0.05);
 vecMeanW = mean(matPeakW,1);

@@ -4,7 +4,7 @@
 close all;
 clear all;
 
-strDisk = 'F:';
+strDisk = 'D:';
 strDataTargetPath = [strDisk '\Data\Processed\ZETA\Latencies\'];
 strFigPath = [strDisk '\Data\Results\ZETA\Latencies\'];
 vecBinDurs = (1.5.^(0:10))/1000;
@@ -43,13 +43,13 @@ for intJitterIdx=1:numel(vecJitters)
 			vecComputM = nan(1,intNeurons);
 				
 			%% analyze
-			for intNeuron=[1:intNeurons]%31
+			parfor intNeuron=[1:intNeurons]%31
 				%% message
-				if toc(hTic) > 5
+				%if toc(hTic) > 5
 					fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
-					hTic=tic;
-				end
-				clear vecTrialStarts;
+				%	hTic=tic;
+				%end
+				%clear vecTrialStarts;
 				
 				%% generate data
 				strRecIdx = 'x';
@@ -67,6 +67,7 @@ for intJitterIdx=1:numel(vecJitters)
 				vecStimOnTime = dblTrialDur*(1:numel(vecTrialAngles))';
 				vecStimOffTime = vecStimOnTime + 1;
 				
+				matEventTimes = [];
 				matEventTimes(:,1) = vecStimOnTime;
 				matEventTimes(:,2) = vecStimOffTime;
 				[vecSpikeTimes,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles,matEventTimes,dblBaseRate,dblPrefRate,dblJitter,dblKappa,true);
@@ -75,7 +76,7 @@ for intJitterIdx=1:numel(vecJitters)
 				
 				%% get visual responsiveness
 				if intNeuron == 1 && intMakePlots > 0
-					[dblZeta,vecLatencies,sZETA,sMSD] = getZeta(vecSpikeTimes,vecStimOnTime,[],[],intMakePlots);
+					[dblZeta,vecLatenciesTemp,sZETA,sMSD] = getZeta(vecSpikeTimes,vecStimOnTime,[],[],intMakePlots);
 				end
 				
 				%get IFR

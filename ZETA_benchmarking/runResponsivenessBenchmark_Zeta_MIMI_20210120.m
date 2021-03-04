@@ -184,7 +184,6 @@ for intArea=vecRunAreas
 					export_fig([strFigPath sprintf('ExampleMIMI_SU%d_%s.tif',intSU,strArea)]);
 					export_fig([strFigPath sprintf('ExampleMIMI_SU%d_%s.pdf',intSU,strArea)]);
 					
-					[dblR2,dblSS_tot,dblSS_res] = getR2(sMIMI.vecY,sMIMI.vecFitY);
 					
 					return
 					%return

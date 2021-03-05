@@ -35,7 +35,7 @@ strDataMasterPath = 'F:\Data\Processed\ePhys\';
 strDataTargetPath = 'F:\Data\Processed\ZETA\Inclusion\';
 strFigPath = 'F:\Data\Results\ZETA\Examples\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
-vecRandTypes = [1 2];%1=normal,2=rand
+vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%100;%10:10:90;%[10:10:100];
@@ -266,13 +266,12 @@ for intArea=vecRunAreas
 					dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
 					%set derivative params
 					if contains(strRunType,'Rand')
-						dblDur = dblUseMaxDur;
-						vecJitter = 4*dblDur*rand([numel(vecStimOnTime) 1])-dblDur;
-						matEventTimes = bsxfun(@plus,vecTrialStarts,vecJitter);
-					else
-						matEventTimes = vecTrialStarts;
+						vecISI = diff(vecSpikeTimes);
+						dblT0 = vecSpikeTimes(1);
+						vecRandISI = vecISI(randperm(numel(vecISI)));
+						vecSpikeTimes = dblT0 + cumsum(vecSpikeTimes) - vecSpikeTimes(1);
 					end
-					
+					matEventTimes = vecTrialStarts;
 					%vecTrialNum = unique([vecTrialNum size(matEventTimes,1)]);
 					
 					%ZETA
@@ -305,7 +304,6 @@ for intArea=vecRunAreas
 					vecPoissP(intNeuron) = dblPoissP;
 					
 					vecISIP_ks(intNeuron) = dblP_KS;
-					vecISIP_z(intNeuron) = dblP_Z;
 					vecISIP_g(intNeuron) = dblP_G;
 					
 					vecBISIP_g(intNeuron) = dblP_BISI;
@@ -331,7 +329,7 @@ for intArea=vecRunAreas
 				end
 				%save
 				if boolSave
-					save([strDataTargetPath 'ZetaVars' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
+					save([strDataTargetPath 'ZetaVars2' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
 						'vecNumSpikes','cellArea',...
 						'vecZetaP',...
 						'vecHzP',...

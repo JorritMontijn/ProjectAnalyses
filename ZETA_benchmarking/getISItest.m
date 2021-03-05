@@ -1,5 +1,5 @@
-function [dblP_KS,dblP_Z,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
-	%[dblP_KS,dblP_Z,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
+function [dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
+	%[dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
 	
 	%% prep data
 	%ensure orientation
@@ -23,10 +23,16 @@ function [dblP_KS,dblP_Z,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUse
 	%% build onset/offset vectors
 	vecEventStarts = matEventTimes(:,1);
 	
+	%% pre-allocate
+	dblP_KS = 1;
+	dblP_Z = 1;
+	dblP_G = 1;
+	
 	%% get PSTH
 	dblStopHorizon = (max(vecEventStarts)+3*dblUseMaxDur);
 	dblStartHorizon = (min(vecEventStarts)-3*dblUseMaxDur);
 	vecUseSpikeTimes = vecSpikeTimes(vecSpikeTimes < dblStopHorizon & (vecSpikeTimes > dblStartHorizon));
+	if numel(vecUseSpikeTimes)<3,return;end
 	dblLambda = numel(vecUseSpikeTimes)/(dblStopHorizon - dblStartHorizon);
 	dblBinSize = 1/1000;
 	vecBinEdges = 0:dblBinSize:dblUseMaxDur;
@@ -40,9 +46,9 @@ function [dblP_KS,dblP_Z,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUse
 	
 	%% get ISI distro
 	vecISI = diff(vecUseSpikeTimes);
-	matRandPSTH = nan(intBins,intTrials,intResampleNum);
+	matRandPSTH = zeros(intBins,intTrials,intResampleNum);
 	dblT0 = vecUseSpikeTimes(1);
-	parfor intIter = 1:intResampleNum
+	for intIter = 1:intResampleNum
 		%generate spikes
 		vecRandISI = vecISI(randperm(numel(vecISI)));
 		vecRandSpikeTimes = dblT0 + cumsum(vecRandISI) - vecRandISI(1);
@@ -60,13 +66,6 @@ function [dblP_KS,dblP_Z,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUse
 	matRandMeansPSTH = squeeze(mean(matRandPSTH,2));
 	vecMeanPSTH = mean(matPSTH,2);
 	[h,dblP_KS]=kstest2(vecMeanPSTH,matRandMeansPSTH(:));
-	
-	%% Z-score
-	if nargout > 1
-		vecZ = (vecMeanPSTH-mean(matRandMeansPSTH(:)))./std(matRandMeansPSTH(:));
-		dblZ = max(abs(vecZ));
-		dblP_Z = normcdf(-dblZ)*2;
-	end
 	
 	%% Gumbel
 	if nargout > 2

@@ -71,7 +71,7 @@ for intArea=1:numel(cellUniqueAreas)
 		
 		%% load data
 		strRunType = [strArea strRand strStim];
-		sDir=dir([strPath 'ZetaVars' strRunType 'Resamp100*']);
+		sDir=dir([strPath 'ZetaVars2' strRunType 'Resamp100.mat']);
 		intFiles=numel(sDir);
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;

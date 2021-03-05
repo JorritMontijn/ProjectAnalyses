@@ -145,7 +145,14 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 		
 		%plot mean rates
 		subplot(2,3,3)
-		scatter(sort(sMIMI_fit.vecY),sort(sMIMI_fit.vecFitY))
+		scatter(sMIMI_fit.vecY,sMIMI_fit.vecFitY,'.')
+		
+		vecY = sMIMI_fit.vecY;
+		vecFitY = sMIMI_fit.vecFitY;
+		dblSS_tot = sum((vecY - mean(vecY)).^2);
+		dblSS_res = sum((vecY - vecFitY).^2);
+		dblR2 = 1 - (dblSS_res / dblSS_tot);
+		
 		vecLim = [min([get(gca,'xlim') get(gca,'ylim')]) max([get(gca,'xlim') get(gca,'ylim')])];
 		xlim(vecLim);ylim(vecLim);
 		hold on
@@ -153,12 +160,13 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 		hold off
 		xlabel('Real spiking rate (Hz)');
 		ylabel('Fitted spiking rate (Hz)');
+		title(sprintf('R^2=%.3f',dblR2));
 		fixfig
 		
 		%% transform to probabilities from poisson process
 		subplot(2,3,4)
 		[n, xout] = histx(sMIMI_fit.vecFitY);
-		plot(xout,n);
+		stairs([0 xout],[0 n]);
 		title(sprintf('mean fit y=%.3f,sd fit y=%.3f',mean(sMIMI_fit.vecFitY),std(sMIMI_fit.vecFitY)))
 		xlabel('Fitted spiking rate (Hz)');
 		ylabel('Count (bins)');

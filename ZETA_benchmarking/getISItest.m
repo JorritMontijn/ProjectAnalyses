@@ -1,4 +1,5 @@
-function [dblP] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,boolUseGumbel)
+function [dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
+	%[dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
 	
 	%% prep data
 	%ensure orientation
@@ -16,19 +17,22 @@ function [dblP] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampl
 	
 	%get boolPlot
 	if ~exist('intResampleNum','var') || isempty(intResampleNum)
-		intResampleNum = 0;
-	end
-	
-	%get boolPlot
-	if ~exist('boolUseGumbel','var') || isempty(boolUseGumbel)
-		boolUseGumbel = true;
+		intResampleNum = 100;
 	end
 	
 	%% build onset/offset vectors
 	vecEventStarts = matEventTimes(:,1);
 	
+	%% pre-allocate
+	dblP_KS = 1;
+	dblP_G = 1;
+	
 	%% get PSTH
-	vecUseSpikeTimes = vecSpikeTimes(vecSpikeTimes < (max(vecEventStarts)+3*dblUseMaxDur) & (vecSpikeTimes > (min(vecEventStarts)-3*dblUseMaxDur)));
+	dblStopHorizon = (max(vecEventStarts)+3*dblUseMaxDur);
+	dblStartHorizon = (min(vecEventStarts)-3*dblUseMaxDur);
+	vecUseSpikeTimes = vecSpikeTimes(vecSpikeTimes < dblStopHorizon & (vecSpikeTimes > dblStartHorizon));
+	if numel(vecUseSpikeTimes)<3,return;end
+	dblLambda = numel(vecUseSpikeTimes)/(dblStopHorizon - dblStartHorizon);
 	dblBinSize = 1/1000;
 	vecBinEdges = 0:dblBinSize:dblUseMaxDur;
 	intBins = numel(vecBinEdges)-1;
@@ -41,9 +45,9 @@ function [dblP] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampl
 	
 	%% get ISI distro
 	vecISI = diff(vecUseSpikeTimes);
-	matRandPSTH = nan(intBins,intTrials,intResampleNum);
+	matRandPSTH = zeros(intBins,intTrials,intResampleNum);
 	dblT0 = vecUseSpikeTimes(1);
-	parfor intIter = 1:intResampleNum
+	for intIter = 1:intResampleNum
 		%generate spikes
 		vecRandISI = vecISI(randperm(numel(vecISI)));
 		vecRandSpikeTimes = dblT0 + cumsum(vecRandISI) - vecRandISI(1);
@@ -55,27 +59,27 @@ function [dblP] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampl
 		end
 	end
 	
-	%% calculate significance
+	
+	%% k-s test
 	matRandPSTH(isnan(matRandPSTH))=0;
+	matRandMeansPSTH = squeeze(mean(matRandPSTH,2));
 	vecMeanPSTH = mean(matPSTH,2);
-	matMeanRandPSTH = squeeze(mean(matRandPSTH,2));
-	if ~boolUseGumbel
-		vecZ = (vecMeanPSTH-mean(matMeanRandPSTH(:)))./std(matMeanRandPSTH(:));
-		dblZ = max(abs(vecZ));
-		dblP = normcdf(-dblZ)*2;
-	else
+	[h,dblP_KS]=kstest2(vecMeanPSTH,matRandMeansPSTH(:));
+	
+	%% Gumbel
+	if nargout > 1
 		%real peak
 		vecRealDiff = vecMeanPSTH - mean(vecMeanPSTH);
 		
 		%find highest peak and retrieve value
-		matRandDiff = matMeanRandPSTH - mean(matMeanRandPSTH,1);
+		matRandDiff = matRandMeansPSTH - mean(matRandMeansPSTH,1);
 		vecMaxRandD = max(abs(matRandDiff),[],1);
 		dblRandMu = mean(vecMaxRandD);
 		dblRandVar = var(vecMaxRandD);
 		dblPosD= max(abs(vecRealDiff));
 		
 		%calculate statistical significance using Gumbel distribution
-		dblP = getGumbel(dblRandMu,dblRandVar,dblPosD);
+		dblP_G = getGumbel(dblRandMu,dblRandVar,dblPosD);
 	end
 end
 

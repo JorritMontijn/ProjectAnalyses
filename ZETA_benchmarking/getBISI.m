@@ -1,7 +1,9 @@
-function [dblP] = getBISI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
+function [dblP,dblP_KS] = getBISI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
+	%[dblP,dblP_KS] = getBISI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
 	
 	%% check inputs and pre-allocate error output
 	dblP = 1;
+	dblP_KS = 1;
 	if numel(vecSpikeTimes) < 3
 		return;
 	end
@@ -61,7 +63,6 @@ function [dblP] = getBISI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNu
 	end
 	
 	%% calculate measure of effect size (for equal n, d' equals Cohen's d)
-	dblP = 1;
 	if numel(vecRealDiff) < 3
 		return
 	end
@@ -74,5 +75,9 @@ function [dblP] = getBISI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNu
 	
 	%calculate statistical significance using Gumbel distribution
 	dblP = getGumbel(dblRandMu,dblRandVar,dblPosD);
+	
+	%% k-s test
+	[h,dblP_KS]=kstest2(vecRealDiff,matRandDiff(:));
+	
 end
 

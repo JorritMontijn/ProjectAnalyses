@@ -25,7 +25,6 @@ function [dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,
 	
 	%% pre-allocate
 	dblP_KS = 1;
-	dblP_Z = 1;
 	dblP_G = 1;
 	
 	%% get PSTH
@@ -68,7 +67,7 @@ function [dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,
 	[h,dblP_KS]=kstest2(vecMeanPSTH,matRandMeansPSTH(:));
 	
 	%% Gumbel
-	if nargout > 2
+	if nargout > 1
 		%real peak
 		vecRealDiff = vecMeanPSTH - mean(vecMeanPSTH);
 		

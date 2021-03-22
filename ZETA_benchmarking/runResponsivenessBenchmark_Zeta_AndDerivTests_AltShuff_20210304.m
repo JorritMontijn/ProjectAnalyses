@@ -35,7 +35,7 @@ strDataMasterPath = 'F:\Data\Processed\ePhys\';
 strDataTargetPath = 'F:\Data\Processed\ZETA\Inclusion\';
 strFigPath = 'F:\Data\Results\ZETA\Examples\';
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
-vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
+vecRandTypes = 2;%[1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%100;%10:10:90;%[10:10:100];
@@ -165,7 +165,7 @@ for intArea=vecRunAreas
 				vecPoissP = nan(1,intNeurons);
 				
 				vecISIP_ks = nan(1,intNeurons);
-				vecISIP_z = nan(1,intNeurons);
+				vecISIP_IntG = nan(1,intNeurons);
 				vecISIP_g = nan(1,intNeurons);
 				
 				vecBISIP_g = nan(1,intNeurons);
@@ -274,24 +274,35 @@ for intArea=vecRunAreas
 					matEventTimes = vecTrialStarts;
 					%vecTrialNum = unique([vecTrialNum size(matEventTimes,1)]);
 					
+					%vecTrialNum = unique([vecTrialNum size(matEventTimes,1)]);
+					%pre-alloc
+					sZETA = [];
+					sZETA.dblMeanP = 1;
+					dblZetaP = 1;
+					dblPoissP = 1;
+					dblP_KS = 1;
+					dblP_G = 1;
+					dblIntP_G = 1;
+					dblP_BISI = 1;
+					dblP_BISI_KS = 1;
 					%ZETA
 					hTic=tic;
-					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,0,0);
+					%[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,0,0);
 					dblComputTimeZETA = toc(hTic);
 					
 					%Poisson
 					hTic=tic;
-					dblPoissP = getPoissonTest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum);
+					%dblPoissP = getPoissonTest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum);
 					dblComputTimePoiss= toc(hTic);
 					
 					%ISI varieties
 					hTic = tic;
-					[dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum);
+					[dblP_KS,dblP_G,dblIntP_G] = getISItest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum);
 					dblComputTimeISI = toc(hTic);
 					
 					%BISI
 					hTic = tic;
-					[dblP_BISI,dblP_BISI_KS] = getBISI(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum);
+					%[dblP_BISI,dblP_BISI_KS] = getBISI(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum);
 					dblComputTimeBISI = toc(hTic);
 					
 					intSpikeNum = numel(vecSpikeTimes);
@@ -304,6 +315,7 @@ for intArea=vecRunAreas
 					vecPoissP(intNeuron) = dblPoissP;
 					
 					vecISIP_ks(intNeuron) = dblP_KS;
+					vecISIP_IntG(intNeuron) = dblIntP_G;
 					vecISIP_g(intNeuron) = dblP_G;
 					
 					vecBISIP_g(intNeuron) = dblP_BISI;
@@ -329,13 +341,13 @@ for intArea=vecRunAreas
 				end
 				%save
 				if boolSave
-					save([strDataTargetPath 'ZetaVars2' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
+					save([strDataTargetPath 'ZetaVars2B' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
 						'vecNumSpikes','cellArea',...
 						'vecZetaP',...
 						'vecHzP',...
 						'vecPoissP',...
 						'vecISIP_ks',...
-						'vecISIP_z',...
+						'vecISIP_IntG',...
 						'vecISIP_g',...
 						'vecBISIP_g',...
 						'vecBISIP_ks',...

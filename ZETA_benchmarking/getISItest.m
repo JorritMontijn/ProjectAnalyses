@@ -1,5 +1,5 @@
-function [dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
-	%[dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
+function [dblP_KS,dblP_G,dblIntP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
+	%[dblP_KS,dblP_G,dblIntP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum)
 	
 	%% prep data
 	%ensure orientation
@@ -26,6 +26,7 @@ function [dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,
 	%% pre-allocate
 	dblP_KS = 1;
 	dblP_G = 1;
+	dblIntP_G = 1;
 	
 	%% get PSTH
 	dblStopHorizon = (max(vecEventStarts)+3*dblUseMaxDur);
@@ -80,6 +81,32 @@ function [dblP_KS,dblP_G] = getISItest(vecSpikeTimes,matEventTimes,dblUseMaxDur,
 		
 		%calculate statistical significance using Gumbel distribution
 		dblP_G = getGumbel(dblRandMu,dblRandVar,dblPosD);
+	end
+	
+	%% cumsum
+	if nargout > 1
+		vecMeanD = vecMeanPSTH - mean(vecMeanPSTH);
+		vecCumSum = cumsum(vecMeanD);
+		vecD = vecCumSum - mean(vecCumSum);
+		
+		matMeanRandD = bsxfun(@minus,matRandMeansPSTH,mean(matRandMeansPSTH,1));
+		matCumSum = cumsum(matMeanRandD,1);
+		matRandD = bsxfun(@minus,matCumSum,mean(matCumSum,1));
+		
+		%clf;
+		%plot(vecD)
+		%hold on
+		%plot(matRandD)
+		%hold off
+		
+		%gumbel
+		vecIntMaxRandD = max(abs(matRandD),[],1);
+		dblIntRandMu = mean(vecIntMaxRandD);
+		dblIntRandVar = var(vecIntMaxRandD);
+		dblIntPosD= max(abs(vecD));
+		
+		%calculate statistical significance using Gumbel distribution
+		dblIntP_G = getGumbel(dblIntRandMu,dblIntRandVar,dblIntPosD);
 	end
 end
 

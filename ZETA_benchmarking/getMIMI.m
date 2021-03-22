@@ -1,4 +1,5 @@
 function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intPlot,intLatencyPeaks,vecRestrictRange,boolVerbose,intCoeffsL1,intCoeffsG1,vecCoeffs0)
+	%[dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intPlot,intLatencyPeaks,vecRestrictRange,boolVerbose,intCoeffsL1,intCoeffsG1,vecCoeffs0)
 	
 	%% prep data
 	%ensure orientation
@@ -27,6 +28,7 @@ function [dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTi
 			intLatencyPeaks = 0;
 		end
 	end
+	intLatencyPeaks = min([intLatencyPeaks 2]);
 	
 	%get boolPlot
 	if ~exist('vecRestrictRange','var') || isempty(vecRestrictRange)

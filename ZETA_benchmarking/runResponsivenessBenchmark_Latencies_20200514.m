@@ -151,8 +151,8 @@ for intArea=vecRunAreas
 			fprintf('Processing %s, # of bins = %d [%s]\n',strRunType,intBinNum,getTime);
 			hTic=tic;
 			
-			%% analyze 
-			for intNeuron=103%1:intNeurons%[33:intNeurons]%31 [33 53][6 9] 103
+			%% analyze
+			for intNeuron=9%103%1:intNeurons%[33:intNeurons]%31 [33 53][6 9] 103
 				
 				%% message
 				if toc(hTic) > 5
@@ -178,7 +178,7 @@ for intArea=vecRunAreas
 					vecStimOnTime = [];
 					vecStimOffTime = [];
 					vecFrameRate = [];
-					for intRec=1%:numel(sThisRec.cellStim)
+					for intRec=1:numel(sThisRec.cellStim)
 						vecStimOnTime = cat(2,vecStimOnTime,sThisRec.cellStim{intRec}.structEP.vecStimOnTime);
 						vecStimOffTime = cat(2,vecStimOffTime,sThisRec.cellStim{intRec}.structEP.vecStimOffTime);
 						vecFrameRate = cat(2,vecFrameRate,sThisRec.cellStim{intRec}.structEP.FrameRate);
@@ -216,10 +216,11 @@ for intArea=vecRunAreas
 		pause
 		continue
 				%}
+				
 				[dblZeta,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,100,intMakePlots,4,vecRestrictRange);
 				vecZetaLatencies(intNeuron) = vecLatencies(4);
 				vecSU(intNeuron) = intSU;
-				if intMakePlots > 0
+				if 0%intMakePlots > 0
 					strTit = sprintf('%s-N%dSU%d',strRunType,intNeuron,intSU);
 					title(subplot(2,3,2),strTit);
 					drawnow;
@@ -231,29 +232,29 @@ for intArea=vecRunAreas
 				end
 				%%{
 				%% calculate mean-rate difference
-		%pre-allocate
-		intMaxRep = size(matEventTimes,1);
-		vecEventStops = matEventTimes(:,2);
-		vecStimHz = zeros(intMaxRep,1);
-		vecBaseHz = zeros(intMaxRep,1);
-		dblMedianBaseDur = median(matEventTimes(2:end,1) - matEventTimes(1:(end-1),2));
-		
-		%go through trials to build spike time vector
-		for intEvent=1:intMaxRep
-			%get times
-			dblStartT = matEventTimes(intEvent,1);
-			dblStopT = dblStartT + dblUseMaxDur;
-			dblPreT = dblStartT - dblMedianBaseDur;
-			
-			% build trial assignment
-			vecStimHz(intEvent) = sum(vecSpikeTimes < dblStopT & vecSpikeTimes > dblStartT)/(dblStopT - dblStartT);
-			vecBaseHz(intEvent) = sum(vecSpikeTimes < dblStartT & vecSpikeTimes > dblPreT)/dblMedianBaseDur;
-		end
-		
-		%get metrics
-		dblMeanD = mean(vecStimHz - vecBaseHz) / ( (std(vecStimHz) + std(vecBaseHz))/2);
-		[h,dblMeanP]=ttest(vecStimHz,vecBaseHz);
-		
+				%pre-allocate
+				intMaxRep = size(matEventTimes,1);
+				vecEventStops = matEventTimes(:,2);
+				vecStimHz = zeros(intMaxRep,1);
+				vecBaseHz = zeros(intMaxRep,1);
+				dblMedianBaseDur = median(matEventTimes(2:end,1) - matEventTimes(1:(end-1),2));
+				
+				%go through trials to build spike time vector
+				for intEvent=1:intMaxRep
+					%get times
+					dblStartT = matEventTimes(intEvent,1);
+					dblStopT = dblStartT + dblUseMaxDur;
+					dblPreT = dblStartT - dblMedianBaseDur;
+					
+					% build trial assignment
+					vecStimHz(intEvent) = sum(vecSpikeTimes < dblStopT & vecSpikeTimes > dblStartT)/(dblStopT - dblStartT);
+					vecBaseHz(intEvent) = sum(vecSpikeTimes < dblStartT & vecSpikeTimes > dblPreT)/dblMedianBaseDur;
+				end
+				
+				%get metrics
+				dblMeanD = mean(vecStimHz - vecBaseHz) / ( (std(vecStimHz) + std(vecBaseHz))/2);
+				[h,dblMeanP]=ttest(vecStimHz,vecBaseHz);
+				
 				figure
 				bplot([vecBaseHz vecStimHz])
 				
@@ -292,6 +293,25 @@ for intArea=vecRunAreas
 					matBinLatencies(intBinIdx,intNeuron) = dblOnset;
 				end
 				
+				%% MIMI
+				%vecCoeffs0 = sMIMI.FitCoeffs;
+				vecCoeffs0 = [];
+				[dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intMakePlots,2,vecRestrictRange,[],[],[],vecCoeffs0);
+				vecMimiLatencies(intNeuron) = vecLatencies(2);
+				
+				if intMakePlots > 0
+					strTit = sprintf('MIMI_%s-N%dSU%d',strRunType,intNeuron,intSU);
+					title(subplot(2,3,2),[strTit sprintf('; onset=%.2f',sRate.dblOnset*1000)]);
+					hold(subplot(2,3,2),'on');
+					scatter(subplot(2,3,2),sRate.dblOnset,sRate.dblPeakRate,'x')
+					drawnow;
+					
+					export_fig([strFigPath strTit '.tif']);
+					export_fig([strFigPath strTit '.pdf']);
+					boolSave = false;
+					%continue;
+				end
+				return
 				%% save output
 				% assign data
 				vecNumSpikes(intNeuron) = numel(vecSpikeTimes);

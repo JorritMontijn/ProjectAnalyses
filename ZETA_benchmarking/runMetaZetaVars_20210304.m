@@ -71,23 +71,32 @@ for intArea=1:numel(cellUniqueAreas)
 		
 		%% load data
 		strRunType = [strArea strRand strStim];
-		sDir=dir([strPath 'ZetaVars2' strRunType 'Resamp100.mat']);
+		strAltType = ''; %'' or '2'
+		sDir=dir([strPath 'ZetaVars' strAltType strRunType 'Resamp100.mat']);
+		sDir2=dir([strPath 'ZetaVars' strAltType 'B' strRunType 'Resamp100.mat']);
 		intFiles=numel(sDir);
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;
 			intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
 			sLoad=load([strPath strFile]);
 			
+			%add 2nd file
+			sLoad2=load([strPath sDir2(intFile).name]);
+			sLoad.vecISIP_ks = sLoad2.vecISIP_ks;
+			sLoad.vecISIP_IntG = sLoad2.vecISIP_IntG;
+			sLoad.vecISIP_g = sLoad2.vecISIP_g;
+			sLoad.vecComputTimeISI = sLoad2.vecComputTimeISI;
+			
 			%sig at alpha=0.05
 			dblAlpha = 0.05;
-			sSignif.matBISIP_g(intIdx,intRandType) =  sum(sLoad.vecBISIP_g<dblAlpha)/numel(sLoad.vecBISIP_g);
-			sSignif.matBISIP_ks(intIdx,intRandType) =  sum(sLoad.vecBISIP_ks<dblAlpha)/numel(sLoad.vecBISIP_ks);
-			sSignif.matHzP(intIdx,intRandType) =  sum(sLoad.vecHzP<dblAlpha)/numel(sLoad.vecHzP);
-			sSignif.matISIP_g(intIdx,intRandType) =  sum(sLoad.vecISIP_g<dblAlpha)/numel(sLoad.vecISIP_g);
-			sSignif.matISIP_ks(intIdx,intRandType) =  sum(sLoad.vecISIP_ks<dblAlpha)/numel(sLoad.vecISIP_ks);
-			sSignif.matISIP_z(intIdx,intRandType) =  sum(sLoad.vecISIP_z<dblAlpha)/numel(sLoad.vecISIP_z);
-			sSignif.matPoissP(intIdx,intRandType) =  sum(sLoad.vecPoissP<dblAlpha)/numel(sLoad.vecPoissP);
-			sSignif.matZetaP(intIdx,intRandType) =  sum(sLoad.vecZetaP<dblAlpha)/numel(sLoad.vecZetaP);
+			sSignif.matBISIP_g(intIdx,intRandType) = sum(sLoad.vecBISIP_g<dblAlpha)/numel(sLoad.vecBISIP_g);
+			sSignif.matBISIP_ks(intIdx,intRandType) = sum(sLoad.vecBISIP_ks<dblAlpha)/numel(sLoad.vecBISIP_ks);
+			sSignif.matHzP(intIdx,intRandType) = sum(sLoad.vecHzP<dblAlpha)/numel(sLoad.vecHzP);
+			sSignif.matISIP_IntG(intIdx,intRandType) = sum(sLoad.vecISIP_IntG<dblAlpha)/numel(sLoad.vecISIP_IntG);
+			sSignif.matISIP_g(intIdx,intRandType) = sum(sLoad.vecISIP_g<dblAlpha)/numel(sLoad.vecISIP_g);
+			sSignif.matISIP_ks(intIdx,intRandType) = sum(sLoad.vecISIP_ks<dblAlpha)/numel(sLoad.vecISIP_ks);
+			sSignif.matPoissP(intIdx,intRandType) = sum(sLoad.vecPoissP<dblAlpha)/numel(sLoad.vecPoissP);
+			sSignif.matZetaP(intIdx,intRandType) = sum(sLoad.vecZetaP<dblAlpha)/numel(sLoad.vecZetaP);
 			
 			%comput time
 			sComput.cellComputTimeBISI{intIdx,intRandType} = sLoad.vecComputTimeBISI;
@@ -96,15 +105,15 @@ for intArea=1:numel(cellUniqueAreas)
 			sComput.cellComputTimeZETA{intIdx,intRandType} = sLoad.vecComputTimeZETA;
 			
 			%p-value vectors
-			sP.Zeta{intIdx,intRandType} = sLoad.vecZetaP;
-			sP.BISI_g{intIdx,intRandType} = sLoad.vecBISIP_g;
-			sP.Ttest{intIdx,intRandType} = sLoad.vecHzP;
-			sP.ISI_g{intIdx,intRandType} = sLoad.vecISIP_g;
-			sP.ISI_z{intIdx,intRandType} = sLoad.vecISIP_z;
-			sP.BISI_ks{intIdx,intRandType} = sLoad.vecBISIP_ks;
-			sP.ISI_ks{intIdx,intRandType} = sLoad.vecISIP_ks;
-			sP.Poiss{intIdx,intRandType} = sLoad.vecPoissP;
-			
+			sP.Zeta{intIdx,intRandType} = sLoad.vecZetaP; %light blue
+			sP.Z_ISI_g{intIdx,intRandType} = sLoad.vecBISIP_g; %dark blue
+			sP.Ttest{intIdx,intRandType} = sLoad.vecHzP; %black
+			sP.ISI_IntG{intIdx,intRandType} = sLoad.vecISIP_IntG; %purple
+			sP.ISI_g{intIdx,intRandType} = sLoad.vecISIP_g; %red
+			sP.Z_ISI_ks{intIdx,intRandType} = sLoad.vecBISIP_ks; %red-purple burgundy
+			sP.ISI_ks{intIdx,intRandType} = sLoad.vecISIP_ks; %orange
+			sP.Poiss{intIdx,intRandType} = sLoad.vecPoissP; %grey
+					
 			%other
 			cellNumSpikes{intIdx,intRandType} = sLoad.vecNumSpikes;
 		end
@@ -115,13 +124,13 @@ for intArea=1:numel(cellUniqueAreas)
 		%prep data
 		cellTests = fieldnames(sP);
 		intTests = numel(cellTests);
-		cellColor = {lines(1),...
+		cellColor = {[0 0.4 0.8],...
 			[0 0 0.5],...
-			'k',...
-			[0.5 0 0],...
+			[0 0 0],...
+			[0.5 0 1],...
 			[1 0 0],...
-			[0.5 0.5 0],...
-			[0 0.5 0.5],...
+			[0.8 0 0.3],...
+			[1 0.5 0],...
 			[0.5 0.5 0.5]};
 		vecAUC = nan(1,intTests);
 		cellLegend = cellTests;
@@ -209,7 +218,7 @@ for intArea=1:numel(cellUniqueAreas)
 		if boolSavePlots
 			% save figure
 			drawnow;
-			strFigName = sprintf('%s_ROC_%s','ZetaVar',strArea);
+			strFigName = sprintf('%s%s_ROC_%s','ZetaVar',strAltType,strArea);
 			export_fig([strFigPath strFigName '.tif']);
 			export_fig([strFigPath strFigName '.pdf']);
 		end

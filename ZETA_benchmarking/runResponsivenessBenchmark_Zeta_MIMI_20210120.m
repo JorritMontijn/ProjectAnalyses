@@ -161,15 +161,11 @@ for intArea=vecRunAreas
 					if numel(vecSpikeTimes) < 3
 						continue;
 					end
-					
+					return
 					%ZETA
 					hTicZ=tic;
-<<<<<<< Updated upstream
 					intPlot = 0;
 					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,intPlot,0);
-=======
-					intPlot = 4;
-					[dblZetaP,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,intPlot,0);
 					%%
 					sRate.vecT
 					sOpt = [];
@@ -187,7 +183,6 @@ for intArea=vecRunAreas
 					%scatter(vecMeanHz,vecMeans)
 					
 					%%
->>>>>>> Stashed changes
 					dblComputTimeZETA = toc(hTicZ);
 					if intPlot > 0
 						drawnow;

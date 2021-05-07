@@ -156,7 +156,7 @@ for intArea=vecRunAreas
 					end
 					
 					%vecTrialNum = unique([vecTrialNum size(matEventTimes,1)]);
-					%matEventTimes = matEventTimes(1:480,:);
+					matEventTimes = matEventTimes(1:480,:);
 					
 					% reduce spikes
 					dblStartT = max([vecSpikeTimes(1) min(matEventTimes(:,1))-dblUseMaxDur*5]);
@@ -176,7 +176,6 @@ for intArea=vecRunAreas
 					vecNumSpikes(intNeuron) = numel(sZETA.vecSpikeT);
 					vecZetaP(intNeuron) = dblZetaP;
 					vecHzP(intNeuron) = sZETA.dblMeanP;
-					cellArea{intNeuron} = strArea;
 					
 					%% message
 					if toc(hTicMessage) > 5 && intNeuron > 1

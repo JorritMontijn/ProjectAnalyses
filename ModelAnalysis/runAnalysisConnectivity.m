@@ -1,7 +1,9 @@
 strPath = 'F:\Code\Simulations\SimulationsEVS\Connectivity\';
 %strSearchFile = '*LargeRetOriTuning*';
-strSearchFile = '*Conn*2021-01-08*';
+strSearchFile = '*2021-01-08*';
 %strSearchFile = '*Conn*2020-10-29*';
+%strSearchFile = '*2021-03-22*';
+%strSearchFile = '*2018-07-19*';
 sFiles=dir(fullfile(strPath,strSearchFile));
 intUseFile = ~contains({sFiles(:).name},'prepro');
 strSourceFile = sFiles(intUseFile).name;
@@ -25,6 +27,37 @@ vecBinEdges = (-pi-(dblStep/2)):dblStep:(pi+(dblStep/2));
 vecBinCenters = vecBinEdges(2:end)-(dblStep/2);
 matSynFromTo = sConn.matSynFromTo;
 
+%% plot 0
+if ~isfield(sConn,'matTuningSimilarity')
+	matPrefGabors = sConn.matPrefGabors;
+	intCellsV1 = size(matPrefGabors,3);
+	matTuningSimilarity=nan(intCellsV1,intCellsV1);
+	parfor i1=1:intCellsV1
+		a = abs(matPrefGabors(:,:,i1));
+		a = a - (sum(a(:),'double') / numel(a));
+		for i2=1:intCellsV1
+			b = abs(matPrefGabors(:,:,i2)); %#ok<PFBNS>
+			b = b - (sum(b(:),'double') / numel(b));
+			r = sum(sum(a.*b))/sqrt(sum(sum(a.*a))*sum(sum(b.*b)));
+			matTuningSimilarity(i1,i2) = r;
+		end
+	end
+	matTuningSimilarity(diag(diag(true(intCellsV1)))) = 0;
+else
+	matTuningSimilarity = sConn.matTuningSimilarity;
+end
+subplot(2,3,2);
+imagesc(matTuningSimilarity);colorbar
+xlabel('Neuron #');
+ylabel('Neuron #');
+%title('Tuning similarity 2021-03-22');
+title('Tuning similarity 2021-01-08');
+
+fixfig;grid off
+
+
+strFigFile1 = ['SynWeightByPrefOriDiff_' strFigBase];
+return
 %% plot
 figure
 intSubplot = 0;

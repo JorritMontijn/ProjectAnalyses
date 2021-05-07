@@ -51,16 +51,18 @@ strTag = [strType '_' strDate];
 
 %% start
 vecUseStimTypes = unique(matCompareTypes);
+[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(matData,vecTrialOris);
+meatMeanResp = mean(matRespNSR,3);
 return
 %% dependence of dimensionality of stimulus intensity
-for intNeuron=638:size(matData,1)
+for intNeuron=812 %638
 [sOutTemp] = getTuningCurves(matData(intNeuron,:)./median(vecStimStopSecs-vecStimStartSecs),vecTrialOris,true);
 fixfig
 ylabel('Spiking rate (Hz)');
 xlabel('Stimulus orientation (degs)');
 set(gca,'xtick',0:90:360,'xticklabel',0:45:180)
 title([strTag '; Neuron ' num2str(intNeuron)],'interpreter','none')
-pause%(0.1)
+%pause%(0.1)
 end
 return
 %%

@@ -21,11 +21,10 @@ for intFile=1:numel(cellFiles)
 	sAP = sLoad.sAP;
 	%prepro
 	sPupil = sAP.sPupil;
-	vecPupilRadius = sPupil.vecPupilRadius;
 	vecPupilTime = sPupil.vecPupilTime;
-	vecPupilFixedRadius = sPupil.vecPupilFixedRadius;
-	vecPupilFixedCenterX = sPupil.vecPupilFixedCenterX;
-	vecPupilFixedCenterY = sPupil.vecPupilFixedCenterY;
+	vecPupilFixedRadius = sPupil.vecPupilRadius;
+	vecPupilFixedCenterX = sPupil.vecPupilCenterX;
+	vecPupilFixedCenterY = sPupil.vecPupilCenterY;
 	
 	dblLatencyCorrection = -0.25;
 	vecPupilTime = vecPupilTime + dblLatencyCorrection;

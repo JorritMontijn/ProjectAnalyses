@@ -156,6 +156,27 @@ if ~isempty(sP) && size(sP.Zeta,1) >= intIdx && ~isempty(sP.Zeta{intIdx,1})
 	fixfig;
 	legend(cellLegend,'location','best','interpreter','none')
 	
+	%test AUC
+	intZeta = 1;
+	intTtest = 3;
+	
+	cellData = sP.(cellTests{intZeta});
+	vecBothDataZ = cat(2,cellData{intIdx,1},cellData{intIdx,2});
+	vecBothLabelsZ = cat(2,zeros(size(cellData{intIdx,1})),ones(size(cellData{intIdx,2})));
+	[AUC_Z,AUC_Z_ci,AUC_Z_se] = auc(cat(1,vecBothLabelsZ,vecBothDataZ)',0.05,'mann-whitney');
+	
+	cellData = sP.(cellTests{intTtest});
+	vecBothDataT = cat(2,cellData{intIdx,1},cellData{intIdx,2});
+	vecBothLabelsT = cat(2,zeros(size(cellData{intIdx,1})),ones(size(cellData{intIdx,2})));
+	[AUC_T,AUC_T_ci,AUC_T_se] = auc(cat(1,vecBothLabelsT,vecBothDataT)',0.05,'mann-whitney');
+	
+% Observed data
+m0 = AUC_T - AUC_Z;
+s0 = (AUC_T_se + AUC_Z_se)/2;
+z = m0/s0;
+AUC_p = 1 - abs(normcdf(z)-normcdf(-z));
+return
+
 	%{
 		%shuffled p MIMI
 		subplot(2,2,2)

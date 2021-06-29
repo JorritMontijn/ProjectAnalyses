@@ -30,16 +30,16 @@ cellUniqueAreas = {...
 	'Retrosplenial'...Area 24
 	};
 
-strDisk = 'D:\';
+strDisk = 'F:\';
 strDataMasterPath = fullfile(strDisk,'\Data\Processed\ePhys\');
 strDataTargetPath = fullfile(strDisk,'\Data\Processed\ZETA\Inclusion\');
 strFigPath = fullfile(strDisk,'\Data\Results\ZETA\Examples\');
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
-vecRandTypes = [1 2];%1=normal,2=rand
+vecRandTypes = 1;%[1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = 7:16;%4;%6;%14:16;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 8;%7:16;%4;%6;%14:16;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -324,28 +324,45 @@ for intResampleIdx = 1:numel(vecResamples)
 		
 		%if size(matEventTimes,1) > 0,continue;end
 		close;close;
+		sRate = [];
+		intGetLatencies = 0;
 		if exist('vecTraceAct','var') && ~isempty(vecTraceAct) %calcium imaging
 			%continue;
 			if intResampleNum == vecResamples(end)% && vecPlotCells(intNeuron)
-				[dblZeta,vecLatencies,sZETA,sRate] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampleNum,intMakePlots,0);
+				[dblZeta,vecLatencies,sZETA] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampleNum,intMakePlots,0);
 			else
-				[dblZeta,vecLatencies,sZETA,sRate] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampleNum,0,0);
+				[dblZeta,vecLatencies,sZETA] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampleNum,0,0);
 			end
 			intSpikeNum = mean(vecTraceAct) + std(vecTraceAct);
 			%unpack
 			vecT = sZETA.vecRefT;
 		else
 			if intResampleNum == vecResamples(end)% && vecPlotCells(intNeuron)
-				[dblZeta,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,intMakePlots,4,vecRestrictRange);
+				[dblZeta,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,intMakePlots,intGetLatencies,vecRestrictRange);
 			else
-				[dblZeta,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,0,4,vecRestrictRange);
+				[dblZeta,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,0,intGetLatencies,vecRestrictRange);
 			end
 			
 			intSpikeNum = numel(vecSpikeTimes);
 			%unpack
 			vecT = sZETA.vecSpikeT;
 		end
+		%% ANOVA
+		intTrials = size(matEventTimes,1);
+		[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur);
+		N0=100;
+		[optN, vecC, vecN] = opthist(x,N0);
 		
+		dblBinWidth = dblUseMaxDur/optN;
+		vecBins = 0:dblBinWidth:dblUseMaxDur;
+		matPSTH = nan(intTrials,numel(vecBins)-1);
+		for intTrial=1:intTrials
+			matPSTH(intTrial,:) = histcounts(vecTimePerSpike(vecTrialPerSpike==intTrial),vecBins);
+		end
+		[p,tbl,stats]=anova1(matPSTH);
+		
+		%%
+		return
 		%unpack
 		if isempty(sRate)
 			vecMSD = [];
@@ -366,7 +383,7 @@ for intResampleIdx = 1:numel(vecResamples)
 		% assign data
 		dblMeanD = sZETA.dblMeanD;
 		vecNumSpikes(intNeuron) = intSpikeNum;
-		vecZeta(intNeuron) = dblZeta;
+		vecZeta(intNeuron) = sZETA.dblZETA;
 		vecP(intNeuron) = sZETA.dblP;
 		vecHzD(intNeuron) = dblMeanD;
 		vecHzP(intNeuron) = sZETA.dblMeanP;

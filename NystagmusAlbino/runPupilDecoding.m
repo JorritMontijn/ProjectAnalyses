@@ -9,9 +9,9 @@ clearvars;
 %cellRun(end+1:end+2) = {'S3L3','S2L4','S3L1'};
 cellRun = {'S1L1','S1L2','S1L3',...
 	'S2L1','S2L2','S2L3','S2L4','S2L5','S2L6',...
-	'S3L1','S3L2','S3L3'};
-boolAllPlots = true;
-boolPlotChange = false;
+	'S3L1'};%,'S3L2','S3L3'};
+boolAllPlots = false;
+boolPlotChange = true;
 
 %get data
 strSearchFormat = '\d{4}[-_]?\d{2}[-_]?\d{2}';
@@ -78,6 +78,9 @@ cellAggRawData = cell(3,1);
 cellAggNormData = cell(3,1);
 vecAggLabels = [];
 vecAggRec = [];
+matR2 = [];
+matP = [];
+
 %% go through files
 for intFile=1:numel(cellFiles)
 	strTarget = cellFiles{intFile};
@@ -89,6 +92,7 @@ for intFile=1:numel(cellFiles)
 	sPupil = sLoad.sPupil;
 	
 	%% run pupil prep header
+	fprintf('Running %d/%d: %s [%s]\n',intFile,numel(cellFiles),strSource,getTime());
 	runPupilHeaderHybrid;
 	%outputs:
 	matMeanAct;
@@ -201,6 +205,8 @@ for intFile=1:numel(cellFiles)
 		%% concatenate data across recordings
 		cellAggRawData{intVar} = cat(1,cellAggRawData{intVar},abs(matB));
 		cellAggNormData{intVar} = cat(1,cellAggNormData{intVar},abs(matB)/std(abs(matB)));
+		matR2(intVar,intFile) = dblR2;
+		matP(intVar,intFile) = dblP;
 	end
 	%% save figure
 	if boolAllPlots
@@ -215,17 +221,58 @@ for intFile=1:numel(cellFiles)
 	vecAggRec= cat(1,vecAggRec,intFile*ones(size(vecRunAreaIdx)));
 end
 
-%% grand average
+%% get settings
+%boolPlotChange = false;
+if boolPlotChange
+	cellVarName = {'pupil change','horz-movement','vert-movement'};
+	strType = 'Change';
+else
+	cellVarName = {'pupil size','horz-location','vert-location'};
+	strType = 'Loc';
+end
+
 boolNorm = false;
 if boolNorm
-	strRegType = 'Normalized';	
+	strRegType = 'Normalized';
 	cellAggData = cellAggNormData;
 else
-	strRegType = 'Absolute';	
+	strRegType = 'Absolute';
 	cellAggData = cellAggRawData;
 end
 [varDataOut1,vecUnique,vecCounts,cellSelect] = label2idx(vecAggLabels);
+[varSplitRec,vecUniqueRec,vecCountsRec,cellSelectRec] = label2idx(vecAggRec);
 
+%remove data
+indRemData = all(matP>0.05,1);
+
+%% plot decoding performance averaged over recordings
+h=figure;
+intPlotVars = 2;
+hold on;
+for intVar=1:intPlotVars
+	%reorder
+	strVar = cellVarName{intVar};
+	dblMeanR2 = mean(matR2(intVar,:));
+	dblSdR2 = std(matR2(intVar,:));
+	
+	%plot
+	bplot(matR2(intVar,~indRemData),intVar,'points');
+end
+hold off
+ylim([0 1]);
+xlabel('Decoded variable');
+ylabel('Decoding performance (CV R^2)');
+%legend(cellLabelX);
+set(gca,'xtick',1:intPlotVars,'xticklabel',cellVarName(1:intPlotVars));
+title(['Average decoding performance']);
+fixfig;
+%% save figure
+strFig = ['DecodingPerfPupil' strType '_' getDate()];
+drawnow;
+export_fig([strOutputPath strFig '.tif']);
+export_fig([strOutputPath strFig '.pdf']);
+
+%% grand average decoding weights
 h=figure;
 maxfig;
 intPlotVars = 2;
@@ -239,11 +286,6 @@ for intVar=1:intPlotVars
 	%plot
 	intPlotAreas = numel(vecAreaSorted);
 	subplot(1,intPlotVars,intVar);hold on;
-	dblMaxVal = max(abs(matB));
-	dblStep = 0.01;
-	dblEnd = roundi(dblMaxVal+dblStep,2);
-	vecBins=0:dblStep:dblEnd;
-	vecBinCenters = (dblStep/2):dblStep:(dblEnd);
 	cellLabel = cell(1,intPlotAreas);
 	for intPlotArea=1:intPlotAreas
 		intIdx = vecAreaSorted(intPlotArea);
@@ -266,14 +308,14 @@ for intVar=1:intPlotVars
 	title(['Decoding contribution ' strVar]);
 	fixfig;
 end
-jFig = maxfig(h,1,0.95);
+jFig = maxfig(h,1,0.75);
 
 %% save figure
-strFig = ['GrandAveragePupil' strType '_' getDate()];
+strFig = ['RegressionCoeffsPupil' strType '_' getDate()];
 drawnow;
 export_fig([strOutputPath strFig '.tif']);
 export_fig([strOutputPath strFig '.pdf']);
 
 %% save data
 strDataOut = ['DataGrandAveragePupil' strRegType strType getDate() '.mat'];
-save([strOutputPath strDataOut],'vecAggLabels','vecAggRec','cellAggRawData','cellAggNormData');
+save([strOutputPath strDataOut],'boolPlotChange','boolNorm','vecAggLabels','vecAggRec','matR2','cellAggRawData','cellAggNormData','cellRunAreas');

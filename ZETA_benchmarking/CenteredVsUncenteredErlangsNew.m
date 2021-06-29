@@ -11,13 +11,14 @@ n_b = m*(tau-T)*L_b;
 n=n_s + n_b;
 
 intSavePoints = round(n);
-intNumR = 100;
+intNumR = 1000;
 intReps=100;
 
 matMaxD = nan(intReps,intNumR);
 matVarD_i = nan(intSavePoints,intNumR);
 matVarOverD = nan(intReps,intNumR);
 matVarDelta_i = nan(intSavePoints,intNumR);
+matMeanDelta_i = nan(intSavePoints,intNumR);
 
 matVarOverDelta= nan(intReps,intNumR);
 matMeanOverDelta= nan(intReps,intNumR);
@@ -122,11 +123,13 @@ end
 matD_i = matDelta_i - mean(matDelta_i,2);
 vecVarD_i = var(matD_i,[],1);
 vecVarDelta_i = var(matDelta_i,[],1);
+vecMeanDelta_i = mean(matDelta_i,1);
 vecVarOverD = var(matD_i,[],2);
 vecVarOverDelta = var(matDelta_i,[],2);
 
 matVarD_i(:,intR) = vecVarD_i;
 matVarDelta_i(:,intR) = vecVarDelta_i;
+matMeanDelta_i(:,intR) = vecMeanDelta_i;
 matMaxD(:,intR) = max(abs(matD_i),[],2);
 
 matVarOverD(:,intR) = vecVarOverD;
@@ -228,6 +231,20 @@ axis xy
 %figure
 subplot(2,3,4)
 hold on
+plot(mean(matMeanDelta_i,2),'b-');
+plot(vecM_T,'r--')
+plot(mean(matMeanDelta_i,2)-std(matMeanDelta_i,[],2),'b--')
+plot(mean(matMeanDelta_i,2)+std(matMeanDelta_i,[],2),'b--')
+hold off
+title('Mean[delta_i]')
+ylabel('Mean(delta_i)');
+xlabel('i');
+legend({'Empirical','Theory'},'location','best');
+fixfig;
+
+
+subplot(2,3,5)
+hold on
 plot(mean(matVarDelta_i,2),'b-');
 plot(vecV_T,'r--')
 plot(mean(matVarDelta_i,2)-std(matVarDelta_i,[],2),'b--')
@@ -239,7 +256,7 @@ xlabel('i');
 legend({'Empirical','Theory'},'location','best');
 fixfig;
 
-subplot(2,3,5)
+subplot(2,3,6)
 hold on
 plot(mean(matVarD_i,2),'b-');
 plot(get(gca,'xlim'),var_d*[1 1],'r--');
@@ -255,15 +272,6 @@ legend({'Empirical','Theory'},'location','best');
 fixfig;
 maxfig;
 
-dblEvarD = (1/(12*n));
-vecRealSdD = std(matVarD_i,[],2);
-dblRatio = mean(vecRealSdD)/mean(matVarD_i(:)) %1=0.137,0.139, 10=0.139, 100=0.1406
-subplot(2,3,6)
-hold on
-bplot(vecRealSdD,1);
-plot([0.5 1.5],dblEvarD*[1 1],'g');
-hold off
-fixfig;
 return
 %%
 figure

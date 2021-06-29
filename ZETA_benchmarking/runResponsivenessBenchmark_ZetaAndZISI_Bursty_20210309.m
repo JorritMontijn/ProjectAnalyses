@@ -95,6 +95,22 @@ for intRandType=vecRandTypes
 			sTuningParams.dblKappa = rand(1)*5+5; %von Mises concentration parameter
 			sTuningParams.dblPrefRate = sSpikingParams.dblBaseRate; %mean single-spike rate during stimulus (exponential ISI)
 			
+			%{
+			subplot(2,3,1)
+			dblPref = rand(1)*2*pi;
+			vecTheta = deg2rad(0:(360/24):359);
+			polarplot(vecTheta,ones(size(vecTheta)))
+			
+			subplot(2,3,2)
+			dblBaseRate = 0.0625;
+			dblPrefRate = dblBaseRate+2;
+			vecMeanR = circ_vmpdf(vecTheta, dblPref, 10);
+			vecMeanR = vecMeanR-min(vecMeanR);
+			vecMeanR = vecMeanR ./ max(vecMeanR);
+			vecMeanR = vecMeanR*(dblPrefRate-dblBaseRate) + dblBaseRate;
+			polarplot(vecTheta,vecMeanR)
+			%}
+			
 			%% get visual responsiveness
 			%get trial dur
 			dblUseMaxDur = round(median(diff(matTrialT(:,1)))*2)/2;

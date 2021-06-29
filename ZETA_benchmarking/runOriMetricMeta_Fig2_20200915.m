@@ -64,7 +64,7 @@ for intRandType=1:2
 	%set var
 	strRand = cellRunRand{intRandType};
 	
-	
+	%{
 	%% load data
 	strRunType = [strArea strRand strStim];
 	sDir=dir([strPath 'ZetaDataMSD' strRunType 'Resamp100*']);
@@ -76,7 +76,7 @@ for intRandType=1:2
 		vecZeta = abs(sLoad.vecZeta);
 		matZetaP(intRandType,:)=1-(normcdf(abs(vecZeta))-normcdf(-abs(vecZeta)));
 	end
-	
+	%}
 	%% load data
 	strRunType = [strArea strRand strStim];
 	sDir=dir([strPath 'ZetaData2MSD' strRunType 'Resamp100*']);
@@ -86,6 +86,10 @@ for intRandType=1:2
 		intResampNum = str2double(getFlankedBy(strFile,'Resamp','.mat'));
 		sLoad=load([strPath strFile]);
 		matHzP(intRandType,:) = sLoad.vecHzP;
+		matHzZ(intRandType,:) = -norminv(sLoad.vecHzP/2);
+		matZetaP(intRandType,:)= sLoad.vecP;
+		matZetaZ(intRandType,:)= abs(sLoad.vecZeta);
+		
 	end
 end
 
@@ -98,11 +102,22 @@ intNeurons = numel(sAggNeuron);
 cellDate = cellfun(@strrep,{sAggNeuron.Date},cellfill('-',size({sAggNeuron.Date})),cellfill('',size({sAggNeuron.Date})),'uniformoutput',false);
 cellClust = cellfun(@num2str,{sAggNeuron.Cluster},'uniformoutput',false);
 cellId = cellfun(@strcat,cellDate,cellfill('U',size({sAggNeuron.Date})),cellClust,'uniformoutput',false);
-strFind1 = '20200306U465';
-strFind2 = '20200306U458';
-vecNeurons = [find(strcmp(cellId,strFind1)) find(strcmp(cellId,strFind2))];
+%strFind1 = '20200306U466';
+%%
+intChoose1 = 20;%7,11,17,20
+intChoose2 = 3;
 
-%% get neuronal data
+vecEx1 = find(matZetaP(1,:)<0.05 & matHzP(1,:)<0.05);
+cellFind = {'',''};
+cellFind{1} = cellId{vecEx1(intChoose1)};
+
+%strFind2 = '20200306U458';
+vecEx2 = find(matZetaP(1,:)<0.05 & matHzP(1,:)>0.05);
+cellFind{2} = cellId{vecEx2(intChoose2)}
+vecNeurons = [find(strcmp(cellId,cellFind{1})) find(strcmp(cellId,cellFind{2}))];
+
+
+% get neuronal data
 figure
 h1=subplot(2,3,2);
 hold on;
@@ -117,10 +132,10 @@ for intNeuron=vecNeurons
 	strRecIdx = sThisNeuron.Rec;
 	strMouse = sThisNeuron.Mouse;
 	strBlock = '';
-	strArea = strName;
 	strDate = sThisNeuron.Date;
 	intSU = sThisNeuron.Cluster;
 	intClust = sThisNeuron.IdxClust;
+	strNeuron = cellFind{intNeuronC};
 	
 	%% get matching recording data
 	sThisRec = sAggStim(strcmpi(strRecIdx,cellRecIdx));
@@ -143,7 +158,7 @@ for intNeuron=vecNeurons
 		else
 			strRand = '';
 		end
-		strRunType = [strArea strRand strStim];
+		strRunType = [strName strRand strStim];
 		
 		dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
 		%set derivative params
@@ -159,17 +174,20 @@ for intNeuron=vecNeurons
 		vecRestrictRange=[0 inf];
 		intMakePlots = 0;
 		intResamp = 100;
-		[dblZetaP,vecLatencies,sZETA,sRate] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResamp,intMakePlots,2,vecRestrictRange);
+		[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResamp,intMakePlots,0,vecRestrictRange);
 		
 		%update matrices
 		matZetaP(intRand,intNeuron) = dblZetaP;
 		matHzP(intRand,intNeuron) = sZETA.dblMeanP;
+		matZetaZ(intRand,intNeuron) = abs(sZETA.dblZETA);
+		matHzZ(intRand,intNeuron) = -norminv(sZETA.dblMeanP/2);
+		
 		if intRand == 1
 			axes(h1);
 		else
 			axes(h2);
 		end
-		scatter(sZETA.dblMeanP,dblZetaP,300,[0 0 0],'x');
+		scatter(matHzZ(intRand,intNeuron),matZetaZ(intRand,intNeuron),300,[0 0 0],'x');
 		
 		
 		% plot
@@ -188,6 +206,7 @@ for intNeuron=vecNeurons
 		ylim([0 max(get(gca,'ylim'))]);
 		xlabel('Time from event (s)');
 		ylabel('Mean spiking rate (Hz)');
+		title(strNeuron);
 		fixfig
 		
 		subplot(4,6,6+6*(intNeuronC-1)+12*(intRand-1))
@@ -202,33 +221,41 @@ for intNeuron=vecNeurons
 		hold off
 		xlabel('Time from event (s)');
 		ylabel('Offset of data from linear (s)');
-		title(sprintf('ZETA=%.3f (p=%.3f), d(Hz)=%.3f (p=%.3f)',sZETA.dblZETA,dblZetaP,sZETA.dblMeanD,sZETA.dblMeanP));
+		if intRand==2
+			title(sprintf('Z,p=%.3f, T,p=%.3f)',dblZetaP,sZETA.dblMeanP));
+		else
+			title(sprintf('Z,p=%.1e, T,p=%.1e)',dblZetaP,sZETA.dblMeanP));
+		end
 		fixfig
 	end
 end
-
+%
+matHzP(matHzZ(:)==0) = 1e-29;
+matZetaP(matZetaP(:)==0) = 1e-29;
 axes(h1);
 matC = [0.5 0.5 0.5;...
 	0 0.8 0;...
 	0.8 0 0;...
 	0 0 0.8];
 vecColor1 = 1 + (matZetaP(1,:) < 0.05 & matHzP(1,:) > 0.05) + 2*(matZetaP(1,:) > 0.05 & matHzP(1,:) < 0.05) + 3*(matZetaP(1,:) < 0.05 & matHzP(1,:) < 0.05);
-scatter(matHzP(1,:),matZetaP(1,:),500,vecColor1,'.');
+scatter(matHzZ(1,:),matZetaZ(1,:),500,vecColor1,'.');
 colormap(h1,matC(1:max(vecColor1),:));
-xlim([0 1]);ylim([0 1]);
-xlabel('P-value rate-based t-test')
-ylabel('P-value ZETA (\zeta)')
+%xlim([0 1]);ylim([0 1]);
+xlabel('Z-statistic rate-based t-test (\Phi^-^1(1-p/2))')
+ylabel('ZETA (\zeta_c)')
 title(sprintf('Inclusion: %s=%.3f, %s=%.3f',getGreek('zeta'),sum(matZetaP(1,:)<0.05)/numel(matZetaP(1,:)),getGreek('mu'),sum(matHzP(1,:)<0.05)/numel(matHzP(1,:))))
+%set(gca,'xscale','log','yscale','log');
 fixfig;
 
 axes(h2)
 vecColor2 = 1 + 1*(matZetaP(2,:) > 0.05 & matHzP(2,:) < 0.05) + 2*(matZetaP(2,:) < 0.05 & matHzP(2,:) > 0.05) + 3*(matZetaP(2,:) < 0.05 & matHzP(2,:) < 0.05);
-scatter(matHzP(2,:),matZetaP(2,:),500,vecColor2,'.');
-colormap(h2,matC(1:max(vecColor2),:));
-xlim([0 1]);ylim([0 1]);
-xlabel('P-value rate-based t-test')
-ylabel('P-value ZETA (\zeta)')
+scatter(matHzZ(2,:),matZetaZ(2,:),500,vecColor1,'.');
+colormap(h2,matC(1:max(vecColor1),:));
+%xlim([0 1]);ylim([0 1]);
+xlabel('Z-statistic rate-based t-test (\Phi^-^1(1-p/2))')
+ylabel('ZETA (\zeta_c)')
 title(sprintf('False alarms: %s=%.3f, %s=%.3f',getGreek('zeta'),sum(matZetaP(2,:)<0.05)/numel(matZetaP(2,:)),getGreek('mu'),sum(matHzP(2,:)<0.05)/numel(matHzP(2,:))))
+%set(gca,'xscale','log','yscale','log');
 fixfig;maxfig;
 return
 %%

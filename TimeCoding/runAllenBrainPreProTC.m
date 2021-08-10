@@ -1,25 +1,21 @@
 
 %% define locations
 strDisk = 'F:';
-strDataSource = '\Data\Processed\AllenBrainVisualEphys\';
-strDataTarget = strcat(strDisk,strDataSource,'Aggregates',filesep,'AggSes',getDate,'.mat');
+strDataSource = '\Data\Processed\AllenBrainVisualEphys\nwb_files\';
+strDataTarget = strcat(strDisk,strDataSource,'AggregatesNatScenes',filesep,'AggSes',getDate,'.mat');
 %load metadata
 sCSV = loadcsv(strcat(strDisk,strDataSource,'sessions.csv'));
 %select VIP
-vecSessions = sCSV.id(contains(sCSV.genotype,'Vip'));
-strFormat = 'session_%d';
+vecSessions = sCSV.id;%(contains(sCSV.genotype,'Vip'));
+strFormat = 'ecephys_session_%d';
 vecNatSceneReps = zeros(size(vecSessions));
 
 %% loop through sessions
 for intSes=1:numel(vecSessions)
-	%% skip if not laser opto
-	if vecSessions(intSes) < 789848216
-		continue;
-	end
 	
 	%% load data
 	strDataFile = sprintf(strFormat,vecSessions(intSes));
-	strTargetFile = strcat(strDisk,strDataSource,strDataFile,filesep,strDataFile,'.nwb');
+	strTargetFile = strcat(strDisk,strDataSource,strDataFile,'.nwb');
 	fclose('all');
 	nwb = nwbRead(strTargetFile);
 	sNWB = ExpandNWB(nwb);

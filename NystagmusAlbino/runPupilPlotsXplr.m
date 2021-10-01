@@ -14,11 +14,17 @@ if ~exist('sExp','var') || isempty(sExp)
 		end
 	end
 end
+%MP_20200115 eye tracking remove last stimulus (gunk in eye)
+cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
+cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
+cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
 
 %% plot
+cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
 cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
 cellRemove = {};%{'RecMA5_2021-03-01R01_g0_t0'};
 indRemRecs = contains(cellExperiment,cellRemove);
+indRemRecs2 = ~contains(cellNameAP,cellUseForEyeTracking);
 cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
 figure;
 for intSubType=1:2
@@ -30,7 +36,7 @@ for intSubType=1:2
 		dblOffsetT=0;
 	end
 	indUseRecs = contains(cellSubjectType,strSubjectType);
-	vecRunRecs = find(indUseRecs & ~indRemRecs);
+	vecRunRecs = find(indUseRecs & ~(indRemRecs | indRemRecs2));
 	matAggTE_LocX = [];
 	matAggTE_LocY = [];
 	matAggTE_Size = [];
@@ -38,7 +44,7 @@ for intSubType=1:2
 	vecAggOriIdx = [];
 	vecAggCounts = zeros(24,1);
 	for intRecIdx=1:numel(vecRunRecs)
-		intRec=vecRunRecs(intRecIdx);
+		intRec=vecRunRecs(intRecIdx)
 		sRec = sExp(intRec);
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
 		vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true));
@@ -85,6 +91,8 @@ for intSubType=1:2
 		end
 	end
 	%% plot
+	intType=2;
+	if intType == 1
 	%get mean per ori, X
 	subplot(2,4,1+(intSubType-1)*4)
 	matTEX_dt = diff(matAggTE_LocX,[],2);
@@ -121,4 +129,53 @@ for intSubType=1:2
 	vecNans = sum(~isnan(matAggTE_SyncZ),1);
 	errorbar(vecWindowBinCenters,matSyncMu,matSyncSd./sqrt(vecNans))
 	hold off
+	
+	
+	else
+		%% plot v2
+		%split ori in quadrants
+		vecBoundQ = 45:90:360;
+		vecOris = mod(vecUnique + 0,360);
+		vecQ1 = vecOris(vecAggOriIdx) <= vecBoundQ(1) | vecOris(vecAggOriIdx) > vecBoundQ(end);
+		vecQ2 = vecOris(vecAggOriIdx) <= vecBoundQ(2) & vecOris(vecAggOriIdx) > vecBoundQ(1);
+		vecQ3 = vecOris(vecAggOriIdx) <= vecBoundQ(3) & vecOris(vecAggOriIdx) > vecBoundQ(2);
+		vecQ4 = vecOris(vecAggOriIdx) <= vecBoundQ(4) & vecOris(vecAggOriIdx) > vecBoundQ(3);
+		
+		%get mean per ori, X
+	subplot(2,4,1+(intSubType-1)*4)
+	matTEX_dt = diff(matAggTE_LocX,[],2);
+	matFracMoveRight = sum(matTEX_dt>0,2)./size(matTEX_dt,2);
+	matFracNormMoveRight = matFracMoveRight / mean(matFracMoveRight);
+	vecFMR_Q1 = matFracNormMoveRight(vecQ1);
+	vecFMR_Q2 = matFracNormMoveRight(vecQ2);
+	vecFMR_Q3 = matFracNormMoveRight(vecQ3);
+	vecFMR_Q4 = matFracNormMoveRight(vecQ4);
+	vecMeans = [mean(vecFMR_Q1) mean(vecFMR_Q2) mean(vecFMR_Q3) mean(vecFMR_Q4)];
+	vecSems = [std(vecFMR_Q1)/sqrt(numel(vecFMR_Q1)) ...
+		std(vecFMR_Q2)/sqrt(numel(vecFMR_Q2)) ...
+		std(vecFMR_Q3)/sqrt(numel(vecFMR_Q3)) ...
+		std(vecFMR_Q4)/sqrt(numel(vecFMR_Q4))];
+	subplot(2,4,3+(intSubType-1)*4)
+	errorbar(0:90:270,vecMeans,vecSems,'xb');
+	
+	
+		%get mean per ori, Y
+	subplot(2,4,1+(intSubType-1)*4)
+	matTEY_dt = diff(matAggTE_LocY,[],2);
+	matFracMoveUp = sum(matTEY_dt>0,2)./size(matTEY_dt,2);
+	matFracNormMoveUp = matFracMoveUp / mean(matFracMoveUp);
+	vecFMU_Q1 = matFracNormMoveUp(vecQ1);
+	vecFMU_Q2 = matFracNormMoveUp(vecQ2);
+	vecFMU_Q3 = matFracNormMoveUp(vecQ3);
+	vecFMU_Q4 = matFracNormMoveUp(vecQ4);
+	vecMeans = [mean(vecFMU_Q1) mean(vecFMU_Q2) mean(vecFMU_Q3) mean(vecFMU_Q4)];
+	vecSems = [std(vecFMU_Q1)/sqrt(numel(vecFMU_Q1)) ...
+		std(vecFMU_Q2)/sqrt(numel(vecFMU_Q2)) ...
+		std(vecFMU_Q3)/sqrt(numel(vecFMU_Q3)) ...
+		std(vecFMU_Q4)/sqrt(numel(vecFMU_Q4))];
+	subplot(2,4,4+(intSubType-1)*4)
+	errorbar(0:90:270,vecMeans,vecSems,'xb');
+	
+	return
+	end
 end

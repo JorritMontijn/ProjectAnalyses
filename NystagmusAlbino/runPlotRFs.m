@@ -30,14 +30,19 @@ cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
 dblAverageMouseHeadTiltInSetup = -15;
 for intSubType=1:2
 	if intSubType == 1
+		intBestRec = 17;
 		strSubjectType = 'BL6';
 		dblOffsetT=0;
 	elseif intSubType == 2
+		intBestRec = 5;
 		strSubjectType = 'DBA';
 		dblOffsetT=0;
 	end
-	indUseRecs = contains(cellSubjectType,strSubjectType) & ~indRemoveNoEye
-	vecRunRecs = find(indUseRecs);
+	indUseRecs = contains(cellSubjectType,strSubjectType) & ~indRemoveNoEye;
+	%vecRunRecs = find(indUseRecs & ~(indRemRecs | indRemRecs2));
+	vecRunRecs = intBestRec;
+	
+	
 	matAggTE_LocX = [];
 	matAggTE_LocY = [];
 	matAggTE_Size = [];
@@ -45,11 +50,11 @@ for intSubType=1:2
 	vecAggOriIdx = [];
 	vecAggCounts = zeros(24,1);
 	for intRecIdx=1:numel(vecRunRecs)
-		intRec=vecRunRecs(intRecIdx)
+		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		
-		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false)
-		vecBlocksRF = find(contains(cellStimType,'receptivefield','IgnoreCase',true))
+		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
+		vecBlocksRF = find(contains(cellStimType,'receptivefield','IgnoreCase',true));
 		for intBlockIdx=1:numel(vecBlocksRF)
 			intBlock = vecBlocksRF(intBlockIdx);
 			sBlock = sRec.cellBlock{intBlock};
@@ -97,30 +102,42 @@ for intSubType=1:2
 			vecBinEdges = [-inf vecPupilStimOn vecPupilStimOn(end)+median(diff(vecPupilStimOn)) inf];
 			[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecPupilTime,double(vecBlinks),vecBinEdges);
 			vecBlinkFractionPerTrial = vecMeans(2:(end-1));
+			vecBlinkFractionPerTrial(isnan(vecBlinkFractionPerTrial))=0;
 			
-			%% go through patches and concatenate repetitions
+			%% prep variables
+			intNeurons = numel(sRec.sCluster);
 			cellCellOnSpikeT = cellfill(cell(size(sStimObject(1).LinLoc)),[1 intNeurons]); %{N}{X,Y}{Rep} = [T_s1 T_s2 ... T_sN]
 			cellCellOffSpikeT = cellfill(cell(size(sStimObject(1).LinLoc)),[1 intNeurons]); %{N}{X,Y}{Rep} = [T_s1 T_s2 ... T_sN]
 			vecStimOn = sBlock.vecStimOnTime;
 			vecStimOff = sBlock.vecStimOffTime;
-			intNeurons = numel(sRec.sCluster);
 			matLinLoc = sStimObject(1).LinLoc;
 			vecPatches = unique(matLinLoc(:));
 			dblDur = median(vecStimOff - vecStimOn);
+			matZetaOn = nan([size(sStimObject(1).LinLoc) intNeurons]);
+			matZetaOff = nan([size(sStimObject(1).LinLoc) intNeurons]);
 			matMeanCountsOn = nan([size(sStimObject(1).LinLoc) intNeurons]);
 			matSdCountsOn = nan([size(sStimObject(1).LinLoc) intNeurons]);
 			matMeanCountsOff = nan([size(sStimObject(1).LinLoc) intNeurons]);
 			matSdCountsOff = nan([size(sStimObject(1).LinLoc) intNeurons]);
+			%% go through cells
 			for intNeuron=1:intNeurons
-				intNeuron
+				fprintf('Now at %d/%d\n',intNeuron,intNeurons);
 				vecSpikeT = sRec.sCluster(intNeuron).SpikeTimes;
+				matTempZetaOn = nan(size(sStimObject(1).LinLoc));
+				matTempZetaOff = nan(size(sStimObject(1).LinLoc));
+				%cull spikes
+				dblMinT = min(vecStimOn) - 10*dblDur;
+				dblMaxT = max(vecStimOn) + 10*dblDur;
+				vecSpikeT((vecSpikeT < dblMinT) | (vecSpikeT > dblMaxT)) = [];
 				[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecSpikeT,vecStimOn,dblDur);
+				%go through patches and concatenate repetitions
 				for intPatchIdx=1:numel(vecPatches)
 					intPatch = vecPatches(intPatchIdx);
 					indAssign = matLinLoc==intPatch;
 					
 					%on
-					vecPatchIsOn = find(cellfun(@ismember,cellfill(intPatch,size({sStimObject.LinLocOn})),{sStimObject.LinLocOn}));
+					indOn = cellfun(@ismember,cellfill(intPatch,size({sStimObject.LinLocOn})),{sStimObject.LinLocOn});
+					vecPatchIsOn = find(vecBlinkFractionPerTrial(:) < 0.1 & indOn(:));
 					for intOnRepIdx=1:numel(vecPatchIsOn)
 						intTrial=vecPatchIsOn(intOnRepIdx);
 						indTrialSpikes = vecTrialPerSpike==intTrial;
@@ -128,14 +145,33 @@ for intSubType=1:2
 					end
 					
 					%off
-					vecPatchIsOff = find(cellfun(@ismember,cellfill(intPatch,size({sStimObject.LinLocOff})),{sStimObject.LinLocOff}));
+					indOff = cellfun(@ismember,cellfill(intPatch,size({sStimObject.LinLocOff})),{sStimObject.LinLocOff});
+					vecPatchIsOff = find(vecBlinkFractionPerTrial(:) < 0.1 & indOff(:));
 					for intOffRepIdx=1:numel(vecPatchIsOff)
 						intTrial=vecPatchIsOff(intOffRepIdx);
 						indTrialSpikes = vecTrialPerSpike==intTrial;
 						cellCellOffSpikeT{intNeuron}{indAssign}{intOffRepIdx} = vecTimePerSpike(indTrialSpikes);
 					end
 					
+					%% calculate zeta per patch
+					%on
+					vecDur = vecStimOff - vecStimOn;
+					dblBaselineDur = dblDur;
+					dblTotDur = dblDur + dblBaselineDur;
+					vecUseStimOn = vecStimOn(vecPatchIsOn)-dblBaselineDur/2;
+					intResampNum = 100;
+					dblZetaP_on = getZeta(vecSpikeT,vecUseStimOn,dblTotDur,intResampNum);
+					matTempZetaOn(indAssign) = dblZetaP_on;
+					
+					%off
+					vecUseStimOff = vecStimOn(vecPatchIsOff)-dblBaselineDur/2;
+					intResampNum = 100;
+					dblZetaP_off = getZeta(vecSpikeT,vecUseStimOff,dblTotDur,intResampNum);
+					matTempZetaOff(indAssign) = dblZetaP_off;
+					
 				end
+				matZetaOn(:,:,intNeuron) = matTempZetaOn;
+				matZetaOff(:,:,intNeuron) = matTempZetaOff;
 				matMeanCountsOn(:,:,intNeuron) = cellfun(@(x) mean(cellfun(@numel,x)),cellCellOnSpikeT{intNeuron});
 				matSdCountsOn(:,:,intNeuron) = cellfun(@(x) std(cellfun(@numel,x)),cellCellOnSpikeT{intNeuron});
 				matMeanCountsOff(:,:,intNeuron) = cellfun(@(x) mean(cellfun(@numel,x)),cellCellOffSpikeT{intNeuron});
@@ -154,18 +190,53 @@ for intSubType=1:2
 			figure,imagesc(matR(:,:,1))
 			%%
 			for intNeuron=1:intNeurons
-				subplot(2,3,1)
+				subplot(2,4,1)
 				imagesc(matMeanCountsOn(:,:,intNeuron))
-				title(sprintf('%d',intNeuron))
+				title(sprintf('Mean counts on, %d',intNeuron))
 				
-				subplot(2,3,2)
+				subplot(2,4,2)
 				imagesc(matMeanCountsOff(:,:,intNeuron))
+				title(sprintf('Mean counts off, %d',intNeuron))
 				
-				subplot(2,3,3)
+				subplot(2,4,3)
 				imagesc(matMeanCountsOn(:,:,intNeuron) - matMeanCountsOff(:,:,intNeuron))
+				title(sprintf('Mean counts on-off, %d',intNeuron))
+				
+				subplot(2,4,4)
+				imagesc(matMeanCountsOn(:,:,intNeuron) + matMeanCountsOff(:,:,intNeuron))
+				title(sprintf('Mean counts on+off, %d',intNeuron))
+				colorbar;
+				
+			
+				subplot(2,4,5)
+				matZetaPlotOn = -norminv( matZetaOn(:,:,intNeuron) /2);
+				matZetaPlotOn(matZetaPlotOn<2)=2;
+				imagesc(matZetaPlotOn);
+				title(sprintf('ZETA on, %d',intNeuron))
+				
+				subplot(2,4,6)
+				matZetaPlotOff = -norminv( matZetaOff(:,:,intNeuron) /2);
+				matZetaPlotOff(matZetaPlotOff<2)=2;
+				imagesc(matZetaPlotOff)
+				title(sprintf('ZETA off, %d',intNeuron))
+				
+				subplot(2,4,7)
+				imagesc(matZetaPlotOn - matZetaPlotOff)
+				title(sprintf('ZETA on-off, %d',intNeuron))
+				
+				subplot(2,4,8)
+				imagesc(matZetaPlotOn + matZetaPlotOff)
+				title(sprintf('ZETA on+off, %d',intNeuron))
+				colorbar;
 				
 				drawnow;pause
 				
+				if 0
+					%%
+					save([strTargetPath filesep 'RF_ZETA']);
+					export_fig([strTargetPath filesep 'ExampleRF_' sRec.sJson.subject '_' sRec.sJson.date '_N316.tif']);
+					export_fig([strTargetPath filesep 'ExampleRF_' sRec.sJson.subject '_' sRec.sJson.date '_N316.pdf']);
+				end
 			end
 			%% go through stims
 			%{

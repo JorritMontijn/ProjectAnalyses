@@ -99,6 +99,7 @@ for intNeuron = 1:intNeurons
 	cellCoeffs0 = {0,0,0,[0,0,1],0,0};
 	[cellTheseCoeffs,matOutX,cellFunctions] = gnmfit(matX,vecY,cellCoeffs0,'gnmgauss',4);
 	cellCoefficients(intNeuron,:) = cellTheseCoeffs;
+	
 	%predict
 	vecPredY = gnmval(cellTheseCoeffs,matOutX,cellFunctions);
 	matPredY(:,intNeuron,1) = vecPredY;

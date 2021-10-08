@@ -412,8 +412,32 @@ title(cellAreaGroups{3});
 fixfig;
 
 %% confusion
-matAggConfusionWt
-matAggConfusionAlb
+matConfCtxWt = squeeze(mean(matAggConfusionWt(:,1,:,:),1));
+matConfNotWt = squeeze(mean(matAggConfusionWt(:,2,:,:),1));
+matConfHipWt = squeeze(mean(matAggConfusionWt(:,3,:,:),1));
+matConfCtxAlb = squeeze(mean(matAggConfusionAlb(:,1,:,:),1));
+matConfNotAlb = squeeze(mean(matAggConfusionAlb(:,2,:,:),1));
+matConfHipAlb = squeeze(mean(matAggConfusionAlb(:,3,:,:),1));
+
+figure
+subplot(2,3,1)
+imagesc(matConfCtxWt);
+title(['BL6 ' cellAreaGroups{1}]);
+subplot(2,3,2)
+imagesc(matConfNotWt);
+title(['BL6 ' cellAreaGroups{2}]);
+subplot(2,3,3)
+imagesc(matConfHipWt);
+title(['BL6 ' cellAreaGroups{3}]);
+subplot(2,3,4)
+imagesc(matConfCtxAlb);
+title(['Alb ' cellAreaGroups{1}]);
+subplot(2,3,5)
+imagesc(matConfNotAlb);
+title(['Alb ' cellAreaGroups{2}]);
+subplot(2,3,6)
+imagesc(matConfHipAlb);
+title(['Alb ' cellAreaGroups{3}]);
 %% save
 return
 drawnow;maxfig;

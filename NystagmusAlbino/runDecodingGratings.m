@@ -133,7 +133,6 @@ for intSubType=1:2
 			%include?
 			vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
 			indUseCells = arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
-			matUseData = matData(indUseCells,:);
 			
 			%% split cells into areas
 			%build cell vectors

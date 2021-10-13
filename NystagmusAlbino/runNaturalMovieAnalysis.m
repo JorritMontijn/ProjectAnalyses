@@ -25,15 +25,23 @@ strTargetPath = 'F:\Data\Results\AlbinoProject';
 
 %% define area categories
 %cortex
-cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
 %NOT
 cellUseAreas{2} = {'nucleus of the optic tract'};
 %hippocampus
-cellUseAreas{3} = {'Hippocampal formation','CA1','CA2','CA3','subiculum','dentate gyrus'};
+cellUseAreas{3} = {'Hippocampal formation','Field CA1','Field CA2','Field CA3','subiculum','dentate gyrus'};
 cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 
 %% pre-allocate
-			
+cellAreasPerExp = cell(1,numel(sExp));
+cellStimsPerExp = cell(1,numel(sExp));
+for intExp=1:numel(sExp)
+	sRec = sExp(intExp);
+	strName=[sRec.sJson.subject '_' sRec.sJson.date];
+	cellAreasPerExp{intExp} = unique({sExp(intExp).sCluster.Area})';
+	cellStimsPerExp{intExp} = [strName ':' char(cell2vec(cellfun(@(x) x.strExpType,sExp(intExp).cellBlock,'UniformOutput',false)))'];
+end
+
 %% run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
 cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
@@ -42,6 +50,7 @@ indRemRecs = contains(cellExperiment,cellRemove);
 indRemRecs2 = ~contains(cellNameAP,cellUseForEyeTracking);
 cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
 dblAverageMouseHeadTiltInSetup = -15;
+
 for intSubType=1:2
 	intPopCounter = 0;
 	if intSubType == 1
@@ -107,89 +116,96 @@ for intSubType=1:2
 				if intType == 1
 					figure;
 					vecStimOnTime = sRec.sSources.cellBlock{intBlock}.structEP.ActOnNI(~indRemTrials) - dblFirstSamp/dblSampNi;
+					vecStimOffTime = sRec.sSources.cellBlock{intBlock}.structEP.ActOffNI(~indRemTrials) - dblFirstSamp/dblSampNi;
 					strTit = 'NI-time';
 				else
 					vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);
+					vecStimOffTime = sBlock.vecStimOffTime(~indRemTrials);
 					strTit = 'Stim-time';
 				end
 				if numel(vecStimOnTime) <= 10,close;continue;end
-			intPopCounter = intPopCounter + 1;
-			vecStimOffTime = sBlock.vecStimOffTime(~indRemTrials);
-			cellSpikeT = {sRec.sCluster(:).SpikeTimes};
-			
-			%include?
-			vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
-			indUseCells = vecZetaP(:)<0.05 & arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
-			
-			%% split cells into areas
-			%build cell vectors
-			cellCellsPerArea = cell(1,numel(cellUseAreas));
-			cellAreasPerCluster = {sRec.sCluster.Area};
-			for intArea=1:numel(cellUseAreas)
-				cellCellsPerArea{intArea} = contains(cellAreasPerCluster,cellUseAreas{intArea},'IgnoreCase',true);
-			end
-			vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
-			
-			%% split data into bins
-			intTypeCV = 2;
-			dblLambda = 100;
-			intBinNr = 20;
-			dblMovieDur = roundi(median(vecStimOffTime-vecStimOnTime)*2,0);
-			dblBinDur = dblMovieDur/intBinNr;
-			vecBinOnset = linspace(0,dblMovieDur-dblBinDur,intBinNr);
-			
-			%build artificial stim vector
-			intRepNum = numel(vecStimOnTime);
-			vecBinOnT = flat(vecStimOnTime(:)' + vecBinOnset(:));
-			vecBinIdx = flat(repmat((1:intBinNr)',[1 intRepNum]));
-			matData = getSpikeCounts(cellSpikeT,vecBinOnT,dblBinDur);
-			
-			% decode movie
-			for intArea = 1%:numel(cellUseAreas)
-			%% select cells
-				vecSelectCells = find(indUseCells(:) & cellCellsPerArea{intArea}(:));
-				if isempty(vecSelectCells)
-					continue;
+				intPopCounter = intPopCounter + 1;
+				cellSpikeT = {sRec.sCluster(:).SpikeTimes};
+				
+				%include?
+				vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
+				indUseCells = vecZetaP(:)<0.05 & arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
+				
+				%% split cells into areas
+				%build cell vectors
+				cellCellsPerArea = cell(1,numel(cellUseAreas));
+				cellAreasPerCluster = {sRec.sCluster.Area};
+				for intArea=1:numel(cellUseAreas)
+					cellCellsPerArea{intArea} = contains(cellAreasPerCluster,cellUseAreas{intArea},'IgnoreCase',true);
 				end
+				vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
 				
-				%% plot
-				%[dblZetaP,vecLatencies,sZETA,sRate] = getZeta(cellSpikeT{vecSelectCells(5)},vecStimOnTime,20,[],3)
-			
-				%% decode movie
-				matUseData = matData(vecSelectCells,:);
-				vecPriorDistribution = intRepNum*ones(1,intBinNr);
-				[dblPerformanceCV,vecDecodedIndexCV,matPostProbability,dblMeanErrorDegs,matConfusionML] = doCrossValidatedDecodingML(matUseData,vecBinIdx,intTypeCV,vecPriorDistribution);
-				[dblPerformanceTM,vecDecodedIndexCV,matTemplateDistsCV,dblMeanErrorDegs,matConfusionTM] = doCrossValidatedDecodingTM(matUseData,vecBinIdx,intTypeCV,vecPriorDistribution);
-				[dblPerformanceLR,vecDecodedIndexCV,matPostProbability,dblMeanErrorDegs,matConfusionLR] = ...
-					doCrossValidatedDecodingLR(matUseData,vecBinIdx,intTypeCV,[],dblLambda);
-				[dblPerformanceLR2,vecDecodedIndexCV,matPostProbability,dblMeanErrorDegs,matConfusionLR2] = ...
-					doCrossValidatedDecodingLR(matUseData,vecBinIdx,intTypeCV,vecPriorDistribution,dblLambda);
+				%% split data into bins
+				intTypeCV = 2;
+				dblLambda = 100;
+				dblStimDur = median(vecStimOffTime-vecStimOnTime);
+				if dblStimDur < 9
+					dblMovieDur = 8; %new; actually 8.33
+					intBinNr = 8;
+				else
+					dblMovieDur = 20; %old
+					intBinNr = 20;
+				end
+				dblBinDur = dblMovieDur/intBinNr;
+				vecBinOnset = linspace(0,dblMovieDur-dblBinDur,intBinNr);
 				
+				%build artificial stim vector
+				intRepNum = numel(vecStimOnTime);
+				vecBinOnT = flat(vecStimOnTime(:)' + vecBinOnset(:));
+				vecBinIdx = flat(repmat((1:intBinNr)',[1 intRepNum]));
+				matData = getSpikeCounts(cellSpikeT,vecBinOnT,dblBinDur);
 				
-				subplot(2,4,1+(intType-1)*4)
-				imagesc(matConfusionML)
-				title([strTit '; ML: ' strName '_' num2str(intBlock)],'interpreter','none'); 
-				
-				subplot(2,4,2+(intType-1)*4)
-				imagesc(matConfusionTM)
-				title(['TM: ' strName '_' num2str(intBlock)],'interpreter','none'); 
-			
-				subplot(2,4,3+(intType-1)*4)
-				imagesc(matConfusionLR)
-				title(['LR: ' strName '_' num2str(intBlock)],'interpreter','none'); 
-				
-				subplot(2,4,4+(intType-1)*4)
-				imagesc(matConfusionLR2)
-				title(['LR2: ' strName '_' num2str(intBlock)],'interpreter','none'); 
-				
-				if intType == 2
-					maxfig;drawnow;
-					export_fig(fullpath(strTargetPath,['NatMovDecoding' getDate '.jpg']));
-					export_fig(fullpath(strTargetPath,['NatMovDecoding' getDate '.pdf']));
+				% decode movie
+				for intArea = 1%:numel(cellUseAreas)
+					%% select cells
+					vecSelectCells = find(indUseCells(:) & cellCellsPerArea{intArea}(:));
+					if isempty(vecSelectCells)
+						continue;
+					end
+					
+					%% plot
+					%[dblZetaP,vecLatencies,sZETA,sRate] = getZeta(cellSpikeT{vecSelectCells(5)},vecStimOnTime,20,[],3)
+					
+					%% decode movie
+					matUseData = matData(vecSelectCells,:);
+					vecPriorDistribution = intRepNum*ones(1,intBinNr);
+					[dblPerformanceCV,vecDecodedIndexCV,matPostProbability,dblMeanErrorDegs,matConfusionML] = doCrossValidatedDecodingML(matUseData,vecBinIdx,intTypeCV,vecPriorDistribution);
+					[dblPerformanceTM,vecDecodedIndexCV,matTemplateDistsCV,dblMeanErrorDegs,matConfusionTM] = doCrossValidatedDecodingTM(matUseData,vecBinIdx,intTypeCV,vecPriorDistribution);
+					[dblPerformanceLR,vecDecodedIndexCV,matPostProbability,dblMeanErrorDegs,matConfusionLR] = ...
+						doCrossValidatedDecodingLR(matUseData,vecBinIdx,intTypeCV,[],dblLambda);
+					[dblPerformanceLR2,vecDecodedIndexCV,matPostProbability,dblMeanErrorDegs,matConfusionLR2] = ...
+						doCrossValidatedDecodingLR(matUseData,vecBinIdx,intTypeCV,vecPriorDistribution,dblLambda);
+					
+					
+					subplot(2,4,1+(intType-1)*4)
+					imagesc(matConfusionML)
+					title([strTit '; ML: ' strName '_' num2str(intBlock)],'interpreter','none');
+					
+					subplot(2,4,2+(intType-1)*4)
+					imagesc(matConfusionTM)
+					title(['TM: ' strName '_' num2str(intBlock)],'interpreter','none');
+					
+					subplot(2,4,3+(intType-1)*4)
+					imagesc(matConfusionLR)
+					title(['LR: ' strName '_' num2str(intBlock)],'interpreter','none');
+					
+					subplot(2,4,4+(intType-1)*4)
+					imagesc(matConfusionLR2)
+					title(['LR2: ' strName '_' num2str(intBlock)],'interpreter','none');
+					
+					if intType == 2
+						maxfig;drawnow;
+						export_fig(fullpath(strTargetPath,['NatMovDecoding_' strName '.jpg']));
+						export_fig(fullpath(strTargetPath,['NatMovDecoding_' strName '.pdf']));
+					end
 				end
 			end
 		end
-	end
 	end
 	%% plot
 	

@@ -103,9 +103,16 @@ for intSubType=1:2
 			
 			%% prep data
 			%get data matrix
-			%vecStimOnTime = sRec.sSources.cellBlock{intBlock}.structEP.ActOnNI(~indRemTrials) - dblFirstSamp/dblSampNi;
-			vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);
-			if numel(vecStimOnTime) <= 10,continue;end
+			for intType=1:2
+				if intType == 1
+					figure;
+					vecStimOnTime = sRec.sSources.cellBlock{intBlock}.structEP.ActOnNI(~indRemTrials) - dblFirstSamp/dblSampNi;
+					strTit = 'NI-time';
+				else
+					vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);
+					strTit = 'Stim-time';
+				end
+				if numel(vecStimOnTime) <= 10,close;continue;end
 			intPopCounter = intPopCounter + 1;
 			vecStimOffTime = sBlock.vecStimOffTime(~indRemTrials);
 			cellSpikeT = {sRec.sCluster(:).SpikeTimes};
@@ -126,7 +133,7 @@ for intSubType=1:2
 			%% split data into bins
 			intTypeCV = 2;
 			dblLambda = 100;
-			intBinNr = 100;
+			intBinNr = 20;
 			dblMovieDur = roundi(median(vecStimOffTime-vecStimOnTime)*2,0);
 			dblBinDur = dblMovieDur/intBinNr;
 			vecBinOnset = linspace(0,dblMovieDur-dblBinDur,intBinNr);
@@ -158,36 +165,32 @@ for intSubType=1:2
 				[dblPerformanceLR2,vecDecodedIndexCV,matPostProbability,dblMeanErrorDegs,matConfusionLR2] = ...
 					doCrossValidatedDecodingLR(matUseData,vecBinIdx,intTypeCV,vecPriorDistribution,dblLambda);
 				
-				figure,
-				subplot(2,4,1)
-				imagesc(matConfusionML)
-				title(['ML: ' strName '_' num2str(intBlock)],'interpreter','none'); 
 				
-				subplot(2,4,2)
+				subplot(2,4,1+(intType-1)*4)
+				imagesc(matConfusionML)
+				title([strTit '; ML: ' strName '_' num2str(intBlock)],'interpreter','none'); 
+				
+				subplot(2,4,2+(intType-1)*4)
 				imagesc(matConfusionTM)
 				title(['TM: ' strName '_' num2str(intBlock)],'interpreter','none'); 
 			
-				subplot(2,4,3)
+				subplot(2,4,3+(intType-1)*4)
 				imagesc(matConfusionLR)
 				title(['LR: ' strName '_' num2str(intBlock)],'interpreter','none'); 
 				
-				subplot(2,4,4)
+				subplot(2,4,4+(intType-1)*4)
 				imagesc(matConfusionLR2)
 				title(['LR2: ' strName '_' num2str(intBlock)],'interpreter','none'); 
 				
-				continue;
-				
-				return
-				vecPerf(intArea) = dblPerformanceLR;
-				if strcmp(strSubjectType,'BL6')
-					matAggConfusionWt(intPopCounter,intArea,:,:) = matConfusionLR;
-				else
-					matAggConfusionAlb(intPopCounter,intArea,:,:) = matConfusionLR;
+				if intType == 2
+					maxfig;drawnow;
+					export_fig(fullpath(strTargetPath,['NatMovDecoding' getDate '.jpg']));
+					export_fig(fullpath(strTargetPath,['NatMovDecoding' getDate '.pdf']));
 				end
 			end
 		end
 	end
-	
+	end
 	%% plot
 	
 end

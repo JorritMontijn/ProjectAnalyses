@@ -14,23 +14,25 @@ if ~exist('sExp','var') || isempty(sExp)
 		end
 	end
 end
+
 %MP_20200115 eye tracking remove last stimulus (gunk in eye)
 cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
 cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
 cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
-strTargetPath = 'F:\Data\Results\AlbinoProject';
+strTargetPath = 'D:\Data\Results\AlbinoProject';
 
 %best rec BL6: 20191216B5 (rec 17)
 %best rec DBA: 20210212B2 (rec 5)
 
 %% define area categories
 %cortex
-cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
 %NOT
 cellUseAreas{2} = {'nucleus of the optic tract'};
 %hippocampus
-cellUseAreas{3} = {'Hippocampal formation','CA1','CA2','CA3','subiculum','dentate gyrus'};
+cellUseAreas{3} = {'Hippocampal formation','Field CA1','Field CA2','Field CA3','subiculum','dentate gyrus'};
 cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
 
 %% pre-allocate
 intStimNr = 24;
@@ -158,9 +160,12 @@ for intSubType=1:2
 			
 			%[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOriNoDir);
 			[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOrientation);
+			vecPriorDistribution = vecCounts;
 			intStimNr = numel(vecUnique);
+			figure
 			for intArea = 1:numel(cellUseAreas)
 				%% select cells
+				strAreaGroup =  cellAreaGroupsAbbr{intArea};
 				vecSelectCells = find(indUseCells(:) & cellCellsPerArea{intArea}(:));
 				if isempty(vecSelectCells)
 					continue;
@@ -186,8 +191,8 @@ for intSubType=1:2
 				matUseData = matData(vecSelectCells,:);
 				%[dblPerformanceCV,vecDecodedIndexCV,matTemplateDistsCV,dblMeanErrorDegs,matConfusion] = doCrossValidatedDecodingTM(matUseData,vecOriIdx,intTypeCV,vecPriorDistribution);
 				%vecPerfTM(intArea) = dblPerformanceCV;
-				[dblPerformanceLR,vecDecodedIndexCV_LR,matPosteriorProbability,matWeights,dblMeanErrorDegsLR,matConfusionLR] = ...
-					doCrossValidatedDecodingLR(matUseData,vecOrientation,intTypeCV,dblLambda);
+				[dblPerformanceLR,vecDecodedIndexCV_LR,matPosteriorProbability,dblMeanErrorDegsLR,matConfusionLR,matWeights] = ...
+					doCrossValidatedDecodingLR(matUseData,vecOrientation,intTypeCV,vecPriorDistribution,dblLambda);
 				vecPerf(intArea) = dblPerformanceLR;
 				if strcmp(strSubjectType,'BL6')
 					matAggConfusionWt(intPopCounter,intArea,:,:) = matConfusionLR;
@@ -195,8 +200,10 @@ for intSubType=1:2
 					matAggConfusionAlb(intPopCounter,intArea,:,:) = matConfusionLR;
 				end
 				
+				subplot(2,3,intArea)
+				imagesc(matConfusionLR)
+				title([strAreaGroup '; LR: ' strName '_' num2str(intBlock)],'interpreter','none');
 				
-
 				%% adjacent stims
 				for intStim1=1:intStimNr
 					intStim2 = intStim1-1;
@@ -213,12 +220,16 @@ for intSubType=1:2
 					%vecUsePriorDistribution = vecCounts([intStim1 intStim2]);
 					%[dblPerformanceCV,vecDecodedIndexCV,matTemplateDistsCV,dblMeanErrorDegs,matConfusion] = doCrossValidatedDecodingTM(matUseData,vecUseTrialTypes,intTypeCV,vecUsePriorDistribution);
 					%matPerfTM(intArea,intStim1) = dblPerformanceCV;
-					[dblPerformanceLR,vecDecodedIndexCV,matPosteriorProbability,matWeights,dblMeanErrorDegs,matConfusion] = ...
-						doCrossValidatedDecodingLR(matUseData,vecUseTrialTypes,intTypeCV,dblLambda);
+					[dblPerformanceLR,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
+						doCrossValidatedDecodingLR(matUseData,vecUseTrialTypes,intTypeCV,vecPriorDistribution([intStim1 intStim2]),dblLambda);
 					matPerf(intArea,intStim1) = dblPerformanceLR;
 					
 				end
 			end
+			maxfig;drawnow;
+			export_fig(fullpath(strTargetPath,['GratingDecoding_' strName 'B' num2str(intBlock) '.jpg']));
+			export_fig(fullpath(strTargetPath,['GratingDecoding_' strName 'B' num2str(intBlock) '.pdf']));
+
 			if strcmp(strSubjectType,'BL6')
 				vecAggPerfWt(end+1,:,:) = vecPerf;
 				matAggPerfWt(end+1,:,:) = matPerf;
@@ -437,8 +448,8 @@ title(['Alb ' cellAreaGroups{2}]);
 subplot(2,3,6)
 imagesc(matConfHipAlb);
 title(['Alb ' cellAreaGroups{3}]);
-%% save
 return
+%% save
 drawnow;maxfig;
 export_fig(fullpath(strTargetPath,['GratingTracking' getDate '.jpg']));
 export_fig(fullpath(strTargetPath,['GratingTracking' getDate '.pdf']));

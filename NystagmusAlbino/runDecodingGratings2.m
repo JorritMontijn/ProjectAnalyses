@@ -58,20 +58,21 @@ cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
 
 %% pre-allocate
-intStimNr = 24;
-vecAggPerfWt = nan(0,numel(cellUseAreas),1);
-matAggPerfWt = nan(0,numel(cellUseAreas),intStimNr);
-vecAggPerfAlb = nan(0,numel(cellUseAreas),1);
-matAggPerfAlb = nan(0,numel(cellUseAreas),intStimNr);
-matAggConfusionWt = nan(0,numel(cellUseAreas),intStimNr,intStimNr);
-matAggConfusionAlb = nan(0,numel(cellUseAreas),intStimNr,intStimNr);
+cellTuningP_AlbCtx = {};
+cellTuningP_Bl6Ctx = {};
+cellZetaP_AlbCtx = {};
+cellZetaP_Bl6Ctx = {};
 
-cellAggPrefWt = cell(0,numel(cellUseAreas));
-cellAggPrefAlb = cell(0,numel(cellUseAreas));
+cellTuningP_AlbNot = {};
+cellTuningP_Bl6Not = {};
+cellZetaP_AlbNot = {};
+cellZetaP_Bl6Not = {};
 
-cellAggMeanRespWt = cellfill(nan(0,intStimNr),[1 3]);
-cellAggMeanRespAlb = cellfill(nan(0,intStimNr),[1 3]);
-				
+cellTuningP_AlbHip = {};
+cellTuningP_Bl6Hip = {};
+cellZetaP_AlbHip = {};
+cellZetaP_Bl6Hip = {};
+			
 %% run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
 cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
@@ -80,7 +81,7 @@ indRemRecs = contains(cellExperiment,cellRemove);
 indRemRecs2 = ~contains(cellNameAP,cellUseForEyeTracking);
 cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
 dblAverageMouseHeadTiltInSetup = -15;
-for intSubType=2%1:2
+for intSubType=1:2
 	intPopCounter = 0;
 	if intSubType == 1
 		intBestRec = 17;
@@ -185,8 +186,8 @@ for intSubType=2%1:2
 			[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOrientation);
 			vecPriorDistribution = vecCounts;
 			intStimNr = numel(vecUnique);
-			figure
-			for intArea = 2%1:numel(cellUseAreas)
+			
+			for intArea = 1:numel(cellUseAreas)
 				%% select cells
 				strAreaGroup =  cellAreaGroupsAbbr{intArea};
 				vecSelectCells = find(indUseCells(:) & cellCellsPerArea{intArea}(:));
@@ -214,34 +215,121 @@ for intSubType=2%1:2
 					vecZetaP(intCellIdx) = dblZetaP;
 				end
 				[h, crit_p, vecZetaP_corr] = fdr_bh(vecZetaP);
-				for intCellIdx=1:numel(vecSelectCells)
-					intCell = vecSelectCells(intCellIdx);
-					vecSpikeT = cellSpikeT{intCell};
-					
-					[vecTime,vecRate] = getIFR(vecSpikeT,vecStimOnTime,dblTrialDur);
-
-					figure
-					subplot(2,3,1)
-					errorbar(sOut.vecUniqueDegs,sOut.matMeanResp(intCellIdx,:),sOut.matSDResp(intCellIdx,:)./sqrt(vecCounts(:)'));
-					xlabel('Stim ori (degs)');
-					ylabel('Mean rate (Hz)');
-					title(sprintf('tuning-p=%.3f (%.3e)',vecTuningP_R2_corr(intCellIdx),vecTuningP_R2_corr(intCellIdx)));
-					
-					subplot(2,3,2)
-					plot(vecTime,vecRate);
-					xlabel('Time (s)');
-					ylabel('Instantaneous rate (Hz)');
-					title(sprintf('Zeta-p=%.3f (%.3e)',vecZetaP_corr(intCellIdx),vecZetaP_corr(intCellIdx)));
-					
-					drawnow;
+				if 0 
+					%% plot
+					for intCellIdx=1:numel(vecSelectCells)
+						intCell = vecSelectCells(intCellIdx);
+						vecSpikeT = cellSpikeT{intCell};
+						
+						[vecTime,vecRate] = getIFR(vecSpikeT,vecStimOnTime,dblTrialDur);
+						
+						figure
+						subplot(2,3,1)
+						errorbar(sOut.vecUniqueDegs,sOut.matMeanResp(intCellIdx,:),sOut.matSDResp(intCellIdx,:)./sqrt(vecCounts(:)'));
+						xlabel('Stim ori (degs)');
+						ylabel('Mean rate (Hz)');
+						title(sprintf('tuning-p=%.3f (%.3e)',vecTuningP_R2_corr(intCellIdx),vecTuningP_R2_corr(intCellIdx)));
+						
+						subplot(2,3,2)
+						plot(vecTime,vecRate);
+						xlabel('Time (s)');
+						ylabel('Instantaneous rate (Hz)');
+						title(sprintf('Zeta-p=%.3f (%.3e)',vecZetaP_corr(intCellIdx),vecZetaP_corr(intCellIdx)));
+						
+						drawnow;
+						
+					end
 				end
-				return
 				
+				%% save data
+				if intArea == 1
+					if strcmpi(strSubjectType,'DBA')
+						cellTuningP_AlbCtx{end+1} = vecTuningP_R2_corr;
+						cellZetaP_AlbCtx{end+1} = vecZetaP_corr;
+					elseif strcmpi(strSubjectType,'Bl6')
+						cellTuningP_Bl6Ctx{end+1} = vecTuningP_R2_corr;
+						cellZetaP_Bl6Ctx{end+1} = vecZetaP_corr;
+					end
+				elseif intArea == 2
+					if strcmpi(strSubjectType,'DBA')
+						cellTuningP_AlbNot{end+1} = vecTuningP_R2_corr;
+						cellZetaP_AlbNot{end+1} = vecZetaP_corr;
+					elseif strcmpi(strSubjectType,'Bl6')
+						cellTuningP_Bl6Not{end+1} = vecTuningP_R2_corr;
+						cellZetaP_Bl6Not{end+1} = vecZetaP_corr;
+					end
+				elseif intArea == 3
+					if strcmpi(strSubjectType,'DBA')
+						cellTuningP_AlbHip{end+1} = vecTuningP_R2_corr;
+						cellZetaP_AlbHip{end+1} = vecZetaP_corr;
+					elseif strcmpi(strSubjectType,'Bl6')
+						cellTuningP_Bl6Hip{end+1} = vecTuningP_R2_corr;
+						cellZetaP_Bl6Hip{end+1} = vecZetaP_corr;
+					end
+				end
 			end
 			
 		end
 	end
-	
-	%% plot
-	
 end
+
+
+%% plot scatter of zeta-p versus tuning-p in Ctx, NOT, and Hip; colored by Alb/BL6
+%vectorize
+vecTuningP_AlbCtx = cell2vec(cellTuningP_AlbCtx);
+vecTuningP_Bl6Ctx = cell2vec(cellTuningP_Bl6Ctx);
+vecZetaP_AlbCtx = cell2vec(cellZetaP_AlbCtx);
+vecZetaP_Bl6Ctx = cell2vec(cellZetaP_Bl6Ctx);
+
+vecTuningP_AlbNot = cell2vec(cellTuningP_AlbNot);
+vecTuningP_Bl6Not = cell2vec(cellTuningP_Bl6Not);
+vecZetaP_AlbNot = cell2vec(cellZetaP_AlbNot);
+vecZetaP_Bl6Not = cell2vec(cellZetaP_Bl6Not);
+
+vecTuningP_AlbHip = cell2vec(cellTuningP_AlbHip);
+vecTuningP_Bl6Hip = cell2vec(cellTuningP_Bl6Hip);
+vecZetaP_AlbHip = cell2vec(cellZetaP_AlbHip);
+vecZetaP_Bl6Hip = cell2vec(cellZetaP_Bl6Hip);
+
+%correlations
+vecCorrAlbCtx = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_AlbCtx,cellTuningP_AlbCtx);
+vecCorrBl6Ctx = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_Bl6Ctx,cellTuningP_Bl6Ctx);
+vecCorrAlbNot = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_AlbNot,cellTuningP_AlbNot);
+vecCorrBl6Not = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_Bl6Not,cellTuningP_Bl6Not);
+vecCorrAlbHip = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_AlbHip,cellTuningP_AlbHip);
+vecCorrBl6Hip = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_Bl6Hip,cellTuningP_Bl6Hip);
+
+%% plot scatter of corr(zeta-p,tuning-p) per recording in Ctx, NOT, and Hip; colored by Alb/BL6
+error('remove nans & recordings with few cells, plot recording-based corrs, test significance')
+%ctx
+dblR_AlbCtx = nancorr(-norminv(vecZetaP_AlbCtx/2),-norminv(vecTuningP_AlbCtx/2));
+dblR_Bl6Ctx = nancorr(-norminv(vecZetaP_Bl6Ctx/2),-norminv(vecTuningP_Bl6Ctx/2));
+
+subplot(2,3,1)
+hold on;
+scatter(-norminv(vecZetaP_AlbCtx/2),-norminv(vecTuningP_AlbCtx/2),[],'r','x');
+scatter(-norminv(vecZetaP_Bl6Ctx/2),-norminv(vecTuningP_Bl6Ctx/2),[],'b','x');
+hold off
+fixfig;
+
+%not
+[dblR_AlbNot,p_an,rl_an,ru_an] = corrcoef(-norminv(vecZetaP_AlbNot/2),-norminv(vecTuningP_AlbNot/2));
+[dblR_Bl6Not,p_bn,rl_bn,ru_bn] = corrcoef(-norminv(vecZetaP_Bl6Not/2),-norminv(vecTuningP_Bl6Not/2));
+
+subplot(2,3,2)
+hold on;
+scatter(-norminv(vecZetaP_AlbNot/2),-norminv(vecTuningP_AlbNot/2),[],'r','x');
+scatter(-norminv(vecZetaP_Bl6Not/2),-norminv(vecTuningP_Bl6Not/2),[],'b','x');
+hold off
+fixfig;
+
+%hip
+dblR_AlbHip = nancorr(-norminv(vecZetaP_AlbHip/2),-norminv(vecTuningP_AlbHip/2));
+dblR_Bl6Hip = nancorr(-norminv(vecZetaP_Bl6Hip/2),-norminv(vecTuningP_Bl6Hip/2));
+
+subplot(2,3,3)
+hold on;
+scatter(-norminv(vecZetaP_AlbHip/2),-norminv(vecTuningP_AlbHip/2),[],'r','x');
+scatter(-norminv(vecZetaP_Bl6Hip/2),-norminv(vecTuningP_Bl6Hip/2),[],'b','x');
+hold off
+fixfig;

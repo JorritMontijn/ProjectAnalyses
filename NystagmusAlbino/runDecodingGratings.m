@@ -134,7 +134,8 @@ for intSubType=1:2
 			
 			%include?
 			vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
-			indUseCells = arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
+			%indUseCells = arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
+			indUseCells = arrayfun(@(x) x.Violations1ms < 0.25 & abs(x.NonStationarity) < 0.25,sRec.sCluster(:));
 			
 			%% split cells into areas
 			%build cell vectors
@@ -246,7 +247,7 @@ for intSubType=1:2
 	%% plot
 	
 end
-
+%%
 vecMeanWtPerfCtx = squeeze(nanmean(matAggPerfWt(:,1,:),1));
 vecMeanWtPerfNot = squeeze(nanmean(matAggPerfWt(:,2,:),1));
 vecMeanWtPerfHip = squeeze(nanmean(matAggPerfWt(:,3,:),1));

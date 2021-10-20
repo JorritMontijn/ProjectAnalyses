@@ -137,9 +137,11 @@ for intSubType=1:2
 					cellSpikeT = {sRec.sCluster(:).SpikeTimes};
 					
 					%include?
+					error what to include
 					vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
 					indUseCells = vecZetaP(:)<0.05 & arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
-					
+					indUseCells = arrayfun(@(x) x.Violations1ms < 0.25 & abs(x.NonStationarity) < 0.25,sRec.sCluster(:));
+			
 					%% split cells into areas
 					%build cell vectors
 					vecSelectCells = find(indUseCells(:) & cellCellsPerArea{intArea}(:));

@@ -385,7 +385,7 @@ for intAreaType=1:2
 	xlabel('Responsiveness z-score (ZETA)');
 	ylabel('Fraction of cells (norm. count)');
 	fixfig;
-	title(sprintf('%s, ZETA-Z DBA (mu=%.3f) BL6 (mu=%.3f),p=%.3f',strAreaType,mean(vecZetaZ_Alb),mean(vecZetaZ_Bl6),p_ZZN));
+	title(sprintf('%s, ZETA-Z DBA (mu=%.3f) BL6 (mu=%.3f),p=%.6f',strAreaType,mean(vecZetaZ_Alb),mean(vecZetaZ_Bl6),p_ZZN));
 	
 	[h,p_TZN] = ttest2(vecTuningZ_Bl6,vecTuningZ_Alb);
 	vecRawP(intAreaType+3) = p_TZN;
@@ -400,7 +400,7 @@ for intAreaType=1:2
 	xlabel('Ori tuning z-score (sd)');
 	ylabel('Fraction of cells (norm. count)');
 	fixfig;
-	title(sprintf('%s, Tuning-Z DBA (mu=%.3f) BL6 (mu=%.3f),p=%.3f',strAreaType,mean(vecTuningZ_Alb),mean(vecTuningZ_Bl6),p_TZN));
+	title(sprintf('%s, Tuning-Z DBA (mu=%.3f) BL6 (mu=%.3f),p=%.6f',strAreaType,mean(vecTuningZ_Alb),mean(vecTuningZ_Bl6),p_TZN));
 end
 [h,i,vecCorr_P] = fdr_bh(vecRawP(~isnan(vecRawP)));
 [vecCorr_P2] = bonf_holm(vecRawP);
@@ -490,7 +490,7 @@ for intAreaGroup=1:2
 	%alb
 	vecJitter = (rand(size(vecTempAlb))-0.5)*2*(1/16) + (mod(1:numel(vecTempAlb),2)*2-1)*(1/16);
 	scatter(2*ones(size(vecTempAlb)) + vecJitter,vecTempAlb,dblSize,[0.9 0 0],'.');
-	title(sprintf('%s; r_BL6=%.3f (b);r_DBA=%.3f (r);p=%.3f',cellAreaGroupsAbbr{intAreaGroup},mean(vecTempBl6),mean(vecTempAlb),p_corr),'interpreter','none');
+	title(sprintf('%s; r_BL6=%.3f (b);r_DBA=%.3f (r);p=%.6f',cellAreaGroupsAbbr{intAreaGroup},mean(vecTempBl6),mean(vecTempAlb),p_corr),'interpreter','none');
 	ylabel('Correlation R(Tuning, Responsive)');
 	set(gca,'xtick',[1 2],'xticklabel',{'BL6','DBA'});
 	hold off
@@ -500,17 +500,17 @@ for intAreaGroup=1:2
 	h.LineWidth=3;
 	
 	%plot examples
-	subplot(2,3,intAreaGroup+3)
+	%subplot(2,3,intAreaGroup+3)
 	vecExampleAlbZ = eval(['cellZetaP_Alb' cellAreaGroupsAbbr{intAreaGroup} '{1}(:);']);
 	vecExampleAlbT = eval(['cellTuningP_Alb' cellAreaGroupsAbbr{intAreaGroup} '{1}(:);']);
 	
 	vecExampleBl6Z = eval(['cellZetaP_Bl6' cellAreaGroupsAbbr{intAreaGroup} '{1}(:);']);
 	vecExampleBl6T = eval(['cellTuningP_Bl6' cellAreaGroupsAbbr{intAreaGroup} '{1}(:);']);
 	
-	scatter(-norminv(vecExampleBl6Z/2),-norminv(vecExampleBl6T/2),[],vecColBl6)
-	hold on
-	scatter(-norminv(vecExampleAlbZ/2),-norminv(vecExampleAlbT/2),[],vecColAlb)
-	hold off
+	%scatter(-norminv(vecExampleBl6Z/2),-norminv(vecExampleBl6T/2),[],vecColBl6)
+	%hold on
+	%scatter(-norminv(vecExampleAlbZ/2),-norminv(vecExampleAlbT/2),[],vecColAlb)
+	%hold off
 end
 
 
@@ -538,10 +538,8 @@ vecTAN = cellfun(@(x) mean(-norminv(x/2)),cellTuningP_AlbNOT);
 %[h,p2c]=ttest2(vecTBH,vecTAH);
 
 %% plot corr(zeta-p,tuning-p) per recording in Ctx, NOT, and Hip; colored by Alb/BL6
-
-
-error('remove nans & recordings with few cells, plot recording-based corrs, test significance')
-%%
+return
+%
 %ctx
 dblR_AlbCtx = nancorr(-norminv(vecZetaP_AlbCtx/2),-norminv(vecTuningP_AlbCtx/2));
 dblR_Bl6Ctx = nancorr(-norminv(vecZetaP_Bl6Ctx/2),-norminv(vecTuningP_Bl6Ctx/2));

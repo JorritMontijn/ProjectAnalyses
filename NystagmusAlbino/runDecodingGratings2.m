@@ -1,26 +1,8 @@
-%% further analyses
+%%
 %{
-1) how do confusion matrices of ori decoding differ between alb/bl6?
-
-2) is neural code of nat movs more variable during eye movements in NOT than Ctx?
-
-3) does info in NOT predict info in V1?
-
-4) spike shape NOT vs Ctx
-
-%to do:
-A) plot tuning in NOT as function of location in NOT: is a recording closer to the border more likely
-to be tuned?
-
-B) plot tuning as second-closest pair decoding
-
-C) plot results as separate recordings (and make selection of recordings based on visual
-responsiveness)
-
-D) plot example NOT cells that respond visually but are not orientation tuned
+edit to run like runDecodingGratings, but compare BL6/DBA properly
 
 %}
-
 %% load data
 strDataPath = 'E:\DataPreProcessed';
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
@@ -49,33 +31,29 @@ strTargetPath = 'D:\Data\Results\AlbinoProject';
 
 %% define area categories
 %cortex
-%cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
 %NOT
 cellUseAreas{2} = {'nucleus of the optic tract'};
 %hippocampus
-%cellUseAreas{3} = {'Hippocampal','Field CA1','Field CA2','Field CA3','subiculum','Postsubiculum','Prosubiculum','dentate gyrus'};
-cellUseAreas{3} = {'superior colliculus'};
+cellUseAreas{3} = {'Hippocampal formation','Field CA1','Field CA2','Field CA3','subiculum','dentate gyrus'};
 cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
-cellSubjectGroups = {'BL6','DBA'};
 
 %% pre-allocate
-cellTuningP_AlbCtx = {};
-cellTuningP_Bl6Ctx = {};
-cellZetaP_AlbCtx = {};
-cellZetaP_Bl6Ctx = {};
+intStimNr = 24;
+vecAggPerfWt = nan(0,numel(cellUseAreas),1);
+matAggPerfWt = nan(0,numel(cellUseAreas),intStimNr);
+vecAggPerfAlb = nan(0,numel(cellUseAreas),1);
+matAggPerfAlb = nan(0,numel(cellUseAreas),intStimNr);
+matAggConfusionWt = nan(0,numel(cellUseAreas),intStimNr,intStimNr);
+matAggConfusionAlb = nan(0,numel(cellUseAreas),intStimNr,intStimNr);
 
-cellTuningP_AlbNOT = {};
-cellTuningP_Bl6NOT = {};
-cellZetaP_AlbNOT = {};
-cellZetaP_Bl6NOT = {};
+cellAggPrefWt = cell(0,numel(cellUseAreas));
+cellAggPrefAlb = cell(0,numel(cellUseAreas));
 
-cellTuningP_AlbHip = {};
-cellTuningP_Bl6Hip = {};
-cellZetaP_AlbHip = {};
-cellZetaP_Bl6Hip = {};
-
+cellAggMeanRespWt = cellfill(nan(0,intStimNr),[1 3]);
+cellAggMeanRespAlb = cellfill(nan(0,intStimNr),[1 3]);
+				
 %% run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
 cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
@@ -151,13 +129,13 @@ for intSubType=1:2
 			vecOrientation(indRemTrials) = [];
 			[vecOriIdx,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOrientation);
 			if numel(vecUnique) ~= 24,continue,end
-			numel({sTrialObjects.Orientation})
+			
 			%get data matrix
 			cellSpikeT = {sRec.sCluster(:).SpikeTimes};
 			vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);
 			vecStimOffTime = sBlock.vecStimOffTime(~indRemTrials);
-			dblStimDur = median(vecStimOffTime-vecStimOnTime);
-			matData = getSpikeCounts(cellSpikeT,vecStimOnTime,dblStimDur);
+			dblDur = median(vecStimOffTime-vecStimOnTime);
+			matData = getSpikeCounts(cellSpikeT,vecStimOnTime,dblDur);
 			
 			%include?
 			vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
@@ -173,11 +151,11 @@ for intSubType=1:2
 			end
 			vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
 			
-			%% go through areas
+			%% go through adjacent stimuli
 			%pre-allocate
-			%vecPerf = nan(numel(cellUseAreas),1);
-			%matPerf = nan(numel(cellUseAreas),intStimNr);
-			%cellPref = cell(numel(cellUseAreas),1);
+			vecPerf = nan(numel(cellUseAreas),1);
+			matPerf = nan(numel(cellUseAreas),intStimNr);
+			cellPref = cell(numel(cellUseAreas),1);
 			
 			%params
 			intTypeCV = 2; %leave repetition out
@@ -190,7 +168,7 @@ for intSubType=1:2
 			[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOrientation);
 			vecPriorDistribution = vecCounts;
 			intStimNr = numel(vecUnique);
-			
+			figure
 			for intArea = 1:numel(cellUseAreas)
 				%% select cells
 				strAreaGroup =  cellAreaGroupsAbbr{intArea};
@@ -199,384 +177,285 @@ for intSubType=1:2
 					continue;
 				end
 				
-				%% calc tuning curves & zeta
-				%calc tuning curve
+				%% calc tuning curves
 				matUseData = matData(vecSelectCells,:);
 				sOut = getTuningCurves(matUseData,vecOrientation);
-				vecTuningP_A = sOut.vecOriAnova;
-				vecTuningP_R2 = sOut.vecFitP;
-				%[h, crit_p, vecTuningP_R2_corr] = fdr_bh(vecTuningP_R2);
-				vecTuningP_R2_corr = vecTuningP_R2;
 				vecPrefOri = rad2deg(sOut.matFittedParams(:,1));
-				indTunedCells = vecTuningP_R2<0.05;
-				
-				%calc zeta
-				vecZetaP = nan(1,numel(vecSelectCells));
-				dblTrialDur = 1.5;
-				for intCellIdx=1:numel(vecSelectCells)
-					intCell = vecSelectCells(intCellIdx);
-					vecSpikeT = cellSpikeT{intCell};
-					dblZetaP = getZeta(vecSpikeT,vecStimOnTime,dblTrialDur);
-					vecZetaP(intCellIdx) = dblZetaP;
+				indKeepCells = sOut.vecFitP<0.05;
+				if intArea==3
+					indKeepCells = true(size(indKeepCells));
 				end
-				%[h, crit_p, vecZetaP_corr] = fdr_bh(vecZetaP);
-				vecZetaP_corr = vecZetaP;
-				if 0
-					%% plot
-					for intCellIdx=1:numel(vecSelectCells)
-						intCell = vecSelectCells(intCellIdx);
-						vecSpikeT = cellSpikeT{intCell};
-						
-						[vecTime,vecRate] = getIFR(vecSpikeT,vecStimOnTime,dblTrialDur);
-						
-						figure
-						subplot(2,3,1)
-						errorbar(sOut.vecUniqueDegs,sOut.matMeanResp(intCellIdx,:),sOut.matSDResp(intCellIdx,:)./sqrt(vecCounts(:)'));
-						xlabel('Stim ori (degs)');
-						ylabel('Mean rate (Hz)');
-						title(sprintf('tuning-p=%.3f (%.3e)',vecTuningP_R2_corr(intCellIdx),vecTuningP_R2_corr(intCellIdx)));
-						
-						subplot(2,3,2)
-						plot(vecTime,vecRate);
-						xlabel('Time (s)');
-						ylabel('Instantaneous rate (Hz)');
-						title(sprintf('Zeta-p=%.3f (%.3e)',vecZetaP_corr(intCellIdx),vecZetaP_corr(intCellIdx)));
-						
-						drawnow;
-						
-					end
+				vecPrefOri(~indKeepCells)=[];
+				cellPref{intArea} = vecPrefOri;
+				if strcmp(strSubjectType,'BL6')
+					cellAggMeanRespWt{intArea} = cat(1,cellAggMeanRespWt{intArea},sOut.matMeanResp(indKeepCells,:));
+				else
+					cellAggMeanRespAlb{intArea} = cat(1,cellAggMeanRespAlb{intArea},sOut.matMeanResp(indKeepCells,:));
 				end
 				
-				%% save data
-				if intArea == 1
-					if strcmpi(strSubjectType,'DBA')
-						cellTuningP_AlbCtx{end+1} = vecTuningP_R2_corr;
-						cellZetaP_AlbCtx{end+1} = vecZetaP_corr;
-					elseif strcmpi(strSubjectType,'Bl6')
-						cellTuningP_Bl6Ctx{end+1} = vecTuningP_R2_corr;
-						cellZetaP_Bl6Ctx{end+1} = vecZetaP_corr;
-					end
-				elseif intArea == 2
-					if strcmpi(strSubjectType,'DBA')
-						cellTuningP_AlbNOT{end+1} = vecTuningP_R2_corr;
-						cellZetaP_AlbNOT{end+1} = vecZetaP_corr;
-					elseif strcmpi(strSubjectType,'Bl6')
-						cellTuningP_Bl6NOT{end+1} = vecTuningP_R2_corr;
-						cellZetaP_Bl6NOT{end+1} = vecZetaP_corr;
-					end
-				elseif intArea == 3
-					if strcmpi(strSubjectType,'DBA')
-						cellTuningP_AlbHip{end+1} = vecTuningP_R2_corr;
-						cellZetaP_AlbHip{end+1} = vecZetaP_corr;
-					elseif strcmpi(strSubjectType,'Bl6')
-						cellTuningP_Bl6Hip{end+1} = vecTuningP_R2_corr;
-						cellZetaP_Bl6Hip{end+1} = vecZetaP_corr;
-					end
+				%% decode all
+				matUseData = matData(vecSelectCells,:);
+				%[dblPerformanceCV,vecDecodedIndexCV,matTemplateDistsCV,dblMeanErrorDegs,matConfusion] = doCrossValidatedDecodingTM(matUseData,vecOriIdx,intTypeCV,vecPriorDistribution);
+				%vecPerfTM(intArea) = dblPerformanceCV;
+				[dblPerformanceLR,vecDecodedIndexCV_LR,matPosteriorProbability,dblMeanErrorDegsLR,matConfusionLR,matWeights] = ...
+					doCrossValidatedDecodingLR(matUseData,vecOrientation,intTypeCV,vecPriorDistribution,dblLambda);
+				vecPerf(intArea) = dblPerformanceLR;
+				if strcmp(strSubjectType,'BL6')
+					matAggConfusionWt(intPopCounter,intArea,:,:) = matConfusionLR;
+				else
+					matAggConfusionAlb(intPopCounter,intArea,:,:) = matConfusionLR;
 				end
+				
+				subplot(2,3,intArea)
+				imagesc(matConfusionLR)
+				title([strAreaGroup '; LR: ' strName '_' num2str(intBlock)],'interpreter','none');
+				
+				%% adjacent stims
+				for intStim1=1:intStimNr
+					intStim2 = intStim1-1;
+					if intStim2==0
+						intStim2=intStimNr;
+					end
+					indStim1 = cellSelect{intStim1};
+					indStim2 = cellSelect{intStim2};
+					vecUseTrialTypes = vecTrialTypes(indStim1 | indStim2);
+					
+					%select data
+					matUseData = matData(vecSelectCells,indStim1 | indStim2);
+					%decode
+					%vecUsePriorDistribution = vecCounts([intStim1 intStim2]);
+					%[dblPerformanceCV,vecDecodedIndexCV,matTemplateDistsCV,dblMeanErrorDegs,matConfusion] = doCrossValidatedDecodingTM(matUseData,vecUseTrialTypes,intTypeCV,vecUsePriorDistribution);
+					%matPerfTM(intArea,intStim1) = dblPerformanceCV;
+					[dblPerformanceLR,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
+						doCrossValidatedDecodingLR(matUseData,vecUseTrialTypes,intTypeCV,vecPriorDistribution([intStim1 intStim2]),dblLambda);
+					matPerf(intArea,intStim1) = dblPerformanceLR;
+					
+				end
+			end
+			maxfig;drawnow;
+			export_fig(fullpath(strTargetPath,['GratingDecoding_' strName 'B' num2str(intBlock) '.jpg']));
+			export_fig(fullpath(strTargetPath,['GratingDecoding_' strName 'B' num2str(intBlock) '.pdf']));
+
+			if strcmp(strSubjectType,'BL6')
+				vecAggPerfWt(end+1,:,:) = vecPerf;
+				matAggPerfWt(end+1,:,:) = matPerf;
+				cellAggPrefWt(end+1,:) = cellPref;
+			else
+				vecAggPerfAlb(end+1,:,:) = vecPerf;
+				matAggPerfAlb(end+1,:,:) = matPerf;
+				cellAggPrefAlb(end+1,:) = cellPref;
 			end
 			
 		end
 	end
+	
+	%% plot
+	
 end
-
-%get all areas
-cellAllAreas = arrayfun(@(x) unique({x.sCluster.Area}), sExp,'uniformoutput',false);
-cellAllAreas = unique(horzcat(cellAllAreas{:}));
-
-%% plot scatter of zeta-p versus tuning-p in Ctx, NOT, and Hip; colored by Alb/BL6
-%remove nans
-cellMouseType = {'Alb','Bl6'};
-for intMouseType=1:2
-	strMouseType = cellMouseType{intMouseType};
-	for intAreaType=1:3
-		strAreaType = cellAreaGroupsAbbr{intAreaType};
-		
-		strTuningVar = strcat('cellTuningP_',strMouseType,strAreaType);
-		strZetaVar = strcat('cellZetaP_',strMouseType,strAreaType);
-		cellTempTuningVar = eval(strTuningVar);
-		cellTempZetaVar = eval(strZetaVar);
-		
-		intRecs = numel(cellTempTuningVar);
-		for intRec=1:intRecs
-			indNan = isnan(cellTempTuningVar{intRec}(:)) | isnan(cellTempZetaVar{intRec}(:));
-			cellTempTuningVar{intRec}(indNan) = [];
-			cellTempZetaVar{intRec}(indNan) = [];
-		end
-		
-		%remove recs with low #
-		intCutOff = 3;
-		indRemRecs = cellfun(@(x) numel(x)<intCutOff,cellTempTuningVar) | cellfun(@(x) numel(x)<intCutOff,cellTempZetaVar);
-		cellTempTuningVar(indRemRecs) = [];
-		cellTempZetaVar(indRemRecs) = [];
-		
-		
-		eval([strTuningVar ' = cellTempTuningVar;'])
-		eval([strZetaVar ' = cellTempZetaVar;'])
-	end
-end
-%% vectorize
-vecTuningP_AlbCtx = cell2vec(cellTuningP_AlbCtx);
-vecTuningP_Bl6Ctx = cell2vec(cellTuningP_Bl6Ctx);
-vecZetaP_AlbCtx = cell2vec(cellZetaP_AlbCtx);
-vecZetaP_Bl6Ctx = cell2vec(cellZetaP_Bl6Ctx);
-
-vecTuningP_AlbNOT = cell2vec(cellTuningP_AlbNOT);
-vecTuningP_Bl6NOT = cell2vec(cellTuningP_Bl6NOT);
-vecZetaP_AlbNOT = cell2vec(cellZetaP_AlbNOT);
-vecZetaP_Bl6NOT = cell2vec(cellZetaP_Bl6NOT);
-
-%vecTuningP_AlbHip = cell2vec(cellTuningP_AlbHip);
-%vecTuningP_Bl6Hip = cell2vec(cellTuningP_Bl6Hip);
-%vecZetaP_AlbHip = cell2vec(cellZetaP_AlbHip);
-%vecZetaP_Bl6Hip = cell2vec(cellZetaP_Bl6Hip);
-
-%correlations
-vecCorrAlbCtx = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_AlbCtx,cellTuningP_AlbCtx);
-vecCorrBl6Ctx = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_Bl6Ctx,cellTuningP_Bl6Ctx);
-vecCorrAlbNOT = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_AlbNOT,cellTuningP_AlbNOT);
-vecCorrBl6NOT = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_Bl6NOT,cellTuningP_Bl6NOT);
-%vecCorrAlbHip = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_AlbHip,cellTuningP_AlbHip);
-%vecCorrBl6Hip = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_Bl6Hip,cellTuningP_Bl6Hip);
-
-%test
-[h,p_Ctx] = ttest2(vecCorrAlbCtx,vecCorrBl6Ctx);
-[h,p_Not] = ttest2(vecCorrAlbNOT,vecCorrBl6NOT);
-%[h,p_Hip] = ttest2(vecCorrAlbHip,vecCorrBl6Hip);
-
-%% plot
-figure;maxfig;
-vecRawP = nan(1,6);
-for intAreaType=1:2
-	strAreaType = cellAreaGroupsAbbr{intAreaType};
-	
-	strTuningAlbVar = strcat('vecTuningP_Alb',strAreaType);
-	strZetaAlbVar = strcat('vecZetaP_Alb',strAreaType);
-	strTuningBl6Var = strcat('vecTuningP_Bl6',strAreaType);
-	strZetaBl6Var = strcat('vecZetaP_Bl6',strAreaType);
-	
-	vecTuningP_AlbTemp = eval(strTuningAlbVar);
-	vecTuningP_Bl6Temp = eval(strTuningBl6Var);
-	vecZetaP_AlbTemp = eval(strZetaAlbVar);
-	vecZetaP_Bl6Temp = eval(strZetaBl6Var);
-	
-	vecTuningZ_Bl6 = -norminv(vecTuningP_Bl6Temp/2);
-	vecTuningZ_Alb = -norminv(vecTuningP_AlbTemp/2);
-	vecZetaZ_Bl6 = -norminv(vecZetaP_Bl6Temp/2);
-	vecZetaZ_Alb = -norminv(vecZetaP_AlbTemp/2);
-	
-	vecColAlb = [0.9 0 0];
-	vecColBl6 = lines(1);
-	
-	
-	dblMax = max(cat(1,vecTuningZ_Bl6,vecTuningZ_Alb,vecZetaZ_Bl6,vecZetaZ_Alb));
-	dblStep = 1;
-	vecBins=0:dblStep:dblMax;
-	vecPlotBins = vecBins(2:end)-dblStep/2;
-	[h,p_ZZN] = ttest2(vecZetaZ_Bl6,vecZetaZ_Alb);
-	vecRawP(intAreaType) = p_ZZN;
-	vecCountsZetaZ_Bl6=histcounts(vecZetaZ_Bl6,vecBins);
-	vecCountsZetaZ_Alb=histcounts(vecZetaZ_Alb,vecBins);
-	subplot(2,3,intAreaType)
-	plot(vecPlotBins,vecCountsZetaZ_Bl6./sum(vecCountsZetaZ_Bl6),'color',vecColBl6);
-	hold on
-	plot(vecPlotBins,vecCountsZetaZ_Alb./sum(vecCountsZetaZ_Alb),'color',vecColAlb);
-	hold off
-	legend({'BL6','DBA'},'location','best');
-	xlabel('Responsiveness z-score (ZETA)');
-	ylabel('Fraction of cells (norm. count)');
-	fixfig;
-	title(sprintf('%s, ZETA-Z DBA (mu=%.3f) BL6 (mu=%.3f),p=%.3f',strAreaType,mean(vecZetaZ_Alb),mean(vecZetaZ_Bl6),p_ZZN));
-	
-	[h,p_TZN] = ttest2(vecTuningZ_Bl6,vecTuningZ_Alb);
-	vecRawP(intAreaType+3) = p_TZN;
-	vecCountsTuningZ_Bl6=histcounts(vecTuningZ_Bl6,vecBins);
-	vecCountsTuningZ_Alb=histcounts(vecTuningZ_Alb,vecBins);
-	subplot(2,3,intAreaType+3)
-	plot(vecPlotBins,vecCountsTuningZ_Bl6./sum(vecCountsTuningZ_Bl6),'color',vecColBl6);
-	hold on
-	plot(vecPlotBins,vecCountsTuningZ_Alb./sum(vecCountsTuningZ_Alb),'color',vecColAlb);
-	hold off
-	legend({'BL6','DBA'},'location','best');
-	xlabel('Ori tuning z-score (sd)');
-	ylabel('Fraction of cells (norm. count)');
-	fixfig;
-	title(sprintf('%s, Tuning-Z DBA (mu=%.3f) BL6 (mu=%.3f),p=%.3f',strAreaType,mean(vecTuningZ_Alb),mean(vecTuningZ_Bl6),p_TZN));
-end
-[h,i,vecCorr_P] = fdr_bh(vecRawP(~isnan(vecRawP)));
-[vecCorr_P2] = bonf_holm(vecRawP);
-vecCorr_P2(vecCorr_P2>1)=1;
-
-%% is BL6/DBA difference larger in NOT than Ctx?
-
-
-vecZetaZ_AlbCtx = -norminv(cell2vec(cellZetaP_AlbCtx)/2);
-vecZetaZ_Bl6Ctx = -norminv(cell2vec(cellZetaP_Bl6Ctx)/2);
-vecZetaZ_AlbNOT = -norminv(cell2vec(cellZetaP_AlbNOT)/2);
-vecZetaZ_Bl6NOT = -norminv(cell2vec(cellZetaP_Bl6NOT)/2);
-
-vecY2 = cat(1,vecZetaZ_Bl6Ctx,vecZetaZ_AlbCtx,vecZetaZ_Bl6NOT,vecZetaZ_AlbNOT);
-
-[p2,tbl2,stats2,terms2] = anovan(vecY2,{cellG1,cellG2},'model','full','display','off');
-
-%plot
-vecZetaZ_Mu = [mean(vecZetaZ_Bl6Ctx) mean(vecZetaZ_AlbCtx) mean(vecZetaZ_Bl6NOT) mean(vecZetaZ_AlbNOT)]; 
-vecZetaZ_SEM = [std(vecZetaZ_Bl6Ctx)/sqrt(numel(vecZetaZ_Bl6Ctx))...
-	std(vecZetaZ_AlbCtx)/sqrt(numel(vecZetaZ_AlbCtx))...
-	std(vecZetaZ_Bl6NOT)/sqrt(numel(vecZetaZ_Bl6NOT))...
-	std(vecZetaZ_AlbNOT)/sqrt(numel(vecZetaZ_AlbNOT))]; 
-
-subplot(2,3,3)
-errorbar([1 2],[mean(vecZetaZ_Bl6Ctx) mean(vecZetaZ_Bl6NOT)],...
-	[std(vecZetaZ_Bl6Ctx)/sqrt(numel(vecZetaZ_Bl6Ctx)) std(vecZetaZ_Bl6NOT)/sqrt(numel(vecZetaZ_Bl6Ctx))],...
-	'x-','Color',vecColBl6,'CapSize',20);
-hold on
-errorbar([1 2],[mean(vecZetaZ_AlbCtx) mean(vecZetaZ_AlbNOT)],...
-	[std(vecZetaZ_AlbCtx)/sqrt(numel(vecZetaZ_AlbCtx)) std(vecZetaZ_AlbNOT)/sqrt(numel(vecZetaZ_AlbCtx))],...
-	'x-','Color',vecColAlb,'CapSize',20);
-hold off
-ylabel('Mean responsiveness (ZETA)');
-set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr(1:2));
-xlim([0.5 2.5]);
-legend(cellSubjectGroups,'Location','best');
-title(sprintf('Interaction Ctx/NOT - Alb/BL6,p=%.6f',p2(3)));
-fixfig;grid off;
-
-%with cohens d
-vecTuningZ_AlbCtx = -norminv(cell2vec(cellTuningP_AlbCtx)/2);
-vecTuningZ_Bl6Ctx = -norminv(cell2vec(cellTuningP_Bl6Ctx)/2);
-vecTuningZ_AlbNOT = -norminv(cell2vec(cellTuningP_AlbNOT)/2);
-vecTuningZ_Bl6NOT = -norminv(cell2vec(cellTuningP_Bl6NOT)/2);
-
-vecY = cat(1,vecTuningZ_Bl6Ctx,vecTuningZ_AlbCtx,vecTuningZ_Bl6NOT,vecTuningZ_AlbNOT);
-vecG1 = cat(1,ones(size(vecTuningZ_Bl6Ctx)),2*ones(size(vecTuningZ_AlbCtx)),ones(size(vecTuningZ_Bl6NOT)),2*ones(size(vecTuningZ_AlbNOT))); %bl6 vs alb
-cellG1 = cellSubjectGroups(vecG1)';
-vecG2 = cat(1,ones(size(vecTuningZ_Bl6Ctx)),ones(size(vecTuningZ_AlbCtx)),2*ones(size(vecTuningZ_Bl6NOT)),2*ones(size(vecTuningZ_AlbNOT))); %ctx vs not
-cellG2 = cellAreaGroupsAbbr(vecG2)';
-
-[p,tbl,stats,terms] = anovan(vecY,{cellG1,cellG2},'model','full','display','off');
-
-subplot(2,3,6)
-errorbar([1 2],[mean(vecTuningZ_Bl6Ctx) mean(vecTuningZ_Bl6NOT)],...
-	[std(vecTuningZ_Bl6Ctx)/sqrt(numel(vecTuningZ_Bl6Ctx)) std(vecTuningZ_Bl6NOT)/sqrt(numel(vecTuningZ_Bl6Ctx))],...
-	'x-','Color',vecColBl6,'CapSize',20);
-hold on
-errorbar([1 2],[mean(vecTuningZ_AlbCtx) mean(vecTuningZ_AlbNOT)],...
-	[std(vecTuningZ_AlbCtx)/sqrt(numel(vecTuningZ_AlbCtx)) std(vecTuningZ_AlbNOT)/sqrt(numel(vecTuningZ_AlbCtx))],...
-	'x-','Color',vecColAlb,'CapSize',20);
-hold off
-ylabel('Mean tuning (z-score)');
-set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr(1:2));
-xlim([0.5 2.5]);
-legend(cellSubjectGroups,'Location','best');
-title(sprintf('Interaction Ctx/NOT - Alb/BL6,p=%.6f',p(3)));
-fixfig;grid off;
-
-%% plot
-%set scatter vals
-dblSize = 200;
-
-figure;maxfig;
-for intAreaGroup=1:2
-	vecTempAlb = sort(eval(['vecCorrAlb' cellAreaGroupsAbbr{intAreaGroup} ';']));
-	vecTempBl6 = sort(eval(['vecCorrBl6' cellAreaGroupsAbbr{intAreaGroup} ';']));
-	[h,p_corr] = ttest2(vecTempAlb,vecTempBl6);
-	subplot(2,3,intAreaGroup)
-	h=errorbar([1 2],[mean(vecTempBl6) mean(vecTempAlb)],[std(vecTempBl6)./sqrt(numel(vecTempBl6)) std(vecTempAlb)./sqrt(numel(vecTempAlb))],...
-		'color',0.2*[1 1 1],'Marker','x','MarkerSize',10,'linestyle','none','capsize',50);
-	hold on
-	%bl6
-	vecJitter = (rand(size(vecTempBl6))-0.5)*2*(1/16) + (mod(1:numel(vecTempBl6),2)*2-1)*(1/16);
-	scatter(ones(size(vecTempBl6)) + vecJitter,vecTempBl6,dblSize,lines(1),'.');
-	%alb
-	vecJitter = (rand(size(vecTempAlb))-0.5)*2*(1/16) + (mod(1:numel(vecTempAlb),2)*2-1)*(1/16);
-	scatter(2*ones(size(vecTempAlb)) + vecJitter,vecTempAlb,dblSize,[0.9 0 0],'.');
-	title(sprintf('%s; r_BL6=%.3f (b);r_DBA=%.3f (r);p=%.3f',cellAreaGroupsAbbr{intAreaGroup},mean(vecTempBl6),mean(vecTempAlb),p_corr),'interpreter','none');
-	ylabel('Correlation R(Tuning, Responsive)');
-	set(gca,'xtick',[1 2],'xticklabel',{'BL6','DBA'});
-	hold off
-	xlim([0.5 2.5])
-	ylim([-1 1]);
-	fixfig;grid off
-	h.LineWidth=3;
-	
-	%plot examples
-	subplot(2,3,intAreaGroup+3)
-	vecExampleAlbZ = eval(['cellZetaP_Alb' cellAreaGroupsAbbr{intAreaGroup} '{1}(:);']);
-	vecExampleAlbT = eval(['cellTuningP_Alb' cellAreaGroupsAbbr{intAreaGroup} '{1}(:);']);
-	
-	vecExampleBl6Z = eval(['cellZetaP_Bl6' cellAreaGroupsAbbr{intAreaGroup} '{1}(:);']);
-	vecExampleBl6T = eval(['cellTuningP_Bl6' cellAreaGroupsAbbr{intAreaGroup} '{1}(:);']);
-	
-	scatter(-norminv(vecExampleBl6Z/2),-norminv(vecExampleBl6T/2),[],vecColBl6)
-	hold on
-	scatter(-norminv(vecExampleAlbZ/2),-norminv(vecExampleAlbT/2),[],vecColAlb)
-	hold off
-end
-
-
-%% plot scatter of zeta-p, tuning-p per recording in Ctx, NOT, and Hip; colored by Alb/BL6
-vecZBC = cellfun(@(x) mean(-norminv(x/2)),cellZetaP_Bl6Ctx);
-vecTBC = cellfun(@(x) mean(-norminv(x/2)),cellTuningP_Bl6Ctx);
-vecZBN = cellfun(@(x) mean(-norminv(x/2)),cellZetaP_Bl6NOT);
-vecTBN = cellfun(@(x) mean(-norminv(x/2)),cellTuningP_Bl6NOT);
-%vecZBH = cellfun(@(x) mean(-norminv(x/2)),cellZetaP_Bl6Hip);
-%vecTBH = cellfun(@(x) mean(-norminv(x/2)),cellTuningP_Bl6Hip);
-
-vecZAC = cellfun(@(x) mean(-norminv(x/2)),cellZetaP_AlbCtx);
-vecTAC = cellfun(@(x) mean(-norminv(x/2)),cellTuningP_AlbCtx);
-vecZAN = cellfun(@(x) mean(-norminv(x/2)),cellZetaP_AlbNOT);
-vecTAN = cellfun(@(x) mean(-norminv(x/2)),cellTuningP_AlbNOT);
-%vecZAH = cellfun(@(x) mean(-norminv(x/2)),cellZetaP_AlbHip);
-%vecTAH = cellfun(@(x) mean(-norminv(x/2)),cellTuningP_AlbHip);
-
-[h,p2a]=ttest2(vecZBC,vecZAC);
-[h,p2b]=ttest2(vecZBN,vecZAN);
-%[h,p2c]=ttest2(vecZBH,vecZAH);
-
-[h,p2a]=ttest2(vecTBC,vecTAC);
-[h,p2b]=ttest2(vecTBN,vecTAN);
-%[h,p2c]=ttest2(vecTBH,vecTAH);
-
-%% plot corr(zeta-p,tuning-p) per recording in Ctx, NOT, and Hip; colored by Alb/BL6
-
-
-error('remove nans & recordings with few cells, plot recording-based corrs, test significance')
 %%
-%ctx
-dblR_AlbCtx = nancorr(-norminv(vecZetaP_AlbCtx/2),-norminv(vecTuningP_AlbCtx/2));
-dblR_Bl6Ctx = nancorr(-norminv(vecZetaP_Bl6Ctx/2),-norminv(vecTuningP_Bl6Ctx/2));
-figure
-subplot(2,3,1)
-hold on;
-scatter(-norminv(vecZetaP_AlbCtx/2),-norminv(vecTuningP_AlbCtx/2),[],'r','x');
-scatter(-norminv(vecZetaP_Bl6Ctx/2),-norminv(vecTuningP_Bl6Ctx/2),[],'b','x');
-hold off
-fixfig;
+vecMeanWtPerfCtx = squeeze(nanmean(matAggPerfWt(:,1,:),1));
+vecMeanWtPerfNot = squeeze(nanmean(matAggPerfWt(:,2,:),1));
+vecMeanWtPerfHip = squeeze(nanmean(matAggPerfWt(:,3,:),1));
 
-%not
-[dblR_AlbNot,p_an,rl_an,ru_an] = corrcoef(-norminv(vecZetaP_AlbNOT/2),-norminv(vecTuningP_AlbNOT/2));
-[dblR_Bl6Not,p_bn,rl_bn,ru_bn] = corrcoef(-norminv(vecZetaP_Bl6NOT/2),-norminv(vecTuningP_Bl6NOT/2));
-x1=-norminv(vecZetaP_AlbNOT/2);
-y1=-norminv(vecTuningP_AlbNOT/2);
-x2=-norminv(vecZetaP_Bl6NOT/2);
-y2=-norminv(vecTuningP_Bl6NOT/2);
-[p,z,r1,r2,S] = corrtest2(x1,y1,x2,y2);
-p
+subplot(2,3,1)
+polar(deg2rad(vecUnique),vecMeanWtPerfCtx-0.5)
+
 
 subplot(2,3,2)
-hold on;
-scatter(-norminv(vecZetaP_AlbNOT/2),-norminv(vecTuningP_AlbNOT/2),[],'r','x');
-scatter(-norminv(vecZetaP_Bl6NOT/2),-norminv(vecTuningP_Bl6NOT/2),[],'b','x');
-hold off
-fixfig;
-
-%hip
-dblR_AlbHip = nancorr(-norminv(vecZetaP_AlbHip/2),-norminv(vecTuningP_AlbHip/2));
-dblR_Bl6Hip = nancorr(-norminv(vecZetaP_Bl6Hip/2),-norminv(vecTuningP_Bl6Hip/2));
+polar(deg2rad(vecUnique),vecMeanWtPerfNot-0.5)
 
 subplot(2,3,3)
-hold on;
-scatter(-norminv(vecZetaP_AlbHip/2),-norminv(vecTuningP_AlbHip/2),[],'r','x');
-scatter(-norminv(vecZetaP_Bl6Hip/2),-norminv(vecTuningP_Bl6Hip/2),[],'b','x');
-hold off
+polar(deg2rad(vecUnique),vecMeanWtPerfHip-0.5)
+
+vecMeanAlbPerfCtx = squeeze(nanmean(matAggPerfAlb(:,1,:),1));
+vecMeanAlbPerfNot = squeeze(nanmean(matAggPerfAlb(:,2,:),1));
+vecMeanAlbPerfHip = squeeze(nanmean(matAggPerfAlb(:,3,:),1));
+
+subplot(2,3,4)
+polar(deg2rad(vecUnique),vecMeanAlbPerfCtx-0.5)
+
+
+subplot(2,3,5)
+polar(deg2rad(vecUnique),vecMeanAlbPerfNot-0.5)
+
+subplot(2,3,6)
+polar(deg2rad(vecUnique),vecMeanAlbPerfHip-0.5)
+
+%%
+dblEndX = vecUnique(end)+median(diff(vecUnique));
+figure
+subplot(2,3,1)
+hold on
+plot([0 360],[0.5 0.5],'k--');
+plot([vecUnique; dblEndX],[vecMeanWtPerfCtx; vecMeanWtPerfCtx(1)],'b-');
+plot([vecUnique; dblEndX],[vecMeanAlbPerfCtx; vecMeanAlbPerfCtx(1)],'r-');
+xlabel('Stim ori (degs)')
+ylabel('Grating pair dec. perf.')
+legend({'Chance','BL6','DBA'},'Location','best')
+xlim([0 360]);
+set(gca,'xtick',0:90:360);
+title(cellAreaGroups{1});
 fixfig;
+
+subplot(2,3,2)
+hold on
+plot([0 360],[0.5 0.5],'k--');
+plot([vecUnique; dblEndX],[vecMeanWtPerfNot; vecMeanWtPerfNot(1)],'b-');
+plot([vecUnique; dblEndX],[vecMeanAlbPerfNot; vecMeanAlbPerfNot(1)],'r-');
+xlabel('Stim ori (degs)')
+ylabel('Grating pair dec. perf.')
+legend({'Chance','BL6','DBA'},'Location','best')
+xlim([0 360]);
+set(gca,'xtick',0:90:360);
+title(cellAreaGroups{2});
+fixfig;
+
+
+subplot(2,3,3)
+hold on
+plot([0 360],[0.5 0.5],'k--');
+plot([vecUnique; dblEndX],[vecMeanWtPerfHip; vecMeanWtPerfHip(1)],'b-');
+plot([vecUnique; dblEndX],[vecMeanAlbPerfHip; vecMeanAlbPerfHip(1)],'r-');
+xlabel('Stim ori (degs)')
+ylabel('Grating pair dec. perf.')
+legend({'Chance','BL6','DBA'},'Location','best')
+xlim([0 360]);
+set(gca,'xtick',0:90:360);
+title(cellAreaGroups{3});
+fixfig;
+
+normaxes;
+
+%% plot pref ori
+%{
+vecPrefOriCtxWt = cell2vec(cellAggPrefWt(:,1));
+vecPrefOriNotWt = cell2vec(cellAggPrefWt(:,2));
+vecPrefOriHipWt = cell2vec(cellAggPrefWt(:,3));
+
+vecPrefOriCtxAlb = cell2vec(cellAggPrefAlb(:,1));
+vecPrefOriNotAlb = cell2vec(cellAggPrefAlb(:,2));
+vecPrefOriHipAlb = cell2vec(cellAggPrefAlb(:,3));
+vecBinCenters = 0:15:359;
+vecBins = (0:15:375) - 15/2;
+
+vecCountsCtxWt = histcounts(vecPrefOriCtxWt,vecBins);
+vecCountsNotWt = histcounts(vecPrefOriNotWt,vecBins);
+vecCountsHipWt = histcounts(vecPrefOriHipWt,vecBins);
+vecCountsCtxAlb = histcounts(vecPrefOriCtxAlb,vecBins);
+vecCountsNotAlb = histcounts(vecPrefOriNotAlb,vecBins);
+vecCountsHipAlb = histcounts(vecPrefOriHipAlb,vecBins);
+
+vecX = vecBins(2:end)-median(diff(vecBins));
+subplot(2,3,4)
+hold on;
+plot(vecX,vecCountsCtxWt,'b-')
+plot(vecX,vecCountsCtxAlb,'r-')
+
+subplot(2,3,5)
+hold on;
+plot(vecX,vecCountsNotWt,'b-')
+plot(vecX,vecCountsNotAlb,'r-')
+
+subplot(2,3,6)
+hold on;
+plot(vecX,vecCountsHipWt,'b-')
+plot(vecX,vecCountsHipAlb,'r-')
+%}
+%% plot pop resp
+%{
+vecMeanRespCtxWt = mean(bsxfun(@rdivide,cellAggMeanRespWt{1},sum(cellAggMeanRespWt{1},2)),1);
+vecMeanRespNotWt = mean(bsxfun(@rdivide,cellAggMeanRespWt{2},sum(cellAggMeanRespWt{2},2)),1);
+vecMeanRespHipWt = mean(bsxfun(@rdivide,cellAggMeanRespWt{3},sum(cellAggMeanRespWt{3},2)),1);
+vecSdRespCtxWt = std(bsxfun(@rdivide,cellAggMeanRespWt{1},sum(cellAggMeanRespWt{1},2)),[],1);
+vecSdRespNotWt = std(bsxfun(@rdivide,cellAggMeanRespWt{2},sum(cellAggMeanRespWt{2},2)),[],1);
+vecSdRespHipWt = std(bsxfun(@rdivide,cellAggMeanRespWt{3},sum(cellAggMeanRespWt{3},2)),[],1);
+
+vecMeanRespCtxAlb = mean(bsxfun(@rdivide,cellAggMeanRespAlb{1},sum(cellAggMeanRespAlb{1},2)),1);
+vecMeanRespNotAlb = mean(bsxfun(@rdivide,cellAggMeanRespAlb{2},sum(cellAggMeanRespAlb{2},2)),1);
+vecMeanRespHipAlb = mean(bsxfun(@rdivide,cellAggMeanRespAlb{3},sum(cellAggMeanRespAlb{3},2)),1);
+vecSdRespCtxAlb = std(bsxfun(@rdivide,cellAggMeanRespAlb{1},sum(cellAggMeanRespAlb{1},2)),[],1);
+vecSdRespNotAlb = std(bsxfun(@rdivide,cellAggMeanRespAlb{2},sum(cellAggMeanRespAlb{2},2)),[],1);
+vecSdRespHipAlb = std(bsxfun(@rdivide,cellAggMeanRespAlb{3},sum(cellAggMeanRespAlb{3},2)),[],1);
+%}
+vecMeanRespCtxWt = mean(cellAggMeanRespWt{1},1);
+vecMeanRespNotWt = mean(cellAggMeanRespWt{2},1);
+vecMeanRespHipWt = mean(cellAggMeanRespWt{3},1);
+vecSdRespCtxWt = std(cellAggMeanRespWt{1},[],1);
+vecSdRespNotWt = std(cellAggMeanRespWt{2},[],1);
+vecSdRespHipWt = std(cellAggMeanRespWt{3},[],1);
+
+vecMeanRespCtxAlb = mean(cellAggMeanRespAlb{1},1);
+vecMeanRespNotAlb = mean(cellAggMeanRespAlb{2},1);
+vecMeanRespHipAlb = mean(cellAggMeanRespAlb{3},1);
+vecSdRespCtxAlb = std(cellAggMeanRespAlb{1},[],1);
+vecSdRespNotAlb = std(cellAggMeanRespAlb{2},[],1);
+vecSdRespHipAlb = std(cellAggMeanRespAlb{3},[],1);
+
+subplot(2,3,4)
+hold on;
+errorbar(vecUnique,vecMeanRespCtxWt,vecSdRespCtxWt/sqrt(size(cellAggMeanRespWt{1},1)),'b-')
+errorbar(vecUnique,vecMeanRespCtxAlb,vecSdRespCtxAlb/sqrt(size(cellAggMeanRespAlb{1},1)),'r-')
+xlabel('Stim ori (degs)')
+ylabel('Mean tuning curve')
+legend({'BL6','DBA'},'Location','best')
+xlim([0 360]);
+set(gca,'xtick',0:90:360);
+title(cellAreaGroups{1});
+fixfig;
+
+subplot(2,3,5)
+hold on;
+errorbar(vecUnique,vecMeanRespNotWt,vecSdRespNotWt/sqrt(size(cellAggMeanRespWt{2},1)),'b-')
+errorbar(vecUnique,vecMeanRespNotAlb,vecSdRespNotAlb/sqrt(size(cellAggMeanRespAlb{2},1)),'r-')
+xlabel('Stim ori (degs)')
+ylabel('Mean tuning curve')
+legend({'BL6','DBA'},'Location','best')
+xlim([0 360]);
+set(gca,'xtick',0:90:360);
+title(cellAreaGroups{2});
+fixfig;
+
+subplot(2,3,6)
+hold on;
+errorbar(vecUnique,vecMeanRespHipWt,vecSdRespHipWt/sqrt(size(cellAggMeanRespWt{3},1)),'b-')
+errorbar(vecUnique,vecMeanRespHipAlb,vecSdRespHipAlb/sqrt(size(cellAggMeanRespAlb{3},1)),'r-')
+xlabel('Stim ori (degs)')
+ylabel('Mean tuning curve')
+legend({'BL6','DBA'},'Location','best')
+xlim([0 360]);
+set(gca,'xtick',0:90:360);
+title(cellAreaGroups{3});
+fixfig;
+
+%% confusion
+matConfCtxWt = squeeze(mean(matAggConfusionWt(:,1,:,:),1));
+matConfNotWt = squeeze(mean(matAggConfusionWt(:,2,:,:),1));
+matConfHipWt = squeeze(mean(matAggConfusionWt(:,3,:,:),1));
+matConfCtxAlb = squeeze(mean(matAggConfusionAlb(:,1,:,:),1));
+matConfNotAlb = squeeze(mean(matAggConfusionAlb(:,2,:,:),1));
+matConfHipAlb = squeeze(mean(matAggConfusionAlb(:,3,:,:),1));
+
+figure
+subplot(2,3,1)
+imagesc(matConfCtxWt);
+title(['BL6 ' cellAreaGroups{1}]);
+subplot(2,3,2)
+imagesc(matConfNotWt);
+title(['BL6 ' cellAreaGroups{2}]);
+subplot(2,3,3)
+imagesc(matConfHipWt);
+title(['BL6 ' cellAreaGroups{3}]);
+subplot(2,3,4)
+imagesc(matConfCtxAlb);
+title(['Alb ' cellAreaGroups{1}]);
+subplot(2,3,5)
+imagesc(matConfNotAlb);
+title(['Alb ' cellAreaGroups{2}]);
+subplot(2,3,6)
+imagesc(matConfHipAlb);
+title(['Alb ' cellAreaGroups{3}]);
+return
+%% save
+drawnow;maxfig;
+export_fig(fullpath(strTargetPath,['GratingTracking' getDate '.jpg']));
+export_fig(fullpath(strTargetPath,['GratingTracking' getDate '.pdf']));

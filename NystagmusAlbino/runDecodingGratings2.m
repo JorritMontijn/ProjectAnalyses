@@ -45,7 +45,7 @@ cellSubjectGroups = {'BL6','DBA'};
 
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
-	
+
 %% pre-allocate
 intMinCells = 10;%NOT+interaction significant at (1-off diag): 7, 8, 9, 10; not sign. at 6; only diag: 6,7,8 (only interaction), 9,10 (both)
 intStimNr = 24;
@@ -64,7 +64,7 @@ cellAggPrefAlb = cell(0,numel(cellUseAreas));
 
 cellAggMeanRespWt = cellfill(nan(0,intStimNr),[1 3]);
 cellAggMeanRespAlb = cellfill(nan(0,intStimNr),[1 3]);
-		
+
 %% run
 vecUseCellNum = [];
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -319,57 +319,150 @@ set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr(1:2));
 xlim([0.5 2.5]);
 legend(cellSubjectGroups,'Location','best');
 title(sprintf('Ctx,p=%.4f,NOT,p=%.4f, Interaction,p=%.4f',p_Ctx,p_NOT,p(3)));
+fixfig;grid off;drawnow;
+export_fig([strTargetPath filesep sprintf('OriDecoding%dtuple.tif',intMinCells)]);
+export_fig([strTargetPath filesep sprintf('OriDecoding%dtuple.pdf',intMinCells)]);
+	
+%% pseudo populations
+figure;maxfig;
+intUseCells = 50;
+intUseReps = 15;
+cellPref = cell(2,2);
+matCellNum = nan(2,2);
+matMeanPerf = nan(2,2);
+for intArea=1:2
+	strArea = cellAreaGroupsAbbr{intArea};
+	for intSubjectType=1:2
+		if intSubjectType == 1
+			cellData = cellAllSubDataBL6{intArea};
+			cellLabels = cellAllOriVecsBL6{intArea};
+		else
+			cellData = cellAllSubDataAlb{intArea};
+			cellLabels = cellAllOriVecsAlb{intArea};
+		end
+		%get pseudo data
+		[vecPseudoOri,matWhitePseudoData,matPseudoData] = buildPseudoData(cellLabels,cellData,intUseReps);
+		[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecPseudoOri);
+		vecPriorDistribution = vecCounts;
+		
+		%check if means per stim type are unaltered
+		[matRandRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matWhitePseudoData,vecPseudoOri);
+		[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matPseudoData,vecPseudoOri);
+		matMeanRandR = mean(matRandRespNSR,3);
+		matMeanR = mean(matRespNSR,3);
+		dblR=corr(matMeanRandR(:),matMeanR(:));
+		if roundi(dblR,10)~=1
+			figure
+			subplot(2,3,1)
+			imagesc(corr(matPseudoData'))
+			subplot(2,3,2)
+			imagesc(corr(matWhitePseudoData'))
+			error('something is wrong')
+		end
+		
+		%run analysis
+		sOut = getTuningCurves(matWhitePseudoData,vecPseudoOri);
+		vecPrefOri = rad2deg(sOut.matFittedParams(:,1));
+		[h,d,vecP] = fdr_bh(sOut.vecFitP);
+		indKeepCells = vecP<0.05;
+		vecPrefOri(~indKeepCells)=[];
+		cellPref{intArea} = vecPrefOri;
+		matCellNum(intArea,intSubjectType) = sum(indKeepCells);
+		
+		%% decode all
+		vecSubSelect = find(indKeepCells);
+		%run multiple permutations and average
+		intRunPerms = 50;
+		intNumN = numel(vecSubSelect);
+		intChoosePerms = min([intRunPerms nchoosek(intNumN,intUseCells)-1]);
+		vecPermPerf = nan(1,intChoosePerms);
+		boolChosen = false;
+		intChooseIdx=1;
+		matPerms = nan(intChoosePerms,intUseCells);
+		while ~boolChosen
+			vecRandPerm = sort(randperm(intNumN,intUseCells));
+			if ~any(all(bsxfun(@eq,matPerms,vecRandPerm),2))
+				matPerms(intChooseIdx,:) = vecRandPerm;
+				intChooseIdx = intChooseIdx + 1;
+			end
+			if intChooseIdx > intChoosePerms
+				boolChosen = true;
+			end
+		end
+		
+		matAggConfusion = zeros(numel(vecUnique),numel(vecUnique));
+		for intPerm=1:intChoosePerms
+			fprintf('Permutation %d/%d [%s]\n',intPerm,intChoosePerms,getTime);
+			vecUseRandPerm = matPerms(intPerm,:);
+			vecUseSubSelect = vecSubSelect(vecUseRandPerm);
+			matUseSubData = matWhitePseudoData(vecUseSubSelect,:);
+			%[dblPerformanceCV,vecDecodedIndexCV,matTemplateDistsCV,dblMeanErrorDegs,matConfusion] = doCrossValidatedDecodingTM(matUseData,vecOriIdx,intTypeCV,vecPriorDistribution);
+			%vecPerfTM(intArea) = dblPerformanceCV;
+			[dblPerformanceLR,vecDecodedIndexCV_LR,matPosteriorProbability,dblMeanErrorDegsLR,matConfusionLR,matWeights] = ...
+				doCrossValidatedDecodingLR(matUseSubData,vecPseudoOri,intTypeCV,vecPriorDistribution,dblLambda);
+			vecPermPerf(intPerm) = sum(matConfusionLR(matIsCorrect))/sum(matConfusionLR(:));
+			matAggConfusion = matAggConfusion + matConfusionLR;
+		end
+		matMeanPerf(intArea,intSubjectType) = mean(vecPermPerf);
+		intPlotLoc = (intSubjectType-1)*3 + intArea;
+		subplot(2,3,intPlotLoc)
+		colormap(redwhite);
+		imagesc(vecUnique,vecUnique,matConfusionLR,[0 max(matConfusionLR(:))]);
+		xlabel('Real stim. ori. (degs)')
+		ylabel('Decoded stim. ori. (degs)');
+		set(gca,'xtick',0:45:360);
+		set(gca,'ytick',0:45:360);
+		title(sprintf('Example pseudo pop %s %s',cellSubjectGroups{intSubjectType},cellAreaGroupsAbbr{intArea}));
+		axis xy;
+		fixfig;
+		grid off
+		drawnow;
+	end
+end
+
+%% plot means
+n = numel(vecPseudoOri);
+[p_CtxWt_vs_CtxAlb] = bino2test(round(matMeanPerf(1,1)*n),n,round(matMeanPerf(1,2)*n),n);
+[p_NotWt_vs_NotAlb] = bino2test(round(matMeanPerf(2,1)*n),n,round(matMeanPerf(2,2)*n),n,true);
+[p_CtxWt_vs_NotWt] = bino2test(round(matMeanPerf(1,1)*n),n,round(matMeanPerf(2,1)*n),n,true);
+[p_CtxAlb_vs_NotAlb] = bino2test(round(matMeanPerf(1,2)*n),n,round(matMeanPerf(2,2)*n),n,true);
+
+[dblM_CtxWt, vecCI_CtxWt] = binofit(matMeanPerf(1,1)*n,n);
+[dblM_CtxAlb, vecCI_CtxAlb] = binofit(matMeanPerf(1,2)*n,n);
+[dblM_NotWt, vecCI_NotWt] = binofit(matMeanPerf(2,1)*n,n);
+[dblM_NotAlb, vecCI_NotAlb] = binofit(matMeanPerf(2,2)*n,n);
+
+subplot(2,3,3)
+errorbar([1 2],[dblM_CtxWt dblM_NotWt],...
+	[dblM_CtxWt-vecCI_CtxWt(1) dblM_CtxWt-vecCI_CtxWt(2)],...
+	[dblM_NotWt-vecCI_NotWt(1) dblM_NotWt-vecCI_NotWt(2)],...
+	'x-','Color',vecColBl6,'CapSize',20);
+hold on
+errorbar([1 2],[dblM_CtxAlb dblM_NotAlb],...
+	[dblM_CtxAlb-vecCI_CtxAlb(1) dblM_CtxAlb-vecCI_CtxAlb(2)],...
+	[dblM_NotAlb-vecCI_NotAlb(1) dblM_NotAlb-vecCI_NotAlb(2)],...
+	'x-','Color',vecColAlb,'CapSize',20);
+plot([1 2],[1 1]*dblChanceP,'--','Color',[0.5 0.5 0.5]);
+hold off
+ylabel(sprintf('Pseudo pop decoding accuracy (fraction)'));
+set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr(1:2));
+xlim([0.5 2.5]);
+legend(cellSubjectGroups,'Location','best');
+title(sprintf('C,p=%.3f,N,p=%.1e,Wt C-N,p=%.3f,A C-N,p=%.1e',p_CtxWt_vs_CtxAlb,p_NotWt_vs_NotAlb,p_CtxWt_vs_NotWt,p_CtxAlb_vs_NotAlb));
 fixfig;grid off;
 
-%% pseudo population BL6Ctx
-%calculate min rep
-intMinRep = inf;
-
-for intRec=1:numel(cellAllOriVecsBL6{1})
-	[varDataOut,vecUnique,vecCounts,cellSelect,vecRepetition] = label2idx(cellAllOriVecsBL6{1}{intRec});
-	intMinRep = min([intMinRep; vecCounts]);
-end
-vecPseudoOri = repmat(vecUnique(:),[intMinRep 1]);
-[vecPseudoStimIdx,vecPseudoUnique,vecPseudoCounts,cellPseudoSelect,vecPseudoRepetition] = label2idx(vecPseudoOri);
-intStimNum = numel(vecUnique);
-matPseudoData = nan(0,numel(vecPseudoOri));
-for intRec=1:numel(cellAllOriVecsBL6{1})
-	[varDataOut,vecUnique,vecCounts,cellSelect,vecRepetition] = label2idx(cellAllOriVecsBL6{1}{intRec});
-	matTemp = nan(size(cellAllSubDataBL6{1}{intRec},1),intMinRep*numel(vecUnique));
-	for intRep=1:intMinRep
-		vecUseTrials = find(vecRepetition==intRep);
-		[dummy,vecReorder] = sort(cellAllOriVecsBL6{1}{intRec}(vecUseTrials));
-		matTemp(:,(1:intStimNum)+intStimNum*(intRep-1)) = cellAllSubDataBL6{1}{intRec}(:,vecUseTrials(vecReorder));
-	end
-	matPseudoData((end+1):(end+size(matTemp,1)),:) = matTemp;
-end
-matPseudoData(range(matPseudoData,2)==0,:) = [];
-%randomize repetition per neuron
-matRandPseudoData = matPseudoData;
-for intNeuron=1:size(matPseudoData,1)
-	for intStimType=1:intStimNum
-		vecTrialTemp = find(vecPseudoStimIdx==intStimType);
-		vecAssignRandIdx = vecTrialTemp(randperm(numel(vecTrialTemp)));
-		matRandPseudoData(intNeuron,vecTrialTemp) = matPseudoData(intNeuron,vecAssignRandIdx);
-	end
-end
-%check if means per stim type are unaltered
-[matRandRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matRandPseudoData,vecPseudoOri);
-[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matPseudoData,vecPseudoOri);
-matMeanRandR = mean(matRandRespNSR,3);
-matMeanR = mean(matRespNSR,3);
-dblR=corr(matMeanRandR(:),matMeanR(:));
-if dblR~=1
-	error('something is wrong')
-end
-subplot(2,3,1)
-imagesc(corr(matPseudoData'))
-subplot(2,3,2)
-imagesc(corr(matRandPseudoData'))
-
-%%
-cellAllSubDataBL6
-cellAllOriVecsBL6
-
-cellAllSubDataAlb
-cellAllOriVecsAlb
+subplot(2,3,6)
+imagesc(vecUnique,vecUnique,matIsCorrect);
+colorbar
+xlabel('Real stim. ori. (degs)')
+ylabel('Decoded stim. ori. (degs)');
+set(gca,'xtick',0:45:360);
+set(gca,'ytick',0:45:360);
+title(sprintf('"Correct"'));
+axis xy;
+fixfig;
+grid off
+drawnow;
+export_fig([strTargetPath filesep sprintf('OriDecodingPseudoPop.tif')]);
+export_fig([strTargetPath filesep sprintf('OriDecodingPseudoPop.pdf')]);
+	

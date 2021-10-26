@@ -1,3 +1,5 @@
+%% exploratory analysis, no proper controls
+
 %% load data
 strDataPath = 'E:\DataPreProcessed';
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
@@ -26,13 +28,16 @@ strTargetPath = 'D:\Data\Results\AlbinoProject';
 
 %% define area categories
 %cortex
+cellUseAreas = [];
 cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
 %NOT
 cellUseAreas{2} = {'nucleus of the optic tract'};
-%hippocampus
-cellUseAreas{3} = {'Hippocampal formation','Field CA1','Field CA2','Field CA3','subiculum','dentate gyrus'};
-cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
-cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+cellAreaGroups = {'Vis. ctx','NOT'};
+cellAreaGroupsAbbr = {'Ctx','NOT'};
+cellSubjectGroups = {'BL6','DBA'};
+
+vecColAlb = [0.9 0 0];
+vecColBl6 = lines(1);
 
 %% pre-allocate
 intStimNr = 24;

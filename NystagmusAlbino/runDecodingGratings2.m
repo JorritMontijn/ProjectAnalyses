@@ -1,8 +1,6 @@
-%%
-%{
-edit to run like runDecodingGratings, but compare BL6/DBA properly
+%% creates ori decoding figs, including pseudo pops
+%[done/1) how do confusion matrices of ori decoding differ between alb/bl6?
 
-%}
 %% load data
 strDataPath = 'E:\DataPreProcessed';
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
@@ -35,11 +33,7 @@ cellUseAreas = [];
 cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
 %NOT
 cellUseAreas{2} = {'nucleus of the optic tract'};
-%hippocampus
-%cellUseAreas{3} = {'Hippocampal formation','Field CA1','Field CA2','Field CA3','subiculum','dentate gyrus'};
-%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 cellAreaGroups = {'Vis. ctx','NOT'};
-%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
 cellAreaGroupsAbbr = {'Ctx','NOT'};
 cellSubjectGroups = {'BL6','DBA'};
 
@@ -406,8 +400,8 @@ for intArea=1:2
 		matMeanPerf(intArea,intSubjectType) = mean(vecPermPerf);
 		intPlotLoc = (intSubjectType-1)*3 + intArea;
 		subplot(2,3,intPlotLoc)
-		colormap(redwhite);
 		imagesc(vecUnique,vecUnique,matConfusionLR,[0 max(matConfusionLR(:))]);
+		colormap(redwhite);
 		xlabel('Real stim. ori. (degs)')
 		ylabel('Decoded stim. ori. (degs)');
 		set(gca,'xtick',0:45:360);

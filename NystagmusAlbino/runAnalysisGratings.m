@@ -4,15 +4,16 @@
 
 2) is neural code of nat movs more variable during eye movements in NOT than Ctx?
 
-3) does info in NOT predict info in V1?
+3) does info in NOT predict info in V1? [is this doable? sufficient twin recording??]
 
 4) spike shape NOT vs Ctx
 
 %to do:
-A) plot tuning in NOT as function of location in NOT: is a recording closer to the border more likely
-to be tuned?
+A) plot tuning in NOT as function of location in NOT: is a recording closer to the border more
+likely to be tuned? 
 
-B) plot tuning as second-closest pair decoding
+B) plot tuning as second-closest pair decoding: is there a difference in decoding between horizontal
+and vertical gratings? 
 
 [done/C) plot results as separate recordings (and make selection of recordings based on visual
 responsiveness)
@@ -385,7 +386,7 @@ for intAreaType=1:2
 	xlabel('Responsiveness z-score (ZETA)');
 	ylabel('Fraction of cells (norm. count)');
 	fixfig;
-	title(sprintf('%s, ZETA-Z DBA (mu=%.3f) BL6 (mu=%.3f),p=%.6f',strAreaType,mean(vecZetaZ_Alb),mean(vecZetaZ_Bl6),p_ZZN));
+	title(sprintf('%s, ZETA-Z DBA (mu=%.2f) BL6 (mu=%.2f),p=%.5f',strAreaType,mean(vecZetaZ_Alb),mean(vecZetaZ_Bl6),p_ZZN));
 	
 	[h,p_TZN] = ttest2(vecTuningZ_Bl6,vecTuningZ_Alb);
 	vecRawP(intAreaType+3) = p_TZN;
@@ -400,19 +401,22 @@ for intAreaType=1:2
 	xlabel('Ori tuning z-score (sd)');
 	ylabel('Fraction of cells (norm. count)');
 	fixfig;
-	title(sprintf('%s, Tuning-Z DBA (mu=%.3f) BL6 (mu=%.3f),p=%.6f',strAreaType,mean(vecTuningZ_Alb),mean(vecTuningZ_Bl6),p_TZN));
+	title(sprintf('%s, Tuning-Z DBA (mu=%.2f) BL6 (mu=%.2f),p=%.5f',strAreaType,mean(vecTuningZ_Alb),mean(vecTuningZ_Bl6),p_TZN));
 end
 [h,i,vecCorr_P] = fdr_bh(vecRawP(~isnan(vecRawP)));
 [vecCorr_P2] = bonf_holm(vecRawP);
 vecCorr_P2(vecCorr_P2>1)=1;
 
 %% is BL6/DBA difference larger in NOT than Ctx?
-
-
 vecZetaZ_AlbCtx = -norminv(cell2vec(cellZetaP_AlbCtx)/2);
 vecZetaZ_Bl6Ctx = -norminv(cell2vec(cellZetaP_Bl6Ctx)/2);
 vecZetaZ_AlbNOT = -norminv(cell2vec(cellZetaP_AlbNOT)/2);
 vecZetaZ_Bl6NOT = -norminv(cell2vec(cellZetaP_Bl6NOT)/2);
+
+vecG1 = cat(1,ones(size(vecZetaZ_Bl6Ctx)),2*ones(size(vecZetaZ_AlbCtx)),ones(size(vecZetaZ_Bl6NOT)),2*ones(size(vecZetaZ_AlbNOT))); %bl6 vs alb
+cellG1 = cellSubjectGroups(vecG1)';
+vecG2 = cat(1,ones(size(vecZetaZ_Bl6Ctx)),ones(size(vecZetaZ_AlbCtx)),2*ones(size(vecZetaZ_Bl6NOT)),2*ones(size(vecZetaZ_AlbNOT))); %ctx vs not
+cellG2 = cellAreaGroupsAbbr(vecG2)';
 
 vecY2 = cat(1,vecZetaZ_Bl6Ctx,vecZetaZ_AlbCtx,vecZetaZ_Bl6NOT,vecZetaZ_AlbNOT);
 
@@ -469,8 +473,10 @@ set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr(1:2));
 xlim([0.5 2.5]);
 legend(cellSubjectGroups,'Location','best');
 title(sprintf('Interaction Ctx/NOT - Alb/BL6,p=%.6f',p(3)));
-fixfig;grid off;
+fixfig;grid off;drawnow;
 
+export_fig(fullpath(strTargetPath,'TuningAndResponsivenessCtxNOT.tif'));
+export_fig(fullpath(strTargetPath,'TuningAndResponsivenessCtxNOT.pdf'));
 %% plot
 %set scatter vals
 dblSize = 200;

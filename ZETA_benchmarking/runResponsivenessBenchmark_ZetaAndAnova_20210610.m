@@ -39,7 +39,7 @@ vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 100;%10:10:90;%[10:10:100];
-vecRunAreas = 6;%[1 2 4 6 7:14];%[1 2 4 6]% 7:14];%7:16;%4;%6;%14:16;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 8;%[1 2 4 6 7:14];%[1 2 4 6]% 7:14];%7:16;%4;%6;%14:16;%7:16%[8];%[1 8];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -195,7 +195,7 @@ for intArea=vecRunAreas
 						sThisRec = sAggStim(strcmpi(strRecIdx,cellRecIdx));
 						vecStimOnTime = [];
 						vecStimOffTime = [];
-						for intRec=1:numel(sThisRec.cellStim)
+						for intRec=1%:numel(sThisRec.cellStim)
 							vecStimOnTime = cat(2,vecStimOnTime,sThisRec.cellStim{intRec}.structEP.vecStimOnTime);
 							vecStimOffTime = cat(2,vecStimOffTime,sThisRec.cellStim{intRec}.structEP.vecStimOffTime);
 						end
@@ -338,6 +338,7 @@ for intArea=vecRunAreas
 					vecTrialNum = unique([vecTrialNum size(matEventTimes,1)]);
 					intTrials = size(matEventTimes,1);
 					intSpikeNum = numel(vecSpikeTimes);
+					if intSpikeNum>50000,continue;end
 					
 					%if size(matEventTimes,1) > 0,continue;end
 					%%{
@@ -362,6 +363,44 @@ for intArea=vecRunAreas
 					end
 					dblAnovaP=anova1(matPSTH,[],'off');
 					dblAnovaDur = toc(hTic2);
+					
+					%%
+					[vecX,vecReorder]=sort(dblUseMaxDur./allN);
+					vecY = allC(vecReorder)-min(allC)+2;
+					[dblMinY,intMinIdx] = min(vecY);
+					figure
+					hold on
+					plot(vecX,vecY,'x-')
+					scatter(vecX(intMinIdx),dblMinY,'xr');
+					set(gca,'xscale','log')
+					set(gca,'yscale','log')
+					ylabel('Shimazaki-Shinomoto loss (a.u.)')
+					xlabel('Bin width (s)')
+					title(sprintf('Neuron %d',intNeuron))
+					fixfig;grid off
+					%%
+					maxfig;
+					subplot(2,3,1)
+					plotRaster(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,50000)
+					title(sprintf('Neuron %d',intNeuron))
+					grid off
+					
+					subplot(2,3,2)
+					errorbar(vecBins(2:end)-dblBinWidth/2,mean(matPSTH./dblBinWidth,1),std(matPSTH./dblBinWidth,[],1)/sqrt(intTrials))
+					ylabel('Binned spiking rate (Hz)')
+					xlabel('Time after trial start (s)')
+					title(sprintf('Bin width %.3f s',dblBinWidth));
+					fixfig;
+					
+					subplot(2,3,3)
+					[vecTime,vecRate,sIFR] = getIFR(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,[],[],[],1);
+					xlabel('Time after trial start (s)')
+					ylabel('Instantaneous firing rate (Hz)')
+					ylim([0 max(get(gca,'ylim'))]);
+					title('No binning');
+					
+					pause;
+					continue;
 					%%}
 					%% t-test
 					%'vecTtestP','vecTtestTime'

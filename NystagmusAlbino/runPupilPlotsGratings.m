@@ -1,6 +1,7 @@
 %% load data
 clear all;
-strDataPath = 'F:\Data\Processed\Neuropixels';
+strDataPath = 'E:\DataPreProcessed';
+%strDataPath = 'F:\Data\Processed\Neuropixels';
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
 if ~exist('sExp','var') || isempty(sExp)
 	sExp = [];
@@ -33,7 +34,7 @@ for intSubType=1:2
 	if intSubType == 1
 		strSubjectType = 'BL6';
 		dblOffsetT=0;
-		dblAverageMouseHeadTiltInSetup = -15;
+		dblAverageMouseHeadTiltInSetup = -30;
 	elseif intSubType == 2
 		strSubjectType = 'DBA';
 		dblOffsetT=0;

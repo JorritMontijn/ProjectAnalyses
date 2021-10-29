@@ -139,7 +139,7 @@ for intRunStim=vecUseRunStim
 
 		elseif contains(strRunType,'CaNM')
 			%% find data
-			strDataSourcePath = 'F:\Data\Processed\imagingGCaMP\';
+			strDataSourcePath = 'D:\Data\Processed\imagingGCaMP\';
 			sFiles = dir([strDataSourcePath '20150511xyt02_ses.mat']);
 			cellFiles = {sFiles(:).name}';
 			sLoad = load([strDataSourcePath cellFiles{1}]);
@@ -154,7 +154,9 @@ for intRunStim=vecUseRunStim
 		intBinNum = numel(vecBinDurs);
 		vecNumSpikes = nan(1,intNeurons);
 		matBinAnova = nan(intBinNum,intNeurons);
-
+		vecMeanP = nan(1,intNeurons);
+		vecZetaP = nan(1,intNeurons);
+			
 		%% message
 		fprintf('Processing %s, # of bins = %d [%s]\n',strRunType,intBinNum,getTime);
 		hTic=tic;
@@ -227,7 +229,7 @@ for intRunStim=vecUseRunStim
 			%get data
 			for intBinIdx=1:intBinNum
 				%get trial dur
-				dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
+				dblUseMaxDur = (median(diff(vecTrialStarts(:,1)))*2)/2;
 				%set derivative params
 				if contains(strRunType,'Rand')
 					dblDur = dblUseMaxDur;
@@ -260,15 +262,18 @@ for intRunStim=vecUseRunStim
 				matBinAnova(intBinIdx,intNeuron) = dblAnovaP;
 			end
 			%% zeta
-			[dblZetaP,vecLatencies,sZETA,sRate] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,100,intMakePlots,vecRestrictRange);
+			[dblZetaP,sZETA] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,100,intMakePlots);
 			
 			%% save output
 			% assign data
 			vecNumSpikes(intNeuron) = sum(vecTraceAct)/numel(vecTraceAct);
+			vecMeanP(intNeuron) = sZETA.dblMeanP;
 			vecZetaP(intNeuron) = dblZetaP;
 			vecSU(intNeuron) = intSU;
 		end
+		return
 		%save
+		
 		%vecNumSpikes = nan(1,intNeurons);
 		%vecZeta = nan(1,intNeurons);
 		%vecP = nan(1,intNeurons);

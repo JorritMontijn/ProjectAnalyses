@@ -2,7 +2,7 @@
 %{
 [done/1) how do confusion matrices of ori decoding differ between alb/bl6?
 
-2) is neural code of nat movs more variable during eye movements in NOT than Ctx?
+[done/2) is neural code of nat movs more variable during eye movements in NOT than Ctx?
 
 3) does info in NOT predict info in V1? [is this doable? sufficient twin recording??]
 

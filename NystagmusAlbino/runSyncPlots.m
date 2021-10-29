@@ -1,5 +1,5 @@
 %% load data
-strDataPath = 'F:\Data\Processed\Neuropixels';
+strDataPath = 'E:\DataPreProcessed';
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
 if ~exist('sExp','var') || isempty(sExp)
 	sExp = [];
@@ -47,7 +47,7 @@ for intSubType=1:2
 	for intRecIdx=1:numel(vecRunRecs)
 		intRec=vecRunRecs(intRecIdx)
 		sRec = sExp(intRec);
-		
+		sRec.name = sFiles(intFile).name;
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false)
 		vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true))
 		for intBlockIdx=1:numel(vecBlocksDG)
@@ -131,6 +131,36 @@ for intSubType=1:2
 				
 			end
 			%}
+			%% get PD
+			%load
+			sMetaNI = sRec.sSources.sMeta;
+			dblSampRateReportedNI = DP_SampRate(sMetaNI);
+			intFirstSample = str2double(sMetaNI.firstSample);
+			dblT0_NI = intFirstSample/dblSampRateReportedNI;
+			
+			strPathNidq = sRec.sSources.sEphysNidq.folder;
+			strFileNidq = sRec.sSources.sEphysNidq.name;
+			fprintf('   Loading raw data ... [%s]\n',getTime);
+			matDataNI = -DP_ReadBin(-inf, inf, sMetaNI, strrep(strFileNidq,'.meta','.bin'), strPathNidq); %1=PD,2=sync pulse
+			fprintf('   Done! [%s]\n',getTime);
+			
+			sNiCh = PP_GetNiCh(sRec.sSources.sMetaVar,sMetaNI);
+			vecDiodeSignal = matDataNI(sNiCh.intStimOnsetCh,:);
+			dblSubsampleBy = 100;
+			vecSubSampledV = double(vecDiodeSignal(1:dblSubsampleBy:end));
+			vecT = (1:numel(vecDiodeSignal))/dblSampRateReportedNI;
+			vecSubSampledT = double(vecT(1:dblSubsampleBy:end));
+			[vecRefT2,matTracePerTrial2] = getTraceInTrial(vecSubSampledT,vecSubSampledV,sBlock.vecStimOnTime+dblOffsetT,(1/dblSampRateReportedNI)*dblSubsampleBy,median(diff(sBlock.vecStimOnTime)));
+			vecRefT2 = vecRefT2+dblOffsetT;
+			
+			%plot
+			subplot(2,3,4)
+			h=plot(vecRefT2,matTracePerTrial2(1:10:end,:));
+			colororder(gca,redbluepurple(numel(h)))
+				
+			subplot(2,3,5)
+			imagesc(vecRefT2,[],matTracePerTrial2)
+			
 			%% plot spikes
 			%%{
 			%cellCortex = {'posteromedial visual area','primary visual'};
@@ -151,7 +181,7 @@ for intSubType=1:2
 			for intTrial = 1:intTrials
 				matSpikes(intTrial,:)=histcounts(vecTimePerSpike(vecTrialPerSpike==intTrial),vecBins);
 			end
-			subplot(2,3,3)
+			subplot(2,3,6)
 			imagesc(vecBins(2:end)-0.5,[],matSpikes+1);
 			title(sprintf('neuron %d',intN))
 			end
@@ -181,7 +211,7 @@ for intSubType=1:2
 			matRespOffMu = mean(matRespOff,3);
 			matRespOffSd = std(matRespOff,[],3);
 			%}
-			
+			return
 		end
 	end
 	

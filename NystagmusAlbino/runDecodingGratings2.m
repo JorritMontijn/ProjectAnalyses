@@ -319,7 +319,7 @@ export_fig([strTargetPath filesep sprintf('OriDecoding%dtuple.pdf',intMinCells)]
 	
 %% pseudo populations
 figure;maxfig;
-intUseCells = 50;
+intUseCells = 40;
 intUseReps = 15;
 cellPref = cell(2,2);
 matCellNum = nan(2,2);
@@ -368,7 +368,7 @@ for intArea=1:2
 		%run multiple permutations and average
 		intRunPerms = 50;
 		intNumN = numel(vecSubSelect);
-		intChoosePerms = min([intRunPerms nchoosek(intNumN,intUseCells)-1]);
+		intChoosePerms = min([intRunPerms nchoosek(intNumN,min([intUseCells intNumN]))-1]);
 		vecPermPerf = nan(1,intChoosePerms);
 		boolChosen = false;
 		intChooseIdx=1;

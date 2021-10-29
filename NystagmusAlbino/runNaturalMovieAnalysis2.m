@@ -48,6 +48,10 @@ for intExp=1:numel(sExp)
 	cellAreasPerExp{intExp} = unique({sExp(intExp).sCluster.Area})';
 	cellStimsPerExp{intExp} = [strName ':' char(cell2vec(cellfun(@(x) x.strExpType,sExp(intExp).cellBlock,'UniformOutput',false)))'];
 end
+matAggCorrWt = nan(0,numel(cellUseAreas),1);
+matAggCorrAlb = nan(0,numel(cellUseAreas),1);
+matAggMoveWt = nan(0,numel(cellUseAreas),2);
+matAggMoveAlb = nan(0,numel(cellUseAreas),2);
 
 %% run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -56,7 +60,6 @@ cellRemove = {};%{'RecMA5_2021-03-01R01_g0_t0'};
 indRemRecs = contains(cellExperiment,cellRemove);
 indRemRecs2 = ~contains(cellNameAP,cellUseForEyeTracking);
 cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
-dblAverageMouseHeadTiltInSetup = -15;
 
 for intSubType=1:2
 	intPopCounter = 0;
@@ -119,10 +122,13 @@ for intSubType=1:2
 			
 			%get movement
 			vecEyeMovement = sqrt(diff(vecPupilLocY).^2 + diff(vecPupilLocX).^2);
+			%vecEyeMovement = vecPupilSize;
 			
 			%% prep data
 			cellCellsPerArea = cell(1,numel(cellUseAreas));
 			cellAreasPerCluster = {sRec.sCluster.Area};
+			vecCorr = nan(1,numel(cellUseAreas));
+			matMeanMov = nan(2,numel(cellUseAreas));
 			for intArea=1:numel(cellUseAreas)
 				cellCellsPerArea{intArea} = contains(cellAreasPerCluster,cellUseAreas{intArea},'IgnoreCase',true);
 				vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
@@ -132,7 +138,10 @@ for intSubType=1:2
 				%get data matrix
 				vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);
 				vecStimOffTime = sBlock.vecStimOffTime(~indRemTrials);
-				
+				if ~isfield(sBlock,'vecPupilStimOn'),continue;end
+				vecPupilStimOn = sBlock.vecPupilStimOn(~indRemTrials);
+				vecPupilStimOff = sBlock.vecPupilStimOff(~indRemTrials);
+		
 				if numel(vecStimOnTime) <= 10,close;continue;end
 				intPopCounter = intPopCounter + 1;
 				cellSpikeT = {sRec.sCluster(:).SpikeTimes};
@@ -175,28 +184,119 @@ for intSubType=1:2
 				vecPriorDistribution = intRepNum*ones(1,intBinNr);
 				[dblPerformanceLR2,vecDecodedIndexCV,matPostProbability,dblMeanErrorDegs,matConfusionLR2] = ...
 					doCrossValidatedDecodingLR(matUseData,vecBinIdx,intTypeCV,vecPriorDistribution,dblLambda);
+				[phat,pci] = binofit(dblPerformanceLR2*numel(vecDecodedIndexCV),numel(vecDecodedIndexCV));
+				if pci(1) < (1/intBinNr),continue;end
+				
+				%get pupil starts
+				vecBinOnPupilT = flat(vecPupilStimOn(:)' + vecBinOnset(:));
 				
 				%get movement & probability of correct time bin
 				intMovieBins = size(matPostProbability,2);
 				vecProbCorrect = nan(1,intMovieBins);
+				vecIsCorrect = nan(1,intMovieBins);
 				vecMovePupil = nan(1,intMovieBins);
 				for intMovieBin=1:intMovieBins
 					%get probability
 					vecProbCorrect(intMovieBin) = matPostProbability(vecBinIdx(intMovieBin),intMovieBin);
+					vecIsCorrect(intMovieBin) = vecDecodedIndexCV(intMovieBin)==vecBinIdx(intMovieBin);
 					
-					%eye movement
-					vecMovePupil(intMovieBin) = [];
+					%get eye movement
+					dblStart = vecBinOnPupilT(intMovieBin);
+					dblStop = dblStart + dblBinDur;
+					intStartT = max([1 find(vecPupilTime > dblStart,1) - 1]);
+					intStopT = min([numel(vecPupilTime) find(vecPupilTime > dblStop,1) + 1]);
+					vecSelectFrames = intStartT:intStopT;
+					vecMovePupil(intMovieBin) = mean(vecEyeMovement(vecSelectFrames));
 				end
 				
+				%test correct/incorrect difference
+				vecMoveCorrect = vecMovePupil(vecIsCorrect==1);
+				vecMoveIncorrect = vecMovePupil(vecIsCorrect==0);
+				[hT,pT]=ttest2(vecMoveCorrect,vecMoveIncorrect);
+				matMeanMov(intArea,1) = mean(vecMoveCorrect);
+				matMeanMov(intArea,2) = mean(vecMoveIncorrect);
 				
-				subplot(2,4,4+(intType-1)*4)
-				imagesc(matConfusionLR2)
-				title(['LR2: ' strName '_' num2str(intBlock)],'interpreter','none');
-				return
+				%calculate correlation
+				[R,P,RL,RU] = corrcoef(vecMovePupil',vecProbCorrect');
+				vecCorr(intArea) = R(1,2);
+				
+				%figure
+				%scatter(vecMovePupil,vecProbCorrect,'.')
+				%xlabel('Pupil movement');
+				%ylabel('P(correct)');
+				%title(sprintf('%s,%s; %sB%d, R=%.3f, p=%.3f; T-p=%.3f',strSubjectType,strAreaGroup,strName,intBlock,R(1,2),P(1,2),pT),'interpreter','none');
+				%fixfig;
+				
+			end
+			
+			if strcmp(strSubjectType,'BL6')
+				matAggCorrWt(end+1,:,:) = vecCorr;
+				matAggMoveWt(end+1,:,:) = matMeanMov;
+				%matAggPerfWt(end+1,:,:) = matPerf;
+				%cellAggPrefWt(end+1,:) = cellPref;
+			else
+				matAggCorrAlb(end+1,:,:) = vecCorr;
+				matAggMoveAlb(end+1,:,:) = matMeanMov;
+				%matAggPerfAlb(end+1,:,:) = matPerf;
+				%cellAggPrefAlb(end+1,:) = cellPref;
 			end
 		end
 	end
 	%% plot
 	
 end
-%% save
+%% data
+vecCorrCtxBL6 = matAggCorrWt(:,1);
+vecCorrCtxBL6(isnan(vecCorrCtxBL6)) = [];
+vecCorrNOTBL6 = matAggCorrWt(:,2);
+vecCorrNOTBL6(isnan(vecCorrNOTBL6)) = [];
+
+vecCorrCtxAlb = matAggCorrAlb(:,1);
+vecCorrCtxAlb(isnan(vecCorrCtxAlb)) = [];
+vecCorrNOTAlb = matAggCorrAlb(:,2);
+vecCorrNOTAlb(isnan(vecCorrNOTAlb)) = [];
+
+matDiffMoveAlb = matAggMoveAlb(:,:,1) - matAggMoveAlb(:,:,2)
+vecDiffMoveAlbCtx = matDiffMoveAlb(:,1);
+vecDiffMoveAlbNOT = matDiffMoveAlb(:,2);
+
+matDiffMoveBL6 = matAggMoveWt(:,:,1) - matAggMoveWt(:,:,2)
+vecDiffMoveBL6Ctx = matDiffMoveBL6(:,1);
+vecDiffMoveBL6NOT = matDiffMoveBL6(:,2);
+
+[h,p_Ctx2] = ttest2(vecDiffMoveBL6Ctx,vecDiffMoveAlbCtx);
+[h,p_NOT2] = ttest2(vecDiffMoveBL6NOT,vecDiffMoveAlbNOT);
+
+%% test
+[h,p_Ctx] = ttest2(vecCorrCtxBL6,vecCorrCtxAlb);
+[h,p_NOT] = ttest2(vecCorrNOTBL6,vecCorrNOTAlb);
+
+%interaction
+vecY = cat(1,vecCorrCtxBL6,vecCorrCtxAlb,vecCorrNOTBL6,vecCorrNOTAlb);
+vecG1 = cat(1,ones(size(vecCorrCtxBL6)),2*ones(size(vecCorrCtxAlb)),ones(size(vecCorrNOTBL6)),2*ones(size(vecCorrNOTAlb))); %bl6 vs alb
+cellG1 = cellSubjectGroups(vecG1)';
+vecG2 = cat(1,ones(size(vecCorrCtxBL6)),ones(size(vecCorrCtxAlb)),2*ones(size(vecCorrNOTBL6)),2*ones(size(vecCorrNOTAlb))); %ctx vs not
+cellG2 = cellAreaGroupsAbbr(vecG2)';
+
+[p,tbl,stats,terms] = anovan(vecY,{cellG1,cellG2},'model','full','display','off');
+
+%% plot
+figure
+errorbar([1 2],[mean(vecCorrCtxBL6) mean(vecCorrNOTBL6)],...
+	[std(vecCorrCtxBL6)/sqrt(numel(vecCorrCtxBL6)) std(vecCorrNOTBL6)/sqrt(numel(vecCorrNOTBL6))],...
+	'x-','Color',vecColBl6,'CapSize',20);
+hold on
+errorbar([1 2],[mean(vecCorrCtxAlb) mean(vecCorrNOTAlb)],...
+	[std(vecCorrCtxAlb)/sqrt(numel(vecCorrCtxAlb)) std(vecCorrNOTAlb)/sqrt(numel(vecCorrNOTAlb))],...
+	'x-','Color',vecColAlb,'CapSize',20);
+hold off
+ylabel(sprintf('Pearson R(Pupil movement,Decoding)'));
+set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr(1:2));
+xlim([0.5 2.5]);
+legend(cellSubjectGroups,'Location','best');
+title(sprintf('Ctx,p=%.4f,NOT,p=%.4f, Interaction,p=%.4f',p_Ctx,p_NOT,p(3)));
+fixfig;grid off;drawnow;
+
+export_fig([strTargetPath filesep sprintf('NatMovDecodingMovementCorr.tif')]);
+export_fig([strTargetPath filesep sprintf('NatMovDecodingMovementCorr.pdf')]);
+	

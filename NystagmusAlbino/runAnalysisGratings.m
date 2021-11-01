@@ -12,13 +12,18 @@
 A) plot tuning in NOT as function of location in NOT: is a recording closer to the border more
 likely to be tuned? 
 
-B) plot tuning as second-closest pair decoding: is there a difference in decoding between horizontal
+[not necessary anymore/B) plot tuning as second-closest pair decoding: is there a difference in decoding between horizontal
 and vertical gratings? 
 
 [done/C) plot results as separate recordings (and make selection of recordings based on visual
 responsiveness)
 
 [done/D) plot example NOT cells that respond visually but are not orientation tuned
+
+E) remake figure for tuning distribution over areas
+
+F) test whether eye-movement direction bias to temporonasal for DBAs is different from 0.5 and
+different from BL6
 
 %}
 
@@ -545,7 +550,6 @@ vecTAN = cellfun(@(x) mean(-norminv(x/2)),cellTuningP_AlbNOT);
 
 %% plot corr(zeta-p,tuning-p) per recording in Ctx, NOT, and Hip; colored by Alb/BL6
 return
-%
 %ctx
 dblR_AlbCtx = nancorr(-norminv(vecZetaP_AlbCtx/2),-norminv(vecTuningP_AlbCtx/2));
 dblR_Bl6Ctx = nancorr(-norminv(vecZetaP_Bl6Ctx/2),-norminv(vecTuningP_Bl6Ctx/2));
@@ -575,12 +579,12 @@ hold off
 fixfig;
 
 %hip
-dblR_AlbHip = nancorr(-norminv(vecZetaP_AlbHip/2),-norminv(vecTuningP_AlbHip/2));
-dblR_Bl6Hip = nancorr(-norminv(vecZetaP_Bl6Hip/2),-norminv(vecTuningP_Bl6Hip/2));
+%dblR_AlbHip = nancorr(-norminv(vecZetaP_AlbHip/2),-norminv(vecTuningP_AlbHip/2));
+%dblR_Bl6Hip = nancorr(-norminv(vecZetaP_Bl6Hip/2),-norminv(vecTuningP_Bl6Hip/2));
 
-subplot(2,3,3)
-hold on;
-scatter(-norminv(vecZetaP_AlbHip/2),-norminv(vecTuningP_AlbHip/2),[],'r','x');
-scatter(-norminv(vecZetaP_Bl6Hip/2),-norminv(vecTuningP_Bl6Hip/2),[],'b','x');
-hold off
-fixfig;
+%subplot(2,3,3)
+%hold on;
+%scatter(-norminv(vecZetaP_AlbHip/2),-norminv(vecTuningP_AlbHip/2),[],'r','x');
+%scatter(-norminv(vecZetaP_Bl6Hip/2),-norminv(vecTuningP_Bl6Hip/2),[],'b','x');
+%hold off
+%fixfig;

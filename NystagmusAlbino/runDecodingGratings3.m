@@ -178,8 +178,8 @@ for intSubType=1:2
 			%select cells in Ctx and NOT
 			vecSelectCellsCtx = find(indUseCells(:) & cellCellsPerArea{1}(:));
 			vecSelectCellsNOT = find(indUseCells(:) & cellCellsPerArea{2}(:));
-			
-			if numel(vecSelectCellsCtx) < 5 || numel(vecSelectCellsNOT) < 5
+			dblMinCells = 5;
+			if numel(vecSelectCellsCtx) < dblMinCells || numel(vecSelectCellsNOT) < dblMinCells
 				continue;
 			else
 				fprintf('%s; %sB%d; Ctx=%d, NOT=%d\n',strSubjectType,strName,intBlock,numel(vecSelectCellsCtx),numel(vecSelectCellsNOT));
@@ -225,7 +225,7 @@ for intSubType=1:2
 			pBino=myBinomTest(sum(diag(matConfusion)),sum(matConfusion(:)),dblChanceDiag);
 			
 			axis xy;
-			title(sprintf('Orientation error similarity; n,NOT=%d,Ctx=%d'));
+			title(sprintf('Orientation error similarity; n,NOT=%d,Ctx=%d',numel(vecSelectCellsNOT),numel(vecSelectCellsCtx)));
 			xlabel('Cortex, Ori decoding P(correct)');
 			ylabel('NOT, Ori decoding P(correct)');
 			fixfig;grid off;
@@ -259,22 +259,36 @@ vecPropOnDiagWt
 vecCorrectRAlb
 vecPropOnDiagAlb
 
-%%
+%% test
+[h,p_correctr]=ttest2(vecCorrectRWt,vecCorrectRAlb);
+[h,p_sameoriWt]=ttest(vecPropOnDiagWt,dblChanceDiag);
+[h,p_sameoriAlb]=ttest(vecPropOnDiagAlb,dblChanceDiag);
+
+%% plot
 figure
 subplot(2,3,1)
 hold on
 errorbar(1,mean(vecCorrectRWt),std(vecCorrectRWt)/sqrt(numel(vecCorrectRWt)),'xb')
 errorbar(2,mean(vecCorrectRAlb),std(vecCorrectRAlb)/sqrt(numel(vecCorrectRAlb)),'xr')
 hold off
-fixfig;grid off;
 xlim([0 3]);
+title(sprintf('t-test,p=%.3f',p_correctr))
+set(gca,'xtick',[1 2],'xticklabel',{'BL6','DBA'});
+ylabel('Correlation correct R(P(Ctx),P(NOT))');
+fixfig;grid off;
 
 subplot(2,3,2)
 hold on
 errorbar(1,mean(vecPropOnDiagWt),std(vecPropOnDiagWt)/sqrt(numel(vecPropOnDiagWt)),'xb')
 errorbar(2,mean(vecPropOnDiagAlb),std(vecPropOnDiagAlb)/sqrt(numel(vecPropOnDiagAlb)),'xr')
 plot([1 2],[1 1]*dblChanceDiag,'--','color',[0.5 0.5 0.5])
+set(gca,'xtick',[1 2],'xticklabel',{'BL6','DBA'});
+ylabel('Same-ori decoding error (Ctx,NOT)');
+xlim([0 3]);
+title(sprintf('t-test vs 0; Wt,p=%.3f; Alb,p=%.3f',p_sameoriWt,p_sameoriAlb))
 hold off
 fixfig;grid off
-xlim([0 3]);
+maxfig;
+
+
 

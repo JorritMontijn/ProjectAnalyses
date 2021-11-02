@@ -17,6 +17,7 @@ if ~exist('sExp','var') || isempty(sExp)
 		end
 	end
 end
+
 %MP_20200115 eye tracking remove last stimulus (gunk in eye)
 cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
 cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
@@ -147,8 +148,6 @@ for intSubType=1:2
 				cellSpikeT = {sRec.sCluster(:).SpikeTimes};
 				
 				%include?
-				vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
-				%indUseCells = vecZetaP(:)<0.05 & arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
 				indUseCells = arrayfun(@(x) x.Violations1ms < 0.25 & abs(x.NonStationarity) < 0.25,sRec.sCluster(:));
 				
 				%% split cells into areas

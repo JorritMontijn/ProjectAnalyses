@@ -144,9 +144,8 @@ for intSubType=1:2
 			matData = getSpikeCounts(cellSpikeT,vecStimOnTime,dblDur);
 			
 			%include?
-			vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
-			%indUseCells = arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
 			indUseCells = arrayfun(@(x) x.Violations1ms < 0.25 & abs(x.NonStationarity) < 0.25,sRec.sCluster(:));
+			vecUseCells = find(indUseCells);
 			
 			%% split cells into areas
 			%build cell vectors
@@ -166,8 +165,6 @@ for intSubType=1:2
 			%params
 			intTypeCV = 2; %leave repetition out
 			vecOriNoDir = mod(vecOrientation,180);
-			vecTrialTypesNoDir = deg2rad(vecOriNoDir)*2;
-			[vecOriIdx,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecTrialTypesNoDir);
 			dblLambda = 100;
 			
 			%[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOriNoDir);
@@ -185,14 +182,16 @@ for intSubType=1:2
 				fprintf('%s; %sB%d; Ctx=%d, NOT=%d\n',strSubjectType,strName,intBlock,numel(vecSelectCellsCtx),numel(vecSelectCellsNOT));
 			end
 			
-			
 			%% decode Ctx
 			[dblPerformanceLR_Ctx,vecDecodedIndexCV_LR_Ctx,matPosteriorProbability_Ctx,dblMeanErrorDegsLR_Ctx,matConfusionLR_Ctx,matWeights_Ctx] = ...
-				doCrossValidatedDecodingLR(matData(indUseCells(:) & cellCellsPerArea{1},:),vecOrientation,intTypeCV,vecPriorDistribution,dblLambda);
+				doCrossValidatedDecodingLR(matData(indUseCells(:) & cellCellsPerArea{1},:),vecTrialTypes,intTypeCV,vecPriorDistribution,dblLambda);
+			pBinoCtx=myBinomTest(dblPerformanceLR_Ctx*sum(matConfusionLR_Ctx(:)),sum(matConfusionLR_Ctx(:)),1/intStimNr);
 			
 			%% decode NOT
 			[dblPerformanceLR_NOT,vecDecodedIndexCV_LR_NOT,matPosteriorProbability_NOT,dblMeanErrorDegsLR_NOT,matConfusionLR_NOT,matWeights_NOT] = ...
-				doCrossValidatedDecodingLR(matData(indUseCells & cellCellsPerArea{2},:),vecOrientation,intTypeCV,vecPriorDistribution,dblLambda);
+				doCrossValidatedDecodingLR(matData(indUseCells & cellCellsPerArea{2},:),vecTrialTypes,intTypeCV,vecPriorDistribution,dblLambda);
+			pBinoNOT=myBinomTest(dblPerformanceLR_NOT*sum(matConfusionLR_NOT(:)),sum(matConfusionLR_NOT(:)),1/intStimNr);
+			if (dblPerformanceLR_NOT < 1/intStimNr || pBinoNOT>0.05) && (dblPerformanceLR_Ctx < 1/intStimNr || pBinoCtx>0.05),continue;end
 			
 			%% get prob correct per trial
 			intTrials = numel(vecDecodedIndexCV_LR_Ctx);
@@ -204,6 +203,15 @@ for intSubType=1:2
 				vecProbCorrectNOT(intTrial) = matPosteriorProbability_NOT(vecTrialTypes(intTrial),intTrial);
 			end
 			
+			%remove trials
+			indRemTrials = vecProbCorrectCtx == 0 | isnan(vecProbCorrectCtx) | vecProbCorrectNOT == 0 | isnan(vecProbCorrectNOT);
+			vecProbCorrectCtx(indRemTrials) = [];
+			vecProbCorrectNOT(indRemTrials) = [];
+			vecDecodedIndexCV_LR_Ctx(indRemTrials) = [];
+			vecDecodedIndexCV_LR_NOT(indRemTrials) = [];
+			vecTrialTypes(indRemTrials) = [];
+			
+			%plot
 			figure
 			subplot(2,3,1)
 			[r,p,ul,ll]=corrcoef(vecProbCorrectNOT(:),vecProbCorrectCtx(:));
@@ -216,13 +224,14 @@ for intSubType=1:2
 			%select only trials where both are wrong
 			indBothWrong = vecDecodedIndexCV_LR_Ctx~=vecTrialTypes & vecDecodedIndexCV_LR_NOT~=vecTrialTypes;
 			subplot(2,3,2)
-			intStimTypes=numel(vecUnique);
-			matConfusion = getFillGrid(zeros(intStimTypes),vecDecodedIndexCV_LR_Ctx(indBothWrong),vecDecodedIndexCV_LR_NOT(indBothWrong),ones(intTrials,1));
+			matConfusion = getFillGrid(zeros(intStimNr),vecDecodedIndexCV_LR_Ctx(indBothWrong),vecDecodedIndexCV_LR_NOT(indBothWrong),ones(intTrials,1));
 			imagesc(matConfusion);
 			dblOnDiag = sum(diag(matConfusion))/sum(matConfusion(:));
-			dblChanceDiag = intStimTypes/(intStimTypes.^2);
-			[phat,pci]=binofit(sum(diag(matConfusion)),sum(matConfusion(:)));
-			pBino=myBinomTest(sum(diag(matConfusion)),sum(matConfusion(:)),dblChanceDiag);
+			dblChanceDiag = intStimNr/(intStimNr.^2);
+			%dblOnDiag = sum(matConfusion(matIsCorrect))/sum(matConfusion(:));
+			%dblChanceDiag = dblChanceP;
+			[phat,pci]=binofit(dblOnDiag*sum(matConfusion(:)),sum(matConfusion(:)));
+			pBino=myBinomTest(dblOnDiag*sum(matConfusion(:)),sum(matConfusion(:)),dblChanceDiag);
 			
 			axis xy;
 			title(sprintf('Orientation error similarity; n,NOT=%d,Ctx=%d',numel(vecSelectCellsNOT),numel(vecSelectCellsCtx)));
@@ -261,6 +270,9 @@ vecPropOnDiagAlb
 
 %% test
 [h,p_correctr]=ttest2(vecCorrectRWt,vecCorrectRAlb);
+[h,p_correctrAlb]=ttest(vecCorrectRAlb,0);
+[h,p_correctrWt]=ttest(vecCorrectRWt,0);
+
 [h,p_sameoriWt]=ttest(vecPropOnDiagWt,dblChanceDiag);
 [h,p_sameoriAlb]=ttest(vecPropOnDiagAlb,dblChanceDiag);
 
@@ -272,7 +284,7 @@ errorbar(1,mean(vecCorrectRWt),std(vecCorrectRWt)/sqrt(numel(vecCorrectRWt)),'xb
 errorbar(2,mean(vecCorrectRAlb),std(vecCorrectRAlb)/sqrt(numel(vecCorrectRAlb)),'xr')
 hold off
 xlim([0 3]);
-title(sprintf('t-test,p=%.3f',p_correctr))
+title(sprintf('t-test,p=%.3f, vs 0; Wt,p=%.3f, Alb,p=%.3f',p_correctr,p_correctrWt,p_correctrAlb))
 set(gca,'xtick',[1 2],'xticklabel',{'BL6','DBA'});
 ylabel('Correlation correct R(P(Ctx),P(NOT))');
 fixfig;grid off;

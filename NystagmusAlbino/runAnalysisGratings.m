@@ -4,9 +4,12 @@
 
 [done/2) is neural code of nat movs more variable during eye movements in NOT than Ctx?
 
-3) does info in NOT predict info in V1? [is this doable? sufficient twin recording??]
+[done/3) does info in NOT predict info in V1? [is this doable? sufficient twin recording??]
 
-4) spike shape NOT vs Ctx
+[to do/4) plot eye-tracking of stimulus => is rightward bias of albinos significant? 
+=> can this be explained by stimulation of only the left eye, causing temporonasal (rightward) motion?
+
+5) spike shape NOT vs Ctx
 
 %to do:
 A) plot tuning in NOT as function of location in NOT: is a recording closer to the border more
@@ -24,6 +27,8 @@ E) remake figure for tuning distribution over areas
 
 F) test whether eye-movement direction bias to temporonasal for DBAs is different from 0.5 and
 different from BL6
+
+G) make model explaining results
 
 %}
 
@@ -68,19 +73,31 @@ cellSubjectGroups = {'BL6','DBA'};
 
 %% pre-allocate
 cellTuningP_AlbCtx = {};
-cellTuningP_Bl6Ctx = {};
 cellZetaP_AlbCtx = {};
-cellZetaP_Bl6Ctx = {};
+cellPrefOri_AlbCtx = {};
 
-cellTuningP_AlbNOT = {};
+cellTuningP_Bl6Ctx = {};
+cellZetaP_Bl6Ctx = {};
+cellPrefOri_Bl6Ctx = {};
+
+
 cellTuningP_Bl6NOT = {};
-cellZetaP_AlbNOT = {};
+cellPrefOri_Bl6NOT = {};
 cellZetaP_Bl6NOT = {};
 
-cellTuningP_AlbHip = {};
+cellTuningP_AlbNOT = {};
+cellZetaP_AlbNOT = {};
+cellPrefOri_AlbNOT = {};
+
+
 cellTuningP_Bl6Hip = {};
-cellZetaP_AlbHip = {};
 cellZetaP_Bl6Hip = {};
+cellPrefOri_Bl6Hip = {};
+
+cellTuningP_AlbHip = {};
+cellZetaP_AlbHip = {};
+cellPrefOri_AlbHip = {};
+
 
 %% run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -166,8 +183,6 @@ for intSubType=1:2
 			matData = getSpikeCounts(cellSpikeT,vecStimOnTime,dblStimDur);
 			
 			%include?
-			vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
-			%indUseCells = arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
 			indUseCells = arrayfun(@(x) x.Violations1ms < 0.25 & abs(x.NonStationarity) < 0.25,sRec.sCluster(:));
 			
 			%% split cells into areas
@@ -258,17 +273,21 @@ for intSubType=1:2
 					if strcmpi(strSubjectType,'DBA')
 						cellTuningP_AlbCtx{end+1} = vecTuningP_R2_corr;
 						cellZetaP_AlbCtx{end+1} = vecZetaP_corr;
+						cellPrefOri_AlbCtx{end+1} = vecPrefOri;
 					elseif strcmpi(strSubjectType,'Bl6')
 						cellTuningP_Bl6Ctx{end+1} = vecTuningP_R2_corr;
 						cellZetaP_Bl6Ctx{end+1} = vecZetaP_corr;
+						cellPrefOri_Bl6Ctx{end+1} = vecPrefOri;
 					end
 				elseif intArea == 2
 					if strcmpi(strSubjectType,'DBA')
 						cellTuningP_AlbNOT{end+1} = vecTuningP_R2_corr;
 						cellZetaP_AlbNOT{end+1} = vecZetaP_corr;
+						cellPrefOri_AlbNOT{end+1} = vecPrefOri;
 					elseif strcmpi(strSubjectType,'Bl6')
 						cellTuningP_Bl6NOT{end+1} = vecTuningP_R2_corr;
 						cellZetaP_Bl6NOT{end+1} = vecZetaP_corr;
+						cellPrefOri_Bl6NOT{end+1} = vecPrefOri;
 					end
 				elseif intArea == 3
 					if strcmpi(strSubjectType,'DBA')
@@ -294,19 +313,22 @@ cellAllAreas = unique(horzcat(cellAllAreas{:}));
 cellMouseType = {'Alb','Bl6'};
 for intMouseType=1:2
 	strMouseType = cellMouseType{intMouseType};
-	for intAreaType=1:3
+	for intAreaType=1:2
 		strAreaType = cellAreaGroupsAbbr{intAreaType};
 		
 		strTuningVar = strcat('cellTuningP_',strMouseType,strAreaType);
 		strZetaVar = strcat('cellZetaP_',strMouseType,strAreaType);
+		strPrefVar = strcat('cellPrefOri_',strMouseType,strAreaType);
 		cellTempTuningVar = eval(strTuningVar);
 		cellTempZetaVar = eval(strZetaVar);
+		cellTempPrefVar = eval(strPrefVar);
 		
 		intRecs = numel(cellTempTuningVar);
 		for intRec=1:intRecs
-			indNan = isnan(cellTempTuningVar{intRec}(:)) | isnan(cellTempZetaVar{intRec}(:));
+			indNan = isnan(cellTempTuningVar{intRec}(:)) | isnan(cellTempZetaVar{intRec}(:)) | isnan(cellTempPrefVar{intRec}(:));
 			cellTempTuningVar{intRec}(indNan) = [];
 			cellTempZetaVar{intRec}(indNan) = [];
+			cellTempPrefVar{intRec}(indNan) = [];
 		end
 		
 		%remove recs with low #
@@ -314,22 +336,30 @@ for intMouseType=1:2
 		indRemRecs = cellfun(@(x) numel(x)<intCutOff,cellTempTuningVar) | cellfun(@(x) numel(x)<intCutOff,cellTempZetaVar);
 		cellTempTuningVar(indRemRecs) = [];
 		cellTempZetaVar(indRemRecs) = [];
+		cellTempPrefVar(indRemRecs) = [];
 		
 		
 		eval([strTuningVar ' = cellTempTuningVar;'])
 		eval([strZetaVar ' = cellTempZetaVar;'])
+		eval([strPrefVar ' = cellTempPrefVar;'])
 	end
 end
 %% vectorize
 vecTuningP_AlbCtx = cell2vec(cellTuningP_AlbCtx);
-vecTuningP_Bl6Ctx = cell2vec(cellTuningP_Bl6Ctx);
 vecZetaP_AlbCtx = cell2vec(cellZetaP_AlbCtx);
+vecPrefOri_AlbCtx = cell2vec(cellPrefOri_AlbCtx);
+
+vecTuningP_Bl6Ctx = cell2vec(cellTuningP_Bl6Ctx);
 vecZetaP_Bl6Ctx = cell2vec(cellZetaP_Bl6Ctx);
+vecPrefOri_Bl6Ctx = cell2vec(cellPrefOri_AlbCtx);
 
 vecTuningP_AlbNOT = cell2vec(cellTuningP_AlbNOT);
-vecTuningP_Bl6NOT = cell2vec(cellTuningP_Bl6NOT);
 vecZetaP_AlbNOT = cell2vec(cellZetaP_AlbNOT);
+vecPrefOri_AlbNOT = cell2vec(cellPrefOri_AlbCtx);
+
+vecTuningP_Bl6NOT = cell2vec(cellTuningP_Bl6NOT);
 vecZetaP_Bl6NOT = cell2vec(cellZetaP_Bl6NOT);
+vecPrefOri_Bl6NOT = cell2vec(cellPrefOri_AlbCtx);
 
 %vecTuningP_AlbHip = cell2vec(cellTuningP_AlbHip);
 %vecTuningP_Bl6Hip = cell2vec(cellTuningP_Bl6Hip);
@@ -349,6 +379,9 @@ vecCorrBl6NOT = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_Bl6NOT,cellTuningP_B
 [h,p_Not] = ttest2(vecCorrAlbNOT,vecCorrBl6NOT);
 %[h,p_Hip] = ttest2(vecCorrAlbHip,vecCorrBl6Hip);
 
+%% plot pref ori distro
+vecPrefOri_AlbNOT
+return
 %% plot
 figure;maxfig;
 vecRawP = nan(1,6);

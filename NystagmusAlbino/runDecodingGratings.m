@@ -138,8 +138,6 @@ for intSubType=1:2
 			matData = getSpikeCounts(cellSpikeT,vecStimOnTime,dblDur);
 			
 			%include?
-			vecZetaP = cellfun(@min,{sRec.sCluster.ZetaP});
-			%indUseCells = arrayfun(@(x) x.KilosortGood==1 | x.Contamination < 0.1,sRec.sCluster(:));
 			indUseCells = arrayfun(@(x) x.Violations1ms < 0.25 & abs(x.NonStationarity) < 0.25,sRec.sCluster(:));
 			
 			%% split cells into areas
@@ -168,7 +166,7 @@ for intSubType=1:2
 			[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOrientation);
 			vecPriorDistribution = vecCounts;
 			intStimNr = numel(vecUnique);
-			figure
+			%figure
 			for intArea = 1:numel(cellUseAreas)
 				%% select cells
 				strAreaGroup =  cellAreaGroupsAbbr{intArea};
@@ -187,10 +185,15 @@ for intSubType=1:2
 				end
 				vecPrefOri(~indKeepCells)=[];
 				cellPref{intArea} = vecPrefOri;
+				
+				matOriResp = sOut.matMeanResp(indKeepCells,:);
+				vecMeanHz = mean(matOriResp,2);
+				indRem=vecMeanHz<1;
+				if sum(~indRem) == 0,continue;end
 				if strcmp(strSubjectType,'BL6')
-					cellAggMeanRespWt{intArea} = cat(1,cellAggMeanRespWt{intArea},sOut.matMeanResp(indKeepCells,:));
+					cellAggMeanRespWt{intArea} = cat(1,cellAggMeanRespWt{intArea},matOriResp(~indRem,:)./vecMeanHz(~indRem));
 				else
-					cellAggMeanRespAlb{intArea} = cat(1,cellAggMeanRespAlb{intArea},sOut.matMeanResp(indKeepCells,:));
+					cellAggMeanRespAlb{intArea} = cat(1,cellAggMeanRespAlb{intArea},matOriResp(~indRem,:)./vecMeanHz(~indRem));
 				end
 				
 				%% decode all
@@ -206,16 +209,16 @@ for intSubType=1:2
 					matAggConfusionAlb(intPopCounter,intArea,:,:) = matConfusionLR;
 				end
 				
-				subplot(2,3,intArea)
-				imagesc(matConfusionLR)
-				title([strAreaGroup '; LR: ' strName '_' num2str(intBlock)],'interpreter','none');
+				%subplot(2,3,intArea)
+				%imagesc(matConfusionLR)
+				%title([strAreaGroup '; LR: ' strName '_' num2str(intBlock)],'interpreter','none');
 				
 				%% adjacent stims
-				for intStim1=1:intStimNr
-					intStim2 = intStim1-1;
-					if intStim2==0
-						intStim2=intStimNr;
-					end
+				for intStimCenter=1:intStimNr
+					intStim1 = mod(intStimCenter-1,intStimNr);
+					intStim2 = mod(intStimCenter+1,intStimNr);
+					if intStim1==0,intStim1=intStimNr;end
+					if intStim2==0,intStim2=intStimNr;end
 					indStim1 = cellSelect{intStim1};
 					indStim2 = cellSelect{intStim2};
 					vecUseTrialTypes = vecTrialTypes(indStim1 | indStim2);
@@ -228,14 +231,14 @@ for intSubType=1:2
 					%matPerfTM(intArea,intStim1) = dblPerformanceCV;
 					[dblPerformanceLR,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
 						doCrossValidatedDecodingLR(matUseData,vecUseTrialTypes,intTypeCV,vecPriorDistribution([intStim1 intStim2]),dblLambda);
-					matPerf(intArea,intStim1) = dblPerformanceLR;
+					matPerf(intArea,intStimCenter) = dblPerformanceLR;
 					
 				end
 			end
-			maxfig;drawnow;
-			export_fig(fullpath(strTargetPath,['GratingDecoding_' strName 'B' num2str(intBlock) '.jpg']));
-			export_fig(fullpath(strTargetPath,['GratingDecoding_' strName 'B' num2str(intBlock) '.pdf']));
-
+			%maxfig;drawnow;
+			%export_fig(fullpath(strTargetPath,['GratingDecoding_' strName 'B' num2str(intBlock) '.jpg']));
+			%export_fig(fullpath(strTargetPath,['GratingDecoding_' strName 'B' num2str(intBlock) '.pdf']));
+			%close;
 			if strcmp(strSubjectType,'BL6')
 				vecAggPerfWt(end+1,:,:) = vecPerf;
 				matAggPerfWt(end+1,:,:) = matPerf;
@@ -252,43 +255,35 @@ for intSubType=1:2
 	%% plot
 	
 end
-%%
-vecMeanWtPerfCtx = squeeze(nanmean(matAggPerfWt(:,1,:),1));
-vecMeanWtPerfNot = squeeze(nanmean(matAggPerfWt(:,2,:),1));
-vecMeanWtPerfHip = squeeze(nanmean(matAggPerfWt(:,3,:),1));
+%% plot
+%extract data
+matWtPerfCtx = squeeze(matAggPerfWt(:,1,:));
+matWtPerfCtx(any(isnan(matWtPerfCtx),2),:) = [];
+matWtPerfNot = squeeze(matAggPerfWt(:,2,:));
+matWtPerfNot(any(isnan(matWtPerfNot),2),:) = [];
 
-subplot(2,3,1)
-polar(deg2rad(vecUnique),vecMeanWtPerfCtx-0.5)
+matAlbPerfCtx = squeeze(matAggPerfAlb(:,1,:));
+matAlbPerfCtx(any(isnan(matAlbPerfCtx),2),:) = [];
+matAlbPerfNot = squeeze(matAggPerfAlb(:,2,:));
+matAlbPerfNot(any(isnan(matAlbPerfNot),2),:) = [];
 
+vecMeanWtPerfCtx = mean(matWtPerfCtx,1);
+vecMeanWtPerfNot = mean(matWtPerfNot,1);
+vecMeanAlbPerfCtx = mean(matAlbPerfCtx,1);
+vecMeanAlbPerfNot = mean(matAlbPerfNot,1);
+vecSemWtPerfCtx = std(matWtPerfCtx,[],1)/sqrt(size(matWtPerfCtx,1));
+vecSemWtPerfNot = std(matWtPerfNot,[],1)/sqrt(size(matWtPerfNot,1));
+vecSemAlbPerfCtx = std(matAlbPerfCtx,[],1)/sqrt(size(matAlbPerfCtx,1));
+vecSemAlbPerfNot = std(matAlbPerfNot,[],1)/sqrt(size(matAlbPerfNot,1));
 
-subplot(2,3,2)
-polar(deg2rad(vecUnique),vecMeanWtPerfNot-0.5)
-
-subplot(2,3,3)
-polar(deg2rad(vecUnique),vecMeanWtPerfHip-0.5)
-
-vecMeanAlbPerfCtx = squeeze(nanmean(matAggPerfAlb(:,1,:),1));
-vecMeanAlbPerfNot = squeeze(nanmean(matAggPerfAlb(:,2,:),1));
-vecMeanAlbPerfHip = squeeze(nanmean(matAggPerfAlb(:,3,:),1));
-
-subplot(2,3,4)
-polar(deg2rad(vecUnique),vecMeanAlbPerfCtx-0.5)
-
-
-subplot(2,3,5)
-polar(deg2rad(vecUnique),vecMeanAlbPerfNot-0.5)
-
-subplot(2,3,6)
-polar(deg2rad(vecUnique),vecMeanAlbPerfHip-0.5)
-
-%%
+% plot pair decoding
 dblEndX = vecUnique(end)+median(diff(vecUnique));
 figure
 subplot(2,3,1)
 hold on
 plot([0 360],[0.5 0.5],'k--');
-plot([vecUnique; dblEndX],[vecMeanWtPerfCtx; vecMeanWtPerfCtx(1)],'b-');
-plot([vecUnique; dblEndX],[vecMeanAlbPerfCtx; vecMeanAlbPerfCtx(1)],'r-');
+errorbar([vecUnique; dblEndX],[vecMeanWtPerfCtx(:); vecMeanWtPerfCtx(1)],[vecSemWtPerfCtx(:); vecSemWtPerfCtx(1)],'x-','Color',vecColBl6)
+errorbar([vecUnique; dblEndX],[vecMeanAlbPerfCtx(:); vecMeanAlbPerfCtx(1)],[vecSemAlbPerfCtx(:); vecSemAlbPerfCtx(1)],'x-','Color',vecColAlb)
 xlabel('Stim ori (degs)')
 ylabel('Grating pair dec. perf.')
 legend({'Chance','BL6','DBA'},'Location','best')
@@ -297,11 +292,11 @@ set(gca,'xtick',0:90:360);
 title(cellAreaGroups{1});
 fixfig;
 
-subplot(2,3,2)
+subplot(2,3,4)
 hold on
-plot([0 360],[0.5 0.5],'k--');
-plot([vecUnique; dblEndX],[vecMeanWtPerfNot; vecMeanWtPerfNot(1)],'b-');
-plot([vecUnique; dblEndX],[vecMeanAlbPerfNot; vecMeanAlbPerfNot(1)],'r-');
+plot([0 360],[0.5 0.5],'--','Color',[0.5 0.5 0.5]);
+errorbar([vecUnique; dblEndX],[vecMeanWtPerfNot(:); vecMeanWtPerfNot(1)],[vecSemWtPerfNot(:); vecSemWtPerfNot(1)],'x-','Color',vecColBl6);
+errorbar([vecUnique; dblEndX],[vecMeanAlbPerfNot(:); vecMeanAlbPerfNot(1)],[vecSemAlbPerfNot(:); vecSemAlbPerfNot(1)],'x-','Color',vecColAlb);
 xlabel('Stim ori (degs)')
 ylabel('Grating pair dec. perf.')
 legend({'Chance','BL6','DBA'},'Location','best')
@@ -310,7 +305,7 @@ set(gca,'xtick',0:90:360);
 title(cellAreaGroups{2});
 fixfig;
 
-
+%{
 subplot(2,3,3)
 hold on
 plot([0 360],[0.5 0.5],'k--');
@@ -323,60 +318,59 @@ xlim([0 360]);
 set(gca,'xtick',0:90:360);
 title(cellAreaGroups{3});
 fixfig;
-
+%}
 normaxes;
 
-%% plot pref ori
-%{
+% plot pref ori
+%%{
 vecPrefOriCtxWt = cell2vec(cellAggPrefWt(:,1));
 vecPrefOriNotWt = cell2vec(cellAggPrefWt(:,2));
-vecPrefOriHipWt = cell2vec(cellAggPrefWt(:,3));
+%vecPrefOriHipWt = cell2vec(cellAggPrefWt(:,3));
 
 vecPrefOriCtxAlb = cell2vec(cellAggPrefAlb(:,1));
 vecPrefOriNotAlb = cell2vec(cellAggPrefAlb(:,2));
-vecPrefOriHipAlb = cell2vec(cellAggPrefAlb(:,3));
+%vecPrefOriHipAlb = cell2vec(cellAggPrefAlb(:,3));
 vecBinCenters = 0:15:359;
 vecBins = (0:15:375) - 15/2;
 
 vecCountsCtxWt = histcounts(vecPrefOriCtxWt,vecBins);
 vecCountsNotWt = histcounts(vecPrefOriNotWt,vecBins);
-vecCountsHipWt = histcounts(vecPrefOriHipWt,vecBins);
+%vecCountsHipWt = histcounts(vecPrefOriHipWt,vecBins);
 vecCountsCtxAlb = histcounts(vecPrefOriCtxAlb,vecBins);
 vecCountsNotAlb = histcounts(vecPrefOriNotAlb,vecBins);
-vecCountsHipAlb = histcounts(vecPrefOriHipAlb,vecBins);
+%vecCountsHipAlb = histcounts(vecPrefOriHipAlb,vecBins);
 
-vecX = vecBins(2:end)-median(diff(vecBins));
-subplot(2,3,4)
+vecX = vecBins(2:end)-median(diff(vecBins))/2;
+subplot(2,3,2)
 hold on;
-plot(vecX,vecCountsCtxWt,'b-')
-plot(vecX,vecCountsCtxAlb,'r-')
+plot(vecX,vecCountsCtxWt/sum(vecCountsCtxWt),'x-','Color',vecColBl6)
+plot(vecX,vecCountsCtxAlb/sum(vecCountsCtxAlb),'x-','Color',vecColAlb)
+hold off
+title(cellAreaGroups{1});
+ylabel('Normalized # of neurons');
+xlabel('Preferred orientation (degs)');
+xlim([min(vecX) max(vecX)]);
+set(gca,'xtick',0:90:360);
+fixfig;
 
 subplot(2,3,5)
 hold on;
-plot(vecX,vecCountsNotWt,'b-')
-plot(vecX,vecCountsNotAlb,'r-')
+plot(vecX,vecCountsNotWt/sum(vecCountsNotWt),'x-','Color',vecColBl6)
+plot(vecX,vecCountsNotAlb/sum(vecCountsNotAlb),'x-','Color',vecColAlb)
+title(cellAreaGroups{2});
+ylabel('Normalized # of neurons');
+xlabel('Preferred orientation (degs)');
+xlim([min(vecX) max(vecX)]);
+set(gca,'xtick',0:90:360);
+fixfig;
 
-subplot(2,3,6)
-hold on;
-plot(vecX,vecCountsHipWt,'b-')
-plot(vecX,vecCountsHipAlb,'r-')
-%}
-%% plot pop resp
-%{
-vecMeanRespCtxWt = mean(bsxfun(@rdivide,cellAggMeanRespWt{1},sum(cellAggMeanRespWt{1},2)),1);
-vecMeanRespNotWt = mean(bsxfun(@rdivide,cellAggMeanRespWt{2},sum(cellAggMeanRespWt{2},2)),1);
-vecMeanRespHipWt = mean(bsxfun(@rdivide,cellAggMeanRespWt{3},sum(cellAggMeanRespWt{3},2)),1);
-vecSdRespCtxWt = std(bsxfun(@rdivide,cellAggMeanRespWt{1},sum(cellAggMeanRespWt{1},2)),[],1);
-vecSdRespNotWt = std(bsxfun(@rdivide,cellAggMeanRespWt{2},sum(cellAggMeanRespWt{2},2)),[],1);
-vecSdRespHipWt = std(bsxfun(@rdivide,cellAggMeanRespWt{3},sum(cellAggMeanRespWt{3},2)),[],1);
+%subplot(2,3,6)
+%hold on;
+%plot(vecX,vecCountsHipWt,'b-')
+%plot(vecX,vecCountsHipAlb,'r-')
+%%}
 
-vecMeanRespCtxAlb = mean(bsxfun(@rdivide,cellAggMeanRespAlb{1},sum(cellAggMeanRespAlb{1},2)),1);
-vecMeanRespNotAlb = mean(bsxfun(@rdivide,cellAggMeanRespAlb{2},sum(cellAggMeanRespAlb{2},2)),1);
-vecMeanRespHipAlb = mean(bsxfun(@rdivide,cellAggMeanRespAlb{3},sum(cellAggMeanRespAlb{3},2)),1);
-vecSdRespCtxAlb = std(bsxfun(@rdivide,cellAggMeanRespAlb{1},sum(cellAggMeanRespAlb{1},2)),[],1);
-vecSdRespNotAlb = std(bsxfun(@rdivide,cellAggMeanRespAlb{2},sum(cellAggMeanRespAlb{2},2)),[],1);
-vecSdRespHipAlb = std(bsxfun(@rdivide,cellAggMeanRespAlb{3},sum(cellAggMeanRespAlb{3},2)),[],1);
-%}
+%plot pop resp
 vecMeanRespCtxWt = mean(cellAggMeanRespWt{1},1);
 vecMeanRespNotWt = mean(cellAggMeanRespWt{2},1);
 vecMeanRespHipWt = mean(cellAggMeanRespWt{3},1);
@@ -391,30 +385,30 @@ vecSdRespCtxAlb = std(cellAggMeanRespAlb{1},[],1);
 vecSdRespNotAlb = std(cellAggMeanRespAlb{2},[],1);
 vecSdRespHipAlb = std(cellAggMeanRespAlb{3},[],1);
 
-subplot(2,3,4)
+subplot(2,3,3)
 hold on;
-errorbar(vecUnique,vecMeanRespCtxWt,vecSdRespCtxWt/sqrt(size(cellAggMeanRespWt{1},1)),'b-')
-errorbar(vecUnique,vecMeanRespCtxAlb,vecSdRespCtxAlb/sqrt(size(cellAggMeanRespAlb{1},1)),'r-')
+errorbar(vecUnique,vecMeanRespCtxWt,vecSdRespCtxWt/sqrt(size(cellAggMeanRespWt{1},1)),'x-','Color',vecColBl6)
+errorbar(vecUnique,vecMeanRespCtxAlb,vecSdRespCtxAlb/sqrt(size(cellAggMeanRespAlb{1},1)),'x-','Color',vecColAlb)
 xlabel('Stim ori (degs)')
-ylabel('Mean tuning curve')
+ylabel('Normalized mean tuning curve')
 legend({'BL6','DBA'},'Location','best')
 xlim([0 360]);
 set(gca,'xtick',0:90:360);
 title(cellAreaGroups{1});
 fixfig;
 
-subplot(2,3,5)
+subplot(2,3,6)
 hold on;
-errorbar(vecUnique,vecMeanRespNotWt,vecSdRespNotWt/sqrt(size(cellAggMeanRespWt{2},1)),'b-')
-errorbar(vecUnique,vecMeanRespNotAlb,vecSdRespNotAlb/sqrt(size(cellAggMeanRespAlb{2},1)),'r-')
+errorbar(vecUnique,vecMeanRespNotWt,vecSdRespNotWt/sqrt(size(cellAggMeanRespWt{2},1)),'x-','Color',vecColBl6)
+errorbar(vecUnique,vecMeanRespNotAlb,vecSdRespNotAlb/sqrt(size(cellAggMeanRespAlb{2},1)),'x-','Color',vecColAlb)
 xlabel('Stim ori (degs)')
-ylabel('Mean tuning curve')
+ylabel('Normalized mean tuning curve')
 legend({'BL6','DBA'},'Location','best')
 xlim([0 360]);
 set(gca,'xtick',0:90:360);
 title(cellAreaGroups{2});
 fixfig;
-
+%{
 subplot(2,3,6)
 hold on;
 errorbar(vecUnique,vecMeanRespHipWt,vecSdRespHipWt/sqrt(size(cellAggMeanRespWt{3},1)),'b-')
@@ -426,36 +420,293 @@ xlim([0 360]);
 set(gca,'xtick',0:90:360);
 title(cellAreaGroups{3});
 fixfig;
+%}
+drawnow;maxfig;
+%% save
+drawnow;
+export_fig(fullpath(strTargetPath,['OriDecodingAndPreference.tif']));
+export_fig(fullpath(strTargetPath,['OriDecodingAndPreference.pdf']));
 
-%% confusion
+%% test horizontal vs vertical
+%define horizontal and vertical
+figure;maxfig;
+dblSurroundDegs = 30;
+indVert = mod(vecUnique,180) <= 0+dblSurroundDegs | mod(vecUnique,180) >= 180-dblSurroundDegs;
+indHorz = mod(vecUnique,180) >= 90-dblSurroundDegs & mod(vecUnique,180) <= 90+dblSurroundDegs;
+vecVertOris = vecUnique(indVert);
+vecHorzOris = vecUnique(indHorz);
+
+%extract data
+vecWtPerfCtx_Vert = mean(matWtPerfCtx(:,indVert),2);
+vecWtPerfCtx_Horz = mean(matWtPerfCtx(:,indHorz),2);
+vecAlbPerfCtx_Vert = mean(matAlbPerfCtx(:,indVert),2);
+vecAlbPerfCtx_Horz = mean(matAlbPerfCtx(:,indHorz),2);
+
+vecWtPerfNot_Vert = mean(matWtPerfNot(:,indVert),2);
+vecWtPerfNot_Horz = mean(matWtPerfNot(:,indHorz),2);
+vecAlbPerfNot_Vert = mean(matAlbPerfNot(:,indVert),2);
+vecAlbPerfNot_Horz = mean(matAlbPerfNot(:,indHorz),2);
+
+subplot(2,3,1)
+hold on
+errorbar([1 2]+0.05,[mean(vecWtPerfCtx_Horz) mean(vecWtPerfCtx_Vert)],[std(vecWtPerfCtx_Horz) std(vecWtPerfCtx_Vert)]./sqrt(numel(vecWtPerfCtx_Vert)),...
+	'x-','Color',vecColBl6,'CapSize',20);
+errorbar([1 2]-0.05,[mean(vecAlbPerfCtx_Horz) mean(vecAlbPerfCtx_Vert)],[std(vecAlbPerfCtx_Horz) std(vecAlbPerfCtx_Vert)]./sqrt(numel(vecAlbPerfCtx_Vert)),...
+	'x-','Color',vecColAlb,'CapSize',20);
+plot([0.5 2.5],[1 1]*0.5,'--','Color',[0.5 0.5 0.5]);
+hold off
+ylabel('Decoding accuracy');
+set(gca,'xtick',[1 2],'xticklabel',{'Horz','Vert'});
+xlim([0.5 2.5]);
+ylim([0.45 0.75]);
+title(cellAreaGroupsAbbr{1});
+legend(gca,{'BL6','DBA','Chance'},'location','best');
+fixfig;
+
+
+subplot(2,3,2)
+hold on
+errorbar([1 2]+0.05,[mean(vecWtPerfNot_Horz) mean(vecWtPerfNot_Vert)],[std(vecWtPerfNot_Horz) std(vecWtPerfNot_Vert)]./sqrt(numel(vecWtPerfNot_Vert)),...
+	'x-','Color',vecColBl6,'CapSize',20);
+errorbar([1 2]-0.05,[mean(vecAlbPerfNot_Horz) mean(vecAlbPerfNot_Vert)],[std(vecAlbPerfNot_Horz) std(vecAlbPerfNot_Vert)]./sqrt(numel(vecAlbPerfNot_Vert)),...
+	'x-','Color',vecColAlb,'CapSize',20);
+plot([0.5 2.5],[1 1]*0.5,'--','Color',[0.5 0.5 0.5]);
+hold off
+ylabel('Decoding accuracy');
+set(gca,'xtick',[1 2],'xticklabel',{'Horz','Vert'});
+xlim([0.5 2.5]);
+ylim([0.45 0.75]);
+title(cellAreaGroupsAbbr{2});
+legend(gca,{'BL6','DBA','Chance'},'location','best');
+fixfig;
+
+%calc diff
+vecWtCtxDiff = vecWtPerfNot_Horz - vecWtPerfNot_Vert;
+vecAlbCtxDiff = vecAlbPerfNot_Horz - vecAlbPerfNot_Vert;
+vecWtNotDiff = vecWtPerfCtx_Horz - vecWtPerfCtx_Vert;
+vecAlbNotDiff = vecAlbPerfCtx_Horz - vecAlbPerfCtx_Vert;
+
+[h,pWCD0]=ttest(vecWtCtxDiff);
+[h,pACD0]=ttest(vecAlbCtxDiff);
+[h,pWND0]=ttest(vecWtNotDiff);
+[h,pAND0]=ttest(vecAlbNotDiff);
+
+[h,pCtxWvA]=ttest2(vecWtCtxDiff,vecAlbCtxDiff);
+[h,pNotWvA]=ttest2(vecWtNotDiff,vecAlbNotDiff);
+
+%plot
+subplot(2,3,4)
+x1=beeswarm(ones(size(vecWtCtxDiff)),vecWtCtxDiff);
+x2=beeswarm(2*ones(size(vecAlbCtxDiff)),vecAlbCtxDiff);
+cla;
+subplot(2,3,4)
+hold on
+scatter(x1,vecWtCtxDiff,[],vecColBl6,'o');
+scatter(x2,vecAlbCtxDiff,[],vecColAlb,'o');
+plot([0.5 2.5],[0 0],'--','color',[0.5 0.5 0.5]);
+hold off
+xlim([0.5 2.5]);
+ylim([-1.001 1.001]*max(abs(get(gca,'ylim'))));
+ylabel('Horz - Vert difference Dec. perf.');
+set(gca,'xtick',[1 2],'xticklabel',{'BL6','DBA'});
+title(sprintf('%s: t v 0;BL6,p=%.3f; DBA,p=%.3f; 2t,p=%.3f',cellAreaGroupsAbbr{1},pWCD0,pACD0,pCtxWvA));
+fixfig;grid off
+
+
+subplot(2,3,5)
+x1=beeswarm(ones(size(vecWtNotDiff)),vecWtNotDiff);
+x2=beeswarm(2*ones(size(vecAlbNotDiff)),vecAlbNotDiff);
+cla;
+subplot(2,3,5)
+hold on
+scatter(x1,vecWtNotDiff,[],vecColBl6,'o');
+scatter(x2,vecAlbNotDiff,[],vecColAlb,'o');
+plot([0.5 2.5],[0 0],'--','color',[0.5 0.5 0.5]);
+hold off
+xlim([0.5 2.5]);
+ylim([-1.001 1.001]*max(abs(get(gca,'ylim'))));
+ylabel('Horz - Vert difference Dec. perf.');
+set(gca,'xtick',[1 2],'xticklabel',{'BL6','DBA'});
+title(sprintf('%s: t v 0;BL6,p=%.3f; DBA,p=%.3f; 2t,p=%.3f',cellAreaGroupsAbbr{2},pWND0,pAND0,pNotWvA));
+fixfig;grid off
+drawnow;
+
+%% decoding performance of anti-direction vs chance for bl6 and albino
+matConfCtxWt = squeeze(matAggConfusionWt(:,1,:,:));
+indRemCtxWt = sum(sum(matConfCtxWt,2),3)==0;
+matConfCtxWt(indRemCtxWt,:,:)=[];
+matConfNotWt = squeeze(matAggConfusionWt(:,2,:,:));
+indRemNotWt = sum(sum(matConfNotWt,2),3)==0;
+matConfNotWt(indRemNotWt,:,:)=[];
+
+matConfCtxAlb = squeeze(matAggConfusionAlb(:,1,:,:));
+indRemCtxAlb = sum(sum(matConfCtxAlb,2),3)==0;
+matConfCtxAlb(indRemCtxAlb,:,:)=[];
+matConfNotAlb = squeeze(matAggConfusionAlb(:,2,:,:));
+indRemNotAlb = sum(sum(matConfNotAlb,2),3)==0;
+matConfNotAlb(indRemNotAlb,:,:)=[];
+
+matProDir = diag(diag(true(intStimNr,intStimNr)));
+matAntiDir = circshift(matProDir,intStimNr/2,1);
+
+%CtxWt
+intRecCtxWt = size(matConfCtxWt,1);
+vecAntiDirP_CtxWt = nan(1,intRecCtxWt);
+for intRec=1:intRecCtxWt
+	intAllTrials = sum(matThisC(:));
+	if intAllTrials==0,continue;end
+	matThisC = squeeze(matConfCtxWt(intRec,:,:));
+	vecAntiDirP_CtxWt(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
+end
+%NotWt
+intRecNotWt = size(matConfNotWt,1);
+vecAntiDirP_NotWt = nan(1,intRecNotWt);
+for intRec=1:intRecNotWt
+	intAllTrials = sum(matThisC(:));
+	if intAllTrials==0,continue;end
+	matThisC = squeeze(matConfNotWt(intRec,:,:));
+	vecAntiDirP_NotWt(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
+end
+%CtxAlb
+intRecCtxAlb = size(matConfCtxAlb,1);
+vecAntiDirP_CtxAlb = nan(1,intRecCtxAlb);
+for intRec=1:intRecCtxAlb
+	intAllTrials = sum(matThisC(:));
+	if intAllTrials==0,continue;end
+	matThisC = squeeze(matConfCtxAlb(intRec,:,:));
+	vecAntiDirP_CtxAlb(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
+end
+%NotAlb
+intRecNotAlb = size(matConfNotAlb,1);
+vecAntiDirP_NotAlb = nan(1,intRecNotAlb);
+for intRec=1:intRecNotAlb
+	intAllTrials = sum(matThisC(:));
+	if intAllTrials==0,continue;end
+	matThisC = squeeze(matConfNotAlb(intRec,:,:));
+	vecAntiDirP_NotAlb(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
+end
+
+%tests
+dblChanceP = 1/intStimNr;
+[h,pADCW]=ttest(vecAntiDirP_CtxWt,dblChanceP);
+[h,pADCA]=ttest(vecAntiDirP_CtxAlb,dblChanceP);
+[h,pADNW]=ttest(vecAntiDirP_NotWt,dblChanceP);
+[h,pADNA]=ttest(vecAntiDirP_NotAlb,dblChanceP);
+[h,pAD2W]=ttest2(vecAntiDirP_CtxWt,vecAntiDirP_NotWt);
+[h,pAD2A]=ttest2(vecAntiDirP_CtxAlb,vecAntiDirP_NotAlb);
+
+[pAD2W_ranksum] = ranksum(vecAntiDirP_CtxWt,vecAntiDirP_NotWt,'method','exact');
+[pAD2A_ranksum] = ranksum(vecAntiDirP_CtxAlb,vecAntiDirP_NotAlb,'method','exact');
+
+% plot
+%Ctx
+subplot(2,3,3)
+x1=beeswarm(ones(size(vecAntiDirP_CtxWt)),vecAntiDirP_CtxWt);
+x2=beeswarm(2*ones(size(vecAntiDirP_NotWt)),vecAntiDirP_NotWt);
+cla;
+subplot(2,3,3)
+hold on
+scatter(x1,vecAntiDirP_CtxWt,[],vecColBl6,'o');
+scatter(x2,vecAntiDirP_NotWt,[],vecColBl6,'o');
+plot([0.5 2.5],dblChanceP*[1 1],'--','color',[0.5 0.5 0.5]);
+hold off
+xlim([0.5 2.5]);
+ylim([0 0.16]);
+ylabel('P(Anti-direction|Error)');
+set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr);
+title(sprintf('%s: t v rand;Ctx,p=%.3f; NOT,p=%.3f; 2t,p=%.3f','BL6',pADCW,pADNW,pAD2W));
+fixfig;grid off
+drawnow;
+
+%Not
+subplot(2,3,6)
+x1=beeswarm(ones(size(vecAntiDirP_CtxAlb)),vecAntiDirP_CtxAlb);
+x2=beeswarm(2*ones(size(vecAntiDirP_NotAlb)),vecAntiDirP_NotAlb);
+cla;
+subplot(2,3,6)
+hold on
+scatter(x1,vecAntiDirP_CtxAlb,[],vecColAlb,'o');
+scatter(x2,vecAntiDirP_NotAlb,[],vecColAlb,'o');
+plot([0.5 2.5],dblChanceP*[1 1],'--','color',[0.5 0.5 0.5]);
+hold off
+xlim([0.5 2.5]);
+ylim([0 0.16]);
+ylabel('P(Anti-direction|Error)');
+set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr);
+title(sprintf('%s: t v rand;Ctx,p=%.3f; NOT,p=%.3f; 2t,p=%.3f','DBA',pADCA,pADNA,pAD2A));
+fixfig;grid off
+drawnow;
+
+%% save
+drawnow;
+export_fig(fullpath(strTargetPath,['OriDecodingHorzVert.tif']));
+export_fig(fullpath(strTargetPath,['OriDecodingHorzVert.pdf']));
+
+%% confusion matrices
 matConfCtxWt = squeeze(mean(matAggConfusionWt(:,1,:,:),1));
 matConfNotWt = squeeze(mean(matAggConfusionWt(:,2,:,:),1));
-matConfHipWt = squeeze(mean(matAggConfusionWt(:,3,:,:),1));
+%matConfHipWt = squeeze(mean(matAggConfusionWt(:,3,:,:),1));
 matConfCtxAlb = squeeze(mean(matAggConfusionAlb(:,1,:,:),1));
 matConfNotAlb = squeeze(mean(matAggConfusionAlb(:,2,:,:),1));
-matConfHipAlb = squeeze(mean(matAggConfusionAlb(:,3,:,:),1));
+%matConfHipAlb = squeeze(mean(matAggConfusionAlb(:,3,:,:),1));
 
-figure
+vecTick = (1:6:25)-0.5;
+vecTickL = 0:90:360;
+figure;maxfig
 subplot(2,3,1)
 imagesc(matConfCtxWt);
 title(['BL6 ' cellAreaGroups{1}]);
+set(gca,'xtick',vecTick,'xticklabel',vecTickL);
+set(gca,'ytick',vecTick,'yticklabel',vecTickL);
+axis xy
+fixfig;
+grid off;
+xlabel('Decoded orientation');
+ylabel('Stimulus orientation');
+
 subplot(2,3,2)
-imagesc(matConfNotWt);
-title(['BL6 ' cellAreaGroups{2}]);
-subplot(2,3,3)
-imagesc(matConfHipWt);
-title(['BL6 ' cellAreaGroups{3}]);
-subplot(2,3,4)
 imagesc(matConfCtxAlb);
 title(['Alb ' cellAreaGroups{1}]);
+set(gca,'xtick',vecTick,'xticklabel',vecTickL);
+set(gca,'ytick',vecTick,'yticklabel',vecTickL);
+axis xy
+fixfig;
+grid off;
+xlabel('Decoded orientation');
+ylabel('Stimulus orientation');
+
+%subplot(2,3,3)
+%imagesc(matConfHipWt);
+%title(['BL6 ' cellAreaGroups{3}]);
+
+
+subplot(2,3,4)
+imagesc(matConfNotWt);
+title(['BL6 ' cellAreaGroups{2}]);
+set(gca,'xtick',vecTick,'xticklabel',vecTickL);
+set(gca,'ytick',vecTick,'yticklabel',vecTickL);
+axis xy
+fixfig;
+grid off;
+xlabel('Decoded orientation');
+ylabel('Stimulus orientation');
+
 subplot(2,3,5)
 imagesc(matConfNotAlb);
 title(['Alb ' cellAreaGroups{2}]);
-subplot(2,3,6)
-imagesc(matConfHipAlb);
-title(['Alb ' cellAreaGroups{3}]);
-return
+set(gca,'xtick',vecTick,'xticklabel',vecTickL);
+set(gca,'ytick',vecTick,'yticklabel',vecTickL);
+axis xy
+fixfig;
+grid off;
+xlabel('Decoded orientation');
+ylabel('Stimulus orientation');
+
+%subplot(2,3,6)
+%imagesc(matConfHipAlb);
+%title(['Alb ' cellAreaGroups{3}]);
+
 %% save
-drawnow;maxfig;
-export_fig(fullpath(strTargetPath,['GratingTracking' getDate '.jpg']));
-export_fig(fullpath(strTargetPath,['GratingTracking' getDate '.pdf']));
+drawnow;
+export_fig(fullpath(strTargetPath,['OriDecodingAveraged.tif']));
+export_fig(fullpath(strTargetPath,['OriDecodingAveraged.pdf']));

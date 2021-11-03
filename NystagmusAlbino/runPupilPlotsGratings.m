@@ -245,5 +245,5 @@ end
 
 %% save
 drawnow;maxfig;
-export_fig(fullpath(strTargetPath,['GratingTracking' getDate '.jpg']));
-export_fig(fullpath(strTargetPath,['GratingTracking' getDate '.pdf']));
+export_fig(fullpath(strTargetPath,['GratingTracking.tif']));
+export_fig(fullpath(strTargetPath,['GratingTracking.pdf']));

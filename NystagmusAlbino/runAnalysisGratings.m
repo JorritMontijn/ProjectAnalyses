@@ -379,9 +379,6 @@ vecCorrBl6NOT = cellfun(@(x,y) nancorr(x(:),y(:)),cellZetaP_Bl6NOT,cellTuningP_B
 [h,p_Not] = ttest2(vecCorrAlbNOT,vecCorrBl6NOT);
 %[h,p_Hip] = ttest2(vecCorrAlbHip,vecCorrBl6Hip);
 
-%% plot pref ori distro
-vecPrefOri_AlbNOT
-return
 %% plot
 figure;maxfig;
 vecRawP = nan(1,6);

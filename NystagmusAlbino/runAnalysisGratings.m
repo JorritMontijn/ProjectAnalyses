@@ -6,16 +6,13 @@
 
 [done/3) does info in NOT predict info in V1? [is this doable? sufficient twin recording??]
 
-[to do/4) plot eye-tracking of stimulus => is rightward bias of albinos significant? 
-=> can this be explained by stimulation of only the left eye, causing temporonasal (rightward) motion?
-
-5) spike shape NOT vs Ctx
+[done/4) plot eye-tracking of stimulus 
 
 %to do:
 A) plot tuning in NOT as function of location in NOT: is a recording closer to the border more
 likely to be tuned? 
 
-[not necessary anymore/B) plot tuning as second-closest pair decoding: is there a difference in decoding between horizontal
+[done/B) plot tuning as second-closest pair decoding: is there a difference in decoding between horizontal
 and vertical gratings? 
 
 [done/C) plot results as separate recordings (and make selection of recordings based on visual
@@ -23,12 +20,16 @@ responsiveness)
 
 [done/D) plot example NOT cells that respond visually but are not orientation tuned
 
-E) remake figure for tuning distribution over areas
+[done/E) remake figure for tuning distribution over areas
 
 F) test whether eye-movement direction bias to temporonasal for DBAs is different from 0.5 and
 different from BL6
+=> is rightward bias of albinos significant? 
+=> can this be explained by stimulation of only the left eye, causing temporonasal (rightward) motion?
 
 G) make model explaining results
+
+H) spike shape NOT vs Ctx
 
 %}
 

@@ -22,14 +22,16 @@ responsiveness)
 
 [done/E) remake figure for tuning distribution over areas
 
-F) test whether eye-movement direction bias to temporonasal for DBAs is different from 0.5 and
+[done/F) test whether eye-movement direction bias to temporonasal for DBAs is different from 0.5 and
 different from BL6
 => is rightward bias of albinos significant? 
 => can this be explained by stimulation of only the left eye, causing temporonasal (rightward) motion?
+==> was actually an error in counting nans
 
-G) make model explaining results
+G) spike shape NOT vs Ctx
 
-H) spike shape NOT vs Ctx
+H) make model explaining results
+
 
 %}
 

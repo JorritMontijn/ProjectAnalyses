@@ -50,9 +50,10 @@ dblChanceP = sum(matIsCorrect(:))/numel(matIsCorrect);
 
 vecCorrectRWt = [];
 vecPropOnDiagWt = [];
-
+matAggConfWt = zeros(intStimNr,intStimNr);
 vecCorrectRAlb = [];
 vecPropOnDiagAlb = [];
+matAggConfAlb = zeros(intStimNr,intStimNr);
 
 
 %% run
@@ -212,6 +213,7 @@ for intSubType=1:2
 			vecTrialTypes(indRemTrials) = [];
 			
 			%plot
+			close;
 			figure
 			subplot(2,3,1)
 			[r,p,ul,ll]=corrcoef(vecProbCorrectNOT(:),vecProbCorrectCtx(:));
@@ -249,9 +251,11 @@ for intSubType=1:2
 			maxfig;drawnow;
 			
 			if strcmp(strSubjectType,'BL6')
+				matAggConfWt = matAggConfWt + matConfusion;
 				vecCorrectRWt(end+1) = r(1,2);
 				vecPropOnDiagWt(end+1) = dblOnDiag;
 			else
+				matAggConfAlb = matAggConfAlb + matConfusion;
 				vecCorrectRAlb(end+1) = r(1,2);
 				vecPropOnDiagAlb(end+1) = dblOnDiag;
 			end
@@ -302,5 +306,31 @@ hold off
 fixfig;grid off
 maxfig;
 
+subplot(2,3,5)
+imagesc(vecUnique,vecUnique,matAggConfWt);
+axis xy;
+title('Error matrix BL6');
+ylabel('Ori. decoded from cortex (degs)');
+xlabel('Ori. decoded from NOT (degs)');
+set(gca,'xtick',0:45:360);
+set(gca,'ytick',0:45:360);
+fixfig;grid off
 
+subplot(2,3,6)
+imagesc(vecUnique,vecUnique,matAggConfAlb);
+axis xy;
+title('Error matrix DBA');
+ylabel('Ori. decoded from cortex (degs)');
+xlabel('Ori. decoded from NOT (degs)');
+set(gca,'xtick',0:45:360);
+set(gca,'ytick',0:45:360);
+fixfig;grid off
 
+%
+%error add lines that envelop the diagonal?
+
+%save plot
+drawnow;
+export_fig([strTargetPath filesep sprintf('OriDecodingErrors.tif')]);
+export_fig([strTargetPath filesep sprintf('OriDecodingErrors.pdf')]);
+	

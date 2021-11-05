@@ -553,36 +553,36 @@ matAntiDir = circshift(matProDir,intStimNr/2,1);
 intRecCtxWt = size(matConfCtxWt,1);
 vecAntiDirP_CtxWt = nan(1,intRecCtxWt);
 for intRec=1:intRecCtxWt
+	matThisC = squeeze(matConfCtxWt(intRec,:,:));
 	intAllTrials = sum(matThisC(:));
 	if intAllTrials==0,continue;end
-	matThisC = squeeze(matConfCtxWt(intRec,:,:));
 	vecAntiDirP_CtxWt(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
 end
 %NotWt
 intRecNotWt = size(matConfNotWt,1);
 vecAntiDirP_NotWt = nan(1,intRecNotWt);
 for intRec=1:intRecNotWt
+	matThisC = squeeze(matConfNotWt(intRec,:,:));
 	intAllTrials = sum(matThisC(:));
 	if intAllTrials==0,continue;end
-	matThisC = squeeze(matConfNotWt(intRec,:,:));
 	vecAntiDirP_NotWt(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
 end
 %CtxAlb
 intRecCtxAlb = size(matConfCtxAlb,1);
 vecAntiDirP_CtxAlb = nan(1,intRecCtxAlb);
 for intRec=1:intRecCtxAlb
+	matThisC = squeeze(matConfCtxAlb(intRec,:,:));
 	intAllTrials = sum(matThisC(:));
 	if intAllTrials==0,continue;end
-	matThisC = squeeze(matConfCtxAlb(intRec,:,:));
 	vecAntiDirP_CtxAlb(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
 end
 %NotAlb
 intRecNotAlb = size(matConfNotAlb,1);
 vecAntiDirP_NotAlb = nan(1,intRecNotAlb);
 for intRec=1:intRecNotAlb
+	matThisC = squeeze(matConfNotAlb(intRec,:,:));
 	intAllTrials = sum(matThisC(:));
 	if intAllTrials==0,continue;end
-	matThisC = squeeze(matConfNotAlb(intRec,:,:));
 	vecAntiDirP_NotAlb(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
 end
 

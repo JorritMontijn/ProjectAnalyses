@@ -28,7 +28,7 @@ different from BL6
 => can this be explained by stimulation of only the left eye, causing temporonasal (rightward) motion?
 ==> was actually an error in counting nans
 
-G) spike shape NOT vs Ctx
+[in progress/G) spike shape NOT vs Ctx
 
 H) make model explaining results
 

@@ -9,7 +9,7 @@
 [done/4) plot eye-tracking of stimulus 
 
 %to do:
-A) plot tuning in NOT as function of location in NOT: is a recording closer to the border more
+[done/A) plot tuning in NOT as function of location in NOT: is a recording closer to the border more
 likely to be tuned? 
 
 [done/B) plot tuning as second-closest pair decoding: is there a difference in decoding between horizontal
@@ -28,10 +28,17 @@ different from BL6
 => can this be explained by stimulation of only the left eye, causing temporonasal (rightward) motion?
 ==> was actually an error in counting nans
 
-[in progress/G) spike shape NOT vs Ctx
+[done/G) spike shape NOT vs Ctx
 
 H) make model explaining results
 
+%to do 2:
+[done/i) color waveform plot with firing rate
+[done/ii) spike-triggered average of eye movement in NOT
+[done/iii) decoding left vs right: is DBA worse than BL6?
+[done/iv) plot x position as function of time of grating
+v) make ccgs in NOT to check for local connections
+vi) channels fast PV NOT?
 
 %}
 

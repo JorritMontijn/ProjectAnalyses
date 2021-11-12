@@ -224,7 +224,7 @@ for intSubType=1:2
 	errorbar([0.2 0.8],vecMeans,vecSems,'xr');
 	[h,pLR] = ttest2(vecFMR_Q1,vecFMR_Q3);
 	title(sprintf('L vs R, p=%.3e',pLR));
-	ylim([-0.1 0.1]);
+	ylim([-0.06 0.06]);
 	xlim([0 1]);
 	set(gca,'xtick',[0.2 0.8],'xticklabel',{'Left','Right'});
 	ylabel('Norm. frac. eye moving right');
@@ -260,7 +260,7 @@ for intSubType=1:2
 	errorbar([0.2 0.8],vecMeans,vecSems,'xb');
 	[h,pUD] = ttest2(vecFMU_Q2,vecFMU_Q4);
 	title(sprintf('U vs D, p=%.3e',pUD));
-	ylim([-0.1 0.1]);
+	ylim([-0.06 0.06]);
 	xlim([0 1]);
 	set(gca,'xtick',[0.2 0.8],'xticklabel',{'Down','Up'});
 	ylabel('Norm. frac. eye moving up');

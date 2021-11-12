@@ -27,9 +27,9 @@ if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform'
 		[cellAreas,probe_areas,probe_area_boundaries,probe_area_centers,probe_area_labels,vecChDistToAreaBoundary] = getBrainAreasPerChannel(sAP,tv,av,st);
 		%get cluster depths
 		[spikeAmps, vecAllSpikeDepth] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
-		dblProbeLength = max(sSpikes.ycoords);
+		dblProbeLength = 3840;
 		vecAllSpikeClust = sSpikes.clu;
-	
+		
 		%assign cluster data
 		intClustNum = numel(sAP.sCluster);
 		for intClust=1:intClustNum
@@ -55,7 +55,7 @@ strTargetPath = 'D:\Data\Results\AlbinoProject';
 
 %best rec BL6: 20191216B5 (rec 17)
 %best rec DBA: 20210212B2 (rec 5)
-
+disp done
 %% define area categories
 %cortex
 cellUseAreas = [];
@@ -70,10 +70,13 @@ vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
 
 %% pre-allocate
+cellAggBoundDist = cell(2,2);
 cellAggSpikeDur = cell(2,2);
 cellAggSpikePTR = cell(2,2);
+cellAggSpikeHz = cell(2,2);
+cellAggSpikeRLR = cell(2,2);
 
-%% run
+% run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
 cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
 cellRemove = {};%{'RecMA5_2021-03-01R01_g0_t0'};
@@ -113,10 +116,102 @@ for intSubType=1:2
 			
 			%build cell vectors
 			vecSelectCells = find(indUseCells(:) & cellCellsPerArea{intArea}(:));
-			if isempty(vecSelectCells)
+			if isempty(vecSelectCells) || isempty(sRec.sPupil)
 				continue;
 			end
 			
+			%collect data from all DG blocks
+			cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
+			vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true));
+			matData = [];
+			vecOrientation = [];
+			for intBlockIdx=1:numel(vecBlocksDG)
+				intBlock = vecBlocksDG(intBlockIdx)
+				sBlock = sRec.cellBlock{intBlock};
+				intPopCounter = intPopCounter + 1;
+				
+				
+				if isfield(sBlock,'vecPupilStimOn')
+					vecPupilStimOn = sBlock.vecPupilStimOn;
+					vecPupilStimOff = sBlock.vecPupilStimOff;
+				else
+					vecPupilStimOn = sBlock.vecStimOnTime;
+					vecPupilStimOff = sBlock.vecStimOffTime;
+				end
+				
+				% get pupil data
+				dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);
+				dblFirstSamp = str2double(sRec.sSources.sMeta.firstSample);
+				vecPupilTime = sRec.sPupil.vecTime;
+				vecPupilLocX = sRec.sPupil.vecCenterX;
+				vecPupilLocY = sRec.sPupil.vecCenterY;
+				vecPupilSize = sRec.sPupil.vecRadius;
+				vecPupilSync = sRec.sPupil.vecSyncLum;
+				if isfield(sRec.sPupil,'vecBlinks') && ~all(sRec.sPupil.vecBlinks==0)
+					vecBlinks = sRec.sPupil.vecBlinks;
+				else
+					%filter absvidlum
+					dblLowPass = 0.01/(1/median(diff(vecPupilTime)));
+					[fb,fa] = butter(2,dblLowPass,'high');
+					vecAbsVidLum = zscore(filtfilt(fb,fa, sRec.sPupil.sRaw.vecPupilAbsVidLum));
+					vecBlinks = vecAbsVidLum > 5;
+				end
+				dblFs = 1/median(diff(vecPupilTime));
+				
+				% get blinking
+				vecBinEdges = [-inf vecPupilStimOn vecPupilStimOn(end)+median(diff(vecPupilStimOn)) inf];
+				[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecPupilTime,double(vecBlinks),vecBinEdges);
+				vecBlinkFractionPerTrial = vecMeans(2:(end-1));
+				
+				%remove trials with blinking
+				indRemTrials = vecBlinkFractionPerTrial > 0.1;
+				
+				%split by ori
+				sTrialObjects = sBlock.sStimObject(sBlock.vecTrialStimTypes);
+				vecThisOrientation = cell2vec({sTrialObjects.Orientation});
+				vecThisOrientation(indRemTrials) = [];
+				[vecOriIdx,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecThisOrientation);
+				if numel(vecUnique) ~= 24,continue,end
+				
+				%get data matrix
+				cellSpikeT = {sRec.sCluster(:).SpikeTimes};
+				vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);
+				vecStimOffTime = sBlock.vecStimOffTime(~indRemTrials);
+				dblStimDur = median(vecStimOffTime-vecStimOnTime);
+				matThisData = getSpikeCounts(cellSpikeT,vecStimOnTime,dblStimDur)./dblStimDur;
+				
+				%concatenate data
+				matData = cat(2,matData,matThisData);
+				vecOrientation = cat(2,vecOrientation,vecThisOrientation(:)');
+			end
+			
+			%calc tuning curve
+			matUseData = matData(vecSelectCells,:);
+			sOut = getTuningCurves(matUseData,vecOrientation);
+			vecTuningP_A = sOut.vecOriAnova;
+			vecTuningP_R2 = sOut.vecFitP;
+			[h, crit_p, vecTuningP_R2_corr] = fdr_bh(vecTuningP_R2);
+			vecPrefOri = rad2deg(sOut.matFittedParams(:,1));
+			indTunedCells = vecTuningP_R2_corr(:)'<0.05;
+			
+			%get RLR
+			vecR = mean(sOut.matFittedResp(:,ismember(sOut.vecUniqueDegs,0)),2);
+			vecL = mean(sOut.matFittedResp(:,ismember(sOut.vecUniqueDegs,180)),2);
+			vecRLR = vecR ./ (vecR+vecL);
+			
+			%remove range 0
+			vecBoundDist = cell2vec({sRec.sCluster(vecSelectCells).BoundDist})';
+			vecRangeHz = range(matUseData,2)';
+			indRem2=vecRangeHz==0 | vecBoundDist>20 | ~indTunedCells | isnan(vecRLR(:)');
+			matUseData(indRem2,:)=[];
+			vecBoundDist(indRem2)=[];
+			vecRLR(indRem2)=[];
+			vecSelectCells = vecSelectCells(~indRem2);
+			
+			%get distance to boundary and mean rates
+			vecSpikeHz = mean(matUseData,2)';
+			
+			%get waveform props
 			dblRecDur = max(cellfun(@max,{sRec.sCluster(vecSelectCells).SpikeTimes})) - min(cellfun(@min,{sRec.sCluster(vecSelectCells).SpikeTimes}));
 			vecSpikeRate = cellfun(@numel,{sRec.sCluster(vecSelectCells).SpikeTimes})/dblRecDur;
 			matAreaWaveforms = cell2mat({sRec.sCluster(vecSelectCells).Waveform}'); %[cell x sample]
@@ -135,24 +230,28 @@ for intSubType=1:2
 				vecSpikeDur(intNeuron) = dblTroughToPeakTime;
 				vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
 			end
+			cellAggBoundDist{intArea,intSubType} = cat(2,cellAggBoundDist{intArea,intSubType},vecBoundDist(:)');
 			cellAggSpikeDur{intArea,intSubType} = cat(2,cellAggSpikeDur{intArea,intSubType},vecSpikeDur);
 			cellAggSpikePTR{intArea,intSubType} = cat(2,cellAggSpikePTR{intArea,intSubType},vecSpikePTR);
+			cellAggSpikeHz{intArea,intSubType} = cat(2,cellAggSpikeHz{intArea,intSubType},vecSpikeHz(:)');
+			cellAggSpikeRLR{intArea,intSubType} = cat(2,cellAggSpikeRLR{intArea,intSubType},vecRLR(:)');
 		end
 	end
 end
 
-%% plot
+% plot 1
 dblPTT = 0.5;
 dblSWT = 0.5/1000;
 cellMarker = {'x','o'};
 figure
 maxfig;
 for intSubType=1:2
-	subplot(2,3,intSubType)
-	hold on;
-	h1=plot(dblSWT*[1 1]*1000,[0 1.2],'color', [0.7 0.7 0.7],'linestyle','-');
-	h2=plot([0 1.5],dblPTT*[1 1],'color', [0.7 0.7 0.7],'linestyle','-');
 	for intArea=1:intUseAreaNum
+		subplot(2,3,intArea+(intSubType-1)*3)
+		colormap('redbluepurple')
+		hold on;
+		h1=plot(dblSWT*[1 1]*1000,[0 1.2],'color', [0.7 0.7 0.7],'linestyle','-');
+		h2=plot([0 1.5],dblPTT*[1 1],'color', [0.7 0.7 0.7],'linestyle','-');
 		if intArea == 1
 			vecCol = [0 0 1];
 		elseif intArea == 2
@@ -161,18 +260,19 @@ for intSubType=1:2
 		strArea = cellAreaGroupsAbbr{intArea};
 		
 		strSubjectType = cellSubjectGroups{intSubType};
-		scatter(1000*(cellAggSpikeDur{intArea,intSubType}+(rand(size(cellAggSpikeDur{intArea,intSubType}))-0.5)/dblSampRateIM),cellAggSpikePTR{intArea,intSubType},[],vecCol,'marker','.');
+		%scatter(1000*(cellAggSpikeDur{intArea,intSubType}+(rand(size(cellAggSpikeDur{intArea,intSubType}))-0.5)/dblSampRateIM),cellAggSpikePTR{intArea,intSubType},20+10*cellAggSpikeHz{intArea,intSubType},vecCol,'marker','.');
+		scatter(1000*(cellAggSpikeDur{intArea,intSubType}+(rand(size(cellAggSpikeDur{intArea,intSubType}))-0.5)/dblSampRateIM),cellAggSpikePTR{intArea,intSubType},...
+			50,log(1+cellAggSpikeHz{intArea,intSubType}),'marker','.');
+		h=colorbar;
+		clabel(h,'log(1+rate)');
+		hold off;
+		ylim([0 1.2]);
+		ylabel('Peak-to-trough ratio');
+		xlabel('Spike width (ms)');
+		title(sprintf('%s, %s; waveform props, mean rate=%.1fHz',strSubjectType,cellAreaGroupsAbbr{intArea},mean(cellAggSpikeHz{intArea,intSubType})));
+		fixfig;
+		grid off
 	end
-	hold off;
-	ylim([0 1.2]);
-	ylabel('Peak-to-trough ratio');
-	xlabel('Spike width (ms)');
-	legend([{'';''}; cellAreaGroupsAbbr(:)],'location','best');
-	title(sprintf('%s spike waveform properties',cellSubjectGroups{intSubType}));
-	fixfig;
-	grid off
-	set(get(get(h1,'Annotation'),'LegendInformation'),'IconDisplayStyle','off');
-	set(get(get(h2,'Annotation'),'LegendInformation'),'IconDisplayStyle','off');
 end
 
 
@@ -190,7 +290,7 @@ dblRatioNotBL6 = intNarrowNotBL6 / (intBroadNotBL6 + intNarrowNotBL6);
 [dblMu_NotBL6,vecCI_NotBL6] = binofit(intNarrowNotBL6,intBroadNotBL6 + intNarrowNotBL6);
 [p_DiffBL6,z]=bino2test(intNarrowCtxBL6,intBroadCtxBL6 + intNarrowCtxBL6,intNarrowNotBL6,intBroadNotBL6 + intNarrowNotBL6);
 
-subplot(2,3,4)
+subplot(2,3,3)
 hold on
 errorbar(1,dblMu_CtxBL6,vecCI_CtxBL6(1) - dblMu_CtxBL6,vecCI_CtxBL6(2) - dblMu_CtxBL6,'x','color',[0 0 1],'CapSize',20);
 errorbar(2,dblMu_NotBL6,vecCI_NotBL6(1) - dblMu_NotBL6,vecCI_NotBL6(2) - dblMu_NotBL6,'x','color',[1 0 0],'CapSize',20);
@@ -199,7 +299,7 @@ ylabel(sprintf('Fraction of narrow spiking (%s +/- 95%% CI)',getGreek('mu')));
 set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr(1:2));
 xlim([0.5 2.5]);
 ylim([0 1]);
-title(sprintf('BL6,mu=%.4f,NOT,mu=%.4f; 2bino, p=%.1e',dblMu_CtxBL6,dblMu_NotBL6,p_DiffBL6));
+title(sprintf('BL6:Ctx,mu=%.4f,NOT,mu=%.4f; 2bino, p=%.1e',dblMu_CtxBL6,dblMu_NotBL6,p_DiffBL6));
 fixfig;grid off;drawnow;
 
 %DBA
@@ -217,7 +317,7 @@ dblRatioNotDBA = intNarrowNotDBA / (intBroadNotDBA + intNarrowNotDBA);
 [p_DiffDBA,z]=bino2test(intNarrowCtxDBA,intBroadCtxDBA + intNarrowCtxDBA,intNarrowNotDBA,intBroadNotDBA + intNarrowNotDBA);
 
 
-subplot(2,3,5)
+subplot(2,3,6)
 hold on
 errorbar(1,dblMu_CtxDBA,vecCI_CtxDBA(1) - dblMu_CtxDBA,vecCI_CtxDBA(2) - dblMu_CtxDBA,'x','color',[0 0 1],'CapSize',20);
 errorbar(2,dblMu_NotDBA,vecCI_NotDBA(1) - dblMu_NotDBA,vecCI_NotDBA(2) - dblMu_NotDBA,'x','color',[1 0 0],'CapSize',20);
@@ -226,11 +326,63 @@ ylabel(sprintf('Fraction of narrow spiking (%s +/- 95%% CI)',getGreek('mu')));
 set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr(1:2));
 xlim([0.5 2.5]);
 ylim([0 1]);
-title(sprintf('DBA,mu=%.4f,NOT,mu=%.4f; 2bino,p=%.1e',dblMu_CtxDBA,dblMu_NotDBA,p_DiffDBA));
+title(sprintf('DBA:Ctx,mu=%.4f,NOT,mu=%.4f; 2bino,p=%.1e',dblMu_CtxDBA,dblMu_NotDBA,p_DiffDBA));
 fixfig;grid off;drawnow;
 
 %save plot
 drawnow;
-export_fig([strTargetPath filesep sprintf('SpikeShapes.tif')]);
-export_fig([strTargetPath filesep sprintf('SpikeShapes.pdf')]);
-	
+export_fig([strTargetPath filesep sprintf('SpikeShapes2.tif')]);
+export_fig([strTargetPath filesep sprintf('SpikeShapes2.pdf')]);
+
+% plot 2
+%data
+%cellAggBoundDist{intArea,intSubType} = cat(2,cellAggBoundDist{intArea,intSubType},vecBoundDist(:)');
+%cellAggSpikeHz{intArea,intSubType} = cat(2,cellAggSpikeHz{intArea,intSubType},vecSpikeHz(:)');
+%cellAggSpikeRLR{intArea,intSubType} = cat(2,cellAggSpikeRLR{intArea,intSubType},vecRLR(:)');
+figure
+maxfig;
+for intSubType=1:2
+	for intArea=1:intUseAreaNum
+		subplot(2,3,intArea+(intSubType-1)*3)
+		colormap('redbluepurple')
+		hold on;
+		if intArea == 1
+			vecCol = [0 0 1];
+		elseif intArea == 2
+			vecCol = [1 0 0];
+		end
+		strArea = cellAreaGroupsAbbr{intArea};
+		
+		strSubjectType = cellSubjectGroups{intSubType};
+		scatter(cellAggBoundDist{intArea,intSubType},cellAggSpikeRLR{intArea,intSubType},...
+			50,log(1+cellAggSpikeHz{intArea,intSubType}),'marker','.');
+		h=colorbar;
+		clabel(h,'log(1+Spike rate)');
+		hold off;
+		ylim([0 1]);
+		ylabel('Right-to-left ratio');
+		xlabel('Distance to boundary');
+		title(sprintf('%s, %s;',strSubjectType,cellAreaGroupsAbbr{intArea}));
+		fixfig;
+		grid off
+	end
+end
+
+% test
+[p_DiffRLR,h,stats] = ranksum(cellAggSpikeRLR{2,1},cellAggSpikeRLR{2,2});
+subplot(2,3,3)
+hold on
+errorbar(1,mean(cellAggSpikeRLR{2,1}),std(cellAggSpikeRLR{2,1})./sqrt(numel(cellAggSpikeRLR{2,1})),'x','color',vecColBl6,'CapSize',20);
+errorbar(2,mean(cellAggSpikeRLR{2,2}),std(cellAggSpikeRLR{2,2})./sqrt(numel(cellAggSpikeRLR{2,2})),'x','color',vecColAlb,'CapSize',20);
+hold off
+ylabel(sprintf('Right-to-left response ratio'));
+set(gca,'xtick',[1 2],'xticklabel',cellSubjectGroups(1:2));
+xlim([0.5 2.5]);
+title(sprintf('BL6,mu=%.4f,DBA,mu=%.4f; wilcoxon, p=%.3f',mean(cellAggSpikeRLR{2,1}),mean(cellAggSpikeRLR{2,2}),p_DiffRLR));
+fixfig;grid off;drawnow;
+
+
+%save plot
+drawnow;
+export_fig([strTargetPath filesep sprintf('SpikeShapes3.tif')]);
+export_fig([strTargetPath filesep sprintf('SpikeShapes3.pdf')]);

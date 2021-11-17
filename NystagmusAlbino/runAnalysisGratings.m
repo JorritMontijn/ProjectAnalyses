@@ -40,6 +40,10 @@ H) make model explaining results
 v) make ccgs in NOT to check for local connections
 vi) channels fast PV NOT?
 
+%to do 3
+[done/a) plot 3D locations of cells and show LR responses
+[done/b) smooth tuning plots
+
 %}
 
 %% load data

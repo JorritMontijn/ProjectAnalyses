@@ -256,15 +256,25 @@ for intSubType=1:2
 	
 end
 %% plot
+
+vecPlotDegs1 = vecUnique;
+vecPlotDegs1(vecPlotDegs1>=180) = vecPlotDegs1(vecPlotDegs1>=180) - 360;
+[vecPlotDegs1,vecReorder1]=sort(vecPlotDegs1);
+vecPlotDegs = vecUnique;
+vecPlotDegs(vecPlotDegs>=180) = vecPlotDegs(vecPlotDegs>=180) - 360;
+[vecPlotDegs,vecReorder]=sort(vecPlotDegs);
+dblEndX = vecPlotDegs(end)+median(diff(vecPlotDegs));
+vecPlotDegs = [vecPlotDegs; dblEndX];
+
 %extract data
-matWtPerfCtx = squeeze(matAggPerfWt(:,1,:));
+matWtPerfCtx = squeeze(matAggPerfWt(:,1,vecReorder));
 matWtPerfCtx(any(isnan(matWtPerfCtx),2),:) = [];
-matWtPerfNot = squeeze(matAggPerfWt(:,2,:));
+matWtPerfNot = squeeze(matAggPerfWt(:,2,vecReorder));
 matWtPerfNot(any(isnan(matWtPerfNot),2),:) = [];
 
-matAlbPerfCtx = squeeze(matAggPerfAlb(:,1,:));
+matAlbPerfCtx = squeeze(matAggPerfAlb(:,1,vecReorder));
 matAlbPerfCtx(any(isnan(matAlbPerfCtx),2),:) = [];
-matAlbPerfNot = squeeze(matAggPerfAlb(:,2,:));
+matAlbPerfNot = squeeze(matAggPerfAlb(:,2,vecReorder));
 matAlbPerfNot(any(isnan(matAlbPerfNot),2),:) = [];
 
 vecMeanWtPerfCtx = mean(matWtPerfCtx,1);
@@ -277,31 +287,30 @@ vecSemAlbPerfCtx = std(matAlbPerfCtx,[],1)/sqrt(size(matAlbPerfCtx,1));
 vecSemAlbPerfNot = std(matAlbPerfNot,[],1)/sqrt(size(matAlbPerfNot,1));
 
 % plot pair decoding
-dblEndX = vecUnique(end)+median(diff(vecUnique));
 figure
 subplot(2,3,1)
 hold on
-plot([0 360],[0.5 0.5],'k--');
-errorbar([vecUnique; dblEndX],[vecMeanWtPerfCtx(:); vecMeanWtPerfCtx(1)],[vecSemWtPerfCtx(:); vecSemWtPerfCtx(1)],'x-','Color',vecColBl6)
-errorbar([vecUnique; dblEndX],[vecMeanAlbPerfCtx(:); vecMeanAlbPerfCtx(1)],[vecSemAlbPerfCtx(:); vecSemAlbPerfCtx(1)],'x-','Color',vecColAlb)
+plot([-180 180],[0.5 0.5],'--','Color',[0.5 0.5 0.5]);
+errorbar(vecPlotDegs,[vecMeanWtPerfCtx(:); vecMeanWtPerfCtx(1)],[vecSemWtPerfCtx(:); vecSemWtPerfCtx(1)],'x-','Color',vecColBl6)
+errorbar(vecPlotDegs,[vecMeanAlbPerfCtx(:); vecMeanAlbPerfCtx(1)],[vecSemAlbPerfCtx(:); vecSemAlbPerfCtx(1)],'x-','Color',vecColAlb)
 xlabel('Stim ori (degs)')
 ylabel('Grating pair dec. perf.')
 legend({'Chance','BL6','DBA'},'Location','best')
-xlim([0 360]);
-set(gca,'xtick',0:90:360);
+xlim([-180 180]);
+set(gca,'xtick',min(vecPlotDegs):90:max(vecPlotDegs));
 title(cellAreaGroups{1});
 fixfig;
 
 subplot(2,3,4)
 hold on
-plot([0 360],[0.5 0.5],'--','Color',[0.5 0.5 0.5]);
-errorbar([vecUnique; dblEndX],[vecMeanWtPerfNot(:); vecMeanWtPerfNot(1)],[vecSemWtPerfNot(:); vecSemWtPerfNot(1)],'x-','Color',vecColBl6);
-errorbar([vecUnique; dblEndX],[vecMeanAlbPerfNot(:); vecMeanAlbPerfNot(1)],[vecSemAlbPerfNot(:); vecSemAlbPerfNot(1)],'x-','Color',vecColAlb);
+plot([-180 180],[0.5 0.5],'--','Color',[0.5 0.5 0.5]);
+errorbar(vecPlotDegs,[vecMeanWtPerfNot(:); vecMeanWtPerfNot(1)],[vecSemWtPerfNot(:); vecSemWtPerfNot(1)],'x-','Color',vecColBl6);
+errorbar(vecPlotDegs,[vecMeanAlbPerfNot(:); vecMeanAlbPerfNot(1)],[vecSemAlbPerfNot(:); vecSemAlbPerfNot(1)],'x-','Color',vecColAlb);
 xlabel('Stim ori (degs)')
 ylabel('Grating pair dec. perf.')
 legend({'Chance','BL6','DBA'},'Location','best')
-xlim([0 360]);
-set(gca,'xtick',0:90:360);
+xlim([-180 180]);
+set(gca,'xtick',min(vecPlotDegs):90:max(vecPlotDegs));
 title(cellAreaGroups{2});
 fixfig;
 
@@ -309,8 +318,8 @@ fixfig;
 subplot(2,3,3)
 hold on
 plot([0 360],[0.5 0.5],'k--');
-plot([vecUnique; dblEndX],[vecMeanWtPerfHip; vecMeanWtPerfHip(1)],'b-');
-plot([vecUnique; dblEndX],[vecMeanAlbPerfHip; vecMeanAlbPerfHip(1)],'r-');
+plot(vecPlot,[vecMeanWtPerfHip; vecMeanWtPerfHip(1)],'b-');
+plot(vecPlot,[vecMeanAlbPerfHip; vecMeanAlbPerfHip(1)],'r-');
 xlabel('Stim ori (degs)')
 ylabel('Grating pair dec. perf.')
 legend({'Chance','BL6','DBA'},'Location','best')
@@ -332,6 +341,12 @@ vecPrefOriNotAlb = cell2vec(cellAggPrefAlb(:,2));
 %vecPrefOriHipAlb = cell2vec(cellAggPrefAlb(:,3));
 vecBinCenters = 0:15:359;
 vecBins = (0:15:375) - 15/2;
+vecX = vecBins(2:end)-median(diff(vecBins))/2;
+
+vecPlotBins = vecX;
+vecPlotBins(vecPlotBins>=180) = vecPlotBins(vecPlotBins>=180) - 360;
+vecPlotBins(end) = 180;
+[vecPlotBins,vecReorder2]=sort(vecPlotBins);
 
 vecCountsCtxWt = histcounts(vecPrefOriCtxWt,vecBins);
 vecCountsNotWt = histcounts(vecPrefOriNotWt,vecBins);
@@ -340,28 +355,33 @@ vecCountsCtxAlb = histcounts(vecPrefOriCtxAlb,vecBins);
 vecCountsNotAlb = histcounts(vecPrefOriNotAlb,vecBins);
 %vecCountsHipAlb = histcounts(vecPrefOriHipAlb,vecBins);
 
-vecX = vecBins(2:end)-median(diff(vecBins))/2;
+%smooth
+vecCountsCtxWt = imfilt(vecCountsCtxWt(vecReorder2),[1 1 1]/3);
+vecCountsNotWt = imfilt(vecCountsNotWt(vecReorder2),[1 1 1]/3);
+vecCountsCtxAlb = imfilt(vecCountsCtxAlb(vecReorder2),[1 1 1]/3);
+vecCountsNotAlb = imfilt(vecCountsNotAlb(vecReorder2),[1 1 1]/3);
+
 subplot(2,3,2)
 hold on;
-plot(vecX,vecCountsCtxWt/sum(vecCountsCtxWt),'x-','Color',vecColBl6)
-plot(vecX,vecCountsCtxAlb/sum(vecCountsCtxAlb),'x-','Color',vecColAlb)
+plot(vecPlotBins,vecCountsCtxWt/sum(vecCountsCtxWt),'x-','Color',vecColBl6)
+plot(vecPlotBins,vecCountsCtxAlb/sum(vecCountsCtxAlb),'x-','Color',vecColAlb)
 hold off
 title(cellAreaGroups{1});
 ylabel('Normalized # of neurons');
 xlabel('Preferred orientation (degs)');
-xlim([min(vecX) max(vecX)]);
-set(gca,'xtick',0:90:360);
+xlim([min(vecPlotBins) max(vecPlotBins)]);
+set(gca,'xtick',min(vecPlotBins):90:max(vecPlotBins));
 fixfig;
 
 subplot(2,3,5)
 hold on;
-plot(vecX,vecCountsNotWt/sum(vecCountsNotWt),'x-','Color',vecColBl6)
-plot(vecX,vecCountsNotAlb/sum(vecCountsNotAlb),'x-','Color',vecColAlb)
+plot(vecPlotBins,vecCountsNotWt/sum(vecCountsNotWt),'x-','Color',vecColBl6)
+plot(vecPlotBins,vecCountsNotAlb/sum(vecCountsNotAlb),'x-','Color',vecColAlb)
 title(cellAreaGroups{2});
 ylabel('Normalized # of neurons');
 xlabel('Preferred orientation (degs)');
-xlim([min(vecX) max(vecX)]);
-set(gca,'xtick',0:90:360);
+xlim([min(vecPlotBins) max(vecPlotBins)]);
+set(gca,'xtick',min(vecPlotBins):90:max(vecPlotBins));
 fixfig;
 
 %subplot(2,3,6)
@@ -373,39 +393,46 @@ fixfig;
 %plot pop resp
 vecMeanRespCtxWt = mean(cellAggMeanRespWt{1},1);
 vecMeanRespNotWt = mean(cellAggMeanRespWt{2},1);
-vecMeanRespHipWt = mean(cellAggMeanRespWt{3},1);
 vecSdRespCtxWt = std(cellAggMeanRespWt{1},[],1);
 vecSdRespNotWt = std(cellAggMeanRespWt{2},[],1);
-vecSdRespHipWt = std(cellAggMeanRespWt{3},[],1);
 
 vecMeanRespCtxAlb = mean(cellAggMeanRespAlb{1},1);
 vecMeanRespNotAlb = mean(cellAggMeanRespAlb{2},1);
-vecMeanRespHipAlb = mean(cellAggMeanRespAlb{3},1);
 vecSdRespCtxAlb = std(cellAggMeanRespAlb{1},[],1);
 vecSdRespNotAlb = std(cellAggMeanRespAlb{2},[],1);
-vecSdRespHipAlb = std(cellAggMeanRespAlb{3},[],1);
+
+%smooth
+vecMeanRespCtxWt = imfilt(vecMeanRespCtxWt(vecReorder),[1 1 1]/3);
+vecMeanRespNotWt = imfilt(vecMeanRespNotWt(vecReorder),[1 1 1]/3);
+vecSdRespCtxWt = imfilt(vecSdRespCtxWt(vecReorder),[1 1 1]/3);
+vecSdRespNotWt = imfilt(vecSdRespNotWt(vecReorder),[1 1 1]/3);
+
+vecMeanRespCtxAlb = imfilt(vecMeanRespCtxAlb(vecReorder),[1 1 1]/3);
+vecMeanRespNotAlb = imfilt(vecMeanRespNotAlb(vecReorder),[1 1 1]/3);
+vecSdRespCtxAlb = imfilt(vecSdRespCtxAlb(vecReorder),[1 1 1]/3);
+vecSdRespNotAlb = imfilt(vecSdRespNotAlb(vecReorder),[1 1 1]/3);
 
 subplot(2,3,3)
 hold on;
-errorbar(vecUnique,vecMeanRespCtxWt,vecSdRespCtxWt/sqrt(size(cellAggMeanRespWt{1},1)),'x-','Color',vecColBl6)
-errorbar(vecUnique,vecMeanRespCtxAlb,vecSdRespCtxAlb/sqrt(size(cellAggMeanRespAlb{1},1)),'x-','Color',vecColAlb)
+errorbar(vecPlotDegs1,vecMeanRespCtxWt,vecSdRespCtxWt/sqrt(size(cellAggMeanRespWt{1},1)),'x-','Color',vecColBl6)
+errorbar(vecPlotDegs1,vecMeanRespCtxAlb,vecSdRespCtxAlb/sqrt(size(cellAggMeanRespAlb{1},1)),'x-','Color',vecColAlb)
 xlabel('Stim ori (degs)')
 ylabel('Normalized mean tuning curve')
 legend({'BL6','DBA'},'Location','best')
-xlim([0 360]);
-set(gca,'xtick',0:90:360);
+xlim([-180 180]);
+set(gca,'xtick',-180:90:180);
 title(cellAreaGroups{1});
 fixfig;
 
 subplot(2,3,6)
 hold on;
-errorbar(vecUnique,vecMeanRespNotWt,vecSdRespNotWt/sqrt(size(cellAggMeanRespWt{2},1)),'x-','Color',vecColBl6)
-errorbar(vecUnique,vecMeanRespNotAlb,vecSdRespNotAlb/sqrt(size(cellAggMeanRespAlb{2},1)),'x-','Color',vecColAlb)
+errorbar(vecPlotDegs1,vecMeanRespNotWt,vecSdRespNotWt/sqrt(size(cellAggMeanRespWt{2},1)),'x-','Color',vecColBl6)
+errorbar(vecPlotDegs1,vecMeanRespNotAlb,vecSdRespNotAlb/sqrt(size(cellAggMeanRespAlb{2},1)),'x-','Color',vecColAlb)
 xlabel('Stim ori (degs)')
 ylabel('Normalized mean tuning curve')
 legend({'BL6','DBA'},'Location','best')
-xlim([0 360]);
-set(gca,'xtick',0:90:360);
+xlim([-180 180]);
+set(gca,'xtick',-180:90:180);
 title(cellAreaGroups{2});
 fixfig;
 %{

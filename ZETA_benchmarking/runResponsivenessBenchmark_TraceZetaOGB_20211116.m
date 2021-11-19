@@ -3,7 +3,7 @@
 %% set recording
 close all;
 clear all;
-strDataSourcePath = 'D:\Data\Processed\imagingGCaMP\';
+strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
 strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
 vecRunTypes = [1 2];
 intResampNum = 100;
@@ -11,20 +11,13 @@ boolSave = true;%true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 %% load database
-sLoad=load([strDataSourcePath 'SessionDatabase.mat']);
-vecCheck = find(~cellfun(@isempty,sLoad.cellRecGratings));
-cellRunRecs = cell(1,numel(vecCheck));
-for i=1:numel(vecCheck)
-	intEntry = vecCheck(i);
-	cellRecs = sLoad.cellRecGratings{intEntry};
-	cellRunRecs{i} = cellRecs{floor(numel(cellRecs)/2)};
-end
-
+sDir=dir(fullpath(strDataSourcePath,'*.mat'));
+cellRunRecs = {sDir.name};
 
 %% load data
 for intRunType=vecRunTypes
 	%% load data
-	for intFile=1:numel(cellRunRecs)
+	for intFile=4%1:numel(cellRunRecs)
 		strFile = cellRunRecs{intFile};
 		[dummy,strRec,strExt]=fileparts(strFile);
 		sLoad = load([strDataSourcePath strFile]);
@@ -45,7 +38,7 @@ for intRunType=vecRunTypes
 		
 		%% analyze
 		hTic = tic;
-		for intNeuron=1:intNeurons%[1:intNeurons]%1:27, 2:69
+		for intNeuron=43%1:intNeurons%[1:intNeurons]%1:27, 2:69
 			%% message
 			if toc(hTic) > 5
 				fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
@@ -142,19 +135,15 @@ for intRunType=vecRunTypes
 				ylabel('Mean dF/F0');
 				set(gca,'xtick',[1 2],'xticklabel',{'Base','Stim'});
 				title(sprintf('%s - neuron %d',strRec,intNeuron),'interpreter','none');fixfig;
-				pause
-				
-				if 0
-					%%
-					export_fig(fullpath(strFigPath,sprintf('Example_%s_Cell%d.tif',strRec,intNeuron)));
-					export_fig(fullpath(strFigPath,sprintf('Example_%s_Cell%d.pdf',strRec,intNeuron)));
-					
-				end
+				drawnow;
+				return
+				export_fig(fullpath([strFigPath 'Examples'],sprintf('Example_%s_Cell%d.tif',strRec,intNeuron)));	
+				export_fig(fullpath([strFigPath 'Examples'],sprintf('Example_%s_Cell%d.pdf',strRec,intNeuron)));
 			end
 		end
 		
 		if boolSave
-			save([strDataTargetPath 'TraceZeta' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
+			save([strDataTargetPath 'TraceZetaOGB' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
 				'vecZetaP','vecMeanP','strRecIdx');
 		end
 	end

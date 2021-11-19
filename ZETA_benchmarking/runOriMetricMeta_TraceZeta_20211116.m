@@ -14,9 +14,14 @@ strArea = 'Primary visual';%cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, 
 strStim = 'RunDriftingGratings';
 matZetaP = [];
 matMeanP = [];
+boolDoOGB = false;
 
 %% load data
-sDirAll=dir([strPath '*.mat']);
+if boolDoOGB
+	sDirAll=dir([strPath 'TraceZetaOGB2*Resamp100.mat']);
+else
+	sDirAll=dir([strPath 'TraceZeta2*Resamp100.mat']);
+end
 vecRand = contains({sDirAll.name},'Rand');
 sDirReal = sDirAll(~vecRand);
 sDirRand = sDirAll(vecRand);
@@ -66,6 +71,7 @@ matMeanZ(:,indRem)=[];
 matZetaZ(:,indRem)=[];
 
 %% plot
+figure
 matMeanP(matMeanZ(:)==0) = 1e-29;
 matZetaP(matZetaP(:)==0) = 1e-29;
 h1 =subplot(2,3,1);
@@ -79,7 +85,7 @@ colormap(h1,matC(1:max(vecColor1),:));
 %xlim([0 1]);ylim([0 1]);
 xlabel('Z-statistic mean-based t-test (\Phi^-^1(1-p/2))')
 ylabel('ZETA (\zeta_c)')
-title(sprintf('A) Inclusion at %s=0.05: %s=%.3f, %s=%.3f',getGreek('alpha'),getGreek('zeta'),sum(matZetaP(1,:)<0.05)/numel(matZetaP(1,:)),getGreek('mu'),sum(matMeanP(1,:)<0.05)/numel(matMeanP(1,:))))
+title(sprintf('A) Inclusion at %s=0.05: %s=%.3f, %s=%.3f; n=%d',getGreek('alpha'),getGreek('zeta'),sum(matZetaP(1,:)<0.05)/numel(matZetaP(1,:)),getGreek('mu'),sum(matMeanP(1,:)<0.05)/numel(matMeanP(1,:)),size(matZetaP,2)))
 %set(gca,'xscale','log','yscale','log');
 fixfig;
 
@@ -131,6 +137,12 @@ fixfig;
 
 
 %% save
+if boolDoOGB
+	drawnow;
+export_fig(fullpath(strFigPath,'TraceZetaOGB.tif'));
+export_fig(fullpath(strFigPath,'TraceZetaOGB.pdf'));
+else
 drawnow;
-export_fig(fullpath(strFigPath,'TraceZeta.tif'));
-export_fig(fullpath(strFigPath,'TraceZeta.pdf'));
+export_fig(fullpath(strFigPath,'TraceZetaGCaMP.tif'));
+export_fig(fullpath(strFigPath,'TraceZetaGCaMP.pdf'));
+end

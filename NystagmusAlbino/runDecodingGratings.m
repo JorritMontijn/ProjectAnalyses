@@ -281,10 +281,22 @@ vecMeanWtPerfCtx = mean(matWtPerfCtx,1);
 vecMeanWtPerfNot = mean(matWtPerfNot,1);
 vecMeanAlbPerfCtx = mean(matAlbPerfCtx,1);
 vecMeanAlbPerfNot = mean(matAlbPerfNot,1);
+
 vecSemWtPerfCtx = std(matWtPerfCtx,[],1)/sqrt(size(matWtPerfCtx,1));
 vecSemWtPerfNot = std(matWtPerfNot,[],1)/sqrt(size(matWtPerfNot,1));
 vecSemAlbPerfCtx = std(matAlbPerfCtx,[],1)/sqrt(size(matAlbPerfCtx,1));
 vecSemAlbPerfNot = std(matAlbPerfNot,[],1)/sqrt(size(matAlbPerfNot,1));
+
+%smooth
+vecMeanWtPerfCtx = imfilt(vecMeanWtPerfCtx,[1 1 1]/3);
+vecMeanWtPerfNot = imfilt(vecMeanWtPerfNot,[1 1 1]/3);
+vecMeanAlbPerfCtx = imfilt(vecMeanAlbPerfCtx,[1 1 1]/3);
+vecMeanAlbPerfNot = imfilt(vecMeanAlbPerfNot,[1 1 1]/3);
+
+vecSemWtPerfCtx = imfilt(vecSemWtPerfCtx,[1 1 1]/3);
+vecSemWtPerfNot = imfilt(vecSemWtPerfNot,[1 1 1]/3);
+vecSemAlbPerfCtx = imfilt(vecSemAlbPerfCtx,[1 1 1]/3);
+vecSemAlbPerfNot = imfilt(vecSemAlbPerfNot,[1 1 1]/3);
 
 % plot pair decoding
 figure

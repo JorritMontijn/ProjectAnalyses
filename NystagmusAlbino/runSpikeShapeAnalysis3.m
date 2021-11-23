@@ -139,7 +139,10 @@ for intSubType=1:2
 			vecSame(i) = strcmp(strCleanOld,strCleanNew);
 			%fprintf('%d: %s - %s - %s\n',i,cellParentAreasPerCluster{i},cellAreasPerCluster{i},cellSelfPerCluster{i});
 		end
-		dblAgreement=sum(vecSame)/numel(vecSame)
+		dblAgreement=sum(vecSame)/numel(vecSame);
+		if dblAgreement < 0.5
+			fprintf('Area assignment agreement for %s is %.3f, please check!\n',strName,dblAgreement);
+		end
 		
 		%get waveform in areas
 		for intArea=1:intUseAreaNum
@@ -292,11 +295,6 @@ intPoints = 7;
 matLines = dblReduceBy*getTrace3D(avEdge,intPoints);
 
 %h = plot3(matLines(:,3), matLines(:,1), matLines(:,2), 'Color', [0 0 0 0.3]);
-xlabel('ML');
-ylabel('AP');
-zlabel('DV');
-axis equal;
-set(gca,'Zdir','reverse');
 
 %% find NOT
 avNot=av==(st.index(contains(st.name,'nucleus of the optic tract','ignorecase',true))+1);
@@ -354,3 +352,58 @@ title(sprintf('Recording locations in NOT'));
 drawnow;
 export_fig([strTargetPath filesep sprintf('RecLocNot.tif')]);
 export_fig([strTargetPath filesep sprintf('RecLocNot.pdf')]);
+
+%% single axes
+figure;maxfig;
+subplot(2,3,1)%DV,ML,AP
+[r,p]=corr(cellAggCoords{2,1}(1,:)',cellAggSpikeRLR{2,1}');
+scatter(cellAggCoords{2,1}(1,:),cellAggSpikeRLR{2,1},'x');
+xlabel('DV');
+ylabel('R-L ratio');
+title(sprintf('BL6, r(DV,RLR)=%.3f,p=%.3f',r,p));
+fixfig;
+
+subplot(2,3,2)%DV,ML,AP
+[r,p]=corr(cellAggCoords{2,1}(2,:)',cellAggSpikeRLR{2,1}');
+scatter(cellAggCoords{2,1}(2,:),cellAggSpikeRLR{2,1},'x');
+xlabel('ML');
+ylabel('R-L ratio');
+title(sprintf('BL6, r(ML,RLR)=%.3f,p=%.3f',r,p));
+fixfig;
+
+subplot(2,3,3)%DV,ML,AP
+[r,p]=corr(cellAggCoords{2,1}(3,:)',cellAggSpikeRLR{2,1}');
+scatter(cellAggCoords{2,1}(3,:),cellAggSpikeRLR{2,1},'x');
+xlabel('AP');
+ylabel('R-L ratio');
+title(sprintf('BL6, r(AP,RLR)=%.3f,p=%.3f',r,p));
+fixfig;
+
+subplot(2,3,4)%DV,ML,AP
+[r,p]=corr(cellAggCoords{2,2}(1,:)',cellAggSpikeRLR{2,2}');
+scatter(cellAggCoords{2,2}(1,:),cellAggSpikeRLR{2,2});
+xlabel('DV');
+ylabel('R-L ratio');
+title(sprintf('DBA, r(DV,RLR)=%.3f,p=%.3f',r,p));
+fixfig;
+
+subplot(2,3,5)%DV,ML,AP
+[r,p]=corr(cellAggCoords{2,2}(2,:)',cellAggSpikeRLR{2,2}');
+scatter(cellAggCoords{2,2}(2,:),cellAggSpikeRLR{2,2});
+xlabel('ML');
+ylabel('R-L ratio');
+title(sprintf('DBA, r(ML,RLR)=%.3f,p=%.3f',r,p));
+fixfig;
+
+subplot(2,3,6)%DV,ML,AP
+[r,p]=corr(cellAggCoords{2,2}(3,:)',cellAggSpikeRLR{2,2}');
+scatter(cellAggCoords{2,2}(3,:),cellAggSpikeRLR{2,2});
+xlabel('AP');
+ylabel('R-L ratio');
+title(sprintf('DBA, r(AP,RLR)=%.3f,p=%.3f',r,p));
+fixfig;
+
+%save plot
+drawnow;
+export_fig([strTargetPath filesep sprintf('RecLocNotPerAx.tif')]);
+export_fig([strTargetPath filesep sprintf('RecLocNotPerAx.pdf')]);

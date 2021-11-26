@@ -3,7 +3,7 @@
 %% set recording
 close all;
 clear all;
-strDataSourcePath = 'D:\Data\Processed\imagingGCaMP\';
+strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
 strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
 vecRunTypes = [1 2];
 intResampNum = 100;
@@ -11,15 +11,8 @@ boolSave = true;%true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 %% load database
-sLoad=load([strDataSourcePath 'SessionDatabase.mat']);
-vecCheck = find(~cellfun(@isempty,sLoad.cellRecGratings));
-cellRunRecs = cell(1,numel(vecCheck));
-for i=1:numel(vecCheck)
-	intEntry = vecCheck(i);
-	cellRecs = sLoad.cellRecGratings{intEntry};
-	cellRunRecs{i} = cellRecs{floor(numel(cellRecs)/2)};
-end
-
+sDir=dir(fullpath(strDataSourcePath,'*.mat'));
+cellRunRecs = {sDir.name};
 
 %% load data
 for intRunType=vecRunTypes
@@ -45,7 +38,7 @@ for intRunType=vecRunTypes
 		
 		%% analyze
 		hTic = tic;
-		for intNeuron=1:intNeurons%[1:intNeurons]%1:27, 2:69
+		for intNeuron=1:intNeurons%[1:intNeurons]%43%1:27, 2:69
 			%% message
 			if toc(hTic) > 5
 				fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
@@ -89,29 +82,21 @@ for intRunType=vecRunTypes
 			dblPreUse = -dblUseMaxDur*((dblJitterSize-1)/2);
 			dblPostUse = dblUseMaxDur*((dblJitterSize+1)/2);
 			
-			dblStartT = min(vecEventStarts) + dblPreUse*2;
-			dblStopT = max(vecEventStarts) + dblPostUse*2;
+			dblStartT = min(vecEventStarts) + dblPreUse*2 - dblUseMaxDur;
+			dblStopT = max(vecEventStarts) + dblPostUse*2 + dblUseMaxDur;
 			indRemoveEntries = (vecTraceT < dblStartT) | (vecTraceT > dblStopT);
 			vecTraceT(indRemoveEntries) = [];
 			vecTraceAct(indRemoveEntries) = [];
-			%calculate reference time
-			vecWideT = (dblPreUse+dblSamplingInterval/2):dblSamplingInterval:dblPostUse;
-			intT0 = find(vecWideT>=0,1);
-			intSamples = numel(vecWideT);
-			intTrials = numel(vecEventStarts);
 			
-			%stitch trials
-			[vecRefT2,matWideTrace] = getTraceInTrial(vecTraceT,vecTraceAct,vecEventStarts+dblPreUse,dblSamplingInterval,dblPostUse-dblPreUse);
-			vecPseudoStartT = (vecRefT2(1):vecRefT2(end):(vecRefT2(end)*(intTrials-1)+vecRefT2(1)+eps))';
-			matPseudoT = bsxfun(@plus,vecPseudoStartT,vecRefT2);
-			vecPseudoTrace = matWideTrace(:)';
-			[vecPseudoT,vecReorder] = sort(matPseudoT(:)');
-			vecPseudoTrace = vecPseudoTrace(vecReorder);
-			if numel(vecPseudoT) < 3
-				%continue;
-			end
-			%vecPseudoTrace = vecPseudoTrace - min(vecPseudoTrace(:));
-	
+			%build pseudo vector
+			intTrials = numel(vecEventStarts);
+			vecTimestamps = vecTraceT;
+			vecData = vecTraceAct;
+			vecEventT = vecEventStarts+dblPreUse;
+			dblWindowDur = dblPostUse-dblPreUse;
+			[vecPseudoTime,vecPseudoData,vecPseudoStartT] = getPseudoTimeSeries(vecTimestamps,vecData,vecEventT,dblWindowDur);
+			vecPseudoStartT = vecPseudoStartT(:);
+			
 			%% get visual responsiveness
 			%set derivative params
 			if contains(strRunType,'Rand')
@@ -123,7 +108,7 @@ for intRunType=vecRunTypes
 			end
 			intPlot = 0;
 			%continue;
-			[dblZetaP,sZETA] = getTraceZeta(vecPseudoT,vecPseudoTrace,matEventTimes,dblUseMaxDur,intResampNum,intPlot); %16
+			[dblZetaP,sZETA] = getTraceZeta(vecPseudoTime,vecPseudoData,matEventTimes,dblUseMaxDur,intResampNum,intPlot); %16
 			%pause
 			% assign data
 			dblMeanP = sZETA.dblMeanP;
@@ -132,8 +117,8 @@ for intRunType=vecRunTypes
 			vecZetaP(intNeuron) = dblZetaP;
 			vecMeanP(intNeuron) = dblMeanP;
 			
-			if dblZetaZ > 3 && dblMeanZ < 1.5
-				[dblZetaP,sZETA] = getTraceZeta(vecPseudoT,vecPseudoTrace,matEventTimes,dblUseMaxDur,intResampNum,2); %16
+			if 0%dblZetaZ > 3 && dblMeanZ < 1.5
+				[dblZetaP,sZETA] = getTraceZeta(vecPseudoTime,vecPseudoData,matEventTimes,dblUseMaxDur,intResampNum,2); %16
 				
 				subplot(2,3,5)
 				hold on
@@ -142,7 +127,7 @@ for intRunType=vecRunTypes
 				ylabel('Mean dF/F0');
 				set(gca,'xtick',[1 2],'xticklabel',{'Base','Stim'});
 				title(sprintf('%s - neuron %d',strRec,intNeuron),'interpreter','none');fixfig;
-				pause
+				%pause
 				
 				if 0
 					%%
@@ -154,7 +139,7 @@ for intRunType=vecRunTypes
 		end
 		
 		if boolSave
-			save([strDataTargetPath 'TraceZeta' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
+			save([strDataTargetPath 'TraceZeta3OGB_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
 				'vecZetaP','vecMeanP','strRecIdx');
 		end
 	end

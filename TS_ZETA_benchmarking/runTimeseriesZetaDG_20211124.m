@@ -153,9 +153,9 @@ for intRunType=vecRunTypes
 			vecZetaP(intNeuron) = dblZetaP;
 			vecMeanP(intNeuron) = dblMeanP;
 			
-			if 0%dblZetaZ > 3 && dblMeanZ < 1.5
+			if dblZetaZ > 3 && dblMeanZ < 1.5
 				[dblZetaP,sZETA] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampNum,2); %16
-				
+				 
 				subplot(2,3,5)
 				hold on
 				h1=bplot(sZETA.vecMeanBase,1);

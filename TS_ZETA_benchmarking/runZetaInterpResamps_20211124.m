@@ -6,22 +6,24 @@ clear all;
 strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
 strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
 vecRunTypes = [1 2];
-intResampNum = 10000;
+vecResamps = 100;%[100 200 500 1000 2000];
+intResamps= numel(vecResamps);
+%vecResamps = [5000 10000];
 boolSave = true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 %% set variables
-strRec = 'SimZeta2';
-intNeurons = 100;
+strRec = 'SimZeta3';
+intNeurons = 1000;
 %% pre-allocate output variables
-matZeta = nan(intNeurons,2);
-matZetaTime = nan(intNeurons,2);
-		
-matZeta2 = nan(intNeurons,2);
-matZeta2Time = nan(intNeurons,2);
-		
-hTicN = tic;
+matZeta = nan(intNeurons,2,intResamps);
+matZetaTime = nan(intNeurons,2,intResamps);
+
+matZeta2 = nan(intNeurons,2,intResamps);
+matZeta2Time = nan(intNeurons,2,intResamps);
+
 %% generate data
+hTicN = tic;
 for intNeuron=1:intNeurons
 	%% message
 	if toc(hTicN) > 5
@@ -57,6 +59,7 @@ for intNeuron=1:intNeurons
 	dblPreBaseDur = 3;
 	dblPostBaseDur = 2;
 	dblTrialDur = dblPreBaseDur + dblStimDur + dblPostBaseDur;
+	dblUseTrialDur = 4.5;
 	intOris = 24;
 	dblStepDeg = 360/intOris;
 	vecOris = linspace(0,360-dblStepDeg,intOris);
@@ -77,43 +80,56 @@ for intNeuron=1:intNeurons
 	dblJitter = 5; %in ms'
 	[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles,matTrialT,0,0,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri);
 	
+	%generate offset
+	matTrialT2 = cat(2,matTrialT(:,1)+dblStimDur+0.1,matTrialT(:,1)+dblStimDur+dblPostBaseDur-0.1);
+	[vecSpikeTimes3,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles,matTrialT2,0,100,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri);
+	
 	%combine
-	vecSpikeTimes = sort(cat(1,vecSpikeTimes1,vecSpikeTimes2));
+	vecSpikeTimes = sort(cat(1,vecSpikeTimes1,vecSpikeTimes2,vecSpikeTimes3));
 	
 	%real+rand
 	for intRunType=vecRunTypes
 		
 		%randomize
 		if intRunType ==2
-			vecJitter = 2*dblTrialDur*((rand(size(vecTrialStart))-1/2)*2);
+			vecJitter = 2*dblUseTrialDur*((rand(size(vecTrialStart))-1/2)*2);
 			vecUseTrialStart = vecTrialStart + vecJitter -3;
 		else
 			vecUseTrialStart = vecTrialStart -3;
 		end
 		%plot if first
 		if intNeuron == 1
+			%f = @() getZeta(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,0);
+			%t=timeit(f);
+			%f2 = @() getZeta2(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,0);
+			%t2=timeit(f2);
 			intPlot = 0;
 		else
 			intPlot = 0;
 		end
-		%run zeta & zeta2
-		hTic=tic;
-		[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
-		dblZeta = sZETA.dblZETA;
-		matZeta(intNeuron,intRunType) = dblZeta;
-		matZetaTime(intNeuron,intRunType) = toc(hTic);
 		
-		%save
-		hTic2=tic;
-		[dblZeta2P,vecLatencies,sZETA2] = getZeta2(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
-		dblZeta2 = sZETA2.dblZETA;
-		matZeta2(intNeuron,intRunType) = dblZeta2;
-		matZeta2Time(intNeuron,intRunType) = toc(hTic2);
+		%run zeta & zeta2
+		for intResampIdx = 1:intResamps
+			intResampNum = vecResamps(intResampIdx);
+			
+			hTic1=tic;
+			dblZetaP = getZeta(vecSpikeTimes,vecUseTrialStart,dblUseTrialDur,intResampNum,intPlot);
+			dblZeta = -norminv(dblZetaP/2);
+			matZeta(intNeuron,intRunType,intResampIdx) = dblZeta;
+			matZetaTime(intNeuron,intRunType,intResampIdx) = toc(hTic1);
+			
+			%save
+			hTic2=tic;
+			dblZeta2P = getZeta2(vecSpikeTimes,vecUseTrialStart,dblUseTrialDur,intResampNum,intPlot);
+			dblZeta2 = -norminv(dblZeta2P/2);
+			matZeta2(intNeuron,intRunType,intResampIdx) = dblZeta2;
+			matZeta2Time(intNeuron,intRunType,intResampIdx) = toc(hTic2);
+		end
 	end
 end
 
 %% save
 if boolSave
-	save([strDataTargetPath 'Zeta2' strRec 'Resamp' num2str(intResampNum) '.mat' ],...
-		'matZeta','matZeta2','matZetaTime','matZeta2Time','strRec');
+	save([strDataTargetPath 'Zeta2' strRec 'Resamps.mat' ],...
+		'matZeta','matZeta2','matZetaTime','matZeta2Time','strRec','vecResamps','sSpikingParams','sTuningParams');
 end

@@ -3,7 +3,7 @@
 %% set recording
 close all;
 clear all;
-strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
+strDataTargetPath = 'D:\Data\Processed\TraceZeta\data\';
 vecRunTypes = [1 2];
 intResampNum = 100;
 boolSave = true;%true;
@@ -153,7 +153,7 @@ for intRunType=vecRunTypes
 			vecZetaP(intNeuron) = dblZetaP;
 			vecMeanP(intNeuron) = dblMeanP;
 			
-			if dblZetaZ > 3 && dblMeanZ < 1.5
+			if 0;%dblZetaZ > 3 && dblMeanZ < 1.5
 				[dblZetaP,sZETA] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampNum,2); %16
 				 
 				subplot(2,3,5)

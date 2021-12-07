@@ -4,7 +4,7 @@ strPath = 'D:\Data\Processed\TraceZeta\';
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 %% prep
-strFileSearch = 'TsZetaSim2Fluorescence*.mat';
+strFileSearch = '*SimSampFreqs*.mat';
 sDir = dir(fullpath(strPath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));

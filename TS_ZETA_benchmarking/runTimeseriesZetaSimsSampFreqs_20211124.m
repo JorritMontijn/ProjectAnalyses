@@ -6,12 +6,12 @@ clear all;
 strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
 strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
 vecRunTypes = [1 2];
-intResampNum = 100;
+intResampNum = 500;
 boolSave = true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 %% set variables
-strRec = 'Sim2bFluorescence';
+strRec = 'SimSampFreqs';
 intNeurons = 100;
 vecSampFreqs = [1 5 25 100];
 intSampFreqs = numel(vecSampFreqs);

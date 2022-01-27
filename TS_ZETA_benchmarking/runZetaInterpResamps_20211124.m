@@ -120,7 +120,7 @@ for intNeuron=1:intNeurons
 			
 			%save
 			hTic2=tic;
-			dblZeta2P = getZeta2(vecSpikeTimes,vecUseTrialStart,dblUseTrialDur,intResampNum,intPlot);
+			dblZeta2P = zetatest(vecSpikeTimes,vecUseTrialStart,dblUseTrialDur,intResampNum,intPlot);
 			dblZeta2 = -norminv(dblZeta2P/2);
 			matZeta2(intNeuron,intRunType,intResampIdx) = dblZeta2;
 			matZeta2Time(intNeuron,intRunType,intResampIdx) = toc(hTic2);

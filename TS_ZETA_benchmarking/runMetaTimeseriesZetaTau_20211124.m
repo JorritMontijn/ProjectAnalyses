@@ -125,7 +125,7 @@ for intTauIdx=1:numel(vecRunTau)
 	if intTauIdx==1
 		xlabel('False positive fraction');
 		ylabel('Inclusion fraction');
-		%legend({sprintf('TS-ZETA-test, AUC=%.2f',vecAUC(1)),sprintf('ZETA-test, AUC=%.2f',vecAUC(2))},'location','best','interpreter','none');
+		legend({sprintf('TS-ZETA-test, AUC=%.2f',vecAUC(1)),sprintf('ZETA-test, AUC=%.2f',vecAUC(2))},'location','best','interpreter','none');
 		fixfig;
 	else
 		fixfig;

@@ -144,7 +144,7 @@ for intRunType=vecRunTypes
 			intPlot = 0;
 			boolDirectQuantile = false;
 			%continue;
-			[dblZetaP,sZETA] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize,boolUseSuperResolution);
+			[dblZetaP,sZETA] = zetatstest(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize,boolUseSuperResolution);
 			%pause
 			% assign data
 			dblMeanP = sZETA.dblMeanP;
@@ -153,8 +153,8 @@ for intRunType=vecRunTypes
 			vecZetaP(intNeuron) = dblZetaP;
 			vecMeanP(intNeuron) = dblMeanP;
 			
-			if 0;%dblZetaZ > 3 && dblMeanZ < 1.5
-				[dblZetaP,sZETA] = getTraceZeta(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampNum,2); %16
+			if 0%dblZetaZ > 3 && dblMeanZ < 1.5
+				[dblZetaP,sZETA] = zetatstest(vecTraceT,vecTraceAct,matEventTimes,dblUseMaxDur,intResampNum,2); %16
 				 
 				subplot(2,3,5)
 				hold on

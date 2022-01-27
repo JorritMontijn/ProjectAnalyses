@@ -6,20 +6,30 @@ clear all;
 strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
 strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
 vecRunTypes = [1 2];
-vecResamps = 100;%[100 200 500 1000 2000];
+vecResamps = 250;%[100 200 500 1000 2000];
 intResamps= numel(vecResamps);
 %vecResamps = [5000 10000];
 boolSave = true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 %% set variables
-strRec = 'SimTwoSampleZeta';
+strRec = 'SimTwoSampleTsZeta';
 intNeurons = 1000;
 intFracDiffSpikes = 0.5;
+dblTau = 2;
+dblTau0 = (63/1000);
+dblNoise = 0.025;
+dblSamplingFreq = 25;
+boolQuick = false;
+
+%set indicator properties
+		sIndicatorProps = struct;
+		sIndicatorProps.dblTimescale = dblTau;
+		sIndicatorProps.dblNoise = dblNoise;
 	
 %% pre-allocate output variables
 matTtest2 = nan(intNeurons,2,intResamps);
-matZeta2 = nan(intNeurons,2,intResamps);
+matTsZeta2 = nan(intNeurons,2,intResamps);
 
 %% generate data
 hTicN = tic;
@@ -63,7 +73,13 @@ for intNeuron=1:intNeurons
 	
 	% generate peak
 	[vecSpikeTimes1,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles,matTrialT,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes1);
-	
+	[vecTimestamps1,vecdFoF1] = getGeneratedFluorescence(vecSpikeTimes1,dblSamplingFreq,sIndicatorProps,boolQuick);
+	%add empty end
+	dblEndDur = vecTrialStart(end) + dblTrialDur*5;
+	vecAddT = vecTimestamps1(end):(1/dblSamplingFreq):dblEndDur;
+	vecTimestamps1 = cat(2,vecTimestamps1,vecAddT(2:end));
+	vecdFoF1 = cat(2,vecdFoF1,zeros(size(vecAddT(2:end))));
+		
 	%real+rand
 	for intRunType=vecRunTypes
 		
@@ -77,30 +93,28 @@ for intNeuron=1:intNeurons
 			intAddSpikes2 = intAddSpikes1 + intDiffSpikes;
 			[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles,matTrialT,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2);
 		end
-		%plot if first
-		if intNeuron == 1
-			%f = @() getZeta(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,0);
-			%t=timeit(f);
-			%f2 = @() getZeta2(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,0);
-			%t2=timeit(f2);
-			intPlot = 0;
-		else
-			intPlot = 0;
-		end
+		
+		%make dF/F
+		[vecTimestamps2,vecdFoF2] = getGeneratedFluorescence(vecSpikeTimes2,dblSamplingFreq,sIndicatorProps,boolQuick);
+		%add empty end
+		dblEndDur = vecTrialStart(end) + dblTrialDur*5;
+		vecAddT = vecTimestamps2(end):(1/dblSamplingFreq):dblEndDur;
+		vecTimestamps2 = cat(2,vecTimestamps2,vecAddT(2:end));
+		vecdFoF2 = cat(2,vecdFoF2,zeros(size(vecAddT(2:end))));
 		
 		%run zeta & zeta2
 		for intResampIdx = 1:intResamps
 			intResampNum = vecResamps(intResampIdx);
 			
-			[dblZeta2P,sZETA] = zetatest2(vecSpikeTimes1,matTrialT,vecSpikeTimes2,matTrialT,dblUseTrialDur,intResampNum,intPlot);
+			[dblZetaP,sZETA] = zetatstest2(vecTimestamps1,vecdFoF1,matTrialT,vecTimestamps2,vecdFoF2,matTrialT,dblUseTrialDur,intResampNum,intPlot);
 			matTtest2(intNeuron,intRunType,intResampIdx) = -norminv(sZETA.dblMeanP/2);
-			matZeta2(intNeuron,intRunType,intResampIdx) = -norminv(dblZetaP/2);
+			matTsZeta2(intNeuron,intRunType,intResampIdx) = -norminv(dblZetaP/2);
 		end
 	end
 end
 
 %% save
 if boolSave
-	save([strDataTargetPath 'Zeta2' strRec '.mat' ],...
-		'matTtest2','matZeta2','strRec');
+	save([strDataTargetPath strRec '.mat' ],...
+		'matTtest2','matTsZeta2','strRec');
 end

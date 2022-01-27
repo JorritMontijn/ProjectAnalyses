@@ -4,7 +4,7 @@ strPath = 'D:\Data\Processed\TraceZeta\';
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 %% prep
-strFileSearch = ['Zeta2SimZeta3*Resamps.mat'];
+strFileSearch = ['Zeta2SimZeta2*Resamps.mat'];
 sDir = dir(fullpath(strPath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
@@ -103,8 +103,9 @@ for intResampIdx=1:numel(vecResamps)
 	title(sprintf('Median log time, ZETA=%.3f, ZETA2 (stitching)=%.3f',median(matZetaTime(:,1)),median(matZeta2Time(:,1))));
 	fixfig;
 	
-end
-%% save
+	%% save
 drawnow;
-export_fig(fullpath(strFigPath,[strrep(strFile,'.mat',''),'Overview.tif']));
-export_fig(fullpath(strFigPath,[strrep(strFile,'.mat',''),'Overview.pdf']));
+export_fig(fullpath(strFigPath,[strrep(strFile,'.mat',''),num2str(intResampNum),'Overview.tif']));
+export_fig(fullpath(strFigPath,[strrep(strFile,'.mat',''),num2str(intResampNum),'Overview.pdf']));
+
+end

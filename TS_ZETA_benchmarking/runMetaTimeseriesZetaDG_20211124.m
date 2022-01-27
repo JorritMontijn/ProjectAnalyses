@@ -1,6 +1,6 @@
 clear all;
 %close all;
-strPath = 'D:\Data\Processed\TraceZeta\';
+strPath = 'D:\Data\Processed\TraceZeta\data\';
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 cellRunRand = {...
@@ -15,12 +15,9 @@ strStim = 'RunDriftingGratings';
 matZetaP = [];
 matMeanP = [];
 hMegaFig = figure;maxfig;
-dblDur = 8;
-if dblDur == 8
-	strDur = ['Dur' num2str(dblDur)];
-else
-	strDur = '';
-end
+dblDur = 6;
+strDur = ['Dur' num2str(dblDur)];
+
 for boolBuildPseudoTrace = [false true]
 	if boolBuildPseudoTrace
 		strTitPD = 'PD';
@@ -147,7 +144,7 @@ for boolBuildPseudoTrace = [false true]
 				
 				plot(vecFP,vecTP,'Color',cellColor{intTest});
 				
-				[dblAUC,Aci] = auc(cat(1,vecBothLabels,vecBothData)');
+				[dblAUC,Aci] = getAuc(vecTP,vecFP);
 				vecAUC(intTest) = dblAUC;
 			end
 			hold off;
@@ -188,7 +185,7 @@ for boolBuildPseudoTrace = [false true]
 				
 				plot(vecFP,vecTP,'Color',cellColor{intTest});
 				
-				[dblAUC,Aci] = auc(cat(1,vecBothLabels,vecBothData)');
+				[dblAUC,Aci] = getAuc(vecTP,vecFP);
 				vecAUC(intTest) = dblAUC;
 			end
 			hold off;

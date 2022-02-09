@@ -5,11 +5,11 @@ close all;
 clear all;
 strDataTargetPath = 'D:\Data\Processed\TraceZeta\data\';
 vecRunTypes = [1 2];
-intResampNum = 500;
+intResampNum = 501;
 boolSave = true;%true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 dblUseDur = 8;
-boolDirectQuantile = true;
+boolDirectQuantile = false;
 				
 %% load data
 for boolDoOGB = [false true]

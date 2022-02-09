@@ -2,7 +2,7 @@ clear all;
 %close all;
 strPath = 'D:\Data\Processed\TraceZeta\data\';
 strFigPath = 'D:\Data\Results\TraceZeta\';
-intResamps = 501;
+intResamps = 500;
 boolDirectQuantile = false;
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
@@ -25,8 +25,8 @@ for boolDoOGB = [false true]
 	else
 		strIndicator = 'GCaMP';
 	end
-	sDirAll1=dir([strPath 'TsZeta' strIndicator '*' strQ '*sesDur*' strR '.mat']);
-	sDirAll2=dir([strPath 'TsZeta' strIndicator '*' strQ '*ses-RandDur*' strR '.mat']);
+	sDirAll1=dir([strPath 'TsZetaTwoSample' strIndicator '*' strQ '*ses' strR '.mat']);
+	sDirAll2=dir([strPath 'TsZetaTwoSample' strIndicator '*' strQ '*ses-Rand' strR '.mat']);
 	sDirAll = cat(1,sDirAll1,sDirAll2);
 	vecRand = contains({sDirAll.name},'Rand');
 	sDirReal = sDirAll(~vecRand);
@@ -41,7 +41,8 @@ for boolDoOGB = [false true]
 	matMeanP = [];
 
 	for intRandType=1:2
-		if intRandType == 1
+		%swap data because of mistake in other script
+		if intRandType == 2
 			sDir = sDirReal;
 		else
 			sDir = sDirRand;
@@ -52,41 +53,19 @@ for boolDoOGB = [false true]
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;
 			sLoad=load([strPath strFile]);
-			cellMeanP{intRandType}{intFile} = sLoad.vecMeanP;
-			cellZetaP{intRandType}{intFile} = sLoad.vecZetaP;
+			cellMeanP{intRandType}{intFile} = sLoad.vecTtestP;
+			cellZetaP{intRandType}{intFile} = sLoad.vecTsZetaP;
 			cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;
-			cellZetaDur{intRandType}{intFile} = sLoad.vecZetaDur;
-			cellAnovaDur{intRandType}{intFile} = sLoad.vecAnovaDur;
 		end
 	end
 	
 	%% check if recording is above chance
-	vecResp = cellfun(@(x) sum(x<0.05),cellMeanP{1});
-	vecTot = cellfun(@numel,cellMeanP{1});
-	vecRespR = vecResp./vecTot;
-	pBino=bonf_holm(myBinomTest(vecResp,vecTot,0.05,'two'));
-	indRemRecs = pBino>0.05;
-	cellMeanP{1}(indRemRecs) = [];
-	cellMeanP{2}(indRemRecs) = [];
-	cellZetaP{1}(indRemRecs) = [];
-	cellZetaP{2}(indRemRecs) = [];
-	cellAnovaP{1}(indRemRecs) = [];
-	cellAnovaP{2}(indRemRecs) = [];
-	cellZetaDur{1}(indRemRecs) = [];
-	cellZetaDur{2}(indRemRecs) = [];
-	cellAnovaDur{1}(indRemRecs) = [];
-	cellAnovaDur{2}(indRemRecs) = [];
-	
 	vecRandMeanP = cell2vec(cellMeanP{2});
 	vecRealMeanP = cell2vec(cellMeanP{1});
 	vecRandZetaP = cell2vec(cellZetaP{2});
 	vecRealZetaP = cell2vec(cellZetaP{1});
 	vecRandAnovaP = cell2vec(cellAnovaP{2});
 	vecRealAnovaP = cell2vec(cellAnovaP{1});
-	vecRandZetaDur = cell2vec(cellZetaDur{2});
-	vecRealZetaDur = cell2vec(cellZetaDur{1});
-	vecRandAnovaDur = cell2vec(cellAnovaDur{2});
-	vecRealAnovaDur = cell2vec(cellAnovaDur{1});
 	
 	matMeanP = cat(2,vecRealMeanP,vecRandMeanP)';
 	matZetaP = cat(2,vecRealZetaP,vecRandZetaP)';

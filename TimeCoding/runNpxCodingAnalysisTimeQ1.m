@@ -27,12 +27,18 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-strFigurePath = 'F:\Data\Results\PopTimeCoding';
-
+boolHome = false;
+if boolHome
+	strDataPath = 'F:\Data\Processed\Neuropixels\';
+	strFigurePath = 'F:\Data\Results\PopTimeCoding';
+else
+	strDataPath = 'E:\DataPreProcessed\';
+	strFigurePath = 'D:\Data\Results\PopTimeCoding';
+end
 
 %% select all neurons in LP and drifting grating stimuli
 if ~exist('sAggStim','var') || isempty(sAggStim)
-	[sAggStim,sAggNeuron]=loadDataNpx('','driftinggrating');
+	[sAggStim,sAggNeuron]=loadDataNpx('','driftinggrating',strDataPath);
 end
 sAggNeuron(strcmpi({sAggNeuron.SubjectType},'DBA')) = [];
 

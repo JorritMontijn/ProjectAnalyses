@@ -16,11 +16,18 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-strFigurePath = 'F:\Data\Results\PopTimeCoding';
+boolHome = false;
+if boolHome
+	strDataPath = 'F:\Data\Processed\Neuropixels\';
+	strFigurePath = 'F:\Data\Results\PopTimeCoding';
+else
+	strDataPath = 'E:\DataPreProcessed\';
+	strFigurePath = 'D:\Data\Results\PopTimeCoding';
+end
 
 %% select all neurons in LP and drifting grating stimuli
 if ~exist('sAggStim','var') || isempty(sAggStim)
-	[sAggStim,sAggNeuron]=loadDataNpx('','driftinggrating');
+	[sAggStim,sAggNeuron]=loadDataNpx('','driftinggrating',strDataPath);
 end
 sAggNeuron(strcmpi({sAggNeuron.SubjectType},'DBA')) = [];
 
@@ -116,7 +123,6 @@ for intRec=19%1:numel(sAggStim)
 		%get spikes per trial per neuron
 		cellSpikeTimesStitched = cell(intNumN,intTrialNum);
 		cellSpikeTimesPerCellPerTrial = cell(intNumN,intTrialNum);
-		cellSpikeTimesPerCellPerTrial_SN = cell(intNumN,intTrialNum); %single-neuron ISIs over all trials, shuffled
 		cellSpikeTimesPerCellPerTrial_S = cell(intNumN,intTrialNum); %single-neuron ISIs, shuffled per trial
 		for intN=1:intNumN
 			% build pseudo data, stitching stimulus periods
@@ -141,7 +147,6 @@ for intRec=19%1:numel(sAggStim)
 				
 				cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
 				cellSpikeTimesPerCellPerTrial_S{intN,intTrial} = vecGenSpikesS;
-				cellSpikeTimesPerCellPerTrial_SN{intN,intTrial} = vecTimePerSpikeSN(vecTrialPerSpikeSN==intTrial);
 			end
 		end
 		vecStimOnStitched = vecPseudoEventT;
@@ -180,25 +185,12 @@ for intRec=19%1:numel(sAggStim)
 		vecHperTrial = nan(intTrialNum,1);
 		vecLperTrial = nan(intTrialNum,1);
 		vecMperTrial = nan(intTrialNum,1);
-			
-		%neuron shuffled
-		vecSperTrial_SN = nan(intTrialNum,1);
-		vecHperTrial_SN = nan(intTrialNum,1);
-		vecLperTrial_SN = nan(intTrialNum,1);
-		vecMperTrial_SN = nan(intTrialNum,1);
 		
-		%pop shuffled
+		%shuffling ISIs within one trial for each neuron: spike count is identical at trial level
 		vecSperTrial_S = nan(intTrialNum,1);
 		vecHperTrial_S = nan(intTrialNum,1);
 		vecLperTrial_S = nan(intTrialNum,1);
 		vecMperTrial_S = nan(intTrialNum,1);
-		
-		
-		% & neuronneuron shuffled
-		vecSperTrial_SS = nan(intTrialNum,1);
-		vecHperTrial_SS = nan(intTrialNum,1);
-		vecLperTrial_SS = nan(intTrialNum,1);
-		vecMperTrial_SS = nan(intTrialNum,1);
 		
 		for intTrial=1:intTrialNum
 			
@@ -230,7 +222,7 @@ for intRec=19%1:numel(sAggStim)
 			vecNSI = min([vecISI1 vecISI2],[],2); %nearest spike interval
 			
 			%shuffled single-neuron ISIs
-			vecAllSpikesShuff = sort(cell2vec(cellSpikeTimesPerCellPerTrial_SN(:,intTrial)));
+			vecAllSpikesShuff = sort(cell2vec(cellSpikeTimesPerCellPerTrial_S(:,intTrial)));
 			vecISI0 = [vecAllSpikesShuff(2:end) - vecAllSpikesShuff(1:(end-1)); inf];
 			vecAllSpikesShuff(vecISI0==0)=vecAllSpikesShuff(vecISI0==0)-(10^-5)*rand();
 			vecAllSpikesShuff = uniquetol(vecAllSpikesShuff,1e-7);
@@ -241,40 +233,16 @@ for intRec=19%1:numel(sAggStim)
 			vecRperTrial(intTrial) = r;
 			
 			vecIFRS = cellIFR_perTrial_S{intTrial};
-			vecR_sortedS = sort(vecIFRS);
-			int5perc = round(numel(vecR_sortedS)/20);
-			vecHperTrial_SN(intTrial) = mean(vecR_sortedS((1+end-1*int5perc):(end-0*int5perc)));
-			vecLperTrial_SN(intTrial) = mean(vecR_sortedS((1+0*int5perc):(1*int5perc)));
-			vecMperTrial_SN(intTrial) = mean(vecR_sortedS);
-			vecSperTrial_SN(intTrial) = std(vecR_sortedS);
+			vecTimeIFRS = cellTimeIFR_perTrial_S{intTrial};
 			vecISIS = diff(vecAllSpikesShuff);
 			
-			%shuffle to exponential distribution at population level
-			intIters = 1;
-			for intIter=1%:intIters
-				vecGenSpikes = cumsum([0;vecISI(randperm(numel(vecISI)))])+vecAllSpikes(1);
-				[vecTimeIFRS,vecIFRS] = getIFR(vecGenSpikes,0,dblMaxDur,[],[],[],0);
-				
-				%error add expected low/high values from shuffling
-				vecR_sorted = sort(vecIFRS);
-				int5perc = round(numel(vecR_sorted)/20);
-				vecHperTrial_S(intTrial) = mean(vecR_sorted((1+end-1*int5perc):(end-0*int5perc)));
-				vecLperTrial_S(intTrial) = mean(vecR_sorted((1+0*int5perc):(1*int5perc)));
-				vecMperTrial_S(intTrial) = mean(vecR_sorted);
-				vecSperTrial_S(intTrial) = std(vecR_sorted);
-				
-				%pop & neuron shuffled
-				vecGenSpikesS = cumsum([0;vecISIS(randperm(numel(vecISIS)))])+vecAllSpikesShuff(1);
-				[vecTimeIFRSS,vecIFRSS] = getIFR(vecGenSpikesS,0,dblMaxDur,[],[],[],0);
-				
-				%error add expected low/high values from shuffling
-				vecRS_sorted = sort(vecIFRSS);
-				int5percS = round(numel(vecRS_sorted)/20);
-				vecHperTrial_SS(intTrial) = mean(vecRS_sorted((1+end-1*int5percS):(end-0*int5percS)));
-				vecLperTrial_SS(intTrial) = mean(vecRS_sorted((1+0*int5percS):(1*int5percS)));
-				vecMperTrial_SS(intTrial) = mean(vecRS_sorted);
-				vecSperTrial_SS(intTrial) = std(vecRS_sorted);
-			end
+			%error add expected low/high values from shuffling
+			vecR_sorted = sort(vecIFRS);
+			int5perc = round(numel(vecR_sorted)/20);
+			vecHperTrial_S(intTrial) = mean(vecR_sorted((1+end-1*int5perc):(end-0*int5perc)));
+			vecLperTrial_S(intTrial) = mean(vecR_sorted((1+0*int5perc):(1*int5perc)));
+			vecMperTrial_S(intTrial) = mean(vecR_sorted);
+			vecSperTrial_S(intTrial) = std(vecR_sorted);
 			
 			if boolPlot
 				%%

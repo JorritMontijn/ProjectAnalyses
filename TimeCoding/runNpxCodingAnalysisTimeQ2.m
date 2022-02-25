@@ -821,7 +821,8 @@ for intRec=19%1:numel(sAggStim)
 		
 		%% so why is there no effect on the decoder?
 		%=> compare greedy decoder of high vs low; greedy in neurons or spikes?
-		for intDecoder=1:4
+		intUseNumDecoders = 1;
+		for intDecoder=1:intUseNumDecoders
 			dblLambda = 1;
 			for intSwitchQ=0:1
 				if intSwitchQ == 0
@@ -900,7 +901,7 @@ for intRec=19%1:numel(sAggStim)
 		end
 		
 		%% plot
-		for intUseDec = 1:4
+		for intUseDec = 1:intUseNumDecoders
 			if intUseDec == 1
 				strDec = 'LR';
 				vecSelectNeuronOrderLow = vecSelectNeuronOrderLowLR;

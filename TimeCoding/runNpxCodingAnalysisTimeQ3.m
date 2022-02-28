@@ -129,10 +129,6 @@ for intRec=19%1:numel(sAggStim)
 			[vecPseudoSpikeTimes,vecPseudoEventT] = getPseudoSpikeVectors(cellSpikeTimes{intN},vecStimOnTime-dblPreTime,dblMaxDur);
 			cellSpikeTimesStitched{intN} = vecPseudoSpikeTimes;
 			
-			vecISI = diff(vecPseudoSpikeTimes);
-			vecGenSpikes = cumsum([vecPseudoSpikeTimes(1);vecISI(randperm(numel(vecISI)))]);
-			[vecTrialPerSpikeSN,vecTimePerSpikeSN] = getSpikesInTrial(vecGenSpikes,vecPseudoEventT,dblMaxDur);
-			
 			%real
 			[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecPseudoSpikeTimes,vecPseudoEventT,dblMaxDur);
 			for intTrial=1:intTrialNum
@@ -222,19 +218,8 @@ for intRec=19%1:numel(sAggStim)
 			vecNSI = min([vecISI1 vecISI2],[],2); %nearest spike interval
 			
 			%shuffled single-neuron ISIs
-			vecAllSpikesShuff = sort(cell2vec(cellSpikeTimesPerCellPerTrial_S(:,intTrial)));
-			vecISI0 = [vecAllSpikesShuff(2:end) - vecAllSpikesShuff(1:(end-1)); inf];
-			vecAllSpikesShuff(vecISI0==0)=vecAllSpikesShuff(vecISI0==0)-(10^-5)*rand();
-			vecAllSpikesShuff = uniquetol(vecAllSpikesShuff,1e-7);
-			vecD = diff(vecAllSpikesShuff);
-			vecD1 = vecD(1:(end-1));
-			vecD2 = vecD(2:end);
-			[r,p]=corr(vecD1,vecD2);
-			vecRperTrial(intTrial) = r;
-			
 			vecIFRS = cellIFR_perTrial_S{intTrial};
 			vecTimeIFRS = cellTimeIFR_perTrial_S{intTrial};
-			vecISIS = diff(vecAllSpikesShuff);
 			
 			%error add expected low/high values from shuffling
 			vecR_sorted = sort(vecIFRS);
@@ -356,30 +341,6 @@ for intRec=19%1:numel(sAggStim)
 				boolPlot = false;
 			end
 		end
-		
-		%% calc sparseness
-		matResp = cellfun(@numel,cellSpikeTimesPerCellPerTrial);
-		matResp_S = cellfun(@numel,cellSpikeTimesPerCellPerTrial_S);
-		intNeurons = size(matResp,1);
-		vecPopSparseness = 1-mean(matResp,1).^2 ./ sum((matResp.^2)./intNeurons,1);
-		dblActBinW = 50;
-		vecActBins = 0:dblActBinW:700;
-		vecActBinsC = vecActBins(2:end)-dblActBinW/2;
-		
-		%split population in highest 50/lowest 50
-		intUseUpperCells = min(sum(matResp>0,1));
-		vecHighAct = nan(intTrialNum,1);
-		vecLowAct =  nan(intTrialNum,1);
-		vecQuantiles = [1/3 1/2 2/3];
-		vecQuantileIdx = round(vecQuantiles*intNeurons);
-		matQuantileAct = nan(intTrialNum,numel(vecQuantileIdx));
-		vecMeanOfActiveCells = nan(intTrialNum,1);
-		for intTrial=1:intTrialNum
-			vecR = sort(matResp(:,intTrial));
-			matQuantileAct(intTrial,:) = vecR(vecQuantileIdx);
-			vecMeanOfActiveCells(intTrial) = mean(vecR((end-intUseUpperCells+1):end));
-		end
-		[vecHsorted,vecReorder]=sort(vecHperTrial);
 		
 		%% what is circular variance of preferred oris of cells that are active during low-5% and high 5% epochs?
 		%are only cells tuned to the orientation active during low phases? Is this different from high 5%?

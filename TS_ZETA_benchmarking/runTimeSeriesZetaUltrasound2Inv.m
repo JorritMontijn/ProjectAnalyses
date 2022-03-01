@@ -25,10 +25,10 @@ vecRunTypes = [1 2];
 intResampNum = 500;
 boolSave = true;%true;
 strFigPath = 'D:\Data\Results\TraceZeta\ultrasound\';
-strName = 'UltrasoundMod1';
+strName = 'UltrasoundMod2Mov';
 
 % check if prepro data exists
-sDir = dir([strDataTargetPath 'AggRecUS.mat']);
+sDir = dir([strDataTargetPath 'AggRecUS2Inv.mat']);
 if numel(sDir) == 1
 	sLoad = load(fullpath(sDir(1).folder,sDir(1).name));
 	sRec = sLoad.sRec;
@@ -99,13 +99,35 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 	intPlot  = 0;
 	hTic = tic;
 	for intRec=1:numel(sRec)
-		dblUseMaxDur = floor(min(diff(sRec(intRec).structStim.vecStimOn / sRec(intRec).SampFreq)));
 		[varDataOut,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(sRec(intRec).structStim.vecStimType);
 		intStimTypes = numel(vecUnique);
 		intNeurons = numel(sRec(intRec).neuron);
 		matTsZetaP = nan(intStimTypes,intNeurons);
 		matAnovaP = nan(intStimTypes,intNeurons);
 		matWilcoxP = nan(intStimTypes,intNeurons);
+		
+		%select still trials
+		vecVelocity = sRec(intRec).Velocity;
+		intStimDur = sRec(intRec).SampFreq*2;
+		dblUseMaxDur = floor(min(diff(sRec(intRec).structStim.vecStimOn / sRec(intRec).SampFreq)));
+		vecPreBaseStart = sRec(intRec).structStim.vecStimOn - intStimDur - 0.5;
+		vecPreBaseEnd = sRec(intRec).structStim.vecStimOn - 0.5;
+		vecPreBaseEdges = flat([vecPreBaseStart'; vecPreBaseEnd']);
+		vecStimStart = sRec(intRec).structStim.vecStimOn - 0.5;
+		vecStimEnd = sRec(intRec).structStim.vecStimOn + intStimDur - 0.5;
+		vecStimEdges = flat([vecStimStart'; vecStimEnd']);
+		%calc
+		[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = ...
+			makeBins(1:numel(vecVelocity),vecVelocity,vecPreBaseEdges);
+		vecPreBaseVel = vecMeans(1:2:end);
+		[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = ...
+			makeBins(1:numel(vecVelocity),vecVelocity,vecStimEdges);
+		vecStimVel = vecMeans(1:2:end);
+		vecTotVel = (vecPreBaseVel + vecStimVel)/2;
+		
+		%start times
+		vecStartT = sRec(intRec).structStim.vecStimOn ./ sRec(intRec).SampFreq;
+		
 		for intNeuron=1:intNeurons
 			if toc(hTic) > 5
 				fprintf('Rec %d/%d, neuron %d/%d [%s]\n',intRec,numel(sRec),intNeuron,intNeurons,getTime);
@@ -114,34 +136,30 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 			vec_dFoF = sRec(intRec).neuron(intNeuron).dFoF;
 			vecTimestamps = (1:numel(vec_dFoF)) / sRec(intRec).SampFreq;
 			%transform to resp matrix
-			[matTE,vecWindowBinCenters] = getRespMat(vecTimestamps,vec_dFoF,sRec(intRec).structStim.vecStimOn ./ sRec(intRec).SampFreq,[0 dblUseMaxDur]);
+			[matTE,vecWindowBinCenters] = getRespMat(vecTimestamps,vec_dFoF,vecStartT,[0 dblUseMaxDur]);
 			%calc pre & post act
-			vecPreBaseStart = sRec(intRec).structStim.vecStimOn - sRec(intRec).SampFreq*2 - 0.5;
-			vecPreBaseEnd = sRec(intRec).structStim.vecStimOn - 0.5;
-			vecPreBaseEdges = flat([vecPreBaseStart'; vecPreBaseEnd']);
 			[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = ...
 				makeBins(1:numel(vec_dFoF),vec_dFoF,vecPreBaseEdges);
 			vecPreBaseAct = vecMeans(1:2:end);
-			
-			vecStimStart = sRec(intRec).structStim.vecStimOn - 0.5;
-			vecStimEnd = sRec(intRec).structStim.vecStimOn + sRec(intRec).SampFreq*2 - 0.5;
-			vecStimEdges = flat([vecStimStart'; vecStimEnd']);
 			[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = ...
 				makeBins(1:numel(vec_dFoF),vec_dFoF,vecStimEdges);
 			vecStimAct = vecMeans(1:2:end);
 			
 			for intStimType=1:intStimTypes
-				indUseTrials = sRec(intRec).structStim.vecStimType==intStimType;
-				vecStimOnTimes = sRec(intRec).structStim.vecStimOn(indUseTrials) / sRec(intRec).SampFreq;
+				vecUseTrials = find(sRec(intRec).structStim.vecStimType==intStimType);
+				indMov = vecTotVel(vecUseTrials) > median(vecTotVel(vecUseTrials));
+				vecUseTrials = vecUseTrials(indMov);
+				
+				vecStimOnTimes = vecStartT(vecUseTrials);
 				%zeta
 				dblZetaP=zetatstest(vecTimestamps,vec_dFoF,vecStimOnTimes,dblUseMaxDur,intResampNum,intPlot);
 				matTsZetaP(intStimType,intNeuron) = dblZetaP;
 				%anova
-				matSubResp = matTE(indUseTrials,:);
+				matSubResp = matTE(vecUseTrials,:);
 				dblAnovaP = anova1(matSubResp,[],'off');
 				matAnovaP(intStimType,intNeuron) = dblAnovaP;
 				%wilcoxon ranksum
-				dblWilcoxP = ranksum(vecPreBaseAct(indUseTrials),vecStimAct(indUseTrials));
+				dblWilcoxP = ranksum(vecPreBaseAct(vecUseTrials),vecStimAct(vecUseTrials));
 				matWilcoxP(intStimType,intNeuron) = dblWilcoxP;
 				if dblZetaP < -inf%0.01
 					dblZetaP2=zetatstest(vecTimestamps,vec_dFoF,vecStimOnTimes,dblUseMaxDur,intResampNum,2);
@@ -154,7 +172,7 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 		sRec(intRec).matWilcoxP = matWilcoxP;
 	end
 	%save
-	save([strDataTargetPath 'AggRecUS.mat'],'sRec');
+	save([strDataTargetPath 'AggRecUS2Inv.mat'],'sRec');
 end
 %% plot
 dblStep = 0.25;
@@ -163,7 +181,7 @@ vecBinC = vecBinE(2:end) - dblStep/2;
 cellTypes = {'High','Low','Inhibitory','Control'};
 vecColA = [0.8 0 0];
 vecColW = [0 0 0];
-vecColZ = lines(1)
+vecColZ = lines(1);
 
 %plot all recordings
 figure;maxfig;
@@ -264,7 +282,7 @@ for intRec=1:numel(sRec)
 	fixfig;
 	
 	%save if any is significant
-	if pAuc_Z < 0.05/3 || pAuc_A < 0.05/3 || pAuc_W < 0.05/3
+	if pAuc_Z < 0.05 || pAuc_A < 0.05 || pAuc_W < 0.05
 		vecAggAucZ(end+1) = AUC_Z;
 		vecAggAucA(end+1) = AUC_A;
 		vecAggAucW(end+1) = AUC_W;

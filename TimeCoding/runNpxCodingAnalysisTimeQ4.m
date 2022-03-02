@@ -3,11 +3,7 @@
 https://www.nature.com/articles/s41598-021-95037-z
 https://www.nature.com/articles/s42003-021-02437-y
 
-q1: is interneuron/pyramidal activation ratio different between low/high epochs?
-
-q2: are tuned neurons more specifically activated during low/high epochs?
-
-q3: what is different during initial peak?
+q4; compare proportion of tuned cells & interneurons during low/high epochs
 
 %}
 %% define qualifying areas
@@ -78,6 +74,38 @@ for intRec=19%1:numel(sAggStim)
 	indUseNeurons = indQualifyingNeurons(:) & indConsiderNeurons(:) & indGoodNeurons(:);
 	sUseNeuron = sAggNeuron(indUseNeurons);
 	
+	%% is cell an interneuron (fast/narrow spiking) or pyramid (regular/broad spiking)?
+	%load waveform
+	[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
+	
+	%calculate waveform properties
+	dblSampRateIM = sThisRec.sample_rate;
+	dblRecDur = max(cellfun(@max,{sUseNeuron.SpikeTimes})) - min(cellfun(@min,{sUseNeuron.SpikeTimes}));
+	vecSpikeRate = cellfun(@numel,{sUseNeuron.SpikeTimes})/dblRecDur;
+	matAreaWaveforms = cell2mat({sUseNeuron.Waveform}'); %[cell x sample]
+	intNeurons=size(matAreaWaveforms,1);
+	vecSpikeDur = nan(1,intNeurons);
+	vecSpikePTR = nan(1,intNeurons);
+	for intNeuron=1:intNeurons
+		%find trough
+		[dblTroughVal,intTrough]=min(matAreaWaveforms(intNeuron,:));
+		[dblPeakVal,intTroughToPeak]=max(matAreaWaveforms(intNeuron,intTrough:end));
+		intPeak = intTrough + intTroughToPeak - 1;
+		
+		dblTroughTime = intTrough/dblSampRateIM;
+		dblTroughToPeakTime = intTroughToPeak/dblSampRateIM;
+		dblPeakTime = intPeak/dblSampRateIM;
+		vecSpikeDur(intNeuron) = dblTroughToPeakTime;
+		vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
+	end
+	dblPTT = 0.5;
+	dblSWT = 0.5/1000;
+	vecNarrow = vecSpikeDur < dblSWT & vecSpikePTR > dblPTT; %Ctx BL6
+	vecBroad = vecSpikeDur > dblSWT & vecSpikePTR < dblPTT; %Ctx BL6
+	vecOther = ~vecNarrow & ~vecBroad;
+	vecCol = vecNarrow + vecBroad*2 + vecOther*3;
+	%scatter(vecSpikeDur,vecSpikePTR,[],vecCol)
+	
 	%% select area 1
 	for intArea=1:intAreas
 		strArea = cellUseAreas{intArea};
@@ -95,17 +123,20 @@ for intRec=19%1:numel(sAggStim)
 		%remove untuned cells
 		vecOri180 = mod(vecOrientation,180)*2;
 		sOut = getTuningCurves(matData,vecOri180,0);
-		%indTuned = sOut.vecOriAnova<0.05;
 		dblMinRate = 0.1;
-		%indTuned = sOut.vecFitP<0.05 & sum(matData,2)>(size(matData,2)/dblDur)*dblMinRate;
-		indTuned = ~isnan(sOut.vecFitR2);
+		indTuned = sOut.vecOriAnova<0.05;
+		indResp = cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
 		
 		%prep
-		vecPrefOri = rad2deg(sOut.matFittedParams(indTuned,1))/2;
-		vecPrefRad = sOut.matFittedParams(indTuned,1);
+		vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
+		vecPrefRad = sOut.matFittedParams(indResp,1);
 		intTunedN = sum(indTuned);
-		intNumN = intTunedN;
-		cellSpikeTimes(~indTuned)=[];
+		intNumN = sum(indResp);
+		cellSpikeTimes(~indResp)=[];
+		vecNarrow(~indResp)=[];
+		vecBroad(~indResp)=[];
+		vecOther(~indResp)=[];
+		indTuned(~indResp)=[];
 		
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		dblPreTime = -dblStartT;%0.3;
@@ -337,27 +368,27 @@ for intRec=19%1:numel(sAggStim)
 				title(sprintf('ISI correlation r(d(i,j),d(i+1,j+1)), r=%.3f, p=%.3f',r,p));
 				fixfig;
 				
-				export_fig(fullpath(strFigurePath,sprintf('C1_ExampleActivityT%s_%sTrial%d.tif',num2str(dblStartT),strRec,intTrial)));
-				export_fig(fullpath(strFigurePath,sprintf('C1_ExampleActivityT%s_%sTrial%d.pdf',num2str(dblStartT),strRec,intTrial)));
+				export_fig(fullpath(strFigurePath,sprintf('D1_ExampleActivityT%s_%sTrial%d.tif',num2str(dblStartT),strRec,intTrial)));
+				export_fig(fullpath(strFigurePath,sprintf('D1_ExampleActivityT%s_%sTrial%d.pdf',num2str(dblStartT),strRec,intTrial)));
 				boolPlot = false;
 			end
 		end
 		
-		%% what is circular variance of preferred oris of cells that are active during low-5% and high 5% epochs?
+		%% wq4; compare proportion of tuned cells & interneurons during low/high epochs
 		%are only cells tuned to the orientation active during low phases? Is this different from high 5%?
 		
 		%pre-alloc
 		intQuantileNum = 5; %5=20%
-		vecTuning = sOut.vecFitR2(indTuned);
+		vecTuning = sOut.vecFitR2(indResp);
 		
 		%run
 		for intShuff=[0 1]
 			%pre-allocate
-			matAggR_temp = nan(3,intTrialNum,intTunedN);%save middle60/lower20/upper20
-			vecTuningR2Low_temp = nan(1,intTrialNum);
-			vecTuningR2High_temp = nan(1,intTrialNum);
-			vecCircVarLow_temp = nan(1,intTrialNum);
-			vecCircVarHigh_temp = nan(1,intTrialNum);
+			matAggR_temp = nan(3,intTrialNum,intNumN);%save middle60/lower20/upper20
+			vecRatioNBHigh_temp = nan(1,intTrialNum);
+			vecRatioNBLow_temp = nan(1,intTrialNum);
+			vecTunedLow_temp = nan(1,intTrialNum);
+			vecTunedHigh_temp = nan(1,intTrialNum);
 			for intTrial=1:intTrialNum
 				%% define data
 				%fprintf('Running shuff=%d; trial %d/%d [%s]\n',intShuff,intTrial,intTrialNum,getTime);
@@ -417,7 +448,7 @@ for intRec=19%1:numel(sAggStim)
 				vecEpochStops(intEpochs) = dblMaxDur;
 				
 				%% assign epochs
-				for intNeuron=1:intTunedN
+				for intNeuron=1:intNumN
 					vecSpikes = cellSpikes{intNeuron};
 					
 					%do stuff here
@@ -432,42 +463,31 @@ for intRec=19%1:numel(sAggStim)
 					matAggR_temp(:,intTrial,intNeuron) = vecCountsPerType; %low
 				end
 				
-				%% calc circ prec
+				%% calc narrow/broad ratio
 				vecSumLow = squeeze(matAggR_temp(2,intTrial,:));
-				if sum(vecSumLow) > 1
-					dblCircVarLow = circ_var(vecPrefRad(vecSumLow>0), vecSumLow(vecSumLow>0));
-				else
-					dblCircVarLow = nan;
-				end
-				
 				vecSumHigh = squeeze(matAggR_temp(3,intTrial,:));
-				if sum(vecSumHigh) > 1
-					dblCircVarHigh = circ_var(vecPrefRad(vecSumHigh>0), vecSumHigh(vecSumHigh>0));
-				else
-					dblCircVarHigh = nan;
-				end
 				
 				%save
-				vecTuningR2Low_temp(intTrial) = sum(vecTuning.*vecSumLow)/sum(vecSumLow);
-				vecTuningR2High_temp(intTrial) = sum(vecTuning.*vecSumHigh)/sum(vecSumHigh);
-				vecCircVarLow_temp(intTrial) = dblCircVarLow;
-				vecCircVarHigh_temp(intTrial) = dblCircVarHigh;
+				vecRatioNBLow_temp(intTrial) = sum(vecNarrow'.*vecSumLow) / (sum(vecNarrow'.*vecSumLow) + sum(vecBroad'.*vecSumLow));
+				vecRatioNBHigh_temp(intTrial) = sum(vecNarrow'.*vecSumHigh) / (sum(vecNarrow'.*vecSumHigh) + sum(vecBroad'.*vecSumHigh));
+				vecTunedLow_temp(intTrial) = sum(indTuned.*vecSumLow) / (sum(indTuned.*vecSumLow) + sum((~indTuned).*vecSumLow));
+				vecTunedHigh_temp(intTrial) = sum(indTuned.*vecSumHigh) / (sum(indTuned.*vecSumHigh) + sum((~indTuned).*vecSumHigh));
 			end
 			
 			%% save
 			if intShuff == 0
 				%get IFRs
-				vecTuningR2Low = vecTuningR2Low_temp;
-				vecTuningR2High = vecTuningR2High_temp;
-				vecCircVarLow = vecCircVarLow_temp;
-				vecCircVarHigh = vecCircVarHigh_temp;
+				vecRatioNBLow = vecRatioNBLow_temp;
+				vecRatioNBHigh = vecRatioNBHigh_temp;
+				vecTunedLow = vecTunedLow_temp;
+				vecTunedHigh = vecTunedHigh_temp;
 				matAggR = matAggR_temp;
 			else
 				%get IFRs
-				vecTuningR2Low_shuff = vecTuningR2Low_temp;
-				vecTuningR2High_shuff = vecTuningR2High_temp;
-				vecCircVarLow_shuff = vecCircVarLow_temp;
-				vecCircVarHigh_shuff = vecCircVarHigh_temp;
+				vecRatioNBLow_shuff = vecRatioNBLow_temp;
+				vecRatioNBHigh_shuff = vecRatioNBHigh_temp;
+				vecTunedLow_shuff = vecTunedLow_temp;
+				vecTunedHigh_shuff = vecTunedHigh_temp;
 				matAggR_shuff = matAggR_temp;
 			end
 		end
@@ -484,34 +504,34 @@ for intRec=19%1:numel(sAggStim)
 		dblMaxVal = 0.08;
 		figure;maxfig;
 		subplot(2,3,1)
-		plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
+		%plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
 		hold on
-		scatter(vecTuningR2Low_shuff,vecTuningR2Low,[],lines(1),'.')
+		scatter(vecRatioNBLow_shuff,vecRatioNBLow,[],lines(1),'.')
 		hold off
-		title(sprintf('Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecTuningR2Low),mean(vecTuningR2Low_shuff)))
-		ylabel('Real mean tuning R2)');
-		xlabel('Shuffled mean tuning R2');
+		title(sprintf('Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecRatioNBLow),mean(vecRatioNBLow_shuff)))
+		ylabel('Real narrow/broad ratio)');
+		xlabel('Shuffled narrow/broad ratio');
 		fixfig;
 		
 		subplot(2,3,2)
-		plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
+		%plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
 		hold on
-		scatter(vecTuningR2High_shuff,vecTuningR2High,[],vecColH,'.')
+		scatter(vecRatioNBHigh_shuff,vecRatioNBHigh,[],vecColH,'.')
 		hold off
-		title(sprintf('Highest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecTuningR2High),mean(vecTuningR2High_shuff)))
-		ylabel('Real mean tuning R2');
-		xlabel('Shuffled mean tuning R2');
+		title(sprintf('Highest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecRatioNBHigh),mean(vecRatioNBHigh_shuff)))
+		ylabel('Real narrow/broad ratio');
+		xlabel('Shuffled narrow/broad ratio');
 		fixfig;
 		
 		subplot(2,3,3)
-		vecEffectLow_R2 = (vecTuningR2Low-vecTuningR2Low_shuff)./vecTuningR2Low_shuff;
-		vecEffectHigh_R2 = (vecTuningR2High-vecTuningR2High_shuff)./vecTuningR2High_shuff;
+		vecEffectLow_R2 = (vecRatioNBLow-vecRatioNBLow_shuff)./vecRatioNBLow_shuff;
+		vecEffectHigh_R2 = (vecRatioNBHigh-vecRatioNBHigh_shuff)./vecRatioNBHigh_shuff;
 		%plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
 		hold on
 		scatter(vecEffectLow_R2,vecEffectHigh_R2,[],lines(1),'.')
 		hold off
-		xlabel('dMean tuning R2 low q');
-		ylabel('dMean tuning R2 high q');
+		xlabel('dMean narrow/broad ratio low q');
+		ylabel('dMean narrow/broad ratio high q');
 		fixfig;
 		
 		
@@ -522,8 +542,8 @@ for intRec=19%1:numel(sAggStim)
 		vecCountsLow = histcounts(vecEffectLow_R2,vecBinECV);
 		plot(vecBinCCV,vecCountsLow);
 		[h,pLow]=ttest(vecEffectLow_R2);
-		title(sprintf('mean precision low q=%.3f, p=%.1e',mean(vecEffectLow_R2),pLow))
-		xlabel('dOSI low q; d(real,shuffled)');
+		title(sprintf('mean narrow/broad ratio low q=%.3f, p=%.1e',mean(vecEffectLow_R2),pLow))
+		xlabel('d(narrow/broad ratio) low q; d(real,shuffled)');
 		ylabel('Number of trials (count)')
 		fixfig;
 		
@@ -531,8 +551,8 @@ for intRec=19%1:numel(sAggStim)
 		vecCountsHigh = histcounts(vecEffectHigh_R2,vecBinECV);
 		plot(vecBinCCV,vecCountsHigh,'color',vecColH);
 		[h,pHigh]=ttest(vecEffectHigh_R2);
-		title(sprintf('mean precision high q=%.3f, p=%.1e',mean(vecEffectHigh_R2),pHigh))
-		xlabel('dOSI high q; d(real,shuffled)');
+		title(sprintf('mean narrow/broad ratio high q=%.3f, p=%.1e',mean(vecEffectHigh_R2),pHigh))
+		xlabel('d(narrow/broad ratio) high q; d(real,shuffled)');
 		ylabel('Number of trials (count)')
 		fixfig;
 		
@@ -544,12 +564,12 @@ for intRec=19%1:numel(sAggStim)
 		hold off
 		xlim([0.3 0.7]);
 		set(gca,'xtick',vecLocX,'xticklabel',{'Low Q','High Q'});
-		ylabel('R^2 increase over shuffled')
+		ylabel('NBR increase over shuffled')
 		fixfig;
 		
 		
-		export_fig(fullpath(strFigurePath,sprintf('C2_QuantileR2T%s_%s.tif',num2str(dblStartT),strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('C2_QuantileR2T%s_%s.pdf',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('D2_QuantileNBRT%s_%s.tif',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('D2_QuantileNBRT%s_%s.pdf',num2str(dblStartT),strRec)));
 		
 		%% circ var
 		dblQuantileSize = round(100/intQuantileNum);
@@ -558,32 +578,32 @@ for intRec=19%1:numel(sAggStim)
 		subplot(2,3,1)
 		%plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
 		hold on
-		scatter(vecCircVarLow_shuff,vecCircVarLow,[],lines(1),'.')
+		scatter(vecTunedLow_shuff,vecTunedLow,[],lines(1),'.')
 		hold off
-		title(sprintf('Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecCircVarLow),mean(vecCircVarLow_shuff)))
-		ylabel('Real circ prec');
-		xlabel('Shuffled circ prec');
+		title(sprintf('Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecTunedLow),mean(vecTunedLow_shuff)))
+		ylabel('Real tuned fraction');
+		xlabel('Shuffled tuned fraction');
 		fixfig;
 		
 		subplot(2,3,2)
 		%plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
 		hold on
-		scatter(vecCircVarHigh_shuff,vecCircVarHigh,[],vecColH,'.')
+		scatter(vecTunedHigh_shuff,vecTunedHigh,[],vecColH,'.')
 		hold off
-		title(sprintf('Highest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecCircVarHigh),mean(vecCircVarHigh_shuff)))
-		ylabel('Real circ prec');
-		xlabel('Shuffled circ prec');
+		title(sprintf('Highest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecTunedHigh),mean(vecTunedHigh_shuff)))
+		ylabel('Real tuned fraction');
+		xlabel('Shuffled tuned fraction');
 		fixfig;
 		
 		subplot(2,3,3)
-		vecEffectLow_CP = (vecCircVarLow-vecCircVarLow_shuff)./vecCircVarLow_shuff;
-		vecEffectHigh_CP = (vecCircVarHigh-vecCircVarHigh_shuff)./vecCircVarHigh_shuff;
+		vecEffectLow_CP = (vecTunedLow-vecTunedLow_shuff)./vecTunedLow_shuff;
+		vecEffectHigh_CP = (vecTunedHigh-vecTunedHigh_shuff)./vecTunedHigh_shuff;
 		%plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
 		hold on
 		scatter(vecEffectLow_CP,vecEffectHigh_CP,[],lines(1),'.')
 		hold off
-		xlabel('dMean circ prec low q');
-		ylabel('dMean circ prec high q');
+		xlabel('dMean tuned fraction low q');
+		ylabel('dMean tuned fraction high q');
 		fixfig;
 		
 		
@@ -594,8 +614,8 @@ for intRec=19%1:numel(sAggStim)
 		vecCountsLow = histcounts(vecEffectLow_CP,vecBinECV);
 		plot(vecBinCCV,vecCountsLow);
 		[h,pLow]=ttest(vecEffectLow_CP);
-		title(sprintf('mean precision low q=%.3f, p=%.1e',mean(vecEffectLow_CP),pLow))
-		xlabel('d(circ prec) low q; d(real,shuffled)');
+		title(sprintf('mean tuned fraction low q=%.3f, p=%.1e',mean(vecEffectLow_CP),pLow))
+		xlabel('d(tuned fraction) low q; d(real,shuffled)');
 		ylabel('Number of trials (count)')
 		fixfig;
 		
@@ -603,8 +623,8 @@ for intRec=19%1:numel(sAggStim)
 		vecCountsHigh = histcounts(vecEffectHigh_CP,vecBinECV);
 		plot(vecBinCCV,vecCountsHigh,'color',vecColH);
 		[h,pHigh]=ttest(vecEffectHigh_CP);
-		title(sprintf('mean precision high q=%.3f, p=%.1e',mean(vecEffectHigh_CP),pHigh))
-		xlabel('d(circ prec) high q; d(real,shuffled)');
+		title(sprintf('mean tuned fraction high q=%.3f, p=%.1e',mean(vecEffectHigh_CP),pHigh))
+		xlabel('d(tuned fraction) high q; d(real,shuffled)');
 		ylabel('Number of trials (count)')
 		fixfig;
 		
@@ -616,11 +636,11 @@ for intRec=19%1:numel(sAggStim)
 		hold off
 		xlim([0.3 0.7]);
 		set(gca,'xtick',vecLocX,'xticklabel',{'Low Q','High Q'});
-		ylabel('Precision increase over shuffled')
+		ylabel('Tuned fraction increase over shuffled')
 		fixfig;
 		
-		export_fig(fullpath(strFigurePath,sprintf('C3_QuantileCircPrecT%s_%s.tif',num2str(dblStartT),strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('C3_QuantileCircPrecT%s_%s.pdf',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('D3_QuantileTunedT%s_%s.tif',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('D3_QuantileTunedT%s_%s.pdf',num2str(dblStartT),strRec)));
 		
 		%%
 		%low
@@ -650,10 +670,10 @@ for intRec=19%1:numel(sAggStim)
 		%% plot
 		figure
 		subplot(2,3,1)
-		scatter(vecConfidenceLow,vecTuningR2Low)
+		scatter(vecConfidenceLow,vecRatioNBLow)
 		
 		subplot(2,3,2)
-		scatter(vecConfidenceHigh,vecTuningR2High)
+		scatter(vecConfidenceHigh,vecRatioNBHigh)
 		
 		subplot(2,3,3)
 		scatter(vecEffectLow_CP,vecEffectHigh_CP)

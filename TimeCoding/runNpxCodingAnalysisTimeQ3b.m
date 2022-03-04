@@ -78,6 +78,38 @@ for intRec=19%1:numel(sAggStim)
 	indUseNeurons = indQualifyingNeurons(:) & indConsiderNeurons(:) & indGoodNeurons(:);
 	sUseNeuron = sAggNeuron(indUseNeurons);
 	
+	%% is cell an interneuron (fast/narrow spiking) or pyramid (regular/broad spiking)?
+	%load waveform
+	[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
+	
+	%calculate waveform properties
+	dblSampRateIM = sThisRec.sample_rate;
+	dblRecDur = max(cellfun(@max,{sUseNeuron.SpikeTimes})) - min(cellfun(@min,{sUseNeuron.SpikeTimes}));
+	vecSpikeRate = cellfun(@numel,{sUseNeuron.SpikeTimes})/dblRecDur;
+	matAreaWaveforms = cell2mat({sUseNeuron.Waveform}'); %[cell x sample]
+	intNeurons=size(matAreaWaveforms,1);
+	vecSpikeDur = nan(1,intNeurons);
+	vecSpikePTR = nan(1,intNeurons);
+	for intNeuron=1:intNeurons
+		%find trough
+		[dblTroughVal,intTrough]=min(matAreaWaveforms(intNeuron,:));
+		[dblPeakVal,intTroughToPeak]=max(matAreaWaveforms(intNeuron,intTrough:end));
+		intPeak = intTrough + intTroughToPeak - 1;
+		
+		dblTroughTime = intTrough/dblSampRateIM;
+		dblTroughToPeakTime = intTroughToPeak/dblSampRateIM;
+		dblPeakTime = intPeak/dblSampRateIM;
+		vecSpikeDur(intNeuron) = dblTroughToPeakTime;
+		vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
+	end
+	dblPTT = 0.5;
+	dblSWT = 0.5/1000;
+	vecNarrow = vecSpikeDur < dblSWT & vecSpikePTR > dblPTT; %Ctx BL6
+	vecBroad = vecSpikeDur > dblSWT & vecSpikePTR < dblPTT; %Ctx BL6
+	vecOther = ~vecNarrow & ~vecBroad;
+	vecCol = vecNarrow + vecBroad*2 + vecOther*3;
+	%scatter(vecSpikeDur,vecSpikePTR,[],vecCol)
+	
 	%% select area 1
 	for intArea=1:intAreas
 		strArea = cellUseAreas{intArea};
@@ -95,16 +127,18 @@ for intRec=19%1:numel(sAggStim)
 		%remove untuned cells
 		vecOri180 = mod(vecOrientation,180)*2;
 		sOut = getTuningCurves(matData,vecOri180,0);
-		%indTuned = sOut.vecOriAnova<0.05;
 		dblMinRate = 0.1;
-		indResp = cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
+		indTuned = sOut.vecOriAnova<0.05;
+		indResp = (vecBroad | vecOther) & cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
 		
 		%prep
 		vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
 		vecPrefRad = sOut.matFittedParams(indResp,1);
-		intTunedN = sum(indResp);
-		intNumN = intTunedN;
 		cellSpikeTimes(~indResp)=[];
+		indTuned(~indResp)=[];
+		
+		intTunedN = sum(indTuned);
+		intNumN = sum(indResp);
 		
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		dblPreTime = -dblStartT;%0.3;
@@ -189,6 +223,7 @@ for intRec=19%1:numel(sAggStim)
 		vecMperTrial_S = nan(intTrialNum,1);
 		
 		for intTrial=1:intTrialNum
+			
 			%real
 			vecAllSpikes = sort(cell2vec(cellSpikeTimesPerCellPerTrial(:,intTrial)));
 			vecISI0 = [vecAllSpikes(2:end) - vecAllSpikes(1:(end-1)); inf];
@@ -335,8 +370,8 @@ for intRec=19%1:numel(sAggStim)
 				title(sprintf('ISI correlation r(d(i,j),d(i+1,j+1)), r=%.3f, p=%.3f',r,p));
 				fixfig;
 				
-				export_fig(fullpath(strFigurePath,sprintf('C1_ExampleActivityT%s_%sTrial%d.tif',num2str(dblStartT),strRec,intTrial)));
-				export_fig(fullpath(strFigurePath,sprintf('C1_ExampleActivityT%s_%sTrial%d.pdf',num2str(dblStartT),strRec,intTrial)));
+				export_fig(fullpath(strFigurePath,sprintf('E1_ExampleActivityT%s_%sTrial%d.tif',num2str(dblStartT),strRec,intTrial)));
+				export_fig(fullpath(strFigurePath,sprintf('E1_ExampleActivityT%s_%sTrial%d.pdf',num2str(dblStartT),strRec,intTrial)));
 				boolPlot = false;
 			end
 		end
@@ -346,7 +381,7 @@ for intRec=19%1:numel(sAggStim)
 		
 		%pre-alloc
 		intQuantileNum = 5; %5=20%
-		vecTuning = sOut.vecFitR2(indResp);
+		vecTuning = sOut.vecFitR2(indTuned);
 		
 		%run
 		for intShuff=[0 1]
@@ -451,7 +486,12 @@ for intRec=19%1:numel(sAggStim)
 				vecCircPrecLow_temp(intTrial) = 1-dblCircVarLow;
 				vecCircPrecHigh_temp(intTrial) = 1-dblCircVarHigh;
 			end
-			
+			%rem nans
+			vecTuningR2Low_temp(isnan(vecTuningR2Low_temp)) = nanmean(vecTuningR2Low_temp);
+			vecTuningR2High_temp(isnan(vecTuningR2High_temp)) = nanmean(vecTuningR2High_temp);
+			vecCircPrecLow_temp(isnan(vecCircPrecLow_temp)) = nanmean(vecCircPrecLow_temp);
+			vecCircPrecHigh_temp(isnan(vecCircPrecHigh_temp)) = nanmean(vecCircPrecHigh_temp);
+				
 			%% save
 			if intShuff == 0
 				%get IFRs
@@ -541,14 +581,15 @@ for intRec=19%1:numel(sAggStim)
 		errorbar(vecLocX(2),mean(vecEffectHigh_R2),std(vecEffectHigh_R2)./sqrt(intTrialNum),'x','color',vecColH);
 		hold off
 		xlim([0.3 0.7]);
-		[h,pDiff]=ttest(vecEffectLow_R2,vecEffectHigh_R2);
-		title(sprintf('Diff, t-test, p=%.2e',pDiff));
 		set(gca,'xtick',vecLocX,'xticklabel',{'Low Q','High Q'});
+		[h,pDiff]=ttest(vecEffectLow_R2,vecEffectHigh_R2);
+		title(sprintf('Diff, t-test, p=%.3f',pDiff));
 		ylabel('R^2 increase over shuffled')
 		fixfig;
 		
-		export_fig(fullpath(strFigurePath,sprintf('C2_QuantileR2T%s_%s.tif',num2str(dblStartT),strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('C2_QuantileR2T%s_%s.pdf',num2str(dblStartT),strRec)));
+		
+		export_fig(fullpath(strFigurePath,sprintf('E2_QuantileR2T%s_%s.tif',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('E2_QuantileR2T%s_%s.pdf',num2str(dblStartT),strRec)));
 		
 		%% circ var
 		dblQuantileSize = round(100/intQuantileNum);
@@ -613,15 +654,15 @@ for intRec=19%1:numel(sAggStim)
 		hold on
 		errorbar(vecLocX(2),mean(vecEffectHigh_CP),std(vecEffectHigh_CP)./sqrt(intTrialNum),'x','color',vecColH);
 		hold off
-		[h,pDiff]=ttest(vecEffectLow_CP,vecEffectHigh_CP);
-		title(sprintf('Diff, t-test, p=%.2e',pDiff));
 		xlim([0.3 0.7]);
+		[h,pDiff]=ttest(vecEffectLow_CP,vecEffectHigh_CP);
+		title(sprintf('Diff, t-test, p=%.3f',pDiff));
 		set(gca,'xtick',vecLocX,'xticklabel',{'Low Q','High Q'});
 		ylabel('Precision increase over shuffled')
 		fixfig;
 		
-		export_fig(fullpath(strFigurePath,sprintf('C3_QuantileCircPrecT%s_%s.tif',num2str(dblStartT),strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('C3_QuantileCircPrecT%s_%s.pdf',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('E3_QuantileCircPrecT%s_%s.tif',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('E3_QuantileCircPrecT%s_%s.pdf',num2str(dblStartT),strRec)));
 		
 	end
 end

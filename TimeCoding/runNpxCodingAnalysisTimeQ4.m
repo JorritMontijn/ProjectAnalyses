@@ -12,7 +12,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding';
@@ -524,8 +524,8 @@ for intRec=19%1:numel(sAggStim)
 		fixfig;
 		
 		subplot(2,3,3)
-		vecEffectLow_R2 = (vecRatioNBLow-vecRatioNBLow_shuff)./vecRatioNBLow_shuff;
-		vecEffectHigh_R2 = (vecRatioNBHigh-vecRatioNBHigh_shuff)./vecRatioNBHigh_shuff;
+		vecEffectLow_R2 = (vecRatioNBLow-vecRatioNBLow_shuff)./(vecRatioNBLow + vecRatioNBLow_shuff);
+		vecEffectHigh_R2 = (vecRatioNBHigh-vecRatioNBHigh_shuff)./(vecRatioNBHigh + vecRatioNBHigh_shuff);
 		%plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
 		hold on
 		scatter(vecEffectLow_R2,vecEffectHigh_R2,[],lines(1),'.')
@@ -562,6 +562,8 @@ for intRec=19%1:numel(sAggStim)
 		hold on
 		errorbar(vecLocX(2),mean(vecEffectHigh_R2),std(vecEffectHigh_R2)./sqrt(intTrialNum),'x','color',vecColH);
 		hold off
+		[h,pDiff]=ttest(vecEffectLow_R2,vecEffectHigh_R2);
+		title(sprintf('Diff, t-test, p=%.2e',pDiff));
 		xlim([0.3 0.7]);
 		set(gca,'xtick',vecLocX,'xticklabel',{'Low Q','High Q'});
 		ylabel('NBR increase over shuffled')
@@ -596,96 +598,52 @@ for intRec=19%1:numel(sAggStim)
 		fixfig;
 		
 		subplot(2,3,3)
-		vecEffectLow_CP = (vecTunedLow-vecTunedLow_shuff)./vecTunedLow_shuff;
-		vecEffectHigh_CP = (vecTunedHigh-vecTunedHigh_shuff)./vecTunedHigh_shuff;
+		vecEffectLow_Tuning = (vecTunedLow-vecTunedLow_shuff)./(vecTunedLow+vecTunedLow_shuff);
+		vecEffectHigh_Tuning = (vecTunedHigh-vecTunedHigh_shuff)./(vecTunedHigh+vecTunedHigh_shuff);
 		%plot(dblMaxVal*[0 1],dblMaxVal*[0 1],'k--')
 		hold on
-		scatter(vecEffectLow_CP,vecEffectHigh_CP,[],lines(1),'.')
+		scatter(vecEffectLow_Tuning,vecEffectHigh_Tuning,[],lines(1),'.')
 		hold off
 		xlabel('dMean tuned fraction low q');
 		ylabel('dMean tuned fraction high q');
 		fixfig;
 		
-		
 		subplot(2,3,4)
 		dblStepCV = 0.05;
 		vecBinECV = -0.5:dblStepCV:0.5;
 		vecBinCCV = vecBinECV(2:end)-dblStepCV/2;
-		vecCountsLow = histcounts(vecEffectLow_CP,vecBinECV);
+		vecCountsLow = histcounts(vecEffectLow_Tuning,vecBinECV);
 		plot(vecBinCCV,vecCountsLow);
-		[h,pLow]=ttest(vecEffectLow_CP);
-		title(sprintf('mean tuned fraction low q=%.3f, p=%.1e',mean(vecEffectLow_CP),pLow))
+		[h,pLow]=ttest(vecEffectLow_Tuning);
+		title(sprintf('mean tuned fraction low q=%.3f, p=%.1e',mean(vecEffectLow_Tuning),pLow))
 		xlabel('d(tuned fraction) low q; d(real,shuffled)');
 		ylabel('Number of trials (count)')
 		fixfig;
 		
 		subplot(2,3,5)
-		vecCountsHigh = histcounts(vecEffectHigh_CP,vecBinECV);
+		vecCountsHigh = histcounts(vecEffectHigh_Tuning,vecBinECV);
 		plot(vecBinCCV,vecCountsHigh,'color',vecColH);
-		[h,pHigh]=ttest(vecEffectHigh_CP);
-		title(sprintf('mean tuned fraction high q=%.3f, p=%.1e',mean(vecEffectHigh_CP),pHigh))
+		[h,pHigh]=ttest(vecEffectHigh_Tuning);
+		title(sprintf('mean tuned fraction high q=%.3f, p=%.1e',mean(vecEffectHigh_Tuning),pHigh))
 		xlabel('d(tuned fraction) high q; d(real,shuffled)');
 		ylabel('Number of trials (count)')
 		fixfig;
 		
 		subplot(2,3,6)
 		vecLocX = [0.4 0.6];
-		errorbar(vecLocX(1),mean(vecEffectLow_CP),std(vecEffectLow_CP)./sqrt(intTrialNum),'x','color',lines(1));
+		errorbar(vecLocX(1),mean(vecEffectLow_Tuning),std(vecEffectLow_Tuning)./sqrt(intTrialNum),'x','color',lines(1));
 		hold on
-		errorbar(vecLocX(2),mean(vecEffectHigh_CP),std(vecEffectHigh_CP)./sqrt(intTrialNum),'x','color',vecColH);
+		errorbar(vecLocX(2),mean(vecEffectHigh_Tuning),std(vecEffectHigh_Tuning)./sqrt(intTrialNum),'x','color',vecColH);
 		hold off
 		xlim([0.3 0.7]);
 		set(gca,'xtick',vecLocX,'xticklabel',{'Low Q','High Q'});
+		[h,pDiff]=ttest(vecEffectLow_Tuning,vecEffectHigh_Tuning);
+		title(sprintf('Diff, t-test, p=%.2e',pDiff));
 		ylabel('Tuned fraction increase over shuffled')
 		fixfig;
 		
 		export_fig(fullpath(strFigurePath,sprintf('D3_QuantileTunedT%s_%s.tif',num2str(dblStartT),strRec)));
 		export_fig(fullpath(strFigurePath,sprintf('D3_QuantileTunedT%s_%s.pdf',num2str(dblStartT),strRec)));
-		
-		%%
-		%low
-		intTypeCV = 2;
-		dblLambda = 1;
-		[vecTrialTypeIdxLow,vecUnique,vecPriorDistributionLow,cellSelect,vecRepetition] = val2idx(vecOriLow);
-		[dblPerformanceLow,vecDecodedIndexLow,matPosteriorProbabilityLow,dblMeanErrorDegsLow,matConfusionLow,matWeightsLow] = ...
-			doCrossValidatedDecodingLR(matLowR,vecOriLow,intTypeCV,vecPriorDistributionLow,dblLambda);
-		vecConfidenceLow = nan(intTrialNum,1);
-		for intTrial=1:intTrialNum
-			vecConfidenceLow(intTrial) = matPosteriorProbabilityLow(vecTrialTypeIdxLow(intTrial),intTrial);
-		end
-		
-		%high
-		[vecTrialTypeIdxHigh,vecUnique,vecPriorDistributionHigh,cellSelect,vecRepetition] = val2idx(vecOriHigh);
-		[dblPerformanceHigh,vecDecodedIndexHigh,matPosteriorProbabilityHigh,dblMeanErrorDegsHigh,matConfusionHigh,matWeightsHigh] = ...
-			doCrossValidatedDecodingLR(matHighR,vecOriHigh,intTypeCV,vecPriorDistributionHigh,dblLambda);
-		vecConfidenceHigh = nan(intTrialNum,1);
-		for intTrial=1:intTrialNum
-			vecConfidenceHigh(intTrial) = matPosteriorProbabilityHigh(vecTrialTypeIdxHigh(intTrial),intTrial);
-		end
-		
-		vecDiffHighLow = vecEffectLow_CP-vecEffectHigh_CP;
-		[r,p]=corr(vecEffectLow_CP',vecConfidenceLow);
-		[r2,p2]=corr(vecEffectHigh_CP',vecConfidenceHigh);
-		
-		%% plot
-		figure
-		subplot(2,3,1)
-		scatter(vecConfidenceLow,vecRatioNBLow)
-		
-		subplot(2,3,2)
-		scatter(vecConfidenceHigh,vecRatioNBHigh)
-		
-		subplot(2,3,3)
-		scatter(vecEffectLow_CP,vecEffectHigh_CP)
-		
-		subplot(2,3,4)
-		scatter(vecEffectLow_R2,vecEffectHigh_R2)
-		
-		subplot(2,3,5)
-		scatter(vecEffectLow_CP,vecEffectLow_R2)
-		
-		subplot(2,3,6)
-		scatter(vecEffectHigh_CP,vecEffectHigh_R2)
 		
 	end
 end

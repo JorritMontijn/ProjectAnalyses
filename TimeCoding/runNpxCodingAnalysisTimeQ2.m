@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding';
@@ -107,14 +107,14 @@ for intRec=19%1:numel(sAggStim)
 		sOut = getTuningCurves(matData,vecOri180,0);
 		%indTuned = sOut.vecOriAnova<0.05;
 		dblMinRate = 0.1;
-		indTuned = sOut.vecFitP<0.05 & sum(matData,2)>(size(matData,2)/dblDur)*dblMinRate;
+		indResp = cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
 		
 		%prep
-		vecPrefOri = rad2deg(sOut.matFittedParams(indTuned,1))/2;
-		vecPrefRad = sOut.matFittedParams(indTuned,1);
-		intTunedN = sum(indTuned);
+		vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
+		vecPrefRad = sOut.matFittedParams(indResp,1);
+		intTunedN = sum(indResp);
 		intNumN = intTunedN;
-		cellSpikeTimes(~indTuned)=[];
+		cellSpikeTimes(~indResp)=[];
 		
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		dblPreTime = -dblStartT;%0.3;
@@ -149,7 +149,7 @@ for intRec=19%1:numel(sAggStim)
 			[vecTrialPerSpikeS,vecTimePerSpikeS] = getSpikesInTrial(vecOverallSpikeT_S,vecPseudoEventT,dblMaxDur);
 			for intTrial=1:intTrialNum
 				%real
-				vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+				vecSpikeT = sort(vecTimePerSpike(vecTrialPerSpike==intTrial));
 				vecISI = diff(vecSpikeT);
 				if isempty(vecSpikeT)
 					vecGenSpikesS = [];
@@ -161,16 +161,16 @@ for intRec=19%1:numel(sAggStim)
 				cellSpikeTimesPerCellPerTrial_S{intN,intTrial} = vecGenSpikesS;
 				
 				%overall shuffle
-				vecSpikeT_S = vecTimePerSpikeS(vecTrialPerSpikeS==intTrial);
+				vecSpikeT_S = sort(vecTimePerSpikeS(vecTrialPerSpikeS==intTrial));
 				vecISI_S = diff(vecSpikeT_S);
 				if isempty(vecSpikeT_S)
-					vecGenSpikesS = [];
+					vecGenSpikesSS = [];
 				else
 					vecISIS = diff(vecSpikeT_S);
-					vecGenSpikesS = cumsum([vecSpikeT_S(1);vecISI_S(randperm(numel(vecISI_S)))]);
+					vecGenSpikesSS = cumsum([vecSpikeT_S(1);vecISI_S(randperm(numel(vecISI_S)))]);
 				end
 				cellSpikeTimesPerCellPerTrial_SN{intN,intTrial} = vecSpikeT_S;
-				cellSpikeTimesPerCellPerTrial_SS{intN,intTrial} = vecGenSpikesS;
+				cellSpikeTimesPerCellPerTrial_SS{intN,intTrial} = vecGenSpikesSS;
 			end
 		end
 		vecStimOnStitched = vecPseudoEventT;
@@ -264,9 +264,10 @@ for intRec=19%1:numel(sAggStim)
 			vecTimeIFR = cellTimeIFR_perTrial{intTrial};
 			
 			vecR_sorted = sort(vecIFR);
-			int5perc = round(numel(vecR_sorted)/20);
-			vecHperTrial(intTrial) = mean(vecR_sorted((1+end-1*int5perc):(end-0*int5perc)));
-			vecLperTrial(intTrial) = mean(vecR_sorted((1+0*int5perc):(1*int5perc)));
+			intHighQ = round(numel(vecR_sorted)/20);
+			intLowQ = round(numel(vecR_sorted)/20);
+			vecHperTrial(intTrial) = mean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
+			vecLperTrial(intTrial) = mean(vecR_sorted((1+0*intLowQ):(1*intLowQ)));
 			vecMperTrial(intTrial) = mean(vecR_sorted);
 			vecSperTrial(intTrial) = std(vecR_sorted);
 			
@@ -279,27 +280,27 @@ for intRec=19%1:numel(sAggStim)
 			%shuffled single-neuron ISIs
 			vecIFRS = cellIFR_perTrial_S{intTrial};
 			vecR_sorted = sort(vecIFRS);
-			int5perc = round(numel(vecR_sorted)/20);
-			vecHperTrial_S(intTrial) = mean(vecR_sorted((1+end-1*int5perc):(end-0*int5perc)));
-			vecLperTrial_S(intTrial) = mean(vecR_sorted((1+0*int5perc):(1*int5perc)));
+			intHighQ = round(numel(vecR_sorted)/20);
+			vecHperTrial_S(intTrial) = mean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
+			vecLperTrial_S(intTrial) = mean(vecR_sorted((1+0*intHighQ):(1*intHighQ)));
 			vecMperTrial_S(intTrial) = mean(vecR_sorted);
 			vecSperTrial_S(intTrial) = std(vecR_sorted);
 			
 			%shuffled overall ISIs
 			vecIFRS = cellIFR_perTrial_SN{intTrial};
 			vecR_sorted = sort(vecIFRS);
-			int5perc = round(numel(vecR_sorted)/20);
-			vecHperTrial_SN(intTrial) = mean(vecR_sorted((1+end-1*int5perc):(end-0*int5perc)));
-			vecLperTrial_SN(intTrial) = mean(vecR_sorted((1+0*int5perc):(1*int5perc)));
+			intHighQ = round(numel(vecR_sorted)/20);
+			vecHperTrial_SN(intTrial) = mean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
+			vecLperTrial_SN(intTrial) = mean(vecR_sorted((1+0*intHighQ):(1*intHighQ)));
 			vecMperTrial_SN(intTrial) = mean(vecR_sorted);
 			vecSperTrial_SN(intTrial) = std(vecR_sorted);
 			
 			%shuffled overall ISIs, single-neuron ISIs
 			vecIFRS = cellIFR_perTrial_SS{intTrial};
 			vecR_sorted = sort(vecIFRS);
-			int5perc = round(numel(vecR_sorted)/20);
-			vecHperTrial_SS(intTrial) = mean(vecR_sorted((1+end-1*int5perc):(end-0*int5perc)));
-			vecLperTrial_SS(intTrial) = mean(vecR_sorted((1+0*int5perc):(1*int5perc)));
+			intHighQ = round(numel(vecR_sorted)/20);
+			vecHperTrial_SS(intTrial) = mean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
+			vecLperTrial_SS(intTrial) = mean(vecR_sorted((1+0*intHighQ):(1*intHighQ)));
 			vecMperTrial_SS(intTrial) = mean(vecR_sorted);
 			vecSperTrial_SS(intTrial) = std(vecR_sorted);
 			
@@ -323,7 +324,7 @@ for intRec=19%1:numel(sAggStim)
 				end
 				
 				% plot
-				clf;maxfig;
+				figure;maxfig;
 				subplot(2,3,1)
 				plot(vecTimeIFR+dblStartT,vecIFR)
 				xlabel('Time after onset (s)');
@@ -478,7 +479,7 @@ for intRec=19%1:numel(sAggStim)
 		[vecCounts_S,vecMeansL_S,vecSDsL_S] = makeBins(vecMperTrial_S,vecLperTrial_S,vecActBins);
 		[vecCounts_S,vecMeansH_S,vecSDsH_S] = makeBins(vecMperTrial_S,vecHperTrial_S,vecActBins);hold on
 		
-		scatter(cat(1,vecMperTrial,vecMperTrial),cat(1,vecLperTrial_S(:),vecHperTrial_S(:)),[],[0.7 0.7 0.7],'.');
+		scatter(cat(1,vecMperTrial_S,vecMperTrial_S),cat(1,vecLperTrial_S(:),vecHperTrial_S(:)),[],[0.7 0.7 0.7],'.');
 		scatter(vecMperTrial,vecLperTrial(:),[],[0.5 0.5 1],'.');
 		scatter(vecMperTrial,vecHperTrial(:),[],[1 0.5 0.5],'.');
 		
@@ -491,7 +492,7 @@ for intRec=19%1:numel(sAggStim)
 		fixfig;
 		xlabel('Mean firing rate during trial (Hz)');
 		ylabel('Firing rate during upper/lower 5% (Hz)');
-		legend({'Shuffled pop ISIs','Lowest 5%','Highest 5%'},'location','best');
+		legend({'Shuffled neuron ISIs','Lowest 5%','Highest 5%'},'location','best');
 		fixfig;
 		
 		subplot(2,3,2)
@@ -580,7 +581,7 @@ for intRec=19%1:numel(sAggStim)
 		[vecCounts_S,vecMeansL_S,vecSDsL_S] = makeBins(vecMperTrial_SS,vecLperTrial_SS,vecActBins);
 		[vecCounts_S,vecMeansH_S,vecSDsH_S] = makeBins(vecMperTrial_SS,vecHperTrial_SS,vecActBins);hold on
 		
-		scatter(cat(1,vecMperTrial_SN,vecMperTrial_SN),cat(1,vecLperTrial_SS(:),vecHperTrial_SS(:)),[],[0.7 0.7 0.7],'.');
+		scatter(cat(1,vecMperTrial_SS,vecMperTrial_SS),cat(1,vecLperTrial_SS(:),vecHperTrial_SS(:)),[],[0.7 0.7 0.7],'.');
 		scatter(vecMperTrial_SN,vecLperTrial_SN(:),[],[0.5 0.5 1],'.');
 		scatter(vecMperTrial_SN,vecHperTrial_SN(:),[],[1 0.5 0.5],'.');
 		
@@ -593,7 +594,7 @@ for intRec=19%1:numel(sAggStim)
 		fixfig;
 		xlabel('Mean firing rate during trial (Hz)');
 		ylabel('Firing rate during upper/lower 5% (Hz)');
-		legend({'Shuffled','Lowest 5%','Highest 5%'},'location','best');
+		legend({'Shuffled pop+neuron ISIs','Lowest 5%','Highest 5%'},'location','best');
 		title('Neuron-ISI shuffle control');
 		fixfig;
 		
@@ -644,7 +645,7 @@ for intRec=19%1:numel(sAggStim)
 		export_fig(fullpath(strFigurePath,sprintf('B3_QuantileDeviationsT%s_%s.tif',num2str(dblStartT),strRec)));
 		export_fig(fullpath(strFigurePath,sprintf('B3_QuantileDeviationsT%s_%s.pdf',num2str(dblStartT),strRec)));
 		
-		%% what is circular variance of preferred oris of cells that are active during low-5% and high 5% epochs?
+		%% calculate activity during low/high epochs
 		%are only cells tuned to the orientation active during low phases? Is this different from high 5%?
 		
 		%pre-alloc
@@ -654,9 +655,6 @@ for intRec=19%1:numel(sAggStim)
 		for intShuff=[0 1]
 			%pre-allocate
 			matAggR_temp = nan(3,intTrialNum,intTunedN);%save middle60/lower20/upper20
-			vecCircPrecLow_temp = nan(1,intTrialNum);
-			vecCircPrecHigh_temp = nan(1,intTrialNum);
-			
 			for intTrial=1:intTrialNum
 				%% define data
 				if intShuff == 0
@@ -696,7 +694,7 @@ for intRec=19%1:numel(sAggStim)
 				end
 				
 				%% determine epochs
-				vecChanges = find(diff(vecHighLowIdx)~=1);
+				vecChanges = find(diff(vecHighLowIdx)~=0);
 				intEpochs = numel(vecChanges)+1;
 				vecEpochType = nan(1,intEpochs);
 				vecEpochStarts = nan(1,intEpochs);
@@ -729,115 +727,23 @@ for intRec=19%1:numel(sAggStim)
 					%save
 					matAggR_temp(:,intTrial,intNeuron) = vecCountsPerType; %low
 				end
-				
-				%% calc circ prec
-				vecSumLow = squeeze(matAggR_temp(2,intTrial,:));
-				if sum(vecSumLow) > 1
-					dblCircVarLow = circ_var(vecPrefRad(vecSumLow>0), vecSumLow(vecSumLow>0));
-				else
-					dblCircVarLow = nan;
-				end
-				
-				vecSumHigh = squeeze(matAggR_temp(3,intTrial,:));
-				if sum(vecSumHigh) > 1
-					dblCircVarHigh = circ_var(vecPrefRad(vecSumHigh>0), vecSumHigh(vecSumHigh>0));
-				else
-					dblCircVarHigh = nan;
-				end
-				
-				vecCircPrecLow_temp(intTrial) = 1-dblCircVarLow;
-				vecCircPrecHigh_temp(intTrial) = 1-dblCircVarHigh;
-				
 			end
 			
 			%% save
 			if intShuff == 0
-				%get IFRs
-				vecCircPrecLow = vecCircPrecLow_temp;
-				vecCircPrecHigh = vecCircPrecHigh_temp;
 				matAggR = matAggR_temp;
 			else
-				%get IFRs
-				vecCircPrecLow_shuff = vecCircPrecLow_temp;
-				vecCircPrecHigh_shuff = vecCircPrecHigh_temp;
 				matAggR_shuff = matAggR_temp;
 			end
 		end
 		
-		%% mean per trial per quantile
+		% mean per trial per quantile
 		matLowR = squeeze(matAggR(2,:,:));
 		matHighR = squeeze(matAggR(3,:,:));
 		vecOriLow = vecOri180;
 		vecOriHigh = vecOri180;
 		
-		%%
-		figure;maxfig;
-		subplot(2,3,1)
-		plot([0 1],[0 1],'k--')
-		hold on
-		scatter(vecCircPrecLow,vecCircPrecLow_shuff,[],lines(1),'.')
-		hold off
-		title(sprintf('Lowest 20%%, real=%.3f, shuff=%.3f',mean(vecCircPrecLow),mean(vecCircPrecLow_shuff)))
-		xlabel('Real orientation selectivity (OSI)');
-		ylabel('Shuffled orientation selectivity (OSI)');
-		fixfig;
-		
-		subplot(2,3,2)
-		plot([0 1],[0 1],'k--')
-		hold on
-		scatter(vecCircPrecHigh,vecCircPrecHigh_shuff,[],lines(1),'.')
-		hold off
-		title(sprintf('Highest 20%%, real=%.3f, shuff=%.3f',mean(vecCircPrecHigh),mean(vecCircPrecHigh_shuff)))
-		xlabel('Real orientation selectivity (OSI)');
-		ylabel('Shuffled orientation selectivity (OSI)');
-		fixfig;
-		
-		subplot(2,3,3)
-		vecEffect2 = vecCircPrecLow-vecCircPrecLow_shuff;
-		vecEffect4 = vecCircPrecHigh-vecCircPrecHigh_shuff;
-		plot([-1 1]*0.5,0.5*[-1 1],'k--')
-		hold on
-		scatter(vecEffect2,vecEffect4,[],lines(1),'.')
-		hold off
-		xlabel('dOSI low q; d(real,shuffled)');
-		ylabel('dOSI high q; d(real,shuffled)');
-		fixfig;
-		
-		
-		subplot(2,3,4)
-		dblStepCV = 0.05;
-		vecBinECV = -0.6:dblStepCV:0.6;
-		vecBinCCV = vecBinECV(2:end)-dblStepCV/2;
-		vecCountsLow = histcounts(vecEffect2,vecBinECV);
-		plot(vecBinCCV,vecCountsLow);
-		[h,pLow]=ttest(vecEffect2);
-		title(sprintf('mean precision low q=%.3f, p=%.1e',mean(vecEffect2),pLow))
-		xlabel('dOSI low q; d(real,shuffled)');
-		ylabel('Number of trials (count)')
-		fixfig;
-		
-		subplot(2,3,5)
-		vecCountsHigh = histcounts(vecEffect4,vecBinECV);
-		plot(vecBinCCV,vecCountsHigh);
-		[h,pHigh]=ttest(vecEffect4);
-		title(sprintf('mean precision high q=%.3f, p=%.1e',mean(vecEffect4),pHigh))
-		xlabel('dOSI high q; d(real,shuffled)');
-		ylabel('Number of trials (count)')
-		fixfig;
-		
-		subplot(2,3,6)
-		vecCountsDiff = histcounts(vecEffect2-vecEffect4,vecBinECV);
-		plot(vecBinCCV,vecCountsDiff);
-		[h,pDiff]=ttest(vecEffect2-vecEffect4);
-		title(sprintf('d(High,Low)=%.3f, p=%.1e',mean(vecEffect2-vecEffect4),pDiff))
-		xlabel('Difference dOSI d(low,high)');
-		ylabel('Number of trials (count)')
-		fixfig;
-		
-		export_fig(fullpath(strFigurePath,sprintf('B4_QuantileTuningT%s_%s.tif',num2str(dblStartT),strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('B4_QuantileTuningT%s_%s.pdf',num2str(dblStartT),strRec)));
-		
-		%%
+		%% calculate prior & decode with full population
 		%low
 		intTypeCV = 2;
 		dblLambda = 1;
@@ -858,20 +764,163 @@ for intRec=19%1:numel(sAggStim)
 			vecConfidenceHigh(intTrial) = matPosteriorProbabilityHigh(vecTrialTypeIdxHigh(intTrial),intTrial);
 		end
 		
-		vecDiffHighLow = vecEffect2-vecEffect4;
-		[r,p]=corr(vecEffect2',vecConfidenceLow);
-		[r2,p2]=corr(vecEffect4',vecConfidenceHigh);
-		
-		%% ori tuning is stable across quantiles
-		sOut = getTuningCurves(matLowR',vecOri180,0);
-		vecPrefRad;
-		vecPrefRadLow = sOut.matFittedParams(:,1);
-		sOut = getTuningCurves(matHighR',vecOri180,0);
-		vecPrefRadHigh = sOut.matFittedParams(:,1);
+		% ori tuning is stable across quantiles
+		sOutLow = getTuningCurves(matLowR',vecOri180,0);
+		vecPrefRadLow = sOutLow.matFittedParams(:,1);
+		sOutHigh = getTuningCurves(matHighR',vecOri180,0);
+		vecPrefRadHigh = sOutHigh.matFittedParams(:,1);
 		%ori tuning is stable
+		
+		% ori tuning diff within low
+		intHalfTrials = floor(intTrialNum/2);
+		sOutLow1 = getTuningCurves(matLowR(1:intHalfTrials,:)',vecOri180(1:intHalfTrials),0);
+		vecPrefRadLow1 = sOutLow1.matFittedParams(:,1);
+		sOutLow2 = getTuningCurves(matLowR((intHalfTrials+1):end,:)',vecOri180((intHalfTrials+1):end),0);
+		vecPrefRadLow2 = sOutLow2.matFittedParams(:,1);
+		% ori tuning diff within high
+		intHalfTrials = floor(intTrialNum/2);
+		sOutHigh1 = getTuningCurves(matHighR(1:intHalfTrials,:)',vecOri180(1:intHalfTrials),0);
+		vecPrefRadHigh1 = sOutHigh1.matFittedParams(:,1);
+		sOutHigh2 = getTuningCurves(matHighR((intHalfTrials+1):end,:)',vecOri180((intHalfTrials+1):end),0);
+		vecPrefRadHigh2 = sOutHigh2.matFittedParams(:,1);
+		
+		%% plot
+		figure;maxfig;
+		subplot(2,3,1);
+		vecEdges = 0:90:360;
+		[matCounts,matValMeans,matValSDs,cellVals,cellIDs] = ...
+			makeBins2(vecPrefRadLow,vecPrefRadHigh,ones(size(vecPrefRadHigh)),vecEdges,vecEdges);
+		%imagesc(matCounts);axis xy
+		scatter(rad2deg(vecPrefRadLow),rad2deg(vecPrefRadHigh),'x');
+		xlim([-10 370]);
+		set(gca,'xtick',0:90:360);
+		set(gca,'ytick',0:90:360);
+		ylim([-10 370]);
+		xlabel('Preferred ori low q')
+		ylabel('Preferred ori high q')
+		fixfig;
+		
+		% ori tuning diff within low
+		subplot(2,3,2);
+		scatter(rad2deg(vecPrefRadLow1),rad2deg(vecPrefRadLow2),'x');
+		xlim([-10 370]);
+		set(gca,'xtick',0:90:360);
+		set(gca,'ytick',0:90:360);
+		ylim([-10 370]);
+		xlabel('Preferred ori low q, 1st half')
+		ylabel('Preferred ori low q, 2nd half')
+		fixfig;
+		
+		
+		% ori tuning diff within high
+		subplot(2,3,3);
+		scatter(rad2deg(vecPrefRadHigh1),rad2deg(vecPrefRadHigh2),'x');
+		xlim([-10 370]);
+		set(gca,'xtick',0:90:360);
+		set(gca,'ytick',0:90:360);
+		ylim([-10 370]);
+		xlabel('Preferred ori high q, 1st half')
+		ylabel('Preferred ori high q, 2nd half')
+		fixfig;
+		
+		% ori tuning diff within high
+		subplot(2,3,4);
+		scatter(rad2deg(vecPrefRadHigh1),rad2deg(vecPrefRadLow2),'x');
+		xlim([-10 370]);
+		set(gca,'xtick',0:90:360);
+		set(gca,'ytick',0:90:360);
+		ylim([-10 370]);
+		xlabel('Preferred ori high q, 1st half')
+		ylabel('Preferred ori low q, 2nd half')
+		fixfig;
+		
+		vecDiffHL1 = abs(circ_dist(vecPrefRadHigh1,vecPrefRadLow2));
+		vecDiffHL2 = abs(circ_dist(vecPrefRadHigh2,vecPrefRadLow1));
+		vecDiffHL = rad2deg(vecDiffHL1);%+vecDiffHL2)/2;
+		vecDiffLL = rad2deg(abs(circ_dist(vecPrefRadLow1,vecPrefRadLow2)));
+		vecDiffHH = rad2deg(abs(circ_dist(vecPrefRadHigh1,vecPrefRadHigh2)));
+		
+		dblBinS = 22.5;
+		vecBinE = 0:dblBinS:180;
+		vecBinC = vecBinE(2:end)-dblBinS/2;
+		vecCHL = histcounts(vecDiffHL,vecBinE);
+		vecCLL = histcounts(vecDiffLL,vecBinE);
+		vecCHH = histcounts(vecDiffHH,vecBinE);
+		
+		[h,pHL_LL]=ttest(vecDiffHL,vecDiffLL);
+		[h,pHL_HH]=ttest(vecDiffHL,vecDiffHH);
+		[h,pHH_LL]=ttest(vecDiffHH,vecDiffLL);
+		subplot(2,3,5)
+		hold on
+		plot([0.5 3.5],[90 90],'--','color',[0.5 0.5 0.5]);
+		errorbar(1,mean(vecDiffHL),std(vecDiffHL)./sqrt(numel(vecDiffHL)),'xk');
+		errorbar(2,mean(vecDiffLL),std(vecDiffLL)./sqrt(numel(vecDiffLL)),'xb');
+		errorbar(3,mean(vecDiffHH),std(vecDiffHH)./sqrt(numel(vecDiffHH)),'xr');
+		hold off
+		ylabel('Angular diff. pref. ori.');
+		set(gca,'xtick',[1 2 3],'xticklabel',{'High-low','Low-low','High-high'});
+		title(sprintf('T-tests: HL-LL,p=%.3f, HL-HH,p=%.3f, HH-LL,p=%.3f',pHL_LL,pHL_HH,pHH_LL));
+		fixfig;
+		
+		%% cross-decode high-low & low-high
+		%low weights, low act
+		matDataPlusLin = [matLowR'; ones(1,size(matLowR',2))];
+		matActivation = matWeightsLow'*matDataPlusLin;
+		matPP_LowLow = exp(bsxfun(@minus,matActivation,logsumexp(matActivation,1))); %softmax
+		vecConfidenceLowLow = nan(intTrialNum,1);
+		for intTrial=1:intTrialNum
+			vecConfidenceLowLow(intTrial) = matPP_LowLow(vecTrialTypeIdxLow(intTrial),intTrial);
+		end
+		
+		%high weights, high act
+		matDataPlusLin = [matHighR'; ones(1,size(matHighR',2))];
+		matActivation = matWeightsHigh'*matDataPlusLin;
+		matPP_HighHigh = exp(bsxfun(@minus,matActivation,logsumexp(matActivation,1))); %softmax
+		vecConfidenceHighHigh = nan(intTrialNum,1);
+		for intTrial=1:intTrialNum
+			vecConfidenceHighHigh(intTrial) = matPP_HighHigh(vecTrialTypeIdxHigh(intTrial),intTrial);
+		end
+		
+		%low weights, high act
+		matDataPlusLin = [matHighR'; ones(1,size(matHighR',2))];
+		matActivation = matWeightsLow'*matDataPlusLin;
+		matPP_LowHigh = exp(bsxfun(@minus,matActivation,logsumexp(matActivation,1))); %softmax
+		vecConfidenceLowHigh = nan(intTrialNum,1);
+		for intTrial=1:intTrialNum
+			vecConfidenceLowHigh(intTrial) = matPP_LowHigh(vecTrialTypeIdxHigh(intTrial),intTrial);
+		end
+		
+		%high weights, low act
+		matDataPlusLin = [matLowR'; ones(1,size(matLowR',2))];
+		matActivation = matWeightsHigh'*matDataPlusLin;
+		matPP_HighLow = exp(bsxfun(@minus,matActivation,logsumexp(matActivation,1))); %softmax
+		vecConfidenceHighLow = nan(intTrialNum,1);
+		for intTrial=1:intTrialNum
+			vecConfidenceHighLow(intTrial) = matPP_HighLow(vecTrialTypeIdxLow(intTrial),intTrial);
+		end
+		
+		[h,pPP_HL]=ttest(vecConfidenceHighHigh,vecConfidenceLowLow);
+		subplot(2,3,6)
+		hold on
+		plot([0.5 4.5],[1 1]./numel(vecUnique),'--','color',[0.5 0.5 0.5]);
+		errorbar(1,mean(vecConfidenceLowLow),std(vecConfidenceLowLow)./sqrt(numel(vecConfidenceLowLow)),'xb');
+		errorbar(2,mean(vecConfidenceLowHigh),std(vecConfidenceLowHigh)./sqrt(numel(vecConfidenceLowHigh)),'x','color',[0.2 0 0.8]);
+		errorbar(3,mean(vecConfidenceHighLow),std(vecConfidenceHighLow)./sqrt(numel(vecConfidenceHighLow)),'x','color',[0.8 0 0.2]);
+		errorbar(4,mean(vecConfidenceHighHigh),std(vecConfidenceHighHigh)./sqrt(numel(vecConfidenceHighHigh)),'xr');
+		hold off
+		ylabel('Angular diff. pref. ori.');
+		set(gca,'xtick',[1 2 3 4],'xticklabel',{'Low W-low A','Low W-high A','High W-low A','High W-high A'});
+		title(sprintf('Posterior p., L-H t-test,p=%.2e',pPP_HL));
+		xtickangle(15);
+		fixfig;
+		
+		%%
+		export_fig(fullpath(strFigurePath,sprintf('B4_%s_OriCodingT%s_%s.tif',strDec,num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('B4_%s_OriCodingT%s_%s.pdf',strDec,num2str(dblStartT),strRec)));
 		
 		%% so why is there no effect on the decoder?
 		%=> compare greedy decoder of high vs low; greedy in neurons or spikes?
+		intUseNeurons = 20;
 		intUseNumDecoders = 1;
 		for intDecoder=1:intUseNumDecoders
 			dblLambda = 1;
@@ -887,11 +936,12 @@ for intRec=19%1:numel(sAggStim)
 					vecPrior = vecPriorDistributionHigh;
 					strHighLow = 'high';
 				end
-				indNeuronsUsed = false(1,intTunedN);
-				vecGreedyPerf = nan(1,intTunedN);
-				vecSelectNeuronOrder = nan(1,intTunedN);
-				for intNeuronsUsed=1:intTunedN
-					intUnusedNeurons = intTunedN-sum(indNeuronsUsed);
+				intTotN = size(matUseR,2);
+				indNeuronsUsed = false(1,intTotN);
+				vecGreedyPerf = nan(1,intUseNeurons);
+				vecSelectNeuronOrder = nan(1,intUseNeurons);
+				for intNeuronsUsed=1:intUseNeurons
+					intUnusedNeurons = intTotN-sum(indNeuronsUsed);
 					vecUnusedNeurons = find(~indNeuronsUsed);
 					vecUsedNeurons = find(indNeuronsUsed);
 					vecPerf = nan(1,intUnusedNeurons);
@@ -918,7 +968,7 @@ for intRec=19%1:numel(sAggStim)
 					indNeuronsUsed(intUseN) = true;
 					vecSelectNeuronOrder(intNeuronsUsed) = intUseN;
 					vecGreedyPerf(intNeuronsUsed) = dblMaxPerf;
-					fprintf('Decoded %s, neuron %d/%d; current best perf is %.3f; selected neuron %d [%s]\n',strHighLow,intNeuronsUsed,intTunedN,dblMaxPerf,intUseN,getTime);
+					fprintf('Decoded %s, neuron %d/%d (%d); current best perf is %.3f; selected neuron %d [%s]\n',strHighLow,intNeuronsUsed,intUseNeurons,intTotN,dblMaxPerf,intUseN,getTime);
 				end
 				if intSwitchQ == 0
 					vecSelectNeuronOrderLow = vecSelectNeuronOrder;
@@ -981,7 +1031,7 @@ for intRec=19%1:numel(sAggStim)
 			
 			figure;maxfig;
 			subplot(2,3,1)
-			vecX = 1:intTunedN;
+			vecX = 1:intUseNeurons;
 			dblChanceP = sum((vecPrior./sum(vecPrior)).*vecPrior)./sum(vecPrior);
 			hold on
 			plot(vecX,vecGreedyPerfLow,'b');

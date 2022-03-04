@@ -50,6 +50,7 @@ matR_OO_All = nan(intAreas,intAreas,numel(sAggStim),2);
 matR_PO_All = nan(intAreas,intAreas,numel(sAggStim),2);
 mat_xR_All = nan(intAreas,intAreas,numel(sAggStim),2);
 matDecPerf = [];
+matDecConf = [];
 
 %% go through recordings
 tic
@@ -136,6 +137,7 @@ for intRec=19%1:numel(sAggStim)
 		
 		%% time progression
 		matDecPerf(:,end+1)=nan;
+		matDecConf(:,end+1)=nan;
 		dblLambda = 1;
 		intTypeCV = 2;
 		vecOri180 = mod(vecOrientation,180)*2;
@@ -151,6 +153,11 @@ for intRec=19%1:numel(sAggStim)
 				doCrossValidatedDecodingLR(squeeze(matBNT(intBinIdx,:,:)),vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
 			vecDecErr(intBinIdx) = dblMeanErrorDegs;
 			matDecPerf(intBinIdx,end) = dblPerformanceCV;
+			vecConf = nan(size(vecDecodedIndexCV));
+			for intTrial=1:numel(vecTrialTypeIdx)
+				vecConf(intTrial) = matPosteriorProbability(vecTrialTypeIdx(intTrial),intTrial);
+			end
+			matDecConf(intBinIdx,end) = mean(vecConf);
 			matDecConfusion(:,:,intBinIdx) = matConfusion;
 			
 			%% apply on all bins
@@ -215,6 +222,8 @@ for intRec=19%1:numel(sAggStim)
 			end
 		end
 		%%
+		%matDecPerf = matDecConf;
+		
 		dblChance = 1/numel(vecPriorDistribution);
 		figure;maxfig;
 		subplot(2,3,1)

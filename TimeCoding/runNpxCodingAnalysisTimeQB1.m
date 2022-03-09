@@ -254,6 +254,7 @@ for intRec=19%1:numel(sAggStim)
 		vecSpikeFractionUsedPerThreshold = cat(1,0,vecSpikeFractionUsedPerThreshold);
 		vecPerfTimeCode = cat(1,1/intStimNr,vecPerfTimeCode);
 		vecPerfTimeAsRateCode = cat(1,1/intStimNr,vecPerfTimeAsRateCode);
+		vecPerfFusionCode = cat(1,1/intStimNr,vecPerfFusionCode);
 		
 		%% plot
 		vecColTime = lines(1);
@@ -351,6 +352,7 @@ for intRec=19%1:numel(sAggStim)
 		vecSpikeFractionUsedPerThreshold2 = zeros(size(vecEndTimes));
 		vecPerfTimeCode2 = zeros(size(vecEndTimes));
 		vecPerfTimeAsRateCode2 = zeros(size(vecEndTimes));
+		vecPerfFusionCode2 = zeros(size(vecEndTimes));
 		for intIdxT = 1:numel(vecEndTimes)
 			%calc spikes used
 			dblEndTime = vecEndTimes(intIdxT);

@@ -22,13 +22,14 @@ close all;
 clear all;
 strDataTargetPath = 'D:\Data\Processed\DataCamiloValeria\';
 vecRunTypes = [1 2];
-intResampNum = 500;
+intResampNum = 1000;
 boolSave = true;%true;
 strFigPath = 'D:\Data\Results\TraceZeta\ultrasound\';
-strName = 'UltrasoundMod1';
+strName = 'UltrasoundMod1_TwoSample';
 
 % check if prepro data exists
-sDir = dir([strDataTargetPath 'AggRecUS.mat']);
+strDataFile = 'AggRecUS_TwoSample';
+sDir = dir([strDataTargetPath strDataFile '.mat']);
 if numel(sDir) == 1
 	sLoad = load(fullpath(sDir(1).folder,sDir(1).name));
 	sRec = sLoad.sRec;
@@ -98,55 +99,93 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 	%% run analysis
 	intPlot  = 0;
 	hTic = tic;
-	for intRec=1:numel(sRec)
+	for intRec=4:numel(sRec)
 		dblUseMaxDur = floor(min(diff(sRec(intRec).structStim.vecStimOn / sRec(intRec).SampFreq)));
+		dblEndSecs = (numel(vec_dFoF) - sRec(intRec).structStim.vecStimOn(end)) / sRec(intRec).SampFreq;
+		dblUseMaxDur = min(dblUseMaxDur,dblEndSecs/2);
 		[varDataOut,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(sRec(intRec).structStim.vecStimType);
 		intStimTypes = numel(vecUnique);
 		intNeurons = numel(sRec(intRec).neuron);
-		matTsZetaP = nan(intStimTypes,intNeurons);
-		matAnovaP = nan(intStimTypes,intNeurons);
-		matWilcoxP = nan(intStimTypes,intNeurons);
+		matTsZetaP = nan(2,intNeurons);
+		matAnovaP = nan(2,intNeurons);
+		matWilcoxP = nan(2,intNeurons);
+		
 		for intNeuron=1:intNeurons
-			if toc(hTic) > 5
-				fprintf('Rec %d/%d, neuron %d/%d [%s]\n',intRec,numel(sRec),intNeuron,intNeurons,getTime);
-				hTic=tic;
-			end
-			vec_dFoF = sRec(intRec).neuron(intNeuron).dFoF;
-			vecTimestamps = (1:numel(vec_dFoF)) / sRec(intRec).SampFreq;
-			%transform to resp matrix
-			[matTE,vecWindowBinCenters] = getRespMat(vecTimestamps,vec_dFoF,sRec(intRec).structStim.vecStimOn ./ sRec(intRec).SampFreq,[0 dblUseMaxDur]);
-			%calc pre & post act
-			vecPreBaseStart = sRec(intRec).structStim.vecStimOn - sRec(intRec).SampFreq*2 - 0.5;
-			vecPreBaseEnd = sRec(intRec).structStim.vecStimOn - 0.5;
-			vecPreBaseEdges = flat([vecPreBaseStart'; vecPreBaseEnd']);
-			[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = ...
-				makeBins(1:numel(vec_dFoF),vec_dFoF,vecPreBaseEdges);
-			vecPreBaseAct = vecMeans(1:2:end);
-			
-			vecStimStart = sRec(intRec).structStim.vecStimOn - 0.5;
-			vecStimEnd = sRec(intRec).structStim.vecStimOn + sRec(intRec).SampFreq*2 - 0.5;
-			vecStimEdges = flat([vecStimStart'; vecStimEnd']);
-			[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = ...
-				makeBins(1:numel(vec_dFoF),vec_dFoF,vecStimEdges);
-			vecStimAct = vecMeans(1:2:end);
-			
-			for intStimType=1:intStimTypes
-				indUseTrials = sRec(intRec).structStim.vecStimType==intStimType;
-				vecStimOnTimes = sRec(intRec).structStim.vecStimOn(indUseTrials) / sRec(intRec).SampFreq;
-				%zeta
-				dblZetaP=zetatstest(vecTimestamps,vec_dFoF,vecStimOnTimes,dblUseMaxDur,intResampNum,intPlot);
-				matTsZetaP(intStimType,intNeuron) = dblZetaP;
-				%anova
-				matSubResp = matTE(indUseTrials,:);
-				dblAnovaP = anova1(matSubResp,[],'off');
-				matAnovaP(intStimType,intNeuron) = dblAnovaP;
-				%wilcoxon ranksum
-				dblWilcoxP = ranksum(vecPreBaseAct(indUseTrials),vecStimAct(indUseTrials));
-				matWilcoxP(intStimType,intNeuron) = dblWilcoxP;
-				if dblZetaP < -inf%0.01
-					dblZetaP2=zetatstest(vecTimestamps,vec_dFoF,vecStimOnTimes,dblUseMaxDur,intResampNum,2);
-					disp intNeuron
+			for intShuff=1:2
+				if toc(hTic) > 5
+					fprintf('Rec %d/%d, neuron %d/%d [%s]\n',intRec,numel(sRec),intNeuron,intNeurons,getTime);
+					hTic=tic;
 				end
+				vec_dFoF = sRec(intRec).neuron(intNeuron).dFoF;
+				vecTimestamps = (1:numel(vec_dFoF)) / sRec(intRec).SampFreq;
+				vecStimOn = sRec(intRec).structStim.vecStimOn;
+				vecStimOnSecs = sRec(intRec).structStim.vecStimOn ./ sRec(intRec).SampFreq;
+				if intShuff == 1
+					%no shuffle
+					vecUseStimType = sRec(intRec).structStim.vecStimType;
+					vecUseStimType1 = find(vecUseStimType==1);
+					vecUseStimType4 = find(vecUseStimType==4);
+				else
+					%shuffle
+					vecUseStimType = sRec(intRec).structStim.vecStimType;
+					vecUseStimType1 = find(vecUseStimType==1);
+					vecCross1 = vecUseStimType1(randperm(numel(vecUseStimType1),round(numel(vecUseStimType1)/2)));
+					vecNoCross1 = vecUseStimType1(~ismember(vecUseStimType1,vecCross1));
+					
+					vecUseStimType4 = find(vecUseStimType==4);
+					vecCross4 = vecUseStimType4(randperm(numel(vecUseStimType4),round(numel(vecUseStimType4)/2)));
+					vecNoCross4 = vecUseStimType4(~ismember(vecUseStimType4,vecCross4));
+					
+					vecUseStimType1 = sort(cat(1,vecNoCross1,vecCross4));
+					vecUseStimType4 = sort(cat(1,vecNoCross4,vecCross1));
+				end
+				
+				%transform to resp matrix
+				[matTE,vecWindowBinCenters] = getRespMat(vecTimestamps,vec_dFoF,vecStimOnSecs,[0 dblUseMaxDur]);
+				%calc pre & post act
+				vecPreBaseStart = vecStimOn - sRec(intRec).SampFreq*2 - 0.5;
+				vecPreBaseEnd = vecStimOn - 0.5;
+				vecPreBaseEdges = flat([vecPreBaseStart'; vecPreBaseEnd']);
+				[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = ...
+					makeBins(1:numel(vec_dFoF),vec_dFoF,vecPreBaseEdges);
+				vecPreBaseAct = vecMeans(1:2:end);
+				
+				vecStimStart = vecStimOn - 0.5;
+				vecStimEnd = vecStimOn + sRec(intRec).SampFreq*2 - 0.5;
+				vecStimEdges = flat([vecStimStart'; vecStimEnd']);
+				[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = ...
+					makeBins(1:numel(vec_dFoF),vec_dFoF,vecStimEdges);
+				vecStimAct = vecMeans(1:2:end);
+				
+				%% condition 1 & 4
+				boolPairwise = false;
+				boolDirectQuantile = false;
+				dblJitterSize = 2;
+				%c1
+				vecStimOnTimes1 = vecStimOnSecs(vecUseStimType1);
+				%c2
+				vecStimOnTimes2 = vecStimOnSecs(vecUseStimType4);
+				%zeta
+				dblZetaP = zetatstest2(vecTimestamps,vec_dFoF,vecStimOnTimes1,vecTimestamps,vec_dFoF,vecStimOnTimes2,dblUseMaxDur,intResampNum,intPlot);
+				matTsZetaP(intShuff,intNeuron) = dblZetaP;
+				
+				%anova
+				matSubResp1 = matTE(vecUseStimType1,:); %trials x bins
+				matBinIdx1 = repmat(vecWindowBinCenters,[numel(vecUseStimType1) 1]);
+				matCond1 = ones(size(matBinIdx1));
+				matSubResp2 = matTE(vecUseStimType4,:); %trials x bins
+				matBinIdx2 = repmat(vecWindowBinCenters,[numel(vecUseStimType4) 1]);
+				matCond2 = 2*ones(size(matBinIdx1));
+				y = cat(1,matSubResp1(:),matSubResp2(:));
+				g1 = cat(1,matBinIdx1(:),matBinIdx2(:));
+				g2 = cat(1,matCond1(:),matCond2(:));
+				
+				vecAnovaP_out = anovan(y,{g1,g2},'model','full','display','off');
+				matAnovaP(intShuff,intNeuron) = vecAnovaP_out(end);
+				
+				%wilcoxon ranksum
+				dblWilcoxP = ranksum(vecStimAct(vecUseStimType1),vecStimAct(vecUseStimType4));
+				matWilcoxP(intShuff,intNeuron) = dblWilcoxP;
 			end
 		end
 		sRec(intRec).matTsZetaP = matTsZetaP;
@@ -154,7 +193,7 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 		sRec(intRec).matWilcoxP = matWilcoxP;
 	end
 	%save
-	save([strDataTargetPath 'AggRecUS.mat'],'sRec');
+	save([strDataTargetPath strDataFile '.mat'],'sRec');
 end
 %% plot
 dblStep = 0.25;
@@ -171,7 +210,7 @@ for intRec=1:numel(sRec)
 	subplot(2,4,intRec)
 	vecP = sRec(intRec).matTsZetaP(1,:);
 	dblTP = 100*(sum(vecP<0.05)/numel(vecP));
-	vecP_Ctrl = sRec(intRec).matTsZetaP(4,:);
+	vecP_Ctrl = sRec(intRec).matTsZetaP(2,:);
 	dblFP = 100*(sum(vecP_Ctrl<0.05)/numel(vecP_Ctrl));
 	dblPrecision = sum(vecP<0.05) / (sum(vecP<0.05) + sum(vecP_Ctrl<0.05));
 	vecCounts = histcounts(-norminv(vecP./2),vecBinE);
@@ -191,6 +230,7 @@ export_fig(fullpath(strFigPath,[strName 'Pvalues.jpg']));
 export_fig(fullpath(strFigPath,[strName 'Pvalues.pdf']));
 
 %% plot ROCs
+vecAggOrigIdx = [];
 vecAggAucZ = [];
 vecAggAucA = [];
 vecAggAucW = [];
@@ -204,7 +244,7 @@ figure;maxfig;
 for intRec=1:numel(sRec)
 	%zeta
 	vecZeta = sort(-norminv(sRec(intRec).matTsZetaP(1,:)./2));
-	vecZeta_Ctrl = sort(-norminv(sRec(intRec).matTsZetaP(4,:)./2));
+	vecZeta_Ctrl = sort(-norminv(sRec(intRec).matTsZetaP(2,:)./2));
 	vecBothData = cat(2,vecZeta,vecZeta_Ctrl);
 	vecThresholds = sort(vecBothData,'descend');
 	intCells = numel(vecZeta);
@@ -215,7 +255,7 @@ for intRec=1:numel(sRec)
 	dblFPZ = sum(vecZeta_Ctrl>dblThresh)/intCells;
 	%anova
 	vecAnova = -norminv(sRec(intRec).matAnovaP(1,:)./2);
-	vecAnova_Ctrl = -norminv(sRec(intRec).matAnovaP(4,:)./2);
+	vecAnova_Ctrl = -norminv(sRec(intRec).matAnovaP(2,:)./2);
 	vecBothData = cat(2,vecAnova,vecAnova_Ctrl);
 	vecThresholds = sort(vecBothData,'descend');
 	intCells = numel(vecAnova);
@@ -225,7 +265,7 @@ for intRec=1:numel(sRec)
 	dblFPA = sum(vecAnova_Ctrl>dblThresh)/intCells;
 	%ranksum
 	vecWilcox = -norminv(sRec(intRec).matWilcoxP(1,:)./2);
-	vecWilcox_Ctrl = -norminv(sRec(intRec).matWilcoxP(4,:)./2);
+	vecWilcox_Ctrl = -norminv(sRec(intRec).matWilcoxP(2,:)./2);
 	vecBothData = cat(2,vecWilcox,vecWilcox_Ctrl);
 	vecThresholds = sort(vecBothData,'descend');
 	intCells = numel(vecWilcox);
@@ -239,11 +279,11 @@ for intRec=1:numel(sRec)
 	[AUC_A,AciA,Ase_A,pAuc_A] = getAuc(vecAnova,vecAnova_Ctrl,0.05,'mann-whitney');
 	[AUC_W,AciA,Ase_W,pAuc_W] = getAuc(vecWilcox,vecWilcox_Ctrl,0.05,'mann-whitney');
 	
-	%z vs a
-	m0 = AUC_Z - AUC_A;
-	s0 = (Ase_Z + Ase_A)/2;
+	%z vs w
+	m0 = AUC_Z - AUC_W;
+	s0 = (Ase_Z + Ase_W)/2;
 	zZA = abs(m0/s0);
-	AUC_pZA = normcdf(zZA,'upper')*2;
+	AUC_pZW = normcdf(zZA,'upper')*2;
 	
 	%plot
 	subplot(2,4,intRec)
@@ -256,15 +296,16 @@ for intRec=1:numel(sRec)
 	ylabel('True positive (TP) rate');
 	h=legend({sprintf('Ts-ZETA, AUC=%.3f',AUC_Z),sprintf('ANOVA, AUC=%.3f',AUC_A),sprintf('Wilcox, AUC=%.3f',AUC_W)},'location','best');
 	title(sprintf('FP; Z=%.3f,A=%.3f,W=%.3f',dblFPZ,dblFPA,dblFPW))
-	if AUC_pZA < 0.01
-		h.Title.String=sprintf('AUC Z-A, p=%.2e',AUC_pZA);
+	if AUC_pZW < 0.01
+		h.Title.String=sprintf('AUC Z-W, p=%.2e',AUC_pZW);
 	else
-		h.Title.String=sprintf('AUC Z-A, p=%.3f',AUC_pZA);
+		h.Title.String=sprintf('AUC Z-W, p=%.3f',AUC_pZW);
 	end
 	fixfig;
 	
 	%save if any is significant
-	if 1;%pAuc_Z < 0.05/3 || pAuc_A < 0.05/3 || pAuc_W < 0.05/3
+	if pAuc_Z < 0.05/3 || pAuc_A < 0.05/3 || pAuc_W < 0.05/3
+		vecAggOrigIdx(end+1) = intRec;
 		vecAggAucZ(end+1) = AUC_Z;
 		vecAggAucA(end+1) = AUC_A;
 		vecAggAucW(end+1) = AUC_W;
@@ -318,6 +359,24 @@ fixfig;
 [h,pAlphaA]=ttest(vecAggFPA,0.05);
 [h,pAlphaW]=ttest(vecAggFPW,0.05);
 title(sprintf('T-tests FPR vs 0.05;Z-p=%.3f,A-p=%.2e,W-p=%.2e',pAlphaZ,pAlphaA,pAlphaW));
+
+subplot(2,3,3)
+hold on
+errorbar(1,mean(vecAggTPZ),std(vecAggTPZ)./sqrt(intSigNum),'x','color',vecColZ);
+errorbar(2,mean(vecAggTPA),std(vecAggTPA)./sqrt(intSigNum),'x','color',vecColA);
+errorbar(3,mean(vecAggTPW),std(vecAggTPW)./sqrt(intSigNum),'x','color',vecColW);
+hold off
+xlim([0.5 3.5]);
+%ylim([0.5 0.8]);
+ylabel('TP rate (mean +/- st err)');
+set(gca,'xtick',[1 2 3],'xticklabel',{'Ts-ZETA','ANOVA','Wilcox'});
+xtickangle(30);
+%set(gca,'yscale','log');ylim([0.002 0.5]);
+fixfig;
+[h,pAZT]=ttest(vecAggAucZ,vecAggAucA);
+[h,pWZT]=ttest(vecAggAucZ,vecAggAucW);
+[h,pAWT]=ttest(vecAggAucW,vecAggAucA);
+title(sprintf('T-tests TPR;AZ-p=%.3f,WZ-p=%.3f,WA-p=%.3f',pAZT,pWZT,pAWT));
 
 export_fig(fullpath(strFigPath,[strName 'Summary.jpg']));
 export_fig(fullpath(strFigPath,[strName 'Summary.pdf']));

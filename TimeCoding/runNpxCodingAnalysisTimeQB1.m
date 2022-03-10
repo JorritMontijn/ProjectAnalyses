@@ -17,7 +17,7 @@ cellUseAreas = {...
 	...'posteromedial visual area',...
 	};
 
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding';
@@ -36,7 +36,7 @@ sAggNeuron(strcmpi({sAggNeuron.SubjectType},'DBA')) = [];
 intAreas = numel(cellUseAreas);
 matDecPerf = [];
 dblStartT = 0;
-
+boolSaveFigs = true;
 %% go through recordings
 tic
 for intRec=19%1:numel(sAggStim)
@@ -186,7 +186,7 @@ for intRec=19%1:numel(sAggStim)
 		%constants
 		[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
 		intStimNr = numel(vecUnique);
-		dblLambda = 0;%1
+		dblLambda = 1;%1
 		intTypeCV = 2;
 		dblUseStartT = 0;
 		dblUseMaxDur = dblMaxDur-dblUseStartT;
@@ -304,7 +304,7 @@ for intRec=19%1:numel(sAggStim)
 		ylabel('Decoding accuracy');
 		title('Time code (mean ISI)');
 		xlabel('Fraction of spikes used');
-		legend({'Chance','Rate-as-time code','Time code'},'Location','best');
+		legend({'Chance','Full time code','Full rate code','Rate code','Time code','Fusion code'},'Location','best');
 		fixfig;
 		
 		
@@ -333,7 +333,7 @@ for intRec=19%1:numel(sAggStim)
 		legend({'Chance','Rate code','Time-as-rate code'},'Location','best');
 		fixfig;
 		
-		if 0
+		if boolSaveFigs
 			%% save fig
 			export_fig(fullpath(strFigurePath,sprintf('2A1_TimeCodingT%s_%s.tif',num2str(dblStartT),strRec)));
 			export_fig(fullpath(strFigurePath,sprintf('2A1_TimeCodingT%s_%s.pdf',num2str(dblStartT),strRec)));
@@ -363,6 +363,7 @@ for intRec=19%1:numel(sAggStim)
 			vecSpikeFractionUsedPerThreshold2(intIdxT) = sum(flat(cellfun(@numel,cellCroppedSpikeT)))/intTotSpikeNum;
 			
 			%get time code
+			matRateCode = cellfun(@numel,cellCroppedSpikeT)./dblEndTime;
 			matTimeCode = cellfun(@(vecSpikeT) getTimeCode(vecSpikeT,dblUseStartT,inf,dblEndTime),cellCroppedSpikeT);
 			matTimeAsRateCode = (1./matTimeCode) - 1/dblEndTime;
 			%hybrid formulation; progresses from time to rate code
@@ -424,7 +425,7 @@ for intRec=19%1:numel(sAggStim)
 		ylabel('Decoding accuracy');
 		title('Time code (mean ISI)');
 		xlabel('Fraction of spikes used');
-		legend({'Chance','Rate-as-time code','Time code'},'Location','best');
+		legend({'Chance','Full time code','Full rate code','Rate code','Time code','Fusion code'},'Location','best');
 		fixfig;
 		
 		subplot(2,3,5)
@@ -451,7 +452,7 @@ for intRec=19%1:numel(sAggStim)
 		legend({'Chance','Rate code','Time-as-rate code'},'Location','best');
 		fixfig;
 		
-		if 0
+		if boolSaveFigs
 			%% save fig
 			export_fig(fullpath(strFigurePath,sprintf('2A2_TimeCoding2T%s_%s.tif',num2str(dblStartT),strRec)));
 			export_fig(fullpath(strFigurePath,sprintf('2A2_TimeCoding2T%s_%s.pdf',num2str(dblStartT),strRec)));

@@ -172,22 +172,44 @@ for intRec=19%1:numel(sAggStim)
 		
 		%% plot population mean + sd over neurons, compare with neuron mean+sd over trials 
 		intTrials = size(matMeanRate,2);
-		matGenRate = poissrnd(repmat(vecNeuronMean,[1 intTrials]));
 		
+		%real pop mean+sd
 		vecPopMean = mean(matMeanRate,1);
 		vecPopSd = std(matMeanRate,[],1);
 		vecPopCv = vecPopSd./vecPopMean;
 		vecPopFano = (vecPopSd.^2)./vecPopMean;
+		
+		vecFitX = linspace(min(vecPopMean),max(vecPopMean),100);
+		[fitobject,gof] = fit(vecPopMean',vecPopSd','poly1');
+		matCoefInt = confint(fitobject);
+		dblSlope = fitobject.p1;
+		vecSlopeCI = matCoefInt(:,1);
+		dblIntercept = fitobject.p2;
+		vecIntCI = matCoefInt(:,2);
+		dblAdjR2 = gof.adjrsquare;
+		[vecPredCI,vecPredY] = predint(fitobject,vecFitX);
 		
 		vecNeuronMean = mean(matMeanRate,2);
 		vecNeuronSd = std(matMeanRate,[],2);
 		vecNeuronCv = vecNeuronSd./vecNeuronMean;
 		vecNeuronFano = (vecNeuronSd.^2)./vecNeuronMean;
 		
+		%generated according to poisson cells
+		matGenRate = poissrnd(repmat(vecNeuronMean,[1 intTrials]));
 		vecGenPopMean = mean(matGenRate,1);
 		vecGenPopSd = std(matGenRate,[],1);
 		vecGenPopCv = vecGenPopSd./vecGenPopMean;
 		vecGenPopFano = (vecGenPopSd.^2)./vecGenPopMean;
+		
+		vecGenFitX = linspace(min(vecGenPopMean),max(vecGenPopMean),100);
+		[fitobjectGen,gofGen] = fit(vecGenPopMean',vecGenPopSd','poly1');
+		matGenCoefInt = confint(fitobjectGen);
+		dblGenSlope = fitobjectGen.p1;
+		vecGenSlopeCI = matGenCoefInt(:,1);
+		dblGenIntercept = fitobjectGen.p2;
+		vecGenIntCI = matGenCoefInt(:,2);
+		dblGenAdjR2 = gofGen.adjrsquare;
+		[vecGenPredCI,vecGenPredY] = predint(fitobjectGen,vecGenFitX);
 		
 		vecGenNeuronMean = mean(matGenRate,2);
 		vecGenNeuronSd = std(matGenRate,[],2);
@@ -196,7 +218,13 @@ for intRec=19%1:numel(sAggStim)
 		
 		figure;maxfig
 		subplot(3,4,1)
-		scatter(vecPopMean,vecPopSd,'.')
+		hold on
+		scatter(vecPopMean,vecPopSd,[],lines(1),'.');
+		plot(vecFitX,vecPredY,'k--');
+		%plot(vecFitX,vecPredCI(:,1),'--','color',[0.5 0.5 0.5]);
+		%plot(vecFitX,vecPredCI(:,2),'--','color',[0.5 0.5 0.5]);;
+		hold off
+		title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblAdjR2,dblSlope,mean(abs(vecSlopeCI-dblSlope))));
 		xlabel('Population mean rate (Hz)');
 		ylabel('Pop sd (Hz)');fixfig;
 		
@@ -226,7 +254,13 @@ for intRec=19%1:numel(sAggStim)
 		ylabel('Neuron Fano factor');fixfig;
 		
 		subplot(3,4,3)
+		hold on
 		scatter(vecGenPopMean,vecGenPopSd,'.')
+		plot(vecGenFitX,vecGenPredY,'k--');
+		%plot(vecGenFitX,vecGenPredCI(:,1),'--','color',[0.5 0.5 0.5]);
+		%plot(vecGenFitX,vecGenPredCI(:,2),'--','color',[0.5 0.5 0.5]);;
+		hold off
+		title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblGenAdjR2,dblGenSlope,mean(abs(vecGenSlopeCI-dblGenSlope))));
 		xlabel('Gen Population mean rate (Hz)');
 		ylabel('Gen Pop sd (Hz)');fixfig;
 		
@@ -255,23 +289,23 @@ for intRec=19%1:numel(sAggStim)
 		xlabel('Gen Neuron mean rate (Hz)');
 		ylabel('Gen Neuron Fano factor');fixfig;
 		
-		return
 		%% pre-allocate
 		vecQuantilePerf = nan(1,intQuantiles);
 		matQuantileConfusion = nan(intStimNr,intStimNr,intQuantiles);
-		
+		vecTrialQuantile = zeros(1,intTrials);
 		%split trials into quantiles
 		figure;maxfig;
 		for intQ=1:intQuantiles
 			matUseTrials = nan(intStimNr,intSplitTrialsPerOri);
-			vecUseTrials = vecStartTrials(intQ):(vecStartTrials(intQ)+intSplitTrialsPerOri-1);
+			vecUseTrialsTemp = vecStartTrials(intQ):(vecStartTrials(intQ)+intSplitTrialsPerOri-1);
 			for intOri=1:intStimNr
 				vecThisOri = find(cellSelect{intOri});
 				[vecSorted,vecReorder]=sort(vecPopRate(vecThisOri));
-				matUseTrials(intOri,:) = vecThisOri(vecReorder(vecUseTrials));
+				matUseTrials(intOri,:) = vecThisOri(vecReorder(vecUseTrialsTemp));
 			end
 			
 			vecUseTrials = sort(matUseTrials(:));
+			vecTrialQuantile(vecUseTrials) = intQ;
 			matUseRate = matMeanRate(:,vecUseTrials);
 			vecOriUse = vecOri180(vecUseTrials);
 			
@@ -295,6 +329,89 @@ for intRec=19%1:numel(sAggStim)
 		xlabel('Quantile');
 		ylabel('CV decoding accuracy');
 		fixfig;
+		
+		%% plot PCA
+		vecStim1 = find(vecOri180==0);
+		vecStim2 = find(vecOri180==90);
+		vecUseTrials = cat(2,vecStim1,vecStim2);
+		vecOriR = vecOri180(vecUseTrials);
+		vecTQR = vecTrialQuantile(vecUseTrials);
+		vecPMR = vecPopMean(vecUseTrials);
+		matForPCA = matMeanRate(:,vecUseTrials)';
+		[coeff,score,latent,tsquared,explained,mu] = pca(matForPCA);
+		vecFracExplained = cumsum(explained)/sum(explained);
+		matReduced = matForPCA(:,vecFracExplained<0.9);
+		
+		%set color
+		matColMap = redbluepurple(intQuantiles);
+		matColor = matColMap(vecTQR,:);
+		%matColor(vecOriR==0,2) = 0.5;
+		indOri1 = vecOriR==0;
+		indOri2 = vecOriR==90;
+		
+		figure;maxfig;
+		subplot(2,3,1);
+		colormap(redbluepurple(intQuantiles));
+		hold on
+		scatter(score(indOri1,1),score(indOri1,2),[],matColor(indOri1,:),'d');
+		scatter(score(indOri2,1),score(indOri2,2),[],matColor(indOri2,:),'*');
+		hold off
+		xlabel('PC1');
+		ylabel('PC2');
+		legend({'0 degs','90 degs'},'location','best');
+		title('point=trial, color=pop activity quantile');
+		fixfig;
+		
+		vecPerfPerDim = size(score,2);
+		for intDim=1:size(score,2)
+			[dblPerfP,vecDecodedIndexRateCV,matPosteriorProbabilityBin,dblMeanErrorDegsRate,matConfusion,matWeightsBin,matActivation] = ...
+				doCrossValidatedDecodingLR(score(:,1:intDim),vecOriR,intTypeCV,[],dblLambda);%dblLambda);
+			vecPerfPerDim(intDim) = dblPerfP;
+		end
+		
+		
+		%make plots of distributions of activation per quantile
+		subplot(2,3,3)
+		dblStep = 0.25;
+		vecBinE = -1.5:dblStep:1.5;
+		vecBinC = vecBinE(2:end)-dblStep/2;
+		hold on;
+		vecAllAct = nan(1,numel(vecTQR));
+		vecAbsW = nan(1,intQuantiles);
+		vecBinaryPerf = nan(1,intQuantiles);
+		beta0 = [0;0];
+		for intQ=1:intQuantiles
+			vecUseTrialsQ = vecTQR==intQ;
+			matUseResp = cat(1,matForPCA(vecUseTrialsQ,:)');
+			vecUseOri = val2idx(vecOriR(vecUseTrialsQ));
+			[dblPerfP,vecDecodedIndexRateCV,matPosteriorProbabilityBin,dblMeanErrorDegsRate,matConfusion,matWeightsBin,matActivation] = ...
+					doCrossValidatedDecodingLR(matUseResp,vecUseOri,intTypeCV,[],1);%dblLambda);
+			
+			vecBinaryPerf(intQ) = dblPerfP;
+			vecAbsW(intQ) = sum(abs(matWeightsBin(:,1)));
+			vecAllAct(vecUseTrialsQ) = matActivation(1,:)/vecAbsW(intQ);
+			
+			%split by group & plot
+			vecAct = matActivation(1,:)/vecAbsW(intQ);
+			vecCounts1 = histcounts(vecAct(vecUseOri==1),vecBinE);
+			vecCounts2 = histcounts(vecAct(vecUseOri==2),vecBinE);
+			plot(vecBinC,vecCounts1/max(vecCounts1)+intQ,'Color',[1 0 0]);
+			plot(vecBinC,vecCounts2/max(vecCounts2)+intQ,'Color',[0 0 1]);
+		end
+		hold off;
+		fixfig;
+		
+		%plot mean & decision axis
+		subplot(2,3,2)
+		hold on;
+		scatter(vecPMR(indOri1),vecAllAct(indOri1),[],matColor(indOri1,:),'d');
+		scatter(vecPMR(indOri2),vecAllAct(indOri2),[],matColor(indOri2,:),'*');
+		hold off
+		xlabel('Mean pop activity');
+		ylabel('LR activation');
+		title('point=trial, color=pop activity quantile');
+		fixfig;
+		
 		
 	end
 end

@@ -135,6 +135,8 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 			end
 			vec_dFoF = sRec(intRec).neuron(intNeuron).dFoF;
 			vecTimestamps = (1:numel(vec_dFoF)) / sRec(intRec).SampFreq;
+			dblEndSecs = (numel(vec_dFoF) - sRec(intRec).structStim.vecStimOn(end)) / sRec(intRec).SampFreq;
+			dblUseMaxDur = min(dblUseMaxDur,dblEndSecs/2);
 			%transform to resp matrix
 			[matTE,vecWindowBinCenters] = getRespMat(vecTimestamps,vec_dFoF,vecStartT,[0 dblUseMaxDur]);
 			%calc pre & post act

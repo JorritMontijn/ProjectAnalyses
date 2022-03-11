@@ -25,10 +25,10 @@ vecRunTypes = [1 2];
 intResampNum = 500;
 boolSave = true;%true;
 strFigPath = 'D:\Data\Results\TraceZeta\ultrasound\';
-strName = 'UltrasoundMod1';
+strName = 'UltrasoundModNP';
 
 % check if prepro data exists
-sDir = dir([strDataTargetPath 'AggRecUS.mat']);
+sDir = dir([strDataTargetPath 'AggRecNonParUS.mat']);
 if numel(sDir) == 1
 	sLoad = load(fullpath(sDir(1).folder,sDir(1).name));
 	sRec = sLoad.sRec;
@@ -100,11 +100,14 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 	hTic = tic;
 	for intRec=1:numel(sRec)
 		dblUseMaxDur = floor(min(diff(sRec(intRec).structStim.vecStimOn / sRec(intRec).SampFreq)));
+		dblEndSecs = (numel(sRec(intRec).neuron(1).dFoF) - sRec(intRec).structStim.vecStimOn(end)) / sRec(intRec).SampFreq;
+		dblUseMaxDur = min(dblUseMaxDur,dblEndSecs/2);
 		[varDataOut,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(sRec(intRec).structStim.vecStimType);
 		intStimTypes = numel(vecUnique);
 		intNeurons = numel(sRec(intRec).neuron);
 		matTsZetaP = nan(intStimTypes,intNeurons);
 		matAnovaP = nan(intStimTypes,intNeurons);
+		matKsP = nan(intStimTypes,intNeurons);
 		matWilcoxP = nan(intStimTypes,intNeurons);
 		for intNeuron=1:intNeurons
 			if toc(hTic) > 5
@@ -141,7 +144,9 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 				dblAnovaP = anova1(matSubResp,[],'off');
 				matAnovaP(intStimType,intNeuron) = dblAnovaP;
 				
-				dblKsP = kruskalwallis(matSubResp,[],'on')
+				%kruskal-wallis
+				dblKsP = kruskalwallis(matSubResp,[],'off');
+				matKsP(intStimType,intNeuron) = dblKsP;
 				
 				%wilcoxon ranksum
 				dblWilcoxP = ranksum(vecPreBaseAct(indUseTrials),vecStimAct(indUseTrials));
@@ -150,16 +155,15 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 					dblZetaP2=zetatstest(vecTimestamps,vec_dFoF,vecStimOnTimes,dblUseMaxDur,intResampNum,2);
 					disp intNeuron
 				end
-				
-				return
 			end
 		end
 		sRec(intRec).matTsZetaP = matTsZetaP;
 		sRec(intRec).matAnovaP = matAnovaP;
+		sRec(intRec).matKsP = matKsP;
 		sRec(intRec).matWilcoxP = matWilcoxP;
 	end
 	%save
-	save([strDataTargetPath 'AggRecUS.mat'],'sRec');
+	save([strDataTargetPath 'AggRecNonParUS.mat'],'sRec');
 end
 %% plot
 dblStep = 0.25;
@@ -168,7 +172,8 @@ vecBinC = vecBinE(2:end) - dblStep/2;
 cellTypes = {'High','Low','Inhibitory','Control'};
 vecColA = [0.8 0 0];
 vecColW = [0 0 0];
-vecColZ = lines(1)
+vecColZ = lines(1);
+vecColK = [0.5 0 0.5];
 
 %plot all recordings
 figure;maxfig;
@@ -205,6 +210,10 @@ vecAggTPW = [];
 vecAggFPZ = [];
 vecAggFPA = [];
 vecAggFPW = [];
+vecAggTPK = [];
+vecAggAucK = [];
+vecAggFPK = [];
+		
 figure;maxfig;
 for intRec=1:numel(sRec)
 	%zeta
@@ -238,11 +247,22 @@ for intRec=1:numel(sRec)
 	vecFPW = sum(vecWilcox_Ctrl>=vecThresholds',2)/intCells;
 	dblTPW = sum(vecWilcox>dblThresh)/intCells;
 	dblFPW = sum(vecWilcox_Ctrl>dblThresh)/intCells;
+	%kruskal-walliw
+	vecKruskal = -norminv(sRec(intRec).matKsP(1,:)./2);
+	vecKruskal_Ctrl = -norminv(sRec(intRec).matKsP(4,:)./2);
+	vecBothData = cat(2,vecKruskal,vecKruskal_Ctrl);
+	vecThresholds = sort(vecBothData,'descend');
+	intCells = numel(vecKruskal);
+	vecTPK = sum(vecKruskal>=vecThresholds',2)/intCells;
+	vecFPK = sum(vecKruskal_Ctrl>=vecThresholds',2)/intCells;
+	dblTPK = sum(vecKruskal>dblThresh)/intCells;
+	dblFPK = sum(vecKruskal_Ctrl>dblThresh)/intCells;
 	
 	%test
 	[AUC_Z,AciZ,Ase_Z,pAuc_Z] = getAuc(vecZeta,vecZeta_Ctrl,0.05,'mann-whitney');
 	[AUC_A,AciA,Ase_A,pAuc_A] = getAuc(vecAnova,vecAnova_Ctrl,0.05,'mann-whitney');
 	[AUC_W,AciA,Ase_W,pAuc_W] = getAuc(vecWilcox,vecWilcox_Ctrl,0.05,'mann-whitney');
+	[AUC_K,AciA,Ase_K,pAuc_K] = getAuc(vecKruskal,vecKruskal_Ctrl,0.05,'mann-whitney');
 	
 	%z vs a
 	m0 = AUC_Z - AUC_A;
@@ -256,11 +276,12 @@ for intRec=1:numel(sRec)
 	plot(vecFPZ,vecTPZ,'color',lines(1));
 	plot(vecFPA,vecTPA,'color',vecColA);
 	plot(vecFPW,vecTPW,'color',vecColW);
+	plot(vecFPK,vecTPK,'color',vecColK);
 	hold off
 	xlabel('False positive (FP) rate');
 	ylabel('True positive (TP) rate');
-	h=legend({sprintf('Ts-ZETA, AUC=%.3f',AUC_Z),sprintf('ANOVA, AUC=%.3f',AUC_A),sprintf('Wilcox, AUC=%.3f',AUC_W)},'location','best');
-	title(sprintf('FP; Z=%.3f,A=%.3f,W=%.3f',dblFPZ,dblFPA,dblFPW))
+	h=legend({sprintf('Ts-ZETA, AUC=%.3f',AUC_Z),sprintf('ANOVA, AUC=%.3f',AUC_A),sprintf('Wilcox, AUC=%.3f',AUC_W),sprintf('Ks, AUC=%.3f',AUC_K)},'location','best');
+	title(sprintf('FP; Z=%.3f,A=%.3f,W=%.3f,K=%.3f',dblFPZ,dblFPA,dblFPW,dblFPK))
 	if AUC_pZA < 0.01
 		h.Title.String=sprintf('AUC Z-A, p=%.2e',AUC_pZA);
 	else
@@ -269,7 +290,7 @@ for intRec=1:numel(sRec)
 	fixfig;
 	
 	%save if any is significant
-	if 1;%pAuc_Z < 0.05/3 || pAuc_A < 0.05/3 || pAuc_W < 0.05/3
+	if pAuc_Z < 0.05/4 || pAuc_A < 0.05/4 || pAuc_W < 0.05/4 || pAuc_K<0.05/4
 		vecAggAucZ(end+1) = AUC_Z;
 		vecAggAucA(end+1) = AUC_A;
 		vecAggAucW(end+1) = AUC_W;
@@ -279,6 +300,10 @@ for intRec=1:numel(sRec)
 		vecAggFPZ(end+1) = dblFPZ;
 		vecAggFPA(end+1) = dblFPA;
 		vecAggFPW(end+1) = dblFPW;
+		
+		vecAggTPK(end+1) = dblTPK;
+		vecAggAucK(end+1) = AUC_K;
+		vecAggFPK(end+1) = dblFPK;
 	end
 end
 export_fig(fullpath(strFigPath,[strName 'ROCs.jpg']));
@@ -286,36 +311,40 @@ export_fig(fullpath(strFigPath,[strName 'ROCs.pdf']));
 
 %% plot aggregate AUC & FP
 intSigNum = numel(vecAggAucZ);
+vecX = [0.5 4.5];
 figure,maxfig;
 subplot(2,3,1)
 hold on
 errorbar(1,mean(vecAggAucZ),std(vecAggAucZ)./sqrt(intSigNum),'x','color',vecColZ);
 errorbar(2,mean(vecAggAucA),std(vecAggAucA)./sqrt(intSigNum),'x','color',vecColA);
 errorbar(3,mean(vecAggAucW),std(vecAggAucW)./sqrt(intSigNum),'x','color',vecColW);
+errorbar(4,mean(vecAggAucK),std(vecAggAucK)./sqrt(intSigNum),'x','color',vecColK);
 hold off
-xlim([0.5 3.5]);
+xlim(vecX);
 ylim([0.5 0.8]);
 ylabel('AUC (mean +/- st err)');
-set(gca,'xtick',[1 2 3],'xticklabel',{'Ts-ZETA','ANOVA','Wilcox'});
+set(gca,'xtick',[1 2 3 4],'xticklabel',{'Ts-ZETA','ANOVA','Wilcox','Kruskal'});
 xtickangle(30);
 fixfig;
 [h,pAZ]=ttest(vecAggAucZ,vecAggAucA);
 [h,pWZ]=ttest(vecAggAucZ,vecAggAucW);
 [h,pAW]=ttest(vecAggAucW,vecAggAucA);
+[h,pZK]=ttest(vecAggAucZ,vecAggAucK);
 title(sprintf('T-tests AUCs;AZ-p=%.3f,WZ-p=%.3f,WA-p=%.3f',pAZ,pWZ,pAW));
 
 subplot(2,3,2)
 hold on
-plot([0.5 3.5],[0.05 0.05],'--','color',[0.3 0.3 0.3]);
+plot(vecX,[0.05 0.05],'--','color',[0.3 0.3 0.3]);
 text(1.5,0.05,'\alpha = 0.05','Fontsize',14,'horizontalalignment','center','verticalalignment','bottom','color',[0.3 0.3 0.3])
 errorbar(1,mean(vecAggFPZ),std(vecAggFPZ)./sqrt(intSigNum),'x','color',vecColZ);
 errorbar(2,mean(vecAggFPA),std(vecAggFPA)./sqrt(intSigNum),'x','color',vecColA);
 errorbar(3,mean(vecAggFPW),std(vecAggFPW)./sqrt(intSigNum),'x','color',vecColW);
+errorbar(4,mean(vecAggFPK),std(vecAggFPK)./sqrt(intSigNum),'x','color',vecColK);
 hold off
-xlim([0.5 3.5]);
+xlim(vecX);
 %ylim([0.5 0.8]);
 ylabel('FP rate (mean +/- st err)');
-set(gca,'xtick',[1 2 3],'xticklabel',{'Ts-ZETA','ANOVA','Wilcox'});
+set(gca,'xtick',[1 2 3 4],'xticklabel',{'Ts-ZETA','ANOVA','Wilcox','Kruskal'});
 xtickangle(30);
 %set(gca,'yscale','log');ylim([0.002 0.5]);
 fixfig;
@@ -323,6 +352,28 @@ fixfig;
 [h,pAlphaA]=ttest(vecAggFPA,0.05);
 [h,pAlphaW]=ttest(vecAggFPW,0.05);
 title(sprintf('T-tests FPR vs 0.05;Z-p=%.3f,A-p=%.2e,W-p=%.2e',pAlphaZ,pAlphaA,pAlphaW));
+
+
+subplot(2,3,3)
+hold on
+plot(vecX,[0.05 0.05],'--','color',[0.3 0.3 0.3]);
+text(1.5,0.05,'\alpha = 0.05','Fontsize',14,'horizontalalignment','center','verticalalignment','bottom','color',[0.3 0.3 0.3])
+errorbar(1,mean(vecAggTPZ),std(vecAggTPZ)./sqrt(intSigNum),'x','color',vecColZ);
+errorbar(2,mean(vecAggTPA),std(vecAggTPA)./sqrt(intSigNum),'x','color',vecColA);
+errorbar(3,mean(vecAggTPW),std(vecAggTPW)./sqrt(intSigNum),'x','color',vecColW);
+errorbar(4,mean(vecAggTPK),std(vecAggTPK)./sqrt(intSigNum),'x','color',vecColK);
+hold off
+xlim(vecX);
+%ylim([0.5 0.8]);
+ylabel('TP rate (mean +/- st err)');
+set(gca,'xtick',[1 2 3 4],'xticklabel',{'Ts-ZETA','ANOVA','Wilcox','Kruskal'});
+xtickangle(30);
+%set(gca,'yscale','log');ylim([0.002 0.5]);
+fixfig;
+[h,pAlphaZ]=ttest(vecAggTPZ,0.05);
+[h,pAlphaA]=ttest(vecAggTPA,0.05);
+[h,pAlphaW]=ttest(vecAggTPW,0.05);
+title(sprintf('T-tests TPR vs 0.05;Z-p=%.3f,A-p=%.2e,W-p=%.2e',pAlphaZ,pAlphaA,pAlphaW));
 
 export_fig(fullpath(strFigPath,[strName 'Summary.jpg']));
 export_fig(fullpath(strFigPath,[strName 'Summary.pdf']));

@@ -183,6 +183,10 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 				vecAnovaP_out = anovan(y,{g1,g2},'model','full','display','off');
 				matAnovaP(intShuff,intNeuron) = vecAnovaP_out(end);
 				
+				%non-parametric anova
+				dis = f_dis(X,method,adj,minkR,nanFlag)
+				result = f_npManova(dis,x,iter,verb,model)
+				
 				%wilcoxon ranksum
 				dblWilcoxP = ranksum(vecStimAct(vecUseStimType1),vecStimAct(vecUseStimType4));
 				matWilcoxP(intShuff,intNeuron) = dblWilcoxP;

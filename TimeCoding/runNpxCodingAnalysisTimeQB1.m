@@ -17,7 +17,8 @@ cellUseAreas = {...
 	...'posteromedial visual area',...
 	};
 
-boolHome = false;
+boolSaveFigs = true;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding';
@@ -36,7 +37,7 @@ sAggNeuron(strcmpi({sAggNeuron.SubjectType},'DBA')) = [];
 intAreas = numel(cellUseAreas);
 matDecPerf = [];
 dblStartT = 0;
-boolSaveFigs = true;
+
 %% go through recordings
 tic
 for intRec=19%1:numel(sAggStim)

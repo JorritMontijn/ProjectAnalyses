@@ -17,6 +17,7 @@ cellUseAreas = {...
 	...'posteromedial visual area',...
 	};
 
+boolSaveFigs = true;
 boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
@@ -182,42 +183,34 @@ for intRec=19%1:numel(sAggStim)
 		end
 		vecStimOnStitched = vecPseudoEventT;
 		
-		%% prep svm
+		%% decode using first spike delay
 		%constants
 		[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
 		intStimNr = numel(vecUnique);
-		dblLambda = 1/1000;
+		dblLambda = 1;%1
 		intTypeCV = 2;
 		dblUseStartT = 0;
 		dblUseMaxDur = dblMaxDur-dblUseStartT;
 		intUseMax = inf;
-		%set SVM options
-		cvp = cvpartition(numel(vecOri180),'KFold',10);%numel(vecOri180)/numel(vecUnique));
-		template_svm = templateSVM('KernelFunction','polynomial'); %'linear' | 'gaussian' | 'rbf' | 'polynomial'
 		
-		%% decode using first spike delay
 		%simple spike-delay "time code" = identical to hybrid time code form with spike # = 1
 		matSpikeDelay = cellfun(@(x) min(x(x>dblUseStartT)),cellSpikeTimesPerCellPerTrial,'UniformOutput',false);
 		matSpikeDelay(cellfun(@isempty,matSpikeDelay)) = {dblMaxDur};%what to do here?
 		matSpikeDelay = cell2mat(matSpikeDelay);
-		%dblPerformanceDelayCV = sum(kfoldPredict(fitcecoc(matSpikeDelay',vecOri180,'Learners',template_svm,'cvpartition',cvp,'verbose',0)) == vecOri180(:))/numel(vecOri180);
-		[dblPerformanceDelayCV,vecDecodedIndexRateCV,matPosteriorProbabilityRate,dblMeanErrorDegsRate,matConfusionRate,matWeightsRate] = ...
+		[dblPerformanceDelayCV,vecDecodedIndexDelayCV,matPosteriorProbabilityDelay,dblMeanErrorDegsDelay,matConfusionDelay,matWeightsDelay] = ...
 			doCrossValidatedDecodingLR(-log(matSpikeDelay'),vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
-		
+	
 		%simple "rate code" = identical to transformed hybrid time code with spike # = inf
 		matSpikeCounts = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
 		matMeanRate = matSpikeCounts./dblUseMaxDur;
 		[dblPerformanceMeanRateCV,vecDecodedIndexRateCV,matPosteriorProbabilityRate,dblMeanErrorDegsRate,matConfusionRate,matWeightsRate] = ...
 			doCrossValidatedDecodingLR(matMeanRate,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
-		%dblPerformanceMeanRateCV = sum(kfoldPredict(fitcecoc(matMeanRate',vecOri180,'Learners',template_svm,'cvpartition',cvp,'verbose',0)) == vecOri180(:))/numel(vecOri180);
-		%dblPerformanceMeanRateCV = dblPerformanceDelayCV;
-		
+	
 		%simple "rate-as-time code" = identical to raw hybrid time code with spike # = inf
 		matRateAsTimeCode = -log(1./(matMeanRate+1/dblUseMaxDur));
 		[dblPerformanceMeanRateAsTimeCV,vecDecodedIndexRateCV,matPosteriorProbabilityRate,dblMeanErrorDegsRate,matConfusionRate,matWeightsRate] = ...
 			doCrossValidatedDecodingLR(matRateAsTimeCode,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
-		%dblPerformanceMeanRateAsTimeCV = sum(kfoldPredict(fitcecoc(matRateAsTimeCode',vecOri180,'Learners',template_svm,'cvpartition',cvp,'verbose',0)) == vecOri180(:))/numel(vecOri180);
-		
+	
 		%calculate hybrid form for various spike # inclusions
 		%variables
 		vecAllSpikeCounts = matSpikeCounts(:);
@@ -229,6 +222,7 @@ for intRec=19%1:numel(sAggStim)
 		vecSpikeFractionUsedPerThreshold = zeros(size(vecRunThresholds));
 		vecPerfTimeCode = zeros(size(vecRunThresholds));
 		vecPerfTimeAsRateCode = zeros(size(vecRunThresholds));
+		vecPerfFusionCode = zeros(size(vecRunThresholds));
 		for intIdxT = 1:numel(vecRunThresholds)
 			%calc spikes used
 			intSpikeNum = vecRunThresholds(intIdxT);
@@ -238,7 +232,6 @@ for intRec=19%1:numel(sAggStim)
 			intTotLeftOver = sum(vecSpikeTrainsWithLeftovers.*vecSpikesLeftOver);
 			vecSpikeFractionUsedPerThreshold(intIdxT) = (intTotSpikeNum-intTotLeftOver)/intTotSpikeNum;
 			
-			%get time code
 			matTimeCode = cellfun(@(vecSpikeT) getTimeCode(vecSpikeT,dblUseStartT,intSpikeNum,dblUseMaxDur),cellSpikeTimesPerCellPerTrial);
 			matTimeAsRateCode = (1./matTimeCode) - 1/dblUseMaxDur;
 			matLogTimeCode = -log(matTimeCode);
@@ -247,10 +240,13 @@ for intRec=19%1:numel(sAggStim)
 				doCrossValidatedDecodingLR(matLogTimeCode,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
 			[dblPerformanceTimeAsRateCV,vecDecodedIndexTimeCV,matPosteriorProbabilityTime,dblMeanErrorDegsTime,matConfusionTime,matWeightsTime] = ...
 				doCrossValidatedDecodingLR(matTimeAsRateCode,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
-			%dblPerformanceTimeCV = sum(kfoldPredict(fitcecoc(matLogTimeCode',vecOri180,'Learners',template_svm,'cvpartition',cvp,'verbose',0)) == vecOri180(:))/numel(vecOri180);
-			%dblPerformanceTimeAsRateCV = sum(kfoldPredict(fitcecoc(matTimeAsRateCode',vecOri180,'Learners',template_svm,'cvpartition',cvp,'verbose',0)) == vecOri180(:))/numel(vecOri180);
-		
+			
+			%% decode using both
+			[dblPerformanceFusionCV,vecDecodedIndexTimeCV,matPosteriorProbabilityTime,dblMeanErrorDegsTime,matConfusionTime,matWeightsTime] = ...
+				doCrossValidatedDecodingLR(cat(1,matTimeAsRateCode,matLogTimeCode),vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
+			
 			%save
+			vecPerfFusionCode(intIdxT) = dblPerformanceFusionCV;
 			vecPerfTimeCode(intIdxT) = dblPerformanceTimeCV;
 			vecPerfTimeAsRateCode(intIdxT) = dblPerformanceTimeAsRateCV;
 		end
@@ -259,6 +255,7 @@ for intRec=19%1:numel(sAggStim)
 		vecSpikeFractionUsedPerThreshold = cat(1,0,vecSpikeFractionUsedPerThreshold);
 		vecPerfTimeCode = cat(1,1/intStimNr,vecPerfTimeCode);
 		vecPerfTimeAsRateCode = cat(1,1/intStimNr,vecPerfTimeAsRateCode);
+		vecPerfFusionCode = cat(1,1/intStimNr,vecPerfFusionCode);
 		
 		%% plot
 		vecColTime = lines(1);
@@ -278,7 +275,7 @@ for intRec=19%1:numel(sAggStim)
 		plot(vecRunThresholds,vecPerfTimeCode,'color',vecColTime);
 		hold off
 		ylabel('Decoding accuracy');
-		title('Time code (mean ISI)');
+		title('Log-time code (mean ISI)');
 		xlabel('Max. # of spikes used per cell per stim');
 		legend({'Chance','Rate-as-time code','Time code'},'Location','best');
 		fixfig;
@@ -303,11 +300,12 @@ for intRec=19%1:numel(sAggStim)
 		plot([0 max(vecSpikeFractionUsedPerThreshold)],dblPerformanceMeanRateCV*[1 1],'--','color',[0 0 0]);
 		plot(vecSpikeFractionUsedPerThreshold,vecPerfTimeAsRateCode,'color',vecColRate);
 		plot(vecSpikeFractionUsedPerThreshold,vecPerfTimeCode,'color',vecColTime);
+		plot(vecSpikeFractionUsedPerThreshold,vecPerfFusionCode,'color',(vecColRate+vecColTime)/2);
 		hold off
 		ylabel('Decoding accuracy');
 		title('Time code (mean ISI)');
 		xlabel('Fraction of spikes used');
-		legend({'Chance','Rate-as-time code','Time code'},'Location','best');
+		legend({'Chance','Full log-time code','Full rate code','Rate code','Log-time code','Fusion code'},'Location','best');
 		fixfig;
 		
 		
@@ -336,20 +334,16 @@ for intRec=19%1:numel(sAggStim)
 		legend({'Chance','Rate code','Time-as-rate code'},'Location','best');
 		fixfig;
 		
-		if 0
+		if boolSaveFigs
 			%% save fig
-			export_fig(fullpath(strFigurePath,sprintf('2B1_TimeCodingT%s_%s.tif',num2str(dblStartT),strRec)));
-			export_fig(fullpath(strFigurePath,sprintf('2B1_TimeCodingT%s_%s.pdf',num2str(dblStartT),strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2B1_LogTimeCodingT%s_%s.tif',num2str(dblStartT),strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2B1_LogTimeCodingT%s_%s.pdf',num2str(dblStartT),strRec)));
 		end
 		
 		%% run same as above, but with time progression; use only spikes in first x ms
 		%constants
 		[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
 		intStimNr = numel(vecUnique);
-		dblLambda = 1;
-		intTypeCV = 2;
-		dblUseStartT = 0;
-		dblUseMaxDur = dblMaxDur-dblUseStartT;
 		dblStep = 10/1000;%10ms
 		vecEndTimes = (dblStep:dblStep:dblUseMaxDur)+dblUseStartT;
 		
@@ -359,6 +353,7 @@ for intRec=19%1:numel(sAggStim)
 		vecSpikeFractionUsedPerThreshold2 = zeros(size(vecEndTimes));
 		vecPerfTimeCode2 = zeros(size(vecEndTimes));
 		vecPerfTimeAsRateCode2 = zeros(size(vecEndTimes));
+		vecPerfFusionCode2 = zeros(size(vecEndTimes));
 		for intIdxT = 1:numel(vecEndTimes)
 			%calc spikes used
 			dblEndTime = vecEndTimes(intIdxT);
@@ -369,6 +364,7 @@ for intRec=19%1:numel(sAggStim)
 			vecSpikeFractionUsedPerThreshold2(intIdxT) = sum(flat(cellfun(@numel,cellCroppedSpikeT)))/intTotSpikeNum;
 			
 			%get time code
+			matRateCode = cellfun(@numel,cellCroppedSpikeT)./dblEndTime;
 			matTimeCode = cellfun(@(vecSpikeT) getTimeCode(vecSpikeT,dblUseStartT,inf,dblEndTime),cellCroppedSpikeT);
 			matTimeAsRateCode = (1./matTimeCode) - 1/dblEndTime;
 			matLogTimeCode = -log(matTimeCode);
@@ -377,12 +373,13 @@ for intRec=19%1:numel(sAggStim)
 				doCrossValidatedDecodingLR(matLogTimeCode,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
 			[dblPerformanceTimeAsRateCV,vecDecodedIndexTimeCV,matPosteriorProbabilityTime,dblMeanErrorDegsTime,matConfusionTime,matWeightsTime] = ...
 				doCrossValidatedDecodingLR(matTimeAsRateCode,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
-			%dblPerformanceTimeCV = sum(kfoldPredict(fitcecoc(matLogTimeCode',vecOri180,'Learners',template_svm,'cvpartition',cvp,'verbose',0)) == vecOri180(:))/numel(vecOri180);
-			%dblPerformanceTimeAsRateCV = sum(kfoldPredict(fitcecoc(matTimeAsRateCode',vecOri180,'Learners',template_svm,'cvpartition',cvp,'verbose',0)) == vecOri180(:))/numel(vecOri180);
-		
+			[dblPerformanceFusionCV,vecDecodedIndexTimeCV,matPosteriorProbabilityTime,dblMeanErrorDegsTime,matConfusionTime,matWeightsTime] = ...
+				doCrossValidatedDecodingLR(cat(1,matTimeAsRateCode,matLogTimeCode),vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
+			
 			%save
 			vecPerfTimeCode2(intIdxT) = dblPerformanceTimeCV;
 			vecPerfTimeAsRateCode2(intIdxT) = dblPerformanceTimeAsRateCV;
+			vecPerfFusionCode2(intIdxT) = dblPerformanceFusionCV;
 		end
 		
 		%% plot
@@ -401,9 +398,9 @@ for intRec=19%1:numel(sAggStim)
 		plot(vecEndTimes,vecPerfTimeCode2,'color',vecColTime);
 		hold off
 		ylabel('Decoding accuracy');
-		title('Time code (mean ISI)');
+		title('Log time code (log-mean ISI)');
 		xlabel('End of epoch (s)');
-		legend({'Chance','Rate-as-time code','Time code'},'Location','best');
+		legend({'Chance','Rate-as-time code','Log time code'},'Location','best');
 		fixfig;
 		
 		subplot(2,3,3)
@@ -425,11 +422,12 @@ for intRec=19%1:numel(sAggStim)
 		plot([0 max(vecSpikeFractionUsedPerThreshold2)],dblPerformanceMeanRateCV*[1 1],'--','color',[0 0 0]);
 		plot(vecSpikeFractionUsedPerThreshold2,vecPerfTimeAsRateCode2,'color',vecColRate);
 		plot(vecSpikeFractionUsedPerThreshold2,vecPerfTimeCode2,'color',vecColTime);
+		plot(vecSpikeFractionUsedPerThreshold2,vecPerfFusionCode2,'color',(vecColRate+vecColTime)/2);
 		hold off
 		ylabel('Decoding accuracy');
 		title('Time code (mean ISI)');
 		xlabel('Fraction of spikes used');
-		legend({'Chance','Rate-as-time code','Time code'},'Location','best');
+		legend({'Chance','Full log-time code','Full rate code','Rate code','Log-time code','Fusion code'},'Location','best');
 		fixfig;
 		
 		subplot(2,3,5)
@@ -441,7 +439,7 @@ for intRec=19%1:numel(sAggStim)
 		ylabel('Decoding accuracy');
 		title('Time code (mean ISI)');
 		xlabel('Fraction of spikes used');
-		legend({'Chance','Rate-as-time code','Time code'},'Location','best');
+		legend({'Chance','Rate-as-time code','Log-time code'},'Location','best');
 		fixfig;
 		
 		subplot(2,3,6)
@@ -456,10 +454,10 @@ for intRec=19%1:numel(sAggStim)
 		legend({'Chance','Rate code','Time-as-rate code'},'Location','best');
 		fixfig;
 		
-		if 0
+		if boolSaveFigs
 			%% save fig
-			export_fig(fullpath(strFigurePath,sprintf('2B2_TimeCoding2T%s_%s.tif',num2str(dblStartT),strRec)));
-			export_fig(fullpath(strFigurePath,sprintf('2B2_TimeCoding2T%s_%s.pdf',num2str(dblStartT),strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2B2_LogTimeCoding2T%s_%s.tif',num2str(dblStartT),strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2B2_LogTimeCoding2T%s_%s.pdf',num2str(dblStartT),strRec)));
 		end
 		
 	end

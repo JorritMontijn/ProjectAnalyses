@@ -49,8 +49,6 @@ matR_OP_All = nan(intAreas,intAreas,numel(sAggStim),2);
 matR_OO_All = nan(intAreas,intAreas,numel(sAggStim),2);
 matR_PO_All = nan(intAreas,intAreas,numel(sAggStim),2);
 mat_xR_All = nan(intAreas,intAreas,numel(sAggStim),2);
-matDecPerf = [];
-matDecConf = [];
 
 %% go through recordings
 tic
@@ -62,23 +60,23 @@ for intRec=19%1:numel(sAggStim)
 	%remove stimulus sets that are not 24 stim types
 	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
 	% concatenate stimulus structures
-	structStim = catstim(sThisRec.cellBlock);
+	structStim = catstim(sThisRec.cellBlock(1:2));
 	vecStimOnTime = structStim.vecStimOnTime;
 	vecStimOffTime = structStim.vecStimOffTime;
 	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';
 	vecTempFreq = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).TemporalFrequency})';
 	vecPhase = structStim.Phase;
 	vecDelayTimeBy = vecPhase./vecTempFreq;
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition]  = val2idx(vecOrientation);
+	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 	indRem=vecTrialRepetition>min(vecRepNum);
 	vecOrientation(indRem) = [];
 	vecDelayTimeBy(indRem) = [];
 	vecStimOnTime(indRem) = [];
 	vecStimOffTime(indRem) = [];
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition]  = val2idx(vecOrientation);
+	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 	intTrialNum = numel(vecStimOnTime);
-	intOriNum = numel(unique(vecOrientation));
-	intRepNum = intTrialNum/intOriNum;
+	intStimNum = numel(unique(vecOrientation));
+	intRepNum = intTrialNum/intStimNum;
 	
 	%remove neurons from other recs
 	indQualifyingNeurons = contains({sAggNeuron.Exp},strRec);
@@ -101,9 +99,33 @@ for intRec=19%1:numel(sAggStim)
 		%% get orientation responses & single-trial population noise
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
 		intRec
-		%% get spike times
+		%% remove untuned cells
+		%get data matrix
 		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-		intNumN = numel(cellSpikeTimes);
+		dblDur = median(vecStimOffTime-vecStimOnTime);
+		matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur)./dblDur;
+		
+		%remove untuned cells
+		vecOri180 = mod(vecOrientation,180)*2;
+		sOut = getTuningCurves(matData,vecOri180,0);
+		dblMinRate = 0.1;
+		indTuned = sOut.vecOriAnova<0.05;
+		indResp = cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
+		
+		%prep
+		vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
+		vecPrefRad = sOut.matFittedParams(indResp,1);
+		cellSpikeTimes(~indResp)=[];
+		indTuned(~indResp)=[];
+		
+		intTunedN = sum(indTuned);
+		intNumN = sum(indResp);
+		matResp = matData(indResp,:);
+		
+		vecOri180 = mod(vecOrientation,180)*2;
+		[vecOriIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
+		intOriNum = numel(vecUnique);
+		intRepNum = min(vecPriorDistribution);
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		dblPreTime = 0.3;
 		dblPostTime = 0.3;
@@ -117,17 +139,18 @@ for intRec=19%1:numel(sAggStim)
 		matBNT = nan(intBinNum,intNumN,intTrialNum);
 		%matBNT_shifted = nan(intBinNum,intNumN,intTrialNum);
 		
-		vecRepCounter = zeros(1,intOriNum);
 		for intN=1:intNumN
+			vecRepCounter = zeros(1,intOriNum);
 			[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime-dblPreTime,dblMaxDur);
 			for intTrial=1:intTrialNum
-				if intN==1
-					intTrialOriIdx = vecOriIdx(intTrial);
-					vecRepCounter(intTrialOriIdx) = vecRepCounter(intTrialOriIdx) + 1;
-					intRep = vecRepCounter(intTrialOriIdx);
-				end
+				intTrialOriIdx = vecOriIdx(intTrial);
+				vecRepCounter(intTrialOriIdx) = vecRepCounter(intTrialOriIdx) + 1;
+				intRep = vecRepCounter(intTrialOriIdx);
 				vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
 				vecSpikeC = histcounts(vecSpikeT,vecBinEdges);
+				if any(isnan(vecSpikeC))
+					error
+				end
 				matBNSR(:,intN,intTrialOriIdx,intRep) = vecSpikeC;
 				matBNT(:,intN,intTrial) = vecSpikeC;
 				%matBNT_shifted(:,intN,intTrial) = vecSpikeC;
@@ -136,14 +159,17 @@ for intRec=19%1:numel(sAggStim)
 		end
 		
 		%% time progression
-		matDecPerf(:,end+1)=nan;
-		matDecConf(:,end+1)=nan;
+		matDecActPerTrial = nan(intBinNum,intTrialNum);
+		matDecIdxPerTrial = nan(intBinNum,intTrialNum);
+		matDecRealIdxPerTrial = nan(intBinNum,intTrialNum);
+		matDecConfPerTrial = nan(intBinNum,intTrialNum);
+		vecDecPerf = nan(intBinNum,1);
+		vecDecConf = nan(intBinNum,1);
 		dblLambda = 1;
 		intTypeCV = 2;
 		vecOri180 = mod(vecOrientation,180)*2;
 		vecRepNum180 = vecRepNum(1:12)*2;
-		intOriNum180 = intOriNum/2;
-		matDecConfusion = nan(intOriNum180,intOriNum180,intBinNum);
+		matDecConfusion = nan(intOriNum,intOriNum,intBinNum);
 		vecSpikesPerBin = mean(sum(matBNT,2),3)';
 		matAcrossTimeDecoder = nan(intBinNum,intBinNum);
 		[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
@@ -152,14 +178,20 @@ for intRec=19%1:numel(sAggStim)
 			[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
 				doCrossValidatedDecodingLR(squeeze(matBNT(intBinIdx,:,:)),vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
 			vecDecErr(intBinIdx) = dblMeanErrorDegs;
-			matDecPerf(intBinIdx,end) = dblPerformanceCV;
+			vecDecPerf(intBinIdx) = dblPerformanceCV;
 			vecConf = nan(size(vecDecodedIndexCV));
 			for intTrial=1:numel(vecTrialTypeIdx)
 				vecConf(intTrial) = matPosteriorProbability(vecTrialTypeIdx(intTrial),intTrial);
 			end
-			matDecConf(intBinIdx,end) = mean(vecConf);
+			vecDecConf(intBinIdx) = mean(vecConf);
 			matDecConfusion(:,:,intBinIdx) = matConfusion;
 			
+			%trial vectors
+			matDecActPerTrial(intBinIdx,:)=squeeze(sum(matBNT(intBinIdx,:,:),2));
+			matDecIdxPerTrial(intBinIdx,:)=vecDecodedIndexCV;
+			matDecRealIdxPerTrial(intBinIdx,:)=vecTrialTypeIdx;
+			matDecConfPerTrial(intBinIdx,:)=vecConf;
+		
 			%% apply on all bins
 			for intTestBinIdx=1:intBinNum
 				if intTestBinIdx == intBinIdx
@@ -227,7 +259,7 @@ for intRec=19%1:numel(sAggStim)
 		dblChance = 1/numel(vecPriorDistribution);
 		figure;maxfig;
 		subplot(2,3,1)
-		plot(vecStimTime,matDecPerf(:,end)');
+		plot(vecStimTime,vecDecPerf(:,end)');
 		hold on
 		plot([vecStimTime(1) vecStimTime(end)],[dblChance dblChance],'--','color',[0.5 0.5 0.5]);
 		hold off
@@ -244,7 +276,7 @@ for intRec=19%1:numel(sAggStim)
 		fixfig;
 		
 		subplot(2,3,3)
-		plot(vecStimTime,(matDecPerf(:,end)./dblChance)'./(vecSpikesPerBin./dblBinWidth))
+		plot(vecStimTime,(vecDecPerf(:,end)./dblChance)'./(vecSpikesPerBin./dblBinWidth))
 		title('Dec perf / spike')
 		xlabel('Time after onset (s)');
 		ylabel('Performance/spike');
@@ -254,7 +286,7 @@ for intRec=19%1:numel(sAggStim)
 		cMap=colormap(hS,blueredblue);
 		hB=colorbar;
 		set(gca,'clim',[min(vecStimTime) max(vecStimTime)]);
-		h=cline([vecSpikesPerBin(:); vecSpikesPerBin(1)]./dblBinWidth,[matDecPerf(:,end); matDecPerf(1,end)],[vecStimTime(:); vecStimTime(1)]);
+		h=cline([vecSpikesPerBin(:); vecSpikesPerBin(1)]./dblBinWidth,[vecDecPerf(:,end); vecDecPerf(1,end)],[vecStimTime(:); vecStimTime(1)]);
 		set(h,'LineWidth',2);
 		hold on
 		plot([min(vecSpikesPerBin) max(vecSpikesPerBin)]./dblBinWidth,[dblChance dblChance],'--','color',[0.5 0.5 0.5]);
@@ -274,8 +306,177 @@ for intRec=19%1:numel(sAggStim)
 		ylabel('Testing bin');
 		fixfig;grid off
 		
+		matNormAct = zscore(matDecActPerTrial,[],2);
+		matCorrect = matDecIdxPerTrial == matDecRealIdxPerTrial;
+		%matDecConfPerTrial(intBinIdx,:)=vecConf;
+		
+		%%
 		export_fig(fullpath(strFigurePath,sprintf('A1_PopActDynamics_%s.tif',strRec)));
 		export_fig(fullpath(strFigurePath,sprintf('A1_PopActDynamics_%s.pdf',strRec)));
+		
+		%% make example figure; decode & make quantiles
+		% plot example single-neuron response to drifting gratings
+		vecOriP = sOut.vecOriAnova(indResp);
+		[a,intIdx]=min(vecOriP);
+		matNeuronR = bsxfun(@rdivide,squeeze(matBNSR(:,intIdx,:,:)),diff(vecBinEdges(:)));
+		vecNeuronTrialR = matResp(intIdx,:);
+		matMeanResp = sOut.matMeanResp(indResp,:);
+		matSdResp = sOut.matSDResp(indResp,:);
+		vecMeanR = matMeanResp(intIdx,:);
+		vecSemR = matSdResp(intIdx,:)/sqrt(intRepNum);
+		[a,intPrefIdx]=max(vecMeanR);
+		vecUseStims = [-1:1];
+		intAggRepNum = numel(vecUseStims)*intRepNum;
+		vecPrefIdx =  modx(intPrefIdx + vecUseStims,numel(vecMeanR));
+		intOrthIdx = modx(intPrefIdx-numel(vecMeanR)/2,numel(vecMeanR));
+		intObliIdx = modx(intPrefIdx+1,numel(vecMeanR));
+		vecOrthIdx =  modx(intOrthIdx + vecUseStims,numel(vecMeanR));
+		matPrefResp = reshape(matNeuronR(:,vecPrefIdx,:),[intBinNum intAggRepNum]);
+		matOrthResp = reshape(matNeuronR(:,vecOrthIdx,:),[intBinNum intAggRepNum]);
+		%matOrthResp = squeeze(matNeuronR(:,vecOrthIdx,:));
+		
+		vecColOrth = [0 0 0];
+		vecColPref = lines(1);
+		vecColObli = [0 0.3 0];%[0.8 0 0.8];
+		vecColBckg = [0.6 0.6 0.6];
+		figure;maxfig;
+		h=subplot(2,3,1);
+		hold on
+		errorbar(vecStimTime,mean(matOrthResp,2),std(matOrthResp,[],2)/sqrt(intAggRepNum),'color',vecColOrth);
+		errorbar(vecStimTime,mean(matPrefResp,2),std(matPrefResp,[],2)/sqrt(intAggRepNum),'color',vecColPref);
+		hold off
+		legend({'Orth','Pref'});
+		xlabel('Time after stim onset (s)');
+		ylabel('Spiking rate (Hz)');
+		fixfig;
+		
+		subplot(2,3,2);
+		vecPlotOris = vecUnique/2;
+		errorbar([vecPlotOris 180],[vecMeanR vecMeanR(1)],[vecSemR vecSemR(1)],'color',vecColBckg);
+		hold on
+		errorbar(vecPlotOris(intObliIdx),vecMeanR(intObliIdx),vecSemR(intObliIdx),'color',vecColObli);
+		hold off
+		xlabel('Stimulus orientation (degs)')
+		ylabel('Spiking rate (Hz)');
+		xlim([-5 185]);
+		set(gca,'xtick',0:45:180);
+		ylim(gca,get(h,'ylim'));
+		fixfig;grid off;
+		
+		subplot(2,3,3);
+		dblSpikeStep = 2;
+		vecSpikeE = 0:dblSpikeStep:20;
+		vecSpikeC = vecSpikeE(2:end)-dblSpikeStep/2;
+		matCounts = nan(intOriNum,numel(vecSpikeC));
+		for intOri=1:intOriNum
+			matCounts(intOri,:) = histcounts(vecNeuronTrialR(ismember(vecTrialTypeIdx,intOri)),vecSpikeE);
+		end
+		vecOrthR = vecNeuronTrialR(ismember(vecTrialTypeIdx,intOrthIdx));
+		vecObliR = vecNeuronTrialR(ismember(vecTrialTypeIdx,intObliIdx));
+		vecPrefR = vecNeuronTrialR(ismember(vecTrialTypeIdx,intPrefIdx));
+		vecNotObliR = vecNeuronTrialR(~ismember(vecTrialTypeIdx,intObliIdx));
+		dblObliqueDegs = vecUnique(intObliIdx)/2;
+		vecCountsPref = histcounts(vecPrefR,vecSpikeE);
+		vecCountsOrth = histcounts(vecOrthR,vecSpikeE);
+		vecCountsObli = histcounts(vecObliR,vecSpikeE);
+		vecCountsNotObli =  histcounts(vecNotObliR,vecSpikeE);
+		hold on
+		plot(vecSpikeC,matCounts(~ismember(1:intOriNum,intObliIdx),:)./sum(matCounts(~ismember(1:intOriNum,intObliIdx),:),2),'color',vecColBckg);
+		%plot(vecSpikeC,vecCountsOrth/sum(vecCountsOrth),'color',vecColBckg);
+		%plot(vecSpikeC,vecCountsNotObli/sum(vecCountsNotObli),'color',vecColBckg);
+		plot(vecSpikeC,vecCountsObli/sum(vecCountsObli),'color',vecColObli);
+		hold off
+		xlabel('Spiking rate (Hz)');
+		ylabel('Probability (# of trials)');
+		%legend({sprintf('Not %d degs',dblObliqueDegs),sprintf('%d degs',dblObliqueDegs)});
+		fixfig;
+		
+		
+		subplot(2,3,4);
+		vecRelProb = vecCountsObli./(max(matCounts(~ismember(1:intOriNum,intObliIdx),:),[],1));
+		colormap(cat(1,[0 0 0],vecColObli));
+		hold on
+		plot(vecSpikeC([1 end]),[1 1],'-','color',vecColBckg);
+		plot(vecSpikeC,vecRelProb,'color',vecColObli);
+		%cline(vecSpikeC,vecRelProb,ones(size(vecRelProb)),double(vecRelProb>1)+1,true);
+		%plot(mean(vecObliR)*[1 1],[0 max(get(gca,'ylim'))-0.01],'--','color',vecColObli);
+		hold off
+		xlabel('Spiking rate (Hz)');
+		ylabel(sprintf('Ratio stim=%d/(most likely other stim)',dblObliqueDegs));
+		fixfig;grid off
+		
+		%
+		[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
+			doCrossValidatedDecodingLR(matResp,vecOri180,intTypeCV,[],0);
+		vecConfidence = nan(size(vecDecodedIndexCV));
+		for intTrial=1:numel(vecTrialTypeIdx)
+			vecConfidence(intTrial) = matPosteriorProbability(vecTrialTypeIdx(intTrial),intTrial);
+		end
+		
+		subplot(2,3,5)
+		colormap(redwhite(1024))
+		imagesc(vecUnique/2,vecUnique/2,matConfusion);
+		xlabel('Real orientation');
+		ylabel('Decoded orientation');
+		set(gca,'xtick',0:45:179);
+		set(gca,'ytick',0:45:179);
+		h=colorbar;
+		ylabel(h,'# of trials');
+		fixfig;grid off;
+		
+		%%
+		% split trials into quantiles (per ori)
+		vecPopRate = sum(matResp,1);
+		intQuantiles = 3;
+		intSplitTrialsPerOri = min(floor(cellfun(@sum,cellSelect)/intQuantiles));
+		vecPriorDistributionSplit = ones(size(vecPriorDistribution))*intSplitTrialsPerOri;
+		vecStartTrials = round(intRepNum*linspace(1/intRepNum,(1+1/intRepNum),intQuantiles+1));
+		vecStartTrials(end)=[];
+		vecTrialQuantile = zeros(1,intTrials);
+		for intQ=1:intQuantiles
+			matUseTrials = nan(intOriNum,intSplitTrialsPerOri);
+			vecUseTrialsTemp = vecStartTrials(intQ):(vecStartTrials(intQ)+intSplitTrialsPerOri-1);
+			for intOri=1:intOriNum
+				vecThisOri = find(cellSelect{intOri});
+				[vecSorted,vecReorder]=sort(vecPopRate(vecThisOri));
+				matUseTrials(intOri,:) = vecThisOri(vecReorder(vecUseTrialsTemp));
+			end
+			vecUseTrials = sort(matUseTrials(:));
+			vecTrialQuantile(vecUseTrials) = intQ;
+		end
+		
+		%assign per quantile
+		intTrialsPerQ = intSplitTrialsPerOri*intOriNum;
+		matConfPerQ = nan(intTrialsPerQ,intQuantiles);
+		matCorrPerQ = nan(intTrialsPerQ,intQuantiles);
+		vecCorr = vecDecodedIndexCV(:) == vecTrialTypeIdx(:);
+		for intQ=1:intQuantiles
+			%divide into quantiles
+			vecUseT = vecStartTrials(intQ):(vecStartTrials(intQ)+intTrialsPerQ-1);
+			matCorrPerQ(:,intQ) = vecCorr(vecTrialQuantile==intQ);
+			matConfPerQ(:,intQ) = vecConfidence(vecTrialQuantile==intQ);
+		end
+		
+		dblAlphaEquivOfSd = normcdf(1)-normcdf(-1);
+		[phat,pci] = binofit(sum(matCorrPerQ,1),size(matCorrPerQ,1),dblAlphaEquivOfSd);
+		
+		h2=subplot(2,3,6);
+		mapC = redbluepurple(intQuantiles);
+		hold on;
+		%plot([1 intQuantiles],(1/intOriNum180)*[1 1],'--','color',vecColBckg);
+		for intQ=1:intQuantiles
+			errorbar(intQ,phat(intQ),phat(intQ)-pci(intQ,1)',phat(intQ)-pci(intQ,2)','x','color',mapC(intQ,:));
+		end
+		hold off;
+		xlim([0.5 intQuantiles+0.5]);
+		set(gca,'xtick',[1 ceil(intQuantiles/2) intQuantiles],'xticklabel',{'Low','Mid','High'});
+		xlabel('Pop. act. quantile');
+		ylabel('Decoding accuracy');
+		fixfig;grid off;
+		
+		%%
+		export_fig(fullpath(strFigurePath,sprintf('A2_ExampleNeuralCodes_%s.tif',strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('A2_ExampleNeuralCodes_%s.pdf',strRec)));
 		
 	end
 end

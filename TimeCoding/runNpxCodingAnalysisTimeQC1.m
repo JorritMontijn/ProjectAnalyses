@@ -16,7 +16,7 @@ cellUseAreas = {...
 	...'posteromedial visual area',...
 	};
 
-intRandomize = 0; %0=real data, 1=shuffled, 2=generated
+intRandomize = 1; %0=real data, 1=shuffled, 2=generated
 boolSaveFigs = true;
 boolHome = false;
 if boolHome

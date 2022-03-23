@@ -11,8 +11,8 @@ or end? does this ordering differ between orientations?
 %}
 %% define qualifying areas
 clear all;
-boolSaveFigs = false;
-boolHome = false;
+boolSaveFigs = true;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
@@ -32,11 +32,13 @@ for intFile=1:numel(sDir)
 	strType = getFlankedBy(strFile,'QC1','_','first');
 	
 	sData = load(fullpath(strFolder,strFile));
-	matAggRate = sData.matAggRate;
-	[intNeuronNum,intTrialNum,intIterNum] = size(matAggRate);
-	[intQuantiles,intStimNum] = size(sData.cellAggLRActPerQ,[1 2]);
+	cellAggRate = sData.cellAggRate;
+	[intQuantiles,intStimNum,intIterNum] = size(sData.cellAggLRActPerQ,[1 2 4]);
+	intCounter = 1;
 	for intIter=1:intIterNum
-		matMeanRate(1+((intIter-1)*intNeuronNum):(intIter*intNeuronNum),:) = matAggRate(:,:,intIter);
+		[intNeuronNum,intTrialNum] = size(cellAggRate{intIter});
+		matMeanRate(intCounter:(intCounter+intNeuronNum-1),:) = cellAggRate{intIter};
+		intCounter = intCounter + intNeuronNum;
 	end
 	
 	%% make plot 1

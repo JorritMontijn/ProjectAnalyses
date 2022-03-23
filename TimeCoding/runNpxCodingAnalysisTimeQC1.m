@@ -16,9 +16,9 @@ cellUseAreas = {...
 	...'posteromedial visual area',...
 	};
 
-intRandomize = 1; %0=real data, 1=shuffled, 2=generated
-boolSaveFigs = true;
-boolHome = false;
+intRandomize = 1; %1=real data, 2=shuffled, 3=generated
+boolSaveFigs = false;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding';
@@ -84,8 +84,10 @@ for intRec=19%1:numel(sAggStim)
 	
 	%change name
 	if intRandomize == 1
-		strRec = ['Shuff_' strRec];
+		strRec = ['Real_' strRec];
 	elseif intRandomize == 2
+		strRec = ['Shuff_' strRec];
+	elseif intRandomize == 3
 		strRec = ['Poiss_' strRec];
 	end
 	
@@ -186,22 +188,25 @@ for intRec=19%1:numel(sAggStim)
 		matMeanRate = matSpikeCounts./dblUseMaxDur;
 		
 		%randomize per orientation
-		if intRandomize > 0
+		if intRandomize > 1
 			for intStim=1:intStimNr
 				vecUseT = find(vecTrialTypeIdx==intStim);
 				for intN=1:intRespN
-					if intRandomize == 1
+					if intRandomize == 2
 						%shuffle spikes
 						matMeanRate(intN,vecUseT) = matMeanRate(intN,vecUseT(randperm(numel(vecUseT))));
-					else
+					elseif intRandomize == 3
 						%generate spikes
 						dblMean = mean(cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial(intN,vecUseT)));
 						vecRates = poissrnd(dblMean,size(vecUseT));
 						matMeanRate(intN,vecUseT) = vecRates;
+					else error
+						
 					end
 				end
 			end
 		end
+		%matMeanRate = log(1+matMeanRate);
 		
 		%% plot population mean + sd over neurons, compare with neuron mean+sd over trials
 		intTrials = size(matMeanRate,2);

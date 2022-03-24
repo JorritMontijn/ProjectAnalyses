@@ -40,7 +40,7 @@ end
 %strUseRec = '20191211_MP3_RunDriftingGratingsR01_g0_t0';
 %strUseRec = '20191216_MP3_RunNaturalMovieR01_g0_t0';
 if ~exist('sAggStim','var') || isempty(sAggStim)
-	[sAggStim,sAggNeuron,sAggSources]=loadDataNpx(cellUseAreas{1},'drifting',strDataPath);
+	[sAggStim,sAggNeuron,sAggSources]=loadDataNpx(cellUseAreas{1},'natural',strDataPath);
 end
 vecUseRec = find(contains({sAggStim.Exp},'MP'));
 
@@ -58,20 +58,12 @@ for intRec=vecUseRec
 	sThisSource = sAggSources(strcmpi(strRec,{sAggSources(:).Exp}));
 	
 	%remove stimulus sets that are not 24 stim types
-	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
+	sThisRec.cellBlock(cellfun(@(x) x.intNumRepeats,sThisRec.cellBlock) < 100) = [];
 	
 	% concatenate stimulus structures
-	if contains(strRec,'20191213_MP3_RunDriftingGratingsR01')
-		structStim = catstim(sThisRec.cellBlock(1));
-		intMaxRep = 40;
-	else
-		structStim = catstim(sThisRec.cellBlock(1:min(end,2)));
-		intMaxRep = inf;%75
-	end
+	structStim = catstim(sThisRec.cellBlock(1:end));
 	vecStimOnTime = structStim.vecStimOnTime;
 	vecStimOffTime = structStim.vecStimOffTime;
-	vecPupilStimOn = structStim.vecPupilStimOn;
-	vecPupilStimOff = structStim.vecPupilStimOff;
 	
 	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';
 	vecOri180 = mod(vecOrientation,180)*2;
@@ -84,8 +76,6 @@ for intRec=vecUseRec
 	vecDelayTimeBy(indRem) = [];
 	vecStimOnTime(indRem) = [];
 	vecStimOffTime(indRem) = [];
-	vecPupilStimOn(indRem) = [];
-	vecPupilStimOff(indRem) = [];
 	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOri180);
 	intTrialNum = numel(vecStimOnTime);
 	intOriNum = numel(unique(vecOri180));
@@ -416,8 +406,8 @@ for intRec=vecUseRec
 		
 		if boolSaveFigs
 			%% save fig
-			export_fig(fullpath(strFigurePath,sprintf('2Cb1_PopRespPrediction_%s.tif',strRec)));
-			export_fig(fullpath(strFigurePath,sprintf('2Cb1_PopRespPrediction_%s.pdf',strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2Cc1_PopRespPrediction_%s.tif',strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2Cc1_PopRespPrediction_%s.pdf',strRec)));
 		end
 		
 		%% use correlations to predict residuals
@@ -724,14 +714,19 @@ for intRec=vecUseRec
 		
 		if boolSaveFigs
 			%% save fig
-			export_fig(fullpath(strFigurePath,sprintf('2Cb2_Projections_%s.tif',strRec)));
-			export_fig(fullpath(strFigurePath,sprintf('2Cb2_Projections_%s.pdf',strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2Cc2_Projections_%s.tif',strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2Cc2_Projections_%s.pdf',strRec)));
 		end
 		
 		%% predict gain from pupil
 		%get pupil size per trial
 		if 1||~isfield(sThisRec,'Pupil'),continue;end
 		sPupil = sThisRec.Pupil;
+		vecPupilStimOn = structStim.vecPupilStimOn;
+		vecPupilStimOff = structStim.vecPupilStimOff;
+		vecPupilStimOn(indRem) = [];
+		vecPupilStimOff(indRem) = [];
+		
 		vecTime = sPupil.vecTime;
 		vecVals = sPupil.vecRadius;
 		vecEvents = vecPupilStimOn;
@@ -780,8 +775,8 @@ for intRec=vecUseRec
 		
 		if boolSaveFigs
 			%% save fig
-			export_fig(fullpath(strFigurePath,sprintf('2Cb3_PupilPredGain_%s.tif',strRec)));
-			export_fig(fullpath(strFigurePath,sprintf('2Cb3_PupilPredGain_%s.pdf',strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2Cc3_PupilPredGain_%s.tif',strRec)));
+			export_fig(fullpath(strFigurePath,sprintf('2Cc3_PupilPredGain_%s.pdf',strRec)));
 		end
 		
 	end

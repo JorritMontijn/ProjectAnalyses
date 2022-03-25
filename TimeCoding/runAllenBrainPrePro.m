@@ -1,25 +1,58 @@
+%% stimulus descriptions
+%{
+%http://observatory.brain-map.org/visualcoding/stimulus/natural_movies#
+%help.brain-map.org/download/attachments/10616846/VisualCoding_VisualStimuli.pdf
+
+Drifting Gratings
+Stimulus. This stimulus was used to measure the direction tuning, orientation tuning and temporal frequency
+tuning of the cells. The total stimulus duration was 31.5 minutes.
+The stimulus consisted of a full field drifting sinusoidal grating at a single spatial frequency (0.04 cycles/degree)
+and contrast (80%). The grating was presented at 8 different directions (separated by 45?) and at 5 temporal
+frequencies (1, 2, 4, 8, 15 Hz). Each grating was presented for 2 seconds, followed by 1 second of mean
+luminance gray before the next grating. Each grating condition (direction & temporal frequency combination)
+was presented 15 times, in a random order. There were blank sweeps (i.e. mean luminance gray instead of
+grating) presented approximately once every 20 gratings.
+
+Natural Scenes
+Stimulus. Receptive fields measured using synthetic stimuli, such as gratings and noise, often fail to predict
+responses to natural stimuli (David et al., 2004). This stimulus allows us to measure cells? responses to natural
+scenes to explore non-linear processing in their receptive fields.
+The stimulus consisted of 118 natural images. Images 1-58 were from the Berkeley Segmentation Dataset
+(Martin et al., 2001), images 59-101 from the van Hateren Natural Image Dataset (van Hateren and van der
+Schaaf, 1998), and images 102-118 are from the McGill Calibrated Colour Image Database (Olmos and
+Kingdom, 2004). The images were presented in grayscale and were contrast normalized and resized to 1174 x
+918 pixels. Images were luminance-matched, but a bug in our code resulted in an error in this matching such
+that the mean luminance of the images were not accurately matched, and were within 6% of each other.
+The images were presented for 0.25 seconds each, with no inter-image gray period. Each image was presented
+~50 times, in random order, and there were blank sweeps (i.e. mean luminance gray instead of an image)
+roughly once every 100 images.
+
+Natural Movies
+Stimulus. This stimulus was used to measure responses to natural movies.
+Three different clips were used from the opening scene of the movie Touch of Evil (Welles, 1958). This scene
+was chosen as it is a long take with a range of different features and scales of motion. Natural Movie 1 and
+Natural Movie 2 were both 30 second clips while Natural Movie 3 was a 120 second clip. All clips had been
+contrast normalized and were presented in grayscale at 30 fps. Each movie was presented 10 times in a row
+with no inter-trial gray period.
+%}
 
 %% define locations
-strDisk = 'F:';
+strDisk = 'D:';
 strDataSource = '\Data\Processed\AllenBrainVisualEphys\';
 strDataTarget = strcat(strDisk,strDataSource,'Aggregates',filesep,'AggSes',getDate,'.mat');
 %load metadata
-sCSV = loadcsv(strcat(strDisk,strDataSource,'sessions.csv'));
+%sCSV = loadcsv(strcat(strDisk,strDataSource,'sessions.csv'));
 %select VIP
-vecSessions = sCSV.id(contains(sCSV.genotype,'Vip'));
-strFormat = 'session_%d';
-vecNatSceneReps = zeros(size(vecSessions));
+%vecSessions = sCSV.id;
+vecSessions = 756029989;
+strFormat = 'ecephys_session_%d';
 
 %% loop through sessions
 for intSes=1:numel(vecSessions)
-	%% skip if not laser opto
-	if vecSessions(intSes) < 789848216
-		continue;
-	end
 	
 	%% load data
 	strDataFile = sprintf(strFormat,vecSessions(intSes));
-	strTargetFile = strcat(strDisk,strDataSource,strDataFile,filesep,strDataFile,'.nwb');
+	strTargetFile = strcat(strDisk,strDataSource,strDataFile,'.nwb');
 	fclose('all');
 	nwb = nwbRead(strTargetFile);
 	sNWB = ExpandNWB(nwb);
@@ -33,9 +66,18 @@ for intSes=1:numel(vecSessions)
 		vecRealScenes = sNS.frame(~indBlanks);
 		intScenes = numel(unique(vecRealScenes));
 		vecNatSceneReps(intSes) = numel(vecRealScenes)/intScenes;
-		fprintf('Ses %d (%s) has %d repetitions of %d unique natural scenes\n',intSes,vecSessions(intSes),intScenes/numel(vecRealScenes),intScenes)
+		fprintf('Ses %d (%s) has %d repetitions of %d unique natural scenes\n',intSes,sprintf(strFormat,vecSessions(intSes)),vecNatSceneReps(intSes),intScenes)
 	end
-	continue;
+	%% stimuli, nat scenes
+	if isfield(sNWB.intervals,'natural_scenes_presentations')
+		sNM = sNWB.intervals.natural_movie_one_presentations.vectordata;%orientation, SF, TF, etc
+		%remove non-scenes; 30fps, 30s long(?)
+		indBlanks = sNM.frame==-1;
+		vecMovieFrames = sNM.frame(~indBlanks);
+		intReps = sum(diff(vecMovieFrames)<0)+1;
+		vecNatSceneReps(intSes) = numel(vecRealScenes)/intScenes;
+		fprintf('Ses %d (%s) has %d repetitions of natural movie one\n',intSes,sprintf(strFormat,vecSessions(intSes)),intReps)
+	end
 	
 	%% get spike times & unit locations
 	unit_ids = sNWB.units.id; % array of unit ids represented within this
@@ -79,57 +121,72 @@ for intSes=1:numel(vecSessions)
 	%% subject
 	sSubject = sNWB.general_subject;
 	
-	%% opto stim
-	%{
-	Identifying Cre+ units
-	Now that we know how to align spikes, we can start assessing which units are reliably driven by the optotagging stimulus and are likely to be Cre+.
-	There are a variety of ways to do this, but these are the most important things to keep in mind:
-		Spikes that occur precisely at the start or end of a light pulse are likely artifactual, and need to be ignored.
-		The bright blue light required for optotagging can be seen by the mouse, so any spikes that occur more than 40 ms after the stimulus onset may result from retinal input, as opposed to direct optogenetic drive.
-		The rate of false negatives (Cre+ cells that are not light-driven) will vary across areas, across depths, and across sessions. We've tried our best to evenly illuminate the entire visual cortex, and to use light powers that can drive spikes throughout all cortical layers, but some variation is inevitable.
-	For these reasons, we've found that the 10 ms pulses are the most useful stimulus for finding true light-evoked activity. These pulses provide a long enough artifact-free window to observe light-evoked spikes, but do not last long enough to be contaminated by visually driven activity.
-	Using the DataArray we created previously, we can search for units that increase their firing rate during the 10 ms pulse:
-	baseline = da.sel(time_relative_to_stimulus_onset=slice(-0.01,-0.002))
-	baseline_rate = baseline.sum(dim='time_relative_to_stimulus_onset').mean(dim='trial_id') / 0.008
-	evoked = da.sel(time_relative_to_stimulus_onset=slice(0.001,0.009))
-	evoked_rate = evoked.sum(dim='time_relative_to_stimulus_onset').mean(dim='trial_id') / 0.008
-	%}
-	
-	sOptoStim = sNWB.processing.optotagging.dynamictable.optogenetic_stimulation; %speed (cm/s)
-	sOptoParams = sOptoStim.vectordata;
-	sOptoMeta =sNWB.processing.optotagging.nwbdatainterface.optotagging; %time (s)
-	vecOptoDur = sOptoParams.duration;
-	vecOptoLvl = sOptoParams.level;
-	indUse10ms = vecOptoDur > 0.007 & vecOptoDur < 0.02;
-	vecOptoEventsT = sOptoStim.start_time(indUse10ms);
-	
 	%% running
 	vecRunningSpeed = sNWB.processing.running.nwbdatainterface.running_speed.data; %speed (cm/s)
 	vecRunningTime = sNWB.processing.running.nwbdatainterface.running_speed.timestamps; %time (s)
 	
 	%% stimuli, DG
+	structStimAgg = struct;
 	vecAllStimTimes = sNWB.processing.stimulus.nwbdatainterface.timestamps.data;
 	if isfield(sNWB.intervals,'drifting_gratings_presentations')
-		sDG = sNWB.intervals.drifting_gratings_presentations.vectordata;%orientation, SF, TF, etc
-		vecDG_stimIdx = table2array(sNWB.intervals.drifting_gratings_presentations.timeseries(:,1))+1;
-		vecDG_startT = sNWB.intervals.drifting_gratings_presentations.start_time;
-		vecDG_stopT = sNWB.intervals.drifting_gratings_presentations.stop_time;
-		vecDG_stimT = vecAllStimTimes(vecDG_stimIdx); %same as vecDG_startT
+		strSource = 'drifting_gratings_presentations';
 	elseif isfield(sNWB.intervals,'drifting_gratings_75_repeats_presentations')
-		sDG = sNWB.intervals.drifting_gratings_75_repeats_presentations.vectordata;%orientation, SF, TF, etc
-		vecDG_stimIdx = table2array(sNWB.intervals.drifting_gratings_75_repeats_presentations.timeseries(:,1))+1;
-		vecDG_startT = sNWB.intervals.drifting_gratings_75_repeats_presentations.start_time;
-		vecDG_stopT = sNWB.intervals.drifting_gratings_75_repeats_presentations.stop_time;
-		vecDG_stimT = vecAllStimTimes(vecDG_stimIdx); %same as vecDG_startT
+		strSource = 'drifting_gratings_75_repeats_presentations';
 	else
 		%no gratings
+		strSource = '';
+	end
+	if ~isempty(strSource)
+		sSource = sNWB.intervals.(strSource);
+		sDG = sSource.vectordata;%orientation, SF, TF, etc
+		sDG.Name = strSource;
+		sDG.stimIdx = table2array(sSource.timeseries(:,1))+1;
+		sDG.startT = sSource.start_time;
+		sDG.stopT = sSource.stop_time;
+		%vecDG_stimT = vecAllStimTimes(vecDG_stimIdx); %same as vecDG_startT
+		structStimAgg.sDG = sDG;
+	end
+	
+	%% stimuli, nat scenes
+	if isfield(sNWB.intervals,'natural_scenes_presentations')
+		strSource = 'natural_movie_one_presentations';
+	else
+		%no gratings
+		strSource = '';
+	end
+	if ~isempty(strSource)
+		sSource = sNWB.intervals.(strSource);
+		sNS = sSource.vectordata;%orientation, SF, TF, etc
+		sNS.Name = strSource;
+		sNS.stimIdx = sNS.frame+1;
+		sNS.startT = sSource.start_time;
+		sNS.stopT = sSource.stop_time;
+		%vecDG_stimT = vecAllStimTimes(vecDG_stimIdx); %same as vecDG_startT
+		structStimAgg.sNS = sNS;
+	end
+	
+	%% stimuli, nat movies
+	if isfield(sNWB.intervals,'natural_movie_one_presentations')
+		strSource = 'natural_movie_one_presentations';
+	elseif isfield(sNWB.intervals,'natural_movie_two_presentations')
+		strSource = 'natural_movie_one_presentations';
+	else
+		%no gratings
+		strSource = '';
+	end
+	if ~isempty(strSource)
+		sSource = sNWB.intervals.(strSource);
+		sNM = sSource.vectordata;%orientation, SF, TF, etc
+		sNM.Name = strSource;
+		sNM.stimIdx = sNM.frame+1;
+		sNM.startT = sSource.start_time;
+		sNM.stopT = sSource.stop_time;
+		%vecDG_stimT = vecAllStimTimes(vecDG_stimIdx); %same as vecDG_startT
+		structStimAgg.sNM = sNM;
 	end
 	
 	%% remove trials during invalid times
 	sRemoveIntervals = sNWB.intervals_invalid_times;
-	if ~isempty(sRemoveIntervals)
-		error
-	end
 	
 	%% eye-tracking
 	%not in all sessions!
@@ -146,40 +203,28 @@ for intSes=1:numel(vecSessions)
 	%cull cells
 	vecUseCells = find(indInclude & contains(cellAreas(:),'VIS'));
 	intNeurons = numel(vecUseCells);
-	dblUseMaxDur = 1;%100/1000;
-	vecPreOnsets = vecOptoEventsT - dblUseMaxDur/2;
-	vecZetaP = nan(1,intNeurons);
-	hTic = tic;
-	for intNeuron=1:intNeurons
-		if toc(hTic) > 5,hTic=tic;fprintf('Proc %d.1: Neuron %d/%d [%s]\n',intSes,intNeuron,intNeurons,getTime);end
-		intUnit = vecUseCells(intNeuron);
-		vecZetaP(intNeuron) = getZeta(cellSpikes{intUnit},vecPreOnsets,dblUseMaxDur);
-	end
-	
-	intResampNum = 100;
-	intPlot = 0;
-	intLatencyPeaks = 4;
-	vecZetaP2 = nan(1,intNeurons);
-	matLatencies = nan(4,intNeurons);
-	for intNeuron = find(vecZetaP<0.05)
-		if toc(hTic) > 5,hTic=tic;fprintf('Proc %d.2: Neuron %d/%d [%s]\n',intSes,intNeuron,intNeurons,getTime);end
-		intUnit = vecUseCells(intNeuron);
-		[vecZetaP2(intNeuron),vecLatencies] = getZeta(cellSpikes{intUnit},vecPreOnsets,dblUseMaxDur,intResampNum,intPlot,intLatencyPeaks);
-		matLatencies(:,intNeuron) = vecLatencies;
-	end
 	
 	%gather data
+	sSes(intSes).Exp = strDataFile;
 	sSes(intSes).vecUseCells = vecUseCells;
-	sSes(intSes).vecZetaP = vecZetaP;
-	sSes(intSes).vecZetaP2 = vecZetaP2;
-	sSes(intSes).matLatencies = matLatencies;
 	sSes(intSes).cellSpikes = cellSpikes(vecUseCells);
 	sSes(intSes).cellAreas = cellAreas(vecUseCells);
-	sSes(intSes).vecOptoEventsT = vecOptoEventsT;
-	sSes(intSes).dblUseMaxDur = dblUseMaxDur;
+	
+	%stims
+	sSes(intSes).structStimAgg = structStimAgg;
+	
+	%behavior
+	sSes(intSes).vecPupilT = vecPupilT;
+	sSes(intSes).vecPupilSize = vecPupilSize;
+	sSes(intSes).matPupilXY = matPupilXY;
+	sSes(intSes).vecRunningTime = vecRunningTime;
+	sSes(intSes).vecRunningSpeed = vecRunningSpeed;
+	
+	%to-be-removed-interval structure
+	sSes(intSes).sRemoveIntervals = sRemoveIntervals;
 end
-vecNatSceneReps
-return
+
+
 %% saving data
 fprintf('Saving data to "%s"\n',strDataTarget);
 save(strDataTarget,'sSes');

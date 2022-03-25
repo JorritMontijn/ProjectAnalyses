@@ -20,12 +20,12 @@ etc
 %}
 %% define qualifying areas
 clear all;
-strRunArea = 'Primary visual area';%'posteromedial visual area' 'Primary visual area'
+strRunArea = 'posteromedial visual area';%'posteromedial visual area' 'Primary visual area'
 cellUseAreas = {strRunArea};
 
 intRandomize = 1; %1=real data, 2=shuffled, 3=generated
 boolSaveFigs = true;
-boolHome = false;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
@@ -57,29 +57,31 @@ for intRec=vecUseRec
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
 	sThisSource = sAggSources(strcmpi(strRec,{sAggSources(:).Exp}));
 	
-	%remove stimulus sets that are not 24 stim types
+	%remove stimulus sets that are not 100 reps
 	sThisRec.cellBlock(cellfun(@(x) x.intNumRepeats,sThisRec.cellBlock) < 100) = [];
 	
 	% concatenate stimulus structures
-	structStim = catstim(sThisRec.cellBlock(1:end));
-	vecStimOnTime = structStim.vecStimOnTime;
-	vecStimOffTime = structStim.vecStimOffTime;
+	structStim = catstim(sThisRec.cellBlock(1));
+	vecOrigStimOnTime = structStim.vecStimOnTime;
+	dblDur = median(diff(vecOrigStimOnTime));
+	vecOrigStimOffTime = vecOrigStimOnTime+dblDur;
+	intFramesInMovie = 500;
+	dblBinAvg = 5;
+	intUseBinsInMovie = intFramesInMovie/dblBinAvg;
+	dblBinRate = round(intUseBinsInMovie/dblDur);
+	dblBinDur = 1/dblBinRate;
+	vecBinEdges = linspace(0,dblBinDur*intUseBinsInMovie,intUseBinsInMovie+1);
 	
-	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';
-	vecOri180 = mod(vecOrientation,180)*2;
-	vecTempFreq = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).TemporalFrequency})';
-	vecPhase = structStim.Phase;
-	vecDelayTimeBy = vecPhase./vecTempFreq;
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOri180);
-	indRem=vecTrialRepetition>intMaxRep;
-	vecOri180(indRem) = [];
-	vecDelayTimeBy(indRem) = [];
-	vecStimOnTime(indRem) = [];
-	vecStimOffTime(indRem) = [];
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOri180);
+	%generate fake stimulus vectors
+	vecUniqueStims = 1:intUseBinsInMovie;
+	vecFrameIdx = repmat(vecUniqueStims,[1 numel(vecOrigStimOnTime)]);
+	vecStimOnTime = flat(vecBinEdges(1:(end-1))' + vecOrigStimOnTime)';
+	vecStimOffTime = vecStimOnTime + dblBinDur;
+	
+	[vecStimIdx,vecUniqueStims,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecFrameIdx);
 	intTrialNum = numel(vecStimOnTime);
-	intOriNum = numel(unique(vecOri180));
-	intRepNum = intTrialNum/intOriNum;
+	intStimNum = numel(vecUniqueStims);
+	intRepNum = intTrialNum/intStimNum;
 	%remove neurons from other recs
 	indQualifyingNeurons = contains({sAggNeuron.Exp},strRec);
 	
@@ -117,10 +119,13 @@ for intRec=vecUseRec
 		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
 		dblDur = median(vecStimOffTime-vecStimOnTime);
 		matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur);
+		[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matData,vecStimIdx);
 		vecNonStat = cell2vec({sArea1Neurons.NonStationarity});
+		matAvgR = mean(matRespNSR,3);
+		matTrialR = squeeze(mean(matRespNSR,2));
 		
 		%remove untuned cells
-		sOut = getTuningCurves(matData,vecOri180,0);
+		sOut = getTuningCurves(matData,(vecFrameIdx/max(vecFrameIdx))*180,0);
 		dblMinRate = 0.1;
 		indTuned = sOut.vecOriAnova<0.05;
 		indResp = abs(vecNonStat') < 0.3 & cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
@@ -141,11 +146,11 @@ for intRec=vecUseRec
 		vecStimTime = vecBinEdges(2:end)-dblBinWidth/2 - dblPreTime;
 		indStimBins = vecStimTime > 0 & vecStimTime < dblStimDur;
 		intBinNum = numel(vecBinEdges)-1;
-		matBNSR = nan(intBinNum,intRespN,intOriNum,intRepNum);
+		matBNSR = nan(intBinNum,intRespN,intStimNum,intRepNum);
 		matBNT = nan(intBinNum,intRespN,intTrialNum);
 		%matBNT_shifted = nan(intBinNum,intRespN,intTrialNum);
 		
-		vecRepCounter = zeros(1,intOriNum);
+		vecRepCounter = zeros(1,intStimNum);
 		%get spikes per trial per neuron
 		cellSpikeTimesPerCellPerTrial = cell(intRespN,intTrialNum);
 		for intN=1:intRespN
@@ -163,7 +168,7 @@ for intRec=vecUseRec
 		
 		%% define quantiles and remove zero-variance neurons
 		%constants
-		[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
+		[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecFrameIdx);
 		intStimNr = numel(vecUnique);
 		dblLambda = 1;%1
 		intTypeCV = 2;
@@ -196,7 +201,10 @@ for intRec=vecUseRec
 		vecRemNeurons = find(indZeroVarNeurons);
 		cellSpikeTimesPerCellPerTrial(vecRemNeurons,:) = [];
 		intNeuronNum = numel(vecUseNeurons);
-		if intNeuronNum < 25,continue;end
+		if intNeuronNum < 25
+			fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronNum,strRec,getTime);
+			continue;
+		end
 		
 		%simple "rate code"
 		matSpikeCounts = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
@@ -223,8 +231,8 @@ for intRec=vecUseRec
 		end
 		
 		%run approximation by mean-rate multiplied with tuning curve
-		sOut = getTuningCurves(matMeanRate,vecOri180,0);
-		matTuningCurves = sOut.matMeanResp;
+		[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matMeanRate,vecStimIdx);
+		matTuningCurves = mean(matRespNSR,3);
 		vecMeanPopRate = mean(matMeanRate,1);
 		vecNormPopRate = vecMeanPopRate ./ mean(vecMeanPopRate);
 		
@@ -237,12 +245,12 @@ for intRec=vecUseRec
 			indTestTrials = vecTrialRepetition==intTestRep;
 			vecTestTrials = find(indTestTrials);
 			matTrainR = matMeanRate(:,~indTestTrials);
-			vecTrainS = vecOriIdx(~indTestTrials);
+			vecTrainS = vecStimIdx(~indTestTrials);
 			dblMeanPopRate = mean(matTrainR(:));
 			%get tuning curves
 			[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(matTrainR,vecTrainS);
 			matTrainT = mean(matRespNSR,3);
-			vecTestOri = vecOriIdx(indTestTrials);
+			vecTestOri = vecStimIdx(indTestTrials);
 			%get gain for training trials
 			for intTestNeuron=1:intNeuronNum
 				%% simple prediction: only tuning curve
@@ -306,6 +314,10 @@ for intRec=vecUseRec
 		dblPredPerNeuronMean = mean(vecR2_Mean);
 		dblPredPerNeuronGain = mean(vecR2_Gain);
 		
+		%stim decoding; warning, takes very long (~half an hour)
+		%[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights,matAggActivation] = ...
+		%	doCrossValidatedDecodingLR(matMeanRate,vecStimIdx,intTypeCV,vecPriorDistribution,dblLambda);
+ 
 		%%
 		dblStep = 4;
 		vecX = matMeanRate(:);
@@ -450,10 +462,10 @@ for intRec=vecUseRec
 		vecAngleMeanAndGain = nan(1,intStimNr);
 		vecAngleMeanAndGainRand = nan(1,intStimNr);
 		for intOriIdx=1:intStimNr
-			vecOriTrials = find(vecOriIdx==intOriIdx);
-			indAdjaOriTrials = vecOriIdx==modx(intOriIdx+1,intStimNr);
-			indAdja2OriTrials = vecOriIdx==modx(intOriIdx-1,intStimNr);
-			indOrthOriTrials = vecOriIdx==modx(intOriIdx+ceil(intStimNr/2)-1,intStimNr);
+			vecOriTrials = find(vecStimIdx==intOriIdx);
+			indAdjaOriTrials = vecStimIdx==modx(intOriIdx+1,intStimNr);
+			indAdja2OriTrials = vecStimIdx==modx(intOriIdx-1,intStimNr);
+			indOrthOriTrials = vecStimIdx==modx(intOriIdx+ceil(intStimNr/2)-1,intStimNr);
 			matPoints =matMeanRate(:,vecOriTrials);
 			vecOriR = mean(matPoints,2);
 			vecAdjaOriR = mean(matMeanRate(:,indAdjaOriTrials),2);
@@ -505,7 +517,7 @@ for intRec=vecUseRec
 				%vecOriTrials2 = indAdjaOriTrials;%vecReorder(((ceil(numel(vecReorder)/2))+1):end);
 				vecOriTrials1 = vecOriTrials(vecReorder(1:(floor(numel(vecReorder)/2))));
 				vecOriTrials2 = vecOriTrials(vecReorder(((ceil(numel(vecReorder)/2))+1):end));
-				indOrthOriTrials = vecOriIdx==modx(intOriIdx+ceil(intStimNr/2),intStimNr);
+				indOrthOriTrials = vecStimIdx==modx(intOriIdx+ceil(intStimNr/2),intStimNr);
 				vecX = mean(matMeanRate(:,vecOriTrials1),2);
 				vecY = mean(matMeanRate(:,indOrthOriTrials),2);
 				vecZ = mean(matMeanRate(:,vecOriTrials2),2);

@@ -1,6 +1,6 @@
 strPath = 'F:\Data\Results\SimAggregates\';
 %strSearchFile = '*LargeRetOriTuning*';
-strSearchFile = '*LargeRetNoise00_2021-01-12*';
+strSearchFile = '*LargeRetNoise00_2021-04-13*';
 sFiles=dir(fullfile(strPath,strSearchFile));
 intUseFile = ~contains({sFiles(:).name},'prepro');
 strSourceFile = sFiles(intUseFile).name;
@@ -32,6 +32,51 @@ dblThreshold = 8;%9.5
 vecMaxResp = max(matMeanNS,[],2); %in any orientation
 vecAQ=vecMaxResp>dblThreshold;
 vecEI = sLoad.vecCellTypes;
+
+%% plot e and I activity
+vecNeuronId = 1:numel(vecMaxResp);
+figure
+subplot(2,3,1)
+plot(vecNeuronId,vecMaxResp)
+title('All cells');
+xlabel('Neuron ID');
+ylabel('Spiking rate (Hz)');
+%fixfig;
+
+subplot(2,3,2)
+plot(vecNeuronId(vecEI==2),vecMaxResp(vecEI==2))
+title('Interneurons only');
+xlabel('Neuron ID');
+ylabel('Spiking rate (Hz)');
+%fixfig;
+
+subplot(2,3,3)
+plot(vecNeuronId(vecEI==1),vecMaxResp(vecEI==1))
+title('Pyramidals only');
+xlabel('Neuron ID');
+ylabel('Spiking rate (Hz)');
+%fixfig;
+
+subplot(2,3,4)
+scatter(vecNeuronId,vecMaxResp,'.')
+title('All cells');
+xlabel('Neuron ID');
+ylabel('Spiking rate (Hz)');
+%fixfig;
+
+subplot(2,3,5)
+scatter(vecNeuronId(vecEI==2),vecMaxResp(vecEI==2),'.')
+title('Interneurons only');
+xlabel('Neuron ID');
+ylabel('Spiking rate (Hz)');
+%fixfig;
+
+subplot(2,3,6)
+scatter(vecNeuronId(vecEI==1),vecMaxResp(vecEI==1),'.')
+title('Pyramidals only');
+xlabel('Neuron ID');
+ylabel('Spiking rate (Hz)');
+%fixfig;
 
 %% prep
 vecPrefOri = sLoad.vecPrefOri*2;
@@ -88,7 +133,7 @@ for intTargetEI=1:2
 				title(sprintf('%s %s to %s %s',strSourceAQ,strSourceEI,strTargetAQ,strTargetEI));
 				xlabel('Orientation difference (degs)');
 				ylabel('Synaptic weight');
-				ylim([0 20]);
+				%ylim([0 20]);
 				xlim([-90 90]);
 				fixfig;grid off;
 			end
@@ -101,6 +146,7 @@ strFigFile1 = ['SynWeightByPrefOriDiff_' strFigBase];
 %export_fig(fullfile(strSourcePath,[strFigFile1 '.tif']));
 %export_fig(fullfile(strSourcePath,[strFigFile1 '.jpg']));
 %export_fig(fullfile(strSourcePath,[strFigFile1 '.pdf']));
+normaxes;
 
 %% plot 2
 figure

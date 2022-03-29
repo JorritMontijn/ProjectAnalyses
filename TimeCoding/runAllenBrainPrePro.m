@@ -37,14 +37,14 @@ with no inter-trial gray period.
 %}
 
 %% define locations
-strDisk = 'D:';
+strDisk = 'F:';
 strDataSource = '\Data\Processed\AllenBrainVisualEphys\';
 strDataTarget = strcat(strDisk,strDataSource,'Aggregates',filesep,'AggSes',getDate,'.mat');
 %load metadata
-%sCSV = loadcsv(strcat(strDisk,strDataSource,'sessions.csv'));
+sCSV = loadcsv(strcat(strDisk,strDataSource,'sessions.csv'));
 %select VIP
-%vecSessions = sCSV.id;
-vecSessions = 756029989;
+vecSessions = sCSV.id;
+%vecSessions = 756029989;
 strFormat = 'ecephys_session_%d';
 
 %% loop through sessions
@@ -52,10 +52,11 @@ for intSes=1:numel(vecSessions)
 	
 	%% load data
 	strDataFile = sprintf(strFormat,vecSessions(intSes));
-	strTargetFile = strcat(strDisk,strDataSource,strDataFile,'.nwb');
+	strTargetFile = strcat(strDisk,fullpath(strDataSource,'nwb_files',[strDataFile,'.nwb']));
 	fclose('all');
+	fprintf('Processing session %d/%d: %s [%s]\n',intSes,numel(vecSessions),strDataFile,getTime);
 	nwb = nwbRead(strTargetFile);
-	sNWB = ExpandNWB(nwb);
+	sNWB = ExpandNWB(nwb,[],false);
 	%sNWB2 = PruneStruct(sNWB);
 	
 	%% stimuli, nat scenes
@@ -76,7 +77,7 @@ for intSes=1:numel(vecSessions)
 		vecMovieFrames = sNM.frame(~indBlanks);
 		intReps = sum(diff(vecMovieFrames)<0)+1;
 		vecNatSceneReps(intSes) = numel(vecRealScenes)/intScenes;
-		fprintf('Ses %d (%s) has %d repetitions of natural movie one\n',intSes,sprintf(strFormat,vecSessions(intSes)),intReps)
+		fprintf('Ses %d (%s) has %d repetitions of natural movie one\n',intSes,sprintf(strFormat,vecSessions(intSes)),intReps);
 	end
 	
 	%% get spike times & unit locations
@@ -145,6 +146,10 @@ for intSes=1:numel(vecSessions)
 		sDG.stopT = sSource.stop_time;
 		%vecDG_stimT = vecAllStimTimes(vecDG_stimIdx); %same as vecDG_startT
 		structStimAgg.sDG = sDG;
+		vecGood = sDG.orientation(~isnan(sDG.orientation));
+		intStims = numel(unique(vecGood));
+		intReps = numel(vecGood)/intStims;
+		fprintf('Ses %d (%s) has %.1f repetitions of %d drifting gratings\n',intSes,sprintf(strFormat,vecSessions(intSes)),intReps,intStims);
 	end
 	
 	%% stimuli, nat scenes
@@ -227,5 +232,5 @@ end
 
 %% saving data
 fprintf('Saving data to "%s"\n',strDataTarget);
-save(strDataTarget,'sSes');
+save(strDataTarget,'sSes','-v7.3');
 fprintf('Done.\n');

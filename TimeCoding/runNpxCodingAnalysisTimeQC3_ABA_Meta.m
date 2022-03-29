@@ -1,0 +1,401 @@
+%% aim
+%{
+https://www.nature.com/articles/s41598-021-95037-z
+https://www.nature.com/articles/s42003-021-02437-y
+
+q1: can single-neuron variability be explained as population-level gain multiplication?
+> estimate tuning curve from real data, then apply trial-by-trial gain to all neurons
+>model predicting firing rate as combination of mean-rate multiplied by tuning curve => what do
+residuals look like?
+A: gain axis and mean-rate axis do not align, but ori tuning is distributed as conic manifold around
+gain axis. Using stim-specific gain coupling calculated cross-validated for each neuron, allows pop
+response to be predicted with R^2 of 0.72
+
+%see articles:
+https://elifesciences.org/articles/8998
+https://www.nature.com/articles/nn.3711
+https://www.jneurosci.org/content/39/37/7344.abstract
+etc
+
+%}
+%% define parameters
+clear all;
+%{'VISal'}    {'VISam'}    {'VISl'}    {'VISp'}    {'VISpm'}    {'VISrl'}
+strRunArea = 'VISp';%'posteromedial visual area' 'Primary visual area'
+cellUseAreas = {strRunArea};
+
+boolSaveFigs = true;
+boolHome = true;
+if boolHome
+	strDataPath = 'F:\Data\Results\PopTimeCoding\data\';
+	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
+else
+	strDataPath = 'F:\Data\Results\PopTimeCoding\data\';
+	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
+end
+
+%% find data
+strSearchFormat = ['TimeCodingAggQC3ABA*' strRunArea];
+sDir = dir([strDataPath strSearchFormat '.mat']);
+cellTypes = {'Real','Shuff','Poiss'};
+
+%% aggregate data
+%[3 x 1] cell (type (real/poiss/shuff), content=vector with r2 per recording
+cellR2_Tune = cell(1,3); %only tuning
+cellR2_Mean = cell(1,3);%tuning * pop-mean
+cellR2_Gain1 = cell(1,3);%tuning * unitary pop-gain
+cellR2_Gain = cell(1,3);%tuning * stim-specific pop-gain
+
+%[3 x 1] cell (type (real/poiss/shuff), content=vector with average r2 per neuron, mean over all cells
+cellR2_TuneN = cell(1,3); %only tuning
+cellR2_MeanN = cell(1,3);%tuning * pop-mean
+cellR2_Gain1N = cell(1,3);%tuning * unitary pop-gain
+cellR2_GainN = cell(1,3);%tuning * stim-specific pop-gain
+
+%projection data;[3 x 1] cell (type (real/poiss/shuff)
+cellReflDistMuOrth = cell(1,3);
+cellReflDistMuAdja = cell(1,3);
+cellReflDistGainOrth = cell(1,3);
+cellReflDistGainAdja = cell(1,3);
+cellGainSymmetry = cell(1,3);
+cellMeanSymmetry = cell(1,3);
+cellAngleMeanAndGain = cell(1,3);
+cellAngleMeanAndGainRand = cell(1,3);
+cellSdProjMean = cell(1,3);
+cellSdProjGain = cell(1,3);
+cellSdProjRand = cell(1,3);
+cellSdProjOrth = cell(1,3);
+cellSdProjAdja = cell(1,3);
+cellDistFromOrigin = cell(1,3);
+cellDistFromOrthOri = cell(1,3);
+cellDistFromAdjaOri = cell(1,3);
+
+hTic=tic;
+for intFile=1:numel(sDir)
+	%% load data
+	strFolder = sDir(intFile).folder;
+	strFile = sDir(intFile).name;
+	strType = getFlankedBy(strFile,'TimeCodingAggQC3ABA','_','first');
+	intType = find(ismember(cellTypes,strType));
+	if toc(hTic) > 5
+		hTic = tic;
+		fprintf('Aggregating %s... Now at %d/%d [%s]',strRunArea,intFile,numel(sDir),getTime);
+	end
+	%get data
+	sData = load(fullpath(strFolder,strFile));
+	
+	%save pop pred r2s
+	sPrediction = sData.sPrediction;
+	cellR2_Tune{intType}(end+1) = sPrediction.dblR2_Tune; %only tuning
+	cellR2_Mean{intType}(end+1) = sPrediction.dblR2_Mean;%tuning * pop-mean
+	cellR2_Gain{intType}(end+1) = sPrediction.dblR2_Gain;%tuning * pop-gain
+	cellR2_Gain1{intType}(end+1) = sPrediction.dblR2_Gain1;%tuning * pop-gain
+	
+	%save neuron pred r2s
+	cellR2_TuneN{intType}(end+1) = sPrediction.dblPredPerNeuronTune; %only tuning
+	cellR2_MeanN{intType}(end+1) = sPrediction.dblPredPerNeuronMean;%tuning * pop-mean
+	cellR2_GainN{intType}(end+1) = sPrediction.dblPredPerNeuronGain;%tuning * pop-gain
+	cellR2_Gain1N{intType}(end+1) = sPrediction.dblPredPerNeuronGain1;%tuning * pop-gain
+	
+	%save projection data
+	sProjection = sData.sProjection;
+	cellFields = fieldnames(sProjection);
+	for intField=1:numel(cellFields)
+		strField = cellFields{intField};
+		strVarName = strcat('cell',strField(4:end));
+		eval([strVarName '{intType}(end+1) = mean(sProjection.' strField ');']);
+	end
+end
+
+%% make plot 1
+%real pop mean+sd
+figure;maxfig
+%real
+cellCol = {[lines(1)],[0.5 0 0],[0 0 0.5]};
+vecOffset = [0.1 -0.1 -0.1]*0.5;
+subplot(2,4,4);
+hold on;
+subplot(2,4,8);
+hold on;
+for intType=1:3
+	strType = cellTypes{intType};
+	
+	%pop predictions
+	subplot(2,4,intType)
+	[h,pMeanGain]=ttest(cellR2_Mean{intType},cellR2_Gain{intType});
+	%vecX = 1:4;
+	vecX = 1:3;
+	cellLabels = {'Tune','Tune*Mu','Tune*G1','Tune*G'};
+	vecMeans = [mean(cellR2_Tune{intType})...
+		mean(cellR2_Mean{intType})...
+		...%mean(cellR2_Gain1{intType})...
+		mean(cellR2_Gain{intType})...
+		];
+	vecSds = [std(cellR2_Tune{intType})...
+		std(cellR2_Mean{intType})...
+		...%std(cellR2_Gain1{intType})...
+		std(cellR2_Gain{intType})...
+		];
+	intN = numel(cellR2_Tune{intType});
+	vecSems = vecSds./sqrt(intN);
+	errorbar(vecX,vecMeans,vecSems,'x','color',cellCol{intType});
+	set(gca,'xtick',vecX,'xticklabel',cellLabels);
+	ylabel('Cross-val prediction (R^2)');
+	title(sprintf('%s; pop R2, t-test Mu/G,p=%.1e',strType,pMeanGain));
+	xlim([vecX(1)-0.5 vecX(end)+0.5]);
+	fixfig;
+	
+	subplot(2,4,4);
+	errorbar(vecX+vecOffset(intType),vecMeans,vecSems,'x','color',cellCol{intType});
+	
+	%neuron predictions
+	subplot(2,4,4+intType)
+	[h,pMeanGain]=ttest(cellR2_MeanN{intType},cellR2_GainN{intType});
+	%vecX = 1:4;
+	vecX = 1:3;
+	cellLabels = {'Tune','Tune*Mu','Tune*G1','Tune*G'};
+	vecMeans = [mean(cellR2_TuneN{intType})...
+		mean(cellR2_MeanN{intType})...
+		...%mean(cellR2_Gain1N{intType})...
+		mean(cellR2_GainN{intType})...
+		];
+	vecSds = [std(cellR2_TuneN{intType})...
+		std(cellR2_MeanN{intType})...
+		...%std(cellR2_Gain1N{intType})...
+		std(cellR2_GainN{intType})...
+		];
+	intN = numel(cellR2_TuneN{intType});
+	vecSems = vecSds./sqrt(intN);
+	errorbar(vecX,vecMeans,vecSems,'x','color',cellCol{intType});
+	set(gca,'xtick',vecX,'xticklabel',cellLabels);
+	ylabel('Cross-val prediction (R^2)');
+	title(sprintf('%s; neuron R2, t-test Mu/G,p=%.1e',strType,pMeanGain));
+	xlim([vecX(1)-0.5 vecX(end)+0.5]);
+	fixfig;
+	
+	subplot(2,4,8);
+	errorbar(vecX+vecOffset(intType),vecMeans,vecSems,'x','color',cellCol{intType});
+	
+end
+
+%finish multi-graphs
+subplot(2,4,4);
+hold off;
+set(gca,'xtick',vecX,'xticklabel',cellLabels);
+ylabel('Cross-val prediction (R^2)');
+title(sprintf('Comparison; pop R2, n=%d',intN));
+xlim([vecX(1)-0.5 vecX(end)+0.5]);
+fixfig;
+
+subplot(2,4,8);
+hold off;
+set(gca,'xtick',vecX,'xticklabel',cellLabels);
+ylabel('Cross-val prediction (R^2)');
+title(sprintf('Comparison; neuron R2, n=%d',intN));
+xlim([vecX(1)-0.5 vecX(end)+0.5]);
+fixfig;
+
+if boolSaveFigs
+	%% save fig
+	export_fig(fullpath(strFigurePath,sprintf('2Cc_ABA_Agg1_ActivityPrediction.tif')));
+	export_fig(fullpath(strFigurePath,sprintf('2Cc_ABA_Agg1_ActivityPrediction.pdf')));
+end
+
+%% plot projections
+for intType=1:3
+	strType = cellTypes{intType};
+	%get data
+	vecReflDistMuOrth = cellReflDistMuOrth{intType};
+	vecReflDistMuAdja = cellReflDistMuAdja{intType};
+	vecReflDistGainOrth = cellReflDistGainOrth{intType};
+	vecReflDistGainAdja = cellReflDistGainAdja{intType};
+	vecGainSymmetry = cellGainSymmetry{intType};
+	vecMeanSymmetry = cellMeanSymmetry{intType};
+	vecAngleMeanAndGain = cellAngleMeanAndGain{intType};
+	vecAngleMeanAndGainRand = cellAngleMeanAndGainRand{intType};
+	vecSdProjMean = cellSdProjMean{intType};
+	vecSdProjGain = cellSdProjGain{intType};
+	vecSdProjRand = cellSdProjRand{intType};
+	vecSdProjOrth = cellSdProjOrth{intType};
+	vecSdProjAdja = cellSdProjAdja{intType};
+	vecDistFromOrigin = cellDistFromOrigin{intType};
+	vecDistFromOrthOri = cellDistFromOrthOri{intType};
+	vecDistFromAdjaOri = cellDistFromAdjaOri{intType};
+	intNumRecs = numel(vecDistFromAdjaOri);
+	
+	% plot
+	[h,pMeanGain]=ttest(vecSdProjMean,vecSdProjGain);
+	[h,pMeanOrth]=ttest(vecSdProjMean,vecSdProjOrth);
+	[h,pGainOrth]=ttest(vecSdProjGain,vecSdProjOrth);
+	figure;maxfig;
+	subplot(2,3,1)
+	hold on
+	vecLoc = [0.2 0.5 0.8];
+	dblJit = 0.05;
+	scatter(vecLoc(1)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecSdProjMean,[200],[0.5 0.5 0.5],'.')
+	scatter(vecLoc(2)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecSdProjGain,[200],[0.5 0.5 0.5],'.')
+	%scatter(vecLoc(3)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjRand,[200],[0.5 0.5 0.5],'.')
+	%scatter(vecLoc(3)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjAdja,[200],[0.5 0.5 0.5],'.')
+	scatter(vecLoc(3)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecSdProjOrth,[200],[0.5 0.5 0.5],'.')
+	errorbar(vecLoc(1),mean(vecSdProjMean),std(vecSdProjMean)/sqrt(intNumRecs),'bx','CapSize',20)
+	errorbar(vecLoc(2),mean(vecSdProjGain),std(vecSdProjGain)/sqrt(intNumRecs),'kx','CapSize',20)
+	%errorbar(vecLoc(3),mean(vecSdProjRand),std(vecSdProjRand)/sqrt(intStimNr),'rx','CapSize',20)
+	%errorbar(vecLoc(3),mean(vecSdProjAdja),std(vecSdProjAdja)/sqrt(intStimNr),'kx','CapSize',20)
+	errorbar(vecLoc(3),mean(vecSdProjOrth),std(vecSdProjOrth)/sqrt(intNumRecs),'rx','CapSize',20)
+	hold off;
+	set(gca,'xtick',vecLoc,'xticklabel',{'Pop mean','Pop gain','Stim-Orth'});
+	xlabel('Projection axis');
+	ylabel('Range of spiking rates (\sigmaHz)');
+	title(sprintf('%s; MG,p=%.2e; MO,p=%.3f; GO,p=%.2e',strType,pMeanGain,pMeanOrth,pGainOrth));
+	fixfig;
+	ylim(gca,[0 max(get(gca,'ylim'))]);
+	xlim([vecLoc(1)-0.2 vecLoc(end)+0.2]);
+	
+	%what is distance from origin to mean R compared with distance between ori Rs?
+	subplot(2,3,2);
+	hold on
+	vecLoc = [0.2 0.5 0.8];
+	dblJit = 0.05;
+	scatter(vecLoc(1)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecDistFromOrigin,[200],[0.5 0.5 0.5],'.')
+	errorbar(vecLoc(1),mean(vecDistFromOrigin),std(vecDistFromOrigin)/sqrt(intNumRecs),'kx','CapSize',20)
+	scatter(vecLoc(2)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecDistFromOrthOri,[200],[0.5 0.5 0.5],'.')
+	errorbar(vecLoc(2),mean(vecDistFromOrthOri),std(vecDistFromOrthOri)/sqrt(intNumRecs),'bx','CapSize',20)
+	scatter(vecLoc(3)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecDistFromAdjaOri,[200],[0.5 0.5 0.5],'.')
+	errorbar(vecLoc(3),mean(vecDistFromAdjaOri),std(vecDistFromAdjaOri)/sqrt(intNumRecs),'rx','CapSize',20)
+	hold off
+	set(gca,'xtick',vecLoc,'xticklabel',{'Origin','Orth. ori','Adja. ori'});
+	%ylim([0 60]);
+	xlim([vecLoc(1)-0.2 vecLoc(end)+0.2]);
+	xlabel('Distance of pop. stim resp to');
+	ylabel('Pop. spiking rate distance (\DeltaHz)');
+	title('Mu +/- sem, n=12 orientations');
+	fixfig;
+	
+	%cos sim of gain with mean vs rand with mean
+	%note that random vectors do not lead to cossim of 0 because the space is limited to
+	%positive values only (Hz > 0)
+	[h,pCosSim] = ttest2(vecAngleMeanAndGain,vecAngleMeanAndGainRand);
+	subplot(2,3,3);
+	hold on
+	vecLoc = [0.2 0.8];
+	dblJit = 0.05;
+	scatter(vecLoc(1)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecAngleMeanAndGain,[200],[0.5 0.5 0.5],'.')
+	errorbar(vecLoc(1),mean(vecAngleMeanAndGain),std(vecAngleMeanAndGain)/sqrt(intNumRecs),'kx','CapSize',20)
+	scatter(vecLoc(2)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecAngleMeanAndGainRand,[200],[0.5 0.5 0.5],'.')
+	errorbar(vecLoc(2),mean(vecAngleMeanAndGainRand),std(vecAngleMeanAndGainRand)/sqrt(intNumRecs),'bx','CapSize',20)
+	hold off
+	set(gca,'xtick',vecLoc,'xticklabel',{'Gain','Rand'});
+	xlim([vecLoc(1)-0.2 vecLoc(end)+0.2]);
+	xlabel('Neural axis');
+	ylabel('Alignment with mean-axis (cos sim)');
+	title(sprintf('T-test, cos-sim mean with gain vs rand: p=%.2e',pCosSim));
+	fixfig;
+	
+	%symmetry around mean or gain axis
+	vecLoc = [0.2 0.5 0.8 1.1];
+	dblJit = 0.05;
+	subplot(2,3,4);
+	hold on
+	errorbar(vecLoc(1),mean(vecReflDistMuOrth),std(vecReflDistMuOrth)/sqrt(intNumRecs),'kx','CapSize',20)
+	errorbar(vecLoc(2),mean(vecReflDistMuAdja),std(vecReflDistMuAdja)/sqrt(intNumRecs),'bx','CapSize',20)
+	errorbar(vecLoc(3),mean(vecReflDistGainOrth),std(vecReflDistGainOrth)/sqrt(intNumRecs),'kx','CapSize',20)
+	errorbar(vecLoc(4),mean(vecReflDistGainAdja),std(vecReflDistGainAdja)/sqrt(intNumRecs),'bx','CapSize',20)
+	hold off
+	set(gca,'xtick',vecLoc,'xticklabel',{'Mu/Orth','Mu/Adj','Gain/Orth','Gain/Adj'});
+	xlim([vecLoc(1)-0.2 vecLoc(end)+0.2]);
+	xlabel('Reflection over/stim ori');
+	ylabel('Prediction error after reflection (\DeltaHz)');
+	fixfig;
+	
+	% symmetry around gain axis
+	vecLoc = [0.2 0.8];
+	subplot(2,3,5);
+	[h,pSym]=ttest2(vecMeanSymmetry,vecGainSymmetry);
+	hold on
+	errorbar(0.2,mean(vecMeanSymmetry),std(vecMeanSymmetry)/sqrt(intNumRecs),'bd','CapSize',20)
+	errorbar(0.8,mean(vecGainSymmetry),std(vecGainSymmetry)/sqrt(intNumRecs),'ko','CapSize',20)
+	hold off
+	ylabel('Manifold symmetry (%)');
+	set(gca,'xtick',vecLoc,'xticklabel',{'Pop. mean','Pop. gain'});
+	xlabel('Axis of symmetry');
+	xlim([vecLoc(1)-0.2 vecLoc(end)+0.2]);
+	title(sprintf('T-test, p=%.2e',pSym));
+	fixfig;
+	
+	%make example figures of the above
+	vecS = 10:12;%randperm(intStimNr,2);
+	intS1 = 7;
+	intS1Adja = 8;
+	intS2 = 12;
+	
+	dblDistToGainCenter = mean(vecDistFromOrigin);
+	vecGainAx = [0.1 1];
+	dblAlignment=cossim(vecGainAx,ones(size(vecGainAx)));
+	dblAng = acos(dblAlignment)/2+deg2rad(45);
+	vecGainCenter = [cos(dblAng) sin(dblAng)]*dblDistToGainCenter;
+	
+	dblAng1 = dblAng + atan((mean(vecDistFromOrthOri(intS1)))/dblDistToGainCenter);
+	dblAng1A = dblAng + atan((mean(vecDistFromOrthOri(intS1)) - mean(vecDistFromAdjaOri(intS1))/4)/dblDistToGainCenter);
+	dblAng2 = dblAng - atan((mean(vecDistFromOrthOri(intS2)))/dblDistToGainCenter);
+	
+	vecCenter1 = [cos(dblAng1) sin(dblAng1)]*vecDistFromOrigin(intS1);
+	vecCenter1A = [cos(dblAng1A) sin(dblAng1A)]*vecDistFromOrigin(intS1Adja);
+	vecCenter2 = [cos(dblAng2) sin(dblAng2)]*vecDistFromOrigin(intS2);
+	
+	%reflect
+	vecX = vecCenter1';
+	[dummy,vecXprimeG]=getProjOnLine(vecX,vecGainCenter');
+	vecXreflG = 2*vecXprimeG - vecX;
+	[dummy,vecXprime]=getProjOnLine(vecX,ones(size(vecX)));
+	vecXrefl = 2*vecXprime - vecX;
+	
+	subplot(2,3,6)%[3 4 7 8]);
+	cla;
+	hold on
+	%mean
+	dblMaxLim = ceil((max([vecCenter1 vecCenter2]) + max(vecSdProjGain))/5)*5;
+	intOffset = 1;
+	plot([0 dblMaxLim],[0 dblMaxLim],'-','color',[0.5 0.5 0.5])
+	text(dblMaxLim*0.2+intOffset,dblMaxLim*0.2-intOffset,'Pop. mean axis','FontSize',16,'Color',[0.5 0.5 0.5],'Rotation',45)
+	%gain
+	plot([0 vecGainCenter(1)*1.4],[0 vecGainCenter(2)*1.4],'-','color','k')
+	text(vecGainCenter(1)*0.3+intOffset,vecGainCenter(2)*0.3-intOffset,'Pop. gain axis','FontSize',16,'Color','k','Rotation',rad2deg(dblAng))
+	
+	%centers
+	scatter(vecCenter1(1),vecCenter1(2),'rx');
+	scatter(vecCenter2(1),vecCenter2(2),'bx');
+	scatter(vecCenter1A(1),vecCenter1A(2),[],[0.5 0 0.5],'x');
+	
+	
+	%covars
+	ellipse(vecCenter1(1),vecCenter1(2),mean(vecSdProjGain(intS1)),mean(vecSdProjOrth(intS1)),dblAng1,'Color','r','LineStyle','-');
+	ellipse(vecCenter2(1),vecCenter2(2),mean(vecSdProjGain(intS2)),mean(vecSdProjOrth(intS2)),dblAng2,'Color','b','LineStyle','-');
+	
+	%draw reflections
+	plot([vecCenter1(1) vecXreflG(1)],[vecCenter1(2) vecXreflG(2)],'k--');
+	plot([vecCenter1(1) vecXrefl(1)],[vecCenter1(2) vecXrefl(2)],'--','color',[0.5 0.5 0.5]);
+	scatter(vecXreflG(1),vecXreflG(2),'ro');
+	scatter(vecXrefl(1),vecXrefl(2),'rd');
+	
+	%text
+	text(vecCenter1(1)+intOffset,vecCenter1(2)+intOffset,'Ref','FontSize',16,'Color','r')
+	text(vecCenter2(1)+intOffset,vecCenter2(2)+intOffset,'Orth','FontSize',16,'Color','b')
+	text(vecCenter1A(1)+intOffset,vecCenter1A(2)+intOffset,'Adja','FontSize',16,'Color',[0.5 0 0.5])
+	text(vecXreflG(1)+intOffset,vecXreflG(2)-intOffset,'Gain-reflect','FontSize',16,'Color','r')
+	text(vecXrefl(1)+intOffset,vecXrefl(2)+intOffset,'Mean-reflect','FontSize',16,'Color','r')
+	
+	%finish fig
+	hold off
+	axis equal;
+	%xlim([0 dblMaxLim*(2/3)]);
+	%ylim([0 dblMaxLim]);
+	xlabel('Spiking rate axis X (Hz)')
+	ylabel('Spiking rate axis Y (Hz)')
+	fixfig;grid off;
+	
+	if boolSaveFigs
+		%% save fig
+		export_fig(fullpath(strFigurePath,sprintf('2Cc_ABA_Agg2_Projections_%s.tif',strType)));
+		export_fig(fullpath(strFigurePath,sprintf('2Cc_ABA_Agg2_Projections_%s.pdf',strType)));
+	end
+end

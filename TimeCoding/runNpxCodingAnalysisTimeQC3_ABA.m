@@ -26,9 +26,9 @@ cellUseAreas = {strRunArea};
 
 intRandomize = 1; %1=real data, 2=shuffled, 3=generated
 boolSaveFigs = true;
-boolHome = false;
+boolHome = true;
 if boolHome
-	strDataPath = 'D:\Data\Processed\AllenBrainVisualEphys\Aggregates\';
+	strDataPath = 'F:\Data\Processed\AllenBrainVisualEphys\Aggregates\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
 	strTargetDataPath = 'F:\Data\Results\PopTimeCoding\data\';
 else
@@ -41,7 +41,7 @@ end
 %strUseRec = '20191211_MP3_RunDriftingGratingsR01_g0_t0';
 %strUseRec = '20191216_MP3_RunNaturalMovieR01_g0_t0';
 if ~exist('sAggABA','var') || isempty(sAggABA)
-	sLoad = load([strDataPath 'AggSes2022-03-25.mat']);
+	sLoad = load([strDataPath 'AggSes2022-03-28.mat']);
 	sAggABA = sLoad.sSes;
 	clear sLoad;
 end

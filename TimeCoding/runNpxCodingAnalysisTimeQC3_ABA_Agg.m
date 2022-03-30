@@ -24,7 +24,7 @@ clear all;
 strRunArea = 'VISp';%'posteromedial visual area' 'Primary visual area'
 cellUseAreas = {strRunArea};
 
-intRandomize = 1; %1=real data, 2=shuffled, 3=generated
+vecRandomize = 1:3; %1=real data, 2=shuffled, 3=generated
 boolMakeFigs = true;
 boolSaveFigs = true;
 boolSaveData = true;
@@ -68,7 +68,7 @@ for intRec=1:numel(vecUseRec)
 	dblDur = median(diff(vecOrigStimOnTime));
 	vecOrigStimOffTime = vecOrigStimOnTime+dblDur;
 	intFramesInMovie = max(structStim.frame)+1;
-	dblBinAvg = 5;
+	dblBinAvg = 10;
 	intUseBinsInMovie = intFramesInMovie/dblBinAvg;
 	dblBinRate = round(intUseBinsInMovie/dblDur);
 	dblBinDur = 1/dblBinRate;
@@ -86,7 +86,7 @@ for intRec=1:numel(vecUseRec)
 	intRepNum = intTrialNum/intStimNum;
 	
 	%change name
-	for intRandomize = 1:3
+	for intRandomize = vecRandomize
 		if intRandomize == 1
 			strType = 'Real';
 		elseif intRandomize == 2
@@ -233,7 +233,7 @@ for intRec=1:numel(vecUseRec)
 			vecNormPopRate = vecMeanPopRate ./ mean(vecMeanPopRate);
 			
 			%% get CV model prediction
-			fprintf('   Running model predictions [%s]\n',strArea,getTime);
+			fprintf('   Running model predictions [%s]\n',getTime);
 			%leave one repetition of one neuron out
 			matTunePredCV = nan(size(matMeanRate));
 			matMeanPredCV = nan(size(matMeanRate));

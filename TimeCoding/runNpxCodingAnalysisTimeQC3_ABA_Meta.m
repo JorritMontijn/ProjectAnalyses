@@ -123,17 +123,17 @@ for intType=1:3
 	%pop predictions
 	subplot(2,4,intType)
 	[h,pMeanGain]=ttest(cellR2_Mean{intType},cellR2_Gain{intType});
-	%vecX = 1:4;
-	vecX = 1:3;
+	vecX = 1:4;
+	%vecX = 1:3;
 	cellLabels = {'Tune','Tune*Mu','Tune*G1','Tune*G'};
 	vecMeans = [mean(cellR2_Tune{intType})...
 		mean(cellR2_Mean{intType})...
-		...%mean(cellR2_Gain1{intType})...
+		mean(cellR2_Gain1{intType})...
 		mean(cellR2_Gain{intType})...
 		];
 	vecSds = [std(cellR2_Tune{intType})...
 		std(cellR2_Mean{intType})...
-		...%std(cellR2_Gain1{intType})...
+		std(cellR2_Gain1{intType})...
 		std(cellR2_Gain{intType})...
 		];
 	intN = numel(cellR2_Tune{intType});
@@ -151,17 +151,17 @@ for intType=1:3
 	%neuron predictions
 	subplot(2,4,4+intType)
 	[h,pMeanGain]=ttest(cellR2_MeanN{intType},cellR2_GainN{intType});
-	%vecX = 1:4;
-	vecX = 1:3;
+	vecX = 1:4;
+	%vecX = 1:3;
 	cellLabels = {'Tune','Tune*Mu','Tune*G1','Tune*G'};
 	vecMeans = [mean(cellR2_TuneN{intType})...
 		mean(cellR2_MeanN{intType})...
-		...%mean(cellR2_Gain1N{intType})...
+		mean(cellR2_Gain1N{intType})...
 		mean(cellR2_GainN{intType})...
 		];
 	vecSds = [std(cellR2_TuneN{intType})...
 		std(cellR2_MeanN{intType})...
-		...%std(cellR2_Gain1N{intType})...
+		std(cellR2_Gain1N{intType})...
 		std(cellR2_GainN{intType})...
 		];
 	intN = numel(cellR2_TuneN{intType});
@@ -202,6 +202,12 @@ if boolSaveFigs
 end
 
 %% plot projections
+matCol = [0 0 0;...mean
+	0 0 0.8;...gain
+	0 0.8 0;...orth
+	0.8 0 0;...adja
+	0.5 0 0.5;...(rand)
+	];
 for intType=1:3
 	strType = cellTypes{intType};
 	%get data
@@ -215,7 +221,7 @@ for intType=1:3
 	vecAngleMeanAndGainRand = cellAngleMeanAndGainRand{intType};
 	vecSdProjMean = cellSdProjMean{intType};
 	vecSdProjGain = cellSdProjGain{intType};
-	vecSdProjRand = cellSdProjRand{intType};
+	%vecSdProjRand = cellSdProjRand{intType};
 	vecSdProjOrth = cellSdProjOrth{intType};
 	vecSdProjAdja = cellSdProjAdja{intType};
 	vecDistFromOrigin = cellDistFromOrigin{intType};
@@ -230,20 +236,20 @@ for intType=1:3
 	figure;maxfig;
 	subplot(2,3,1)
 	hold on
-	vecLoc = [0.2 0.5 0.8];
+	vecLoc = [0.2 0.5 0.8 1.1];
 	dblJit = 0.05;
 	scatter(vecLoc(1)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecSdProjMean,[200],[0.5 0.5 0.5],'.')
 	scatter(vecLoc(2)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecSdProjGain,[200],[0.5 0.5 0.5],'.')
-	%scatter(vecLoc(3)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjRand,[200],[0.5 0.5 0.5],'.')
-	%scatter(vecLoc(3)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjAdja,[200],[0.5 0.5 0.5],'.')
 	scatter(vecLoc(3)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecSdProjOrth,[200],[0.5 0.5 0.5],'.')
-	errorbar(vecLoc(1),mean(vecSdProjMean),std(vecSdProjMean)/sqrt(intNumRecs),'bx','CapSize',20)
-	errorbar(vecLoc(2),mean(vecSdProjGain),std(vecSdProjGain)/sqrt(intNumRecs),'kx','CapSize',20)
-	%errorbar(vecLoc(3),mean(vecSdProjRand),std(vecSdProjRand)/sqrt(intStimNr),'rx','CapSize',20)
-	%errorbar(vecLoc(3),mean(vecSdProjAdja),std(vecSdProjAdja)/sqrt(intStimNr),'kx','CapSize',20)
-	errorbar(vecLoc(3),mean(vecSdProjOrth),std(vecSdProjOrth)/sqrt(intNumRecs),'rx','CapSize',20)
+	scatter(vecLoc(4)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecSdProjAdja,[200],[0.5 0.5 0.5],'.')
+	%scatter(vecLoc(5)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjRand,[200],[0.5 0.5 0.5],'.')
+	errorbar(vecLoc(1),mean(vecSdProjMean),std(vecSdProjMean)/sqrt(intNumRecs),'x','color',matCol(1,:),'CapSize',20)
+	errorbar(vecLoc(2),mean(vecSdProjGain),std(vecSdProjGain)/sqrt(intNumRecs),'x','color',matCol(2,:),'CapSize',20)
+	errorbar(vecLoc(3),mean(vecSdProjOrth),std(vecSdProjOrth)/sqrt(intNumRecs),'x','color',matCol(3,:),'CapSize',20)
+	errorbar(vecLoc(4),mean(vecSdProjAdja),std(vecSdProjAdja)/sqrt(intNumRecs),'x','color',matCol(4,:),'CapSize',20)
+	%errorbar(vecLoc(5),mean(vecSdProjRand),std(vecSdProjRand)/sqrt(intStimNr),'x','color',matCol(1,:),'CapSize',20)
 	hold off;
-	set(gca,'xtick',vecLoc,'xticklabel',{'Pop mean','Pop gain','Stim-Orth'});
+	set(gca,'xtick',vecLoc,'xticklabel',{'Pop mean','Pop gain','S-Orth','S-Adja'});
 	xlabel('Projection axis');
 	ylabel('Range of spiking rates (\sigmaHz)');
 	title(sprintf('%s; MG,p=%.2e; MO,p=%.3f; GO,p=%.2e',strType,pMeanGain,pMeanOrth,pGainOrth));
@@ -257,11 +263,11 @@ for intType=1:3
 	vecLoc = [0.2 0.5 0.8];
 	dblJit = 0.05;
 	scatter(vecLoc(1)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecDistFromOrigin,[200],[0.5 0.5 0.5],'.')
-	errorbar(vecLoc(1),mean(vecDistFromOrigin),std(vecDistFromOrigin)/sqrt(intNumRecs),'kx','CapSize',20)
+	errorbar(vecLoc(1),mean(vecDistFromOrigin),std(vecDistFromOrigin)/sqrt(intNumRecs),'x','color',matCol(2,:),'CapSize',20)
 	scatter(vecLoc(2)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecDistFromOrthOri,[200],[0.5 0.5 0.5],'.')
-	errorbar(vecLoc(2),mean(vecDistFromOrthOri),std(vecDistFromOrthOri)/sqrt(intNumRecs),'bx','CapSize',20)
+	errorbar(vecLoc(2),mean(vecDistFromOrthOri),std(vecDistFromOrthOri)/sqrt(intNumRecs),'x','color',matCol(3,:),'CapSize',20)
 	scatter(vecLoc(3)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecDistFromAdjaOri,[200],[0.5 0.5 0.5],'.')
-	errorbar(vecLoc(3),mean(vecDistFromAdjaOri),std(vecDistFromAdjaOri)/sqrt(intNumRecs),'rx','CapSize',20)
+	errorbar(vecLoc(3),mean(vecDistFromAdjaOri),std(vecDistFromAdjaOri)/sqrt(intNumRecs),'x','color',matCol(4,:),'CapSize',20)
 	hold off
 	set(gca,'xtick',vecLoc,'xticklabel',{'Origin','Orth. ori','Adja. ori'});
 	%ylim([0 60]);
@@ -280,9 +286,9 @@ for intType=1:3
 	vecLoc = [0.2 0.8];
 	dblJit = 0.05;
 	scatter(vecLoc(1)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecAngleMeanAndGain,[200],[0.5 0.5 0.5],'.')
-	errorbar(vecLoc(1),mean(vecAngleMeanAndGain),std(vecAngleMeanAndGain)/sqrt(intNumRecs),'kx','CapSize',20)
+	errorbar(vecLoc(1),mean(vecAngleMeanAndGain),std(vecAngleMeanAndGain)/sqrt(intNumRecs),'x','color',matCol(2,:),'CapSize',20)
 	scatter(vecLoc(2)+(rand(1,intNumRecs)-0.5)*2*dblJit,vecAngleMeanAndGainRand,[200],[0.5 0.5 0.5],'.')
-	errorbar(vecLoc(2),mean(vecAngleMeanAndGainRand),std(vecAngleMeanAndGainRand)/sqrt(intNumRecs),'bx','CapSize',20)
+	errorbar(vecLoc(2),mean(vecAngleMeanAndGainRand),std(vecAngleMeanAndGainRand)/sqrt(intNumRecs),'x','color',matCol(1,:),'CapSize',20)
 	hold off
 	set(gca,'xtick',vecLoc,'xticklabel',{'Gain','Rand'});
 	xlim([vecLoc(1)-0.2 vecLoc(end)+0.2]);
@@ -296,10 +302,10 @@ for intType=1:3
 	dblJit = 0.05;
 	subplot(2,3,4);
 	hold on
-	errorbar(vecLoc(1),mean(vecReflDistMuOrth),std(vecReflDistMuOrth)/sqrt(intNumRecs),'kx','CapSize',20)
-	errorbar(vecLoc(2),mean(vecReflDistMuAdja),std(vecReflDistMuAdja)/sqrt(intNumRecs),'bx','CapSize',20)
-	errorbar(vecLoc(3),mean(vecReflDistGainOrth),std(vecReflDistGainOrth)/sqrt(intNumRecs),'kx','CapSize',20)
-	errorbar(vecLoc(4),mean(vecReflDistGainAdja),std(vecReflDistGainAdja)/sqrt(intNumRecs),'bx','CapSize',20)
+	errorbar(vecLoc(1),mean(vecReflDistMuOrth),std(vecReflDistMuOrth)/sqrt(intNumRecs),'x','color',matCol(3,:),'CapSize',20)
+	errorbar(vecLoc(2),mean(vecReflDistMuAdja),std(vecReflDistMuAdja)/sqrt(intNumRecs),'x','color',matCol(4,:),'CapSize',20)
+	errorbar(vecLoc(3),mean(vecReflDistGainOrth),std(vecReflDistGainOrth)/sqrt(intNumRecs),'x','color',matCol(3,:),'CapSize',20)
+	errorbar(vecLoc(4),mean(vecReflDistGainAdja),std(vecReflDistGainAdja)/sqrt(intNumRecs),'x','color',matCol(4,:),'CapSize',20)
 	hold off
 	set(gca,'xtick',vecLoc,'xticklabel',{'Mu/Orth','Mu/Adj','Gain/Orth','Gain/Adj'});
 	xlim([vecLoc(1)-0.2 vecLoc(end)+0.2]);
@@ -312,8 +318,8 @@ for intType=1:3
 	subplot(2,3,5);
 	[h,pSym]=ttest2(vecMeanSymmetry,vecGainSymmetry);
 	hold on
-	errorbar(0.2,mean(vecMeanSymmetry),std(vecMeanSymmetry)/sqrt(intNumRecs),'bd','CapSize',20)
-	errorbar(0.8,mean(vecGainSymmetry),std(vecGainSymmetry)/sqrt(intNumRecs),'ko','CapSize',20)
+	errorbar(0.2,mean(vecMeanSymmetry),std(vecMeanSymmetry)/sqrt(intNumRecs),'d','color',matCol(1,:),'CapSize',20)
+	errorbar(0.8,mean(vecGainSymmetry),std(vecGainSymmetry)/sqrt(intNumRecs),'o','color',matCol(2,:),'CapSize',20)
 	hold off
 	ylabel('Manifold symmetry (%)');
 	set(gca,'xtick',vecLoc,'xticklabel',{'Pop. mean','Pop. gain'});
@@ -355,34 +361,34 @@ for intType=1:3
 	%mean
 	dblMaxLim = ceil((max([vecCenter1 vecCenter2]) + max(vecSdProjGain))/5)*5;
 	intOffset = 1;
-	plot([0 dblMaxLim],[0 dblMaxLim],'-','color',[0.5 0.5 0.5])
-	text(dblMaxLim*0.2+intOffset,dblMaxLim*0.2-intOffset,'Pop. mean axis','FontSize',16,'Color',[0.5 0.5 0.5],'Rotation',45)
+	plot([0 dblMaxLim],[0 dblMaxLim],'-','color',matCol(1,:))
+	text(dblMaxLim*0.2+intOffset,dblMaxLim*0.2-intOffset,'Pop. mean axis','FontSize',16,'color',matCol(1,:),'Rotation',45)
 	%gain
-	plot([0 vecGainCenter(1)*1.4],[0 vecGainCenter(2)*1.4],'-','color','k')
-	text(vecGainCenter(1)*0.3+intOffset,vecGainCenter(2)*0.3-intOffset,'Pop. gain axis','FontSize',16,'Color','k','Rotation',rad2deg(dblAng))
+	plot([0 vecGainCenter(1)*1.4],[0 vecGainCenter(2)*1.4],'-','color',matCol(2,:))
+	text(vecGainCenter(1)*0.3+intOffset,vecGainCenter(2)*0.3-intOffset,'Pop. gain axis','FontSize',16,'color',matCol(2,:),'Rotation',rad2deg(dblAng))
 	
 	%centers
-	scatter(vecCenter1(1),vecCenter1(2),'rx');
-	scatter(vecCenter2(1),vecCenter2(2),'bx');
+	scatter(vecCenter1(1),vecCenter1(2),[],matCol(4,:),'x');
+	scatter(vecCenter2(1),vecCenter2(2),[],matCol(3,:),'x');
 	scatter(vecCenter1A(1),vecCenter1A(2),[],[0.5 0 0.5],'x');
 	
 	
 	%covars
-	ellipse(vecCenter1(1),vecCenter1(2),mean(vecSdProjGain(intS1)),mean(vecSdProjOrth(intS1)),dblAng1,'Color','r','LineStyle','-');
-	ellipse(vecCenter2(1),vecCenter2(2),mean(vecSdProjGain(intS2)),mean(vecSdProjOrth(intS2)),dblAng2,'Color','b','LineStyle','-');
+	ellipse(vecCenter1(1),vecCenter1(2),mean(vecSdProjGain(intS1)),mean(vecSdProjOrth(intS1)),dblAng1,'color',matCol(4,:),'LineStyle','-');
+	ellipse(vecCenter2(1),vecCenter2(2),mean(vecSdProjGain(intS2)),mean(vecSdProjOrth(intS2)),dblAng2,'color',matCol(3,:),'LineStyle','-');
 	
 	%draw reflections
 	plot([vecCenter1(1) vecXreflG(1)],[vecCenter1(2) vecXreflG(2)],'k--');
 	plot([vecCenter1(1) vecXrefl(1)],[vecCenter1(2) vecXrefl(2)],'--','color',[0.5 0.5 0.5]);
-	scatter(vecXreflG(1),vecXreflG(2),'ro');
-	scatter(vecXrefl(1),vecXrefl(2),'rd');
+	scatter(vecXreflG(1),vecXreflG(2),[],matCol(2,:),'o');
+	scatter(vecXrefl(1),vecXrefl(2),[],matCol(1,:),'d');
 	
 	%text
-	text(vecCenter1(1)+intOffset,vecCenter1(2)+intOffset,'Ref','FontSize',16,'Color','r')
-	text(vecCenter2(1)+intOffset,vecCenter2(2)+intOffset,'Orth','FontSize',16,'Color','b')
+	text(vecCenter1(1)+intOffset,vecCenter1(2)+intOffset,'Ref','FontSize',16,'color',matCol(4,:))
+	text(vecCenter2(1)+intOffset,vecCenter2(2)+intOffset,'Orth','FontSize',16,'color',matCol(3,:))
 	text(vecCenter1A(1)+intOffset,vecCenter1A(2)+intOffset,'Adja','FontSize',16,'Color',[0.5 0 0.5])
-	text(vecXreflG(1)+intOffset,vecXreflG(2)-intOffset,'Gain-reflect','FontSize',16,'Color','r')
-	text(vecXrefl(1)+intOffset,vecXrefl(2)+intOffset,'Mean-reflect','FontSize',16,'Color','r')
+	text(vecXreflG(1)+intOffset,vecXreflG(2)-intOffset,'Gain-reflect','FontSize',16,'color',matCol(2,:))
+	text(vecXrefl(1)+intOffset,vecXrefl(2)+intOffset,'Mean-reflect','FontSize',16,'color',matCol(1,:))
 	
 	%finish fig
 	hold off
@@ -398,4 +404,47 @@ for intType=1:3
 		export_fig(fullpath(strFigurePath,sprintf('2Cc_ABA_Agg2_Projections_%s.tif',strType)));
 		export_fig(fullpath(strFigurePath,sprintf('2Cc_ABA_Agg2_Projections_%s.pdf',strType)));
 	end
+end
+
+%% var over gain vs adja
+figure;maxfig;
+subplot(2,3,1);
+vecRatioR2_Tune = (cellR2_Tune{1}./cellR2_Tune{2}-1)*100;
+vecRatioR2_Mean = (cellR2_Mean{1}./cellR2_Mean{2}-1)*100;
+vecRatioR2_Gain = (cellR2_Gain{1}./cellR2_Gain{2}-1)*100;
+[h,pMeanGain] = ttest(vecRatioR2_Mean,vecRatioR2_Gain);
+hold on
+plot(cat(1,vecRatioR2_Tune,vecRatioR2_Mean,vecRatioR2_Gain),'color',[0.7 0.7 0.7]);
+errorbar(1,mean(vecRatioR2_Tune),std(vecRatioR2_Tune)./sqrt(numel(vecRatioR2_Tune)),'x','color',[0.8 0 0]);
+errorbar(2,mean(vecRatioR2_Mean),std(vecRatioR2_Mean)./sqrt(numel(vecRatioR2_Mean)),'x','color',[0 0 0]);
+errorbar(3,mean(vecRatioR2_Gain),std(vecRatioR2_Gain)./sqrt(numel(vecRatioR2_Gain)),'x','color',[0 0 0.8]);
+hold off
+ylabel('Pop resp R^2 improvement over shuffled (%)');
+set(gca,'xtick',1:3,'xticklabel',{'Tune','Tune*Mu','Tune*G'});
+xlim([0.5 3.5]);
+title(sprintf('T-test mean-gain, p=%.2e',pMeanGain));
+fixfig;grid off;
+
+
+subplot(2,3,2)
+vecGainAdjaReal = cellSdProjAdja{1}./(cellSdProjGain{1}+cellSdProjAdja{1});
+vecGainAdjaShuff = cellSdProjAdja{2}./(cellSdProjGain{2}+cellSdProjAdja{2});
+vecGainAdjaPoiss = cellSdProjAdja{3}./(cellSdProjGain{3}+cellSdProjAdja{3});
+[h,pRealShuff] = ttest(vecGainAdjaReal,vecGainAdjaShuff);
+hold on
+plot(cat(1,vecGainAdjaReal,vecGainAdjaShuff,vecGainAdjaPoiss),'color',[0.7 0.7 0.7]);
+errorbar(1,mean(vecGainAdjaReal),std(vecGainAdjaReal)./sqrt(numel(vecGainAdjaReal)),'x','color',lines(1));
+errorbar(2,mean(vecGainAdjaShuff),std(vecGainAdjaShuff)./sqrt(numel(vecGainAdjaShuff)),'x','color',[0.8 0 0]);
+errorbar(3,mean(vecGainAdjaPoiss),std(vecGainAdjaPoiss)./sqrt(numel(vecGainAdjaPoiss)),'x','color',[0 0 0]);
+hold off
+ylabel('Fraction of info-limiting variability');
+set(gca,'xtick',1:3,'xticklabel',cellTypes);
+xlim([0.5 3.5]);
+title(sprintf('T-test real-shuff, p=%.2e',pRealShuff));
+fixfig;grid off;
+
+if boolSaveFigs
+	%% save fig
+	export_fig(fullpath(strFigurePath,sprintf('2Cc_ABA_Agg3_PredAndInfoLimVar.tif')));
+	export_fig(fullpath(strFigurePath,sprintf('2Cc_ABA_Agg3_PredAndInfoLimVar.pdf')));
 end

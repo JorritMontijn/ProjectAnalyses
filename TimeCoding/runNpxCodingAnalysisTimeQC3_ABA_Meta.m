@@ -63,6 +63,7 @@ cellAngleMeanAndGain = cell(1,3);
 cellAngleMeanAndGainRand = cell(1,3);
 cellSdProjMean = cell(1,3);
 cellSdProjGain = cell(1,3);
+cellSdProjGain1 = cell(1,3);
 cellSdProjRand = cell(1,3);
 cellSdProjOrth = cell(1,3);
 cellSdProjAdja = cell(1,3);

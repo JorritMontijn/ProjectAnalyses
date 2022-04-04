@@ -43,6 +43,7 @@ end
 %strUseRec = '20191211_MP3_RunDriftingGratingsR01_g0_t0';
 %strUseRec = '20191216_MP3_RunNaturalMovieR01_g0_t0';
 if ~exist('sAggABA','var') || isempty(sAggABA)
+	fprintf('Loading Allen Brain EcEphys data... [%s]\n',getTime);
 	sLoad = load([strDataPath 'AggSes2022-03-28.mat']);
 	sAggABA = sLoad.sSes;
 	clear sLoad;
@@ -242,38 +243,72 @@ for intRec=1:numel(vecUseRec)
 			for intTestRep = 1:intRepNum
 				indTestTrials = vecTrialRepetition==intTestRep;
 				vecTestTrials = find(indTestTrials);
-				matTrainR = matMeanRate(:,~indTestTrials);
-				vecTrainS = vecStimIdx(~indTestTrials);
+				vecTrainTrials = find(~indTestTrials);
+				matTrainR = matMeanRate(:,vecTrainTrials);
+				vecTrainS = vecStimIdx(vecTrainTrials);
+				vecTestS = vecStimIdx(vecTestTrials);
+				matTestR = matMeanRate(:,vecTestTrials);
 				dblMeanPopRate = mean(matTrainR(:));
 				%get tuning curves
 				[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(matTrainR,vecTrainS);
 				matTrainTuning = mean(matRespNSR,3);
-				vecTestOri = vecStimIdx(indTestTrials);
 				%get gain for training trials
 				for intTestNeuron=1:intNeuronNum
-					%% simple prediction: only tuning curve
-					matTunePredCV(intTestNeuron,indTestTrials) = matTrainTuning(intTestNeuron,vecTestOri);
-					
-					%% classic prediction: tuning curve times population mean
+					%% get vars
 					indOtherNeurons = ~ismember(1:intNeuronNum,intTestNeuron);
-					matOtherR = matMeanRate(indOtherNeurons,indTestTrials);
+					matOtherR = matMeanRate(indOtherNeurons,vecTestTrials);
 					vecTrainOtherRate = mean(matTrainR(indOtherNeurons,:),1)';
 					vecTestOtherRate = mean(matOtherR,1)';
+					matTrainOtherR = matTrainR(indOtherNeurons,:);
+					matTestOtherR = matTestR(indOtherNeurons,:);
 					
+					%% simple prediction: only tuning curve
+					matTunePredCV(intTestNeuron,vecTestTrials) = matTrainTuning(intTestNeuron,vecTestS);
+					
+					%% classic prediction: tuning curve times population mean
+					%get pop mean per trial, and average pop mean over trials
+					vecPopMeanTrain = mean(matTrainOtherR,1);
+					dblAvgPopMeanTrain = mean(vecPopMeanTrain);
+					
+					%get test pop mean
+					vecPopMeanTest =  mean(matTestOtherR,1);
+						
+					%get mean resp during train
+					vecTrainR = matTrainTuning(intTestNeuron,vecTestS);
+					
+					%predict: R(phi,i,t)= (pop_mean(not i,t) / avg(pop_mean(not i))) * mu(phi,i)
+					matMeanPredCV(intTestNeuron,vecTestTrials) = (vecPopMeanTest ./ dblAvgPopMeanTrain) .* vecTrainR;
+					
+					%{
+					%% old
 					%calculate optimal coupling
 					vecTrainSelfAct = (matTrainR(~indOtherNeurons,:)-matTrainTuning(intTestNeuron,vecTrainS)) ./ (matTrainTuning(intTestNeuron,vecTrainS)+eps);
 					vecMeanOffset = cat(2,vecTrainOtherRate,ones(size(vecTrainOtherRate)))\vecTrainSelfAct';
 					
 					%optimal pred
-					vecMeanPred = matTrainTuning(intTestNeuron,vecTestOri)' + matTrainTuning(intTestNeuron,vecTestOri)'.*(vecMeanOffset(1).*vecTestOtherRate + vecMeanOffset(2));
+					vecMeanPred = matTrainTuning(intTestNeuron,vecTestS)' + matTrainTuning(intTestNeuron,vecTestS)'.*(vecMeanOffset(1).*vecTestOtherRate + vecMeanOffset(2));
 					matMeanPredCV(intTestNeuron,indTestTrials) = vecMeanPred;
 					
 					
 					%direct pred
 					%vecOtherPopNormRate = mean(matOtherR)./dblMeanPopRate;
 					%matMeanPredCV(intTestNeuron,indTestTrials) = matTrainTuning(intTestNeuron,vecTestOri) .* vecOtherPopNormRate;
+					%}
 					
-					%% same gain for all oris
+					%% same gain for all stims
+					%calculate gain axis for this stimulus from training trials
+					vecTrainGain1Ax = mean(matTrainOtherR,2);
+						
+					%get population test responses and project onto training gain axis
+					vecOtherGain1=getProjOnLine(matTestOtherR,vecTrainGain1Ax);
+					
+					%get mean resp during train
+					vecTrainR = matTrainTuning(intTestNeuron,vecTestS);
+					
+					%predict: R(phi,i,t)= (gain1(not i,t) / norm(mu(not i))) * mu(phi,i)
+					matGain1PredCV(intTestNeuron,vecTestTrials) = (vecOtherGain1 ./ norm(vecTrainGain1Ax)) .* vecTrainR';
+					
+					%{
 					vecGain1Ax = mean(matTrainTuning(indOtherNeurons,:),2);
 					vecTrainOtherGain1=getProjOnLine(matTrainR(indOtherNeurons,:),vecGain1Ax);
 					vecTestOtherGain1=getProjOnLine(matOtherR,vecGain1Ax);
@@ -287,8 +322,30 @@ for intRec=1:numel(vecUseRec)
 					
 					%dblCoupling=corr(vecTrainOtherGain1Norm',vecTrainSelfActNorm');
 					%matGain1PredCV(intTestNeuron,indTestTrials) = matTrainTuning(intTestNeuron,vecTestOri) .* vecTestOtherGain1Norm*dblCoupling;
+					%}
 					
 					%% gain prediction: stim-specific coupling between population gain and predicted neuron
+					%R(phi,i,t)= (gain(phi,not i,t) / norm(mu(phi,not i))) * mu(phi,i)
+					for intStimIdx=1:intStimNr
+						%calculate gain axis for this stimulus from training trials
+						indTrainT = vecTrainS==intStimIdx;
+						matTrainOtherR = matTrainR(indOtherNeurons,indTrainT);
+						vecTrainGainAx = mean(matTrainOtherR,2);
+						
+						%get population test responses and project onto training gain axis
+						indTestT = vecTestS==intStimIdx;
+						matTestOtherR = matTestR(indOtherNeurons,indTestT);
+						vecOtherGain=getProjOnLine(matTestOtherR,vecTrainGainAx);
+						
+						%get mean response for this stimulus for this neuron over training trials
+						dblTrainSelf = mean(matTrainR(~indOtherNeurons,indTrainT));
+						
+						%predict: R(phi,i,t)= (gain(phi,not i,t) / norm(mu(phi,not i))) * mu(phi,i)
+						matGainPredCV(intTestNeuron,vecTestTrials(indTestT)) = (vecOtherGain ./ norm(vecTrainGainAx)) * dblTrainSelf;
+					end
+					
+					%{
+					%% old
 					%get stimulus-specific gain
 					vecOthersGain = nan(1,numel(vecTrainS));
 					vecGain = nan(1,intStimNr);
@@ -310,6 +367,7 @@ for intRec=1:numel(vecUseRec)
 					vecGainV=getProjOnLine(matOtherR,vecGainAx)';
 					vecGainPred = vecGain(vecTestOri).*vecGainV + vecOffset(vecTestOri);
 					matGainPredCV(intTestNeuron,vecTestTrials) = vecGainPred;
+					%}
 				end
 			end
 			
@@ -368,11 +426,12 @@ for intRec=1:numel(vecUseRec)
 				
 				%summary
 				subplot(2,4,5)
-				errorbar(1:3,[dblR2_Tune dblR2_Mean dblR2_Gain],[dblR2_SE_Tune dblR2_SE_Mean dblR2_SE_Gain],'x','CapSize',20)
-				set(gca,'xtick',1:3,'xticklabel',{'Tune','Tune*Mean','Tune*Gain'});
+				errorbar(1:4,[dblR2_Tune dblR2_Mean dblR2_Gain1 dblR2_Gain],[dblR2_SE_Tune dblR2_SE_Mean dblR2_SE_Gain1 dblR2_SE_Gain],'x','CapSize',20)
+				set(gca,'xtick',1:4,'xticklabel',{'Tune','Tune*Mean','Tune*Gain1','Tune*Gain'});
 				xtickangle(20);
 				ylabel('CV pop resp predictability (R^2)');
-				xlim([0 4]);
+				xlim([0 5]);
+				title(sprintf('%s',strRec),'interpreter','none');
 				fixfig;
 				
 				%tuning only
@@ -447,6 +506,7 @@ for intRec=1:numel(vecUseRec)
 					export_fig(fullpath(strFigurePath,sprintf('2Cc1_PopRespPrediction_%s.pdf',strRec)));
 				end
 			end
+			
 			%% use correlations to predict residuals
 			%{
 		matResids = matMeanRate-matGainPredCV;
@@ -472,6 +532,7 @@ for intRec=1:numel(vecUseRec)
 			matGainResp = nan(size(matMeanRate));
 			matCov = nan(intNeuronNum,intNeuronNum,intStimNr);
 			vecSdProjMean = nan(1,intStimNr);
+			vecSdProjGain1 = nan(1,intStimNr);
 			vecSdProjGain = nan(1,intStimNr);
 			vecSdProjRand = nan(1,intStimNr);
 			vecSdProjOrth = nan(1,intStimNr);
@@ -487,35 +548,43 @@ for intRec=1:numel(vecUseRec)
 			%cossim
 			vecAngleMeanAndGain = nan(1,intStimNr);
 			vecAngleMeanAndGainRand = nan(1,intStimNr);
-			for intOriIdx=1:intStimNr
-				vecOriTrials = find(vecStimIdx==intOriIdx);
-				indAdjaOriTrials = vecStimIdx==modx(intOriIdx+1,intStimNr);
-				indAdja2OriTrials = vecStimIdx==modx(intOriIdx-1,intStimNr);
-				indOrthOriTrials = vecStimIdx==modx(intOriIdx+ceil(intStimNr/2)-1,intStimNr);
+			
+			for intStimIdx=1:intStimNr
+				vecOriTrials = find(vecStimIdx==intStimIdx);
+				indAdjaOriTrials = vecStimIdx==modx(intStimIdx+1,intStimNr);
+				indAdja2OriTrials = vecStimIdx==modx(intStimIdx-1,intStimNr);
+				indOrthOriTrials = vecStimIdx==modx(intStimIdx+ceil(intStimNr/2)-1,intStimNr);
 				matPoints =matMeanRate(:,vecOriTrials);
 				vecOriR = mean(matPoints,2);
 				vecAdjaOriR = mean(matMeanRate(:,indAdjaOriTrials),2);
 				vecAdja2OriR = mean(matMeanRate(:,indAdja2OriTrials),2);
 				vecOrthOriR = mean(matMeanRate(:,indOrthOriTrials),2);
 				matGainResp(:,vecOriTrials) = vecOriR * vecNormPopRate(vecOriTrials);
-				matCov(:,:,intOriIdx) = cov(matMeanRate(:,vecOriTrials)');
+				matCov(:,:,intStimIdx) = cov(matMeanRate(:,vecOriTrials)');
 				
-				vecProjMean=getProjOnLine(matPoints,ones(intNeuronNum,1),100);
-				vecSdProjMean(intOriIdx) = std(vecProjMean);
-				vecProjGain=getProjOnLine(matPoints,vecOriR,100);
-				vecSdProjGain(intOriIdx) = std(vecProjGain);
-				vecProjRand=getProjOnLine(matPoints,(rand(intNeuronNum,1)-0.5)*2,100);
-				vecSdProjRand(intOriIdx) = std(vecProjRand);
+				vecProjMean=getProjOnLine(matPoints,ones(intNeuronNum,1));
+				vecSdProjMean(intStimIdx) = std(vecProjMean);
+				vecProjRand=getProjOnLine(matPoints,(rand(intNeuronNum,1)-0.5)*2);
+				vecSdProjRand(intStimIdx) = std(vecProjRand);
 				
-				vecProjOrth=getProjOnLine(matPoints-vecOrthOriR,vecOriR-vecOrthOriR,100);
-				vecSdProjOrth(intOriIdx) = std(vecProjOrth);
-				vecProjAdja=getProjOnLine(matPoints-vecAdjaOriR,vecOriR-vecAdjaOriR,100);
-				vecSdProjAdja(intOriIdx) = std(vecProjAdja);
+				%Project activity unto single gain axis Vs one per stim and compare SDs
+				%for each stim separately
+				vecProjGain=getProjOnLine(matPoints,vecOriR);
+				vecSdProjGain(intStimIdx) = std(vecProjGain);
+				
+				%for avg-gain
+				vecProjGain1=getProjOnLine(matPoints,vecGainAx);
+				vecSdProjGain1(intStimIdx) = std(vecProjGain1);
+				
+				vecProjOrth=getProjOnLine(matPoints-vecOrthOriR,vecOriR-vecOrthOriR);
+				vecSdProjOrth(intStimIdx) = std(vecProjOrth);
+				vecProjAdja=getProjOnLine(matPoints-vecAdjaOriR,vecOriR-vecAdjaOriR);
+				vecSdProjAdja(intStimIdx) = std(vecProjAdja);
 				
 				
-				vecDistFromOrigin(intOriIdx) = norm(vecOriR);
-				vecDistFromOrthOri(intOriIdx) = norm(vecOriR-vecOrthOriR);
-				vecDistFromAdjaOri(intOriIdx) = (norm(vecOriR-vecAdjaOriR) + norm(vecOriR-vecAdja2OriR))/2;
+				vecDistFromOrigin(intStimIdx) = norm(vecOriR);
+				vecDistFromOrthOri(intStimIdx) = norm(vecOriR-vecOrthOriR);
+				vecDistFromAdjaOri(intStimIdx) = (norm(vecOriR-vecAdjaOriR) + norm(vecOriR-vecAdja2OriR))/2;
 				
 				vecGainDir = vecOriR;
 				vecMeanDir = ones(size(vecOriR));
@@ -527,8 +596,8 @@ for intRec=1:numel(vecUseRec)
 					[dblCosSimRand,dblAngSimRand] = cossim(rand(intNeuronNum,1),vecMeanDir);
 					vecRandSim(i) = dblCosSimRand;
 				end
-				vecAngleMeanAndGain(intOriIdx) = dblCosSim;
-				vecAngleMeanAndGainRand(intOriIdx) = mean(vecRandSim);
+				vecAngleMeanAndGain(intStimIdx) = dblCosSim;
+				vecAngleMeanAndGainRand(intStimIdx) = mean(vecRandSim);
 				
 				%reflect around mean-axis
 				intIters=100;
@@ -543,7 +612,7 @@ for intRec=1:numel(vecUseRec)
 					%vecOriTrials2 = indAdjaOriTrials;%vecReorder(((ceil(numel(vecReorder)/2))+1):end);
 					vecOriTrials1 = vecOriTrials(vecReorder(1:(floor(numel(vecReorder)/2))));
 					vecOriTrials2 = vecOriTrials(vecReorder(((ceil(numel(vecReorder)/2))+1):end));
-					indOrthOriTrials = vecStimIdx==modx(intOriIdx+ceil(intStimNr/2),intStimNr);
+					indOrthOriTrials = vecStimIdx==modx(intStimIdx+ceil(intStimNr/2),intStimNr);
 					vecX = mean(matMeanRate(:,vecOriTrials1),2);
 					vecY = mean(matMeanRate(:,indOrthOriTrials),2);
 					vecZ = mean(matMeanRate(:,vecOriTrials2),2);
@@ -573,10 +642,10 @@ for intRec=1:numel(vecUseRec)
 				end
 				
 				%mean over resamples
-				vecReflDistMuOrth(intOriIdx) = mean(vecTempReflDistMu(i));
-				vecReflDistMuAdja(intOriIdx) = mean(vecTempReflDistMuAdja(i));
-				vecReflDistGainOrth(intOriIdx) = mean(vecTempReflDistG(i));
-				vecReflDistGainAdja(intOriIdx) = mean(vecTempReflDistGAdja(i));
+				vecReflDistMuOrth(intStimIdx) = mean(vecTempReflDistMu(i));
+				vecReflDistMuAdja(intStimIdx) = mean(vecTempReflDistMuAdja(i));
+				vecReflDistGainOrth(intStimIdx) = mean(vecTempReflDistG(i));
+				vecReflDistGainAdja(intStimIdx) = mean(vecTempReflDistGAdja(i));
 			end
 			
 			%symmetry
@@ -591,20 +660,22 @@ for intRec=1:numel(vecUseRec)
 				figure;maxfig;
 				subplot(2,3,1)
 				hold on
-				vecLoc = [0.2 0.5 0.8];
+				vecLoc = [0.2 0.5 0.8 1.1];
 				dblJit = 0.05;
 				scatter(vecLoc(1)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjMean,[200],[0.5 0.5 0.5],'.')
-				scatter(vecLoc(2)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjGain,[200],[0.5 0.5 0.5],'.')
+				scatter(vecLoc(2)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjGain1,[200],[0.5 0.5 0.5],'.')
+				scatter(vecLoc(3)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjGain,[200],[0.5 0.5 0.5],'.')
 				%scatter(vecLoc(3)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjRand,[200],[0.5 0.5 0.5],'.')
 				%scatter(vecLoc(3)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjAdja,[200],[0.5 0.5 0.5],'.')
-				scatter(vecLoc(3)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjOrth,[200],[0.5 0.5 0.5],'.')
+				scatter(vecLoc(4)+(rand(1,intStimNr)-0.5)*2*dblJit,vecSdProjOrth,[200],[0.5 0.5 0.5],'.')
 				errorbar(vecLoc(1),mean(vecSdProjMean),std(vecSdProjMean)/sqrt(intStimNr),'bx','CapSize',20)
-				errorbar(vecLoc(2),mean(vecSdProjGain),std(vecSdProjGain)/sqrt(intStimNr),'kx','CapSize',20)
+				errorbar(vecLoc(2),mean(vecSdProjGain1),std(vecSdProjGain1)/sqrt(intStimNr),'kx','CapSize',20)
+				errorbar(vecLoc(3),mean(vecSdProjGain),std(vecSdProjGain)/sqrt(intStimNr),'kx','CapSize',20)
 				%errorbar(vecLoc(3),mean(vecSdProjRand),std(vecSdProjRand)/sqrt(intStimNr),'rx','CapSize',20)
 				%errorbar(vecLoc(3),mean(vecSdProjAdja),std(vecSdProjAdja)/sqrt(intStimNr),'kx','CapSize',20)
-				errorbar(vecLoc(3),mean(vecSdProjOrth),std(vecSdProjOrth)/sqrt(intStimNr),'rx','CapSize',20)
+				errorbar(vecLoc(4),mean(vecSdProjOrth),std(vecSdProjOrth)/sqrt(intStimNr),'rx','CapSize',20)
 				hold off;
-				set(gca,'xtick',vecLoc,'xticklabel',{'Pop mean','Pop gain','Stim-Orth'});
+				set(gca,'xtick',vecLoc,'xticklabel',{'Pop mean','Pop gain1','Pop gain','Stim-Orth'});
 				xlabel('Projection axis');
 				ylabel('Range of spiking rates (\sigmaHz)');
 				title(sprintf('%s; MG,p=%.2e; MO,p=%.3f; GO,p=%.2e',strType,pMeanGain,pMeanOrth,pGainOrth));
@@ -926,6 +997,7 @@ for intRec=1:numel(vecUseRec)
 				sProjection.vecAngleMeanAndGainRand = vecAngleMeanAndGainRand;
 				
 				sProjection.vecSdProjMean = vecSdProjMean;
+				sProjection.vecSdProjGain1 = vecSdProjGain1;
 				sProjection.vecSdProjGain = vecSdProjGain;
 				sProjection.vecSdProjRand = vecSdProjRand;
 				sProjection.vecSdProjOrth = vecSdProjOrth;

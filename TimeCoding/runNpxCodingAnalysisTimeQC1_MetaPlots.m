@@ -24,7 +24,8 @@ else
 end
 
 %% find data
-sDir = dir([strTargetDataPath 'TimeCodingAggQC1*.mat']);
+cellTypes = {'Real','Shuff','Poiss'};
+sDir = dir([strTargetDataPath 'TimeCodingAggQC1ABI*.mat']);
 for intFile=1:numel(sDir)
 	%% load data
 	strFolder = sDir(intFile).folder;
@@ -32,15 +33,10 @@ for intFile=1:numel(sDir)
 	strType = getFlankedBy(strFile,'QC1','_','first');
 	
 	sData = load(fullpath(strFolder,strFile));
-	cellAggRate = sData.cellAggRate;
-	[intQuantiles,intStimNum,intIterNum] = size(sData.cellAggLRActPerQ,[1 2 4]);
-	intCounter = 1;
-	for intIter=1:intIterNum
-		[intNeuronNum,intTrialNum] = size(cellAggRate{intIter});
-		matMeanRate(intCounter:(intCounter+intNeuronNum-1),:) = cellAggRate{intIter};
-		intCounter = intCounter + intNeuronNum;
-	end
-	
+	matMeanRate = sData.matMeanRate;
+	[intQuantiles,intStimNum,intStimCompN] = size(sData.cellLRActPerQ);
+	[intNeuronNum,intTrialNum] = size(matMeanRate);
+
 	%% make plot 1
 	%real pop mean+sd
 	vecPopMean = mean(matMeanRate,1);
@@ -121,67 +117,19 @@ for intFile=1:numel(sDir)
 		export_fig(fullpath(strFigurePath,sprintf('2CAgg1_PopSpikeStatistics_%s.pdf',strType)));
 	end
 	
-	%% make plot 2
-	vecQuantilePerfMu = mean(sData.matQuantilePerf,2);
-	vecQuantilePerfSd = std(sData.matQuantilePerf,[],2);
-	
-	vecSplitQuantilePerfMu = mean(sData.matSplitQuantilePerf,2);
-	vecSplitQuantilePerfSd = std(sData.matSplitQuantilePerf,[],2);
-	
-	figure;maxfig;
-	subplot(2,3,4)
-	hold on
-	plot([1 numel(vecQuantilePerfMu)],(1/intStimNum)*[1 1],'--','color',[0.5 0.5 0.5]);
-	errorbar(1:intQuantiles,vecSplitQuantilePerfMu,vecSplitQuantilePerfSd,'color',lines(1));
-	xlabel('Pop. activity quantile');
-	ylabel('CV decoding accuracy');
-	title(sprintf('%s,Train once on all, test per quantile',strType));
-	fixfig;
-	
-	%split train, output split
-	subplot(2,3,5)
-	hold on
-	plot([1 numel(vecQuantilePerfMu)],(1/intStimNum)*[1 1],'--','color',[0.5 0.5 0.5]);
-	errorbar(1:intQuantiles,vecQuantilePerfMu,vecQuantilePerfSd,'color',lines(1));
-	xlabel('Pop. activity quantile');
-	ylabel('CV decoding accuracy');
-	title('Train+test per quantile');
-	fixfig;
-	normaxes;
-	
-	%difference
-	%[phat3,pci3] = binofit((phat-vecQuantilePerf)*intTrialsPerQ,intTrialsPerQ,dblAlphaEquivOfSd);
-	
-	subplot(2,3,6)
-	hold on
-	%plot([1 numel(vecQuantilePerf)],(1/intStimNr)*[1 1],'--','color',[0.5 0.5 0.5]);
-	plot(1:intQuantiles,(vecSplitQuantilePerfMu-vecQuantilePerfMu));
-	xlabel('Pop. activity quantile');
-	ylabel('Generalization penalty (\Deltaaccuracy)');
-	title('Accuracy difference');
-	fixfig;
-	
-	if boolSaveFigs
-		%% save fig
-		export_fig(fullpath(strFigurePath,sprintf('2CAgg2_QuantileDecoding_%s.tif',strType)));
-		export_fig(fullpath(strFigurePath,sprintf('2CAgg2_QuantileDecoding_%s.pdf',strType)));
-	end
-	
 	%% plot 3
-	
 	%% average over all orthogonal (or adjacent?) stimuli
-	cellAggLRActPerQ = sData.cellAggLRActPerQ;
-	cellLRActPerQ = cell(intQuantiles,intStimNum,2);
-	dblStep = 0.25;
-	vecBinE = -2:dblStep:2;
+	cellLRActPerQ = sData.cellLRActPerQ;
+	dblStep = 1;
+	vecBinE = -8:dblStep:8;
 	vecBinC = vecBinE(2:end)-dblStep/2;
 	figure;maxfig;
 	subplot(2,3,4);
 	hold on
 	for intQ=1:intQuantiles
 		%plot distros
-		vecAct1 = cell2vec(cellAggLRActPerQ(intQ,:,1,:));
-		vecAct2 = cell2vec(cellAggLRActPerQ(intQ,:,2,:));
+		vecAct1 = cell2vec(cellLRActPerQ(intQ,:,1));
+		vecAct2 = cell2vec(cellLRActPerQ(intQ,:,2));
 		vecCounts1 = histcounts(vecAct1,vecBinE);
 		vecCounts2 = histcounts(vecAct2,vecBinE);
 		plot(vecBinC,0.8*(vecCounts1/max(vecCounts1))+intQ,'Color',[1 0 0]);
@@ -196,21 +144,18 @@ for intFile=1:numel(sDir)
 	fixfig;grid off
 	
 	%plot d', variance and distance in mean
-	matDprime = nan(intQuantiles,intStimNum,intIterNum);
-	matPooledSd = nan(intQuantiles,intStimNum,intIterNum);
-	matMeanD = nan(intQuantiles,intStimNum,intIterNum);
-	matQ = nan(intQuantiles,intStimNum,intIterNum);
-	for intIter=1:intIterNum
-		for intQ=1:intQuantiles
-			for intOriIdx = 1:intStimNum
-				matDprime(intQ,intOriIdx,intIter) = abs(getdprime2(cellAggLRActPerQ{intQ,intOriIdx,1,intIter},cellAggLRActPerQ{intQ,intOriIdx,2,intIter}));
-				matPooledSd(intQ,intOriIdx,intIter) = (std(cellAggLRActPerQ{intQ,intOriIdx,1,intIter}) + std(cellAggLRActPerQ{intQ,intOriIdx,2,intIter}))/2;
-				matMeanD(intQ,intOriIdx,intIter)  = abs(mean(cellAggLRActPerQ{intQ,intOriIdx,1,intIter}) - mean(cellAggLRActPerQ{intQ,intOriIdx,2,intIter}));
-				matQ(intQ,intOriIdx,intIter) = intQ;
-			end
+	matDprime = nan(intQuantiles,intStimNum);
+	matPooledSd = nan(intQuantiles,intStimNum);
+	matMeanD = nan(intQuantiles,intStimNum);
+	matQ = nan(intQuantiles,intStimNum);
+	for intQ=1:intQuantiles
+		for intOriIdx = 1:intStimNum
+			matDprime(intQ,intOriIdx) = abs(getdprime2(cellLRActPerQ{intQ,intOriIdx,1},cellLRActPerQ{intQ,intOriIdx,2}));
+			matPooledSd(intQ,intOriIdx) = (std(cellLRActPerQ{intQ,intOriIdx,1}) + std(cellLRActPerQ{intQ,intOriIdx,2}))/2;
+			matMeanD(intQ,intOriIdx)  = abs(mean(cellLRActPerQ{intQ,intOriIdx,1}) - mean(cellLRActPerQ{intQ,intOriIdx,2}));
+			matQ(intQ,intOriIdx) = intQ;
 		end
 	end
-	
 	matColMap = redbluepurple(intQuantiles);
 	matColor2 = matColMap(matQ(:),:);
 	
@@ -253,4 +198,5 @@ for intFile=1:numel(sDir)
 		export_fig(fullpath(strFigurePath,sprintf('2CAgg3_DynamicCoding_%s.tif',strType)));
 		export_fig(fullpath(strFigurePath,sprintf('2CAgg3_DynamicCoding_%s.pdf',strType)));
 	end
+	return
 end

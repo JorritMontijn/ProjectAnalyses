@@ -17,6 +17,13 @@ https://www.nature.com/articles/nn.3711
 https://www.jneurosci.org/content/39/37/7344.abstract
 etc
 
+% new to do:
+- non-stationary data exclusion
+- sanity check: minder trials in eigen data
+- change spiking rate to spike count inclusion threshold
+- gain axes over alle data berekenen, dan projecteren per quantile
+- probeer adjacent stimuli voor gain invariance analyse
+
 %}
 %% define qualifying areas
 clear all;
@@ -53,6 +60,8 @@ vecUseRec = 1:numel(sAggABI);%find(contains({sAggABA.Exp},'MP'));
 %% pre-allocate matrices
 intAreas = numel(cellUseAreas);
 dblStartT = 0;
+dblBimoThreshold = 0.4;
+dblDevThreshold = 0.7;
 
 %% go through recordings
 tic
@@ -66,7 +75,7 @@ for intRec=1:numel(vecUseRec)
 	structStim = sRec.structStimAgg.sDG; %sDG, sNM, sNS
 	
 	%generate stimulus vectors
-	vecOrientation = structStim.orientation(:)';
+	vecOrientation = mod(structStim.orientation(:)',360);
 	vecStimOnTime = structStim.startT(:)';
 	vecStimOffTime = structStim.stopT(:)';
 	%remove nans
@@ -146,9 +155,13 @@ for intRec=1:numel(vecUseRec)
 			matBNT = nan(intBinNum,intRespN,intTrialNum);
 			%matBNT_shifted = nan(intBinNum,intRespN,intTrialNum);
 			
+			%% check non-stationarity
 			vecRepCounter = zeros(1,intStimNum);
 			%get spikes per trial per neuron
 			cellSpikeTimesPerCellPerTrial = cell(intRespN,intTrialNum);
+			vecNonStat = nan(1,intRespN);
+			vecViolIdx1ms = nan(1,intRespN);
+			vecViolIdx2ms = nan(1,intRespN);
 			for intN=1:intRespN
 				% build pseudo data, stitching stimulus periods
 				[vecPseudoSpikeTimes,vecPseudoEventT] = getPseudoSpikeVectors(cellSpikeTimes{intN},vecStimOnTime-dblPreTime,dblMaxDur);
@@ -159,8 +172,44 @@ for intRec=1:numel(vecUseRec)
 					vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
 					cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
 				end
+				
+				%calc non-stationarity
+				vecSortedSpikeTimes = sort(vecPseudoSpikeTimes,'ascend') - min(vecPseudoSpikeTimes);
+				dblAUC = sum(vecSortedSpikeTimes);
+				dblLinAUC = (max(vecSortedSpikeTimes) * numel(vecSortedSpikeTimes) ) / 2;
+				vecNonStat(intN) = (dblAUC - dblLinAUC) / dblLinAUC;
 			end
 			vecStimOnStitched = vecPseudoEventT;
+			matDataZ = zscore(log(1+matData),[],2);
+			vecMeanZ = mean(matDataZ,1);
+			vecFilt = normpdf(-4:4,0,1)/sum(normpdf(-4:4,0,1));
+			vecFiltM = imfilt(vecMeanZ,vecFilt);
+			
+			%calc metrics
+			[h,pKS,ksstat,cv] = kstest(vecFiltM);
+			[BF, dblBC] = bimodalitycoeff(vecFiltM);
+			dblMaxDevFrac = max(abs(vecFiltM));
+			
+			if boolSaveFigs
+				figure;maxfig;
+				subplot(1,2,1);
+				imagesc(matDataZ);
+				fixfig;grid off;
+				subplot(1,2,2);
+				plot(vecFiltM);
+				title(sprintf('%s: K-S test,p =%.1e; BC=%.3f; Dev =%.3f',strRec,pKS,dblBC,dblMaxDevFrac),'interpreter','none');
+				drawnow;
+				fixfig;
+				
+				%% save fig
+				export_fig(fullpath(strFigurePath,sprintf('2Cc0O_BimoCheck_%s.tif',strRec)));
+				export_fig(fullpath(strFigurePath,sprintf('2Cc0O_BimoCheck_%s.pdf',strRec)));
+			end
+			
+			if dblBC > dblBimoThreshold || dblMaxDevFrac > dblDevThreshold
+				fprintf('Population drift is bimodal (BC=%.3f) for %s: skipping... [%s]\n',dblBC,strRec,getTime);
+				continue;
+			end
 			
 			%% define quantiles and remove zero-variance neurons
 			%constants
@@ -1005,7 +1054,7 @@ for intRec=1:numel(vecUseRec)
 				sProjection.vecDistFromOrthOri = vecDistFromOrthOri;
 				sProjection.vecDistFromAdjaOri = vecDistFromAdjaOri;
 				
-				save([strTargetDataPath 'TimeCodingAggQC3ABI_Ori' strRec '_' strRunArea '.mat'],'strRec','strRunArea','sPrediction','sProjection');
+				save([strTargetDataPath 'TimeCodingAggQC3ABI_Ori' strRec '_' strRunArea '.mat'],'strRec','strRunArea','sPrediction','sProjection','dblBC','dblMaxDevFrac');
 			end
 		end
 	end

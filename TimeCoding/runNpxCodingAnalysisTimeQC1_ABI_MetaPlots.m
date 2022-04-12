@@ -10,8 +10,9 @@ or end? does this ordering differ between orientations?
 
 %}
 %% define qualifying areas
+%close all;
 clear all;
-boolSaveFigs = true;
+boolSaveFigs = false;
 boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
@@ -22,9 +23,11 @@ else
 	strFigurePath = 'D:\Data\Results\PopTimeCoding\figures\';
 	strTargetDataPath = 'D:\Data\Results\PopTimeCoding\data\';
 end
+dblBimoThreshold = inf;%0.5;%0.4
+dblDevThreshold = 0.7;%0.7;%0.7
 
 %% find data
-strStim = 'DG';%DG/NM
+strStim = 'NM';%DG/NM
 cellTypes = {'Real','Shuff','Poiss'};
 sDir = dir([strTargetDataPath 'TimeCodingAggQC1ABI*.mat']);
 indOri = contains({sDir.name},'ABI_Ori');
@@ -36,6 +39,8 @@ else
 	error;
 end
 cellAggLRActPerQ = cell([0 0 0 0 0]);
+matBC = nan([0 0]);
+matMDV = nan([0 0]);
 vecCounter = [0 0 0];
 for intFile=1:numel(sDir)
 	%% load data
@@ -47,33 +52,60 @@ for intFile=1:numel(sDir)
 	if size(sData.cellLRActPerQ,2) < 8 || any(flat(cellfun(@(x) any(isnan(x(:))),sData.cellLRActPerQ)))
 		continue;
 	end
+	
+	if sData.dblBC > dblBimoThreshold || sData.dblMaxDevFrac > dblDevThreshold
+		continue;
+	end
+	
 	vecCounter(intType) = vecCounter(intType) + 1;
 	matMeanRate = sData.matMeanRate;
 	[intQuantiles,intStimNum,intStimCompN] = size(sData.cellLRActPerQ);
 	[intNeuronNum,intTrialNum] = size(matMeanRate);
-
+	
 	%% aggregate data
+	matBC(intType,vecCounter(intType)) = sData.dblBC;
+	matMDV(intType,vecCounter(intType)) = sData.dblMaxDevFrac;
 	cellAggLRActPerQ(:,:,:,intType,vecCounter(intType)) = sData.cellLRActPerQ;
 end
 
+%% plot
 %pre-allocate
-intRecs = size(cellAggLRActPerQ,5);
+%intUseRec = 1:31;
+cellUseLRActPerQ = cellAggLRActPerQ;%(:,:,:,:,intUseRec);
+intRecs = size(cellUseLRActPerQ,5);
 matR_Discr=nan(3,intRecs);
 matR_MuVar=nan(3,intRecs);
 for intType=1:3
 	strType = cellTypes{intType};
 	
 	%% average over all orthogonal (or adjacent?) stimuli
-	dblStep = 0.5;
-	vecBinE = -10:dblStep:10;
+	
+	if intType == 3
+		dblStep = 0.1;
+		vecBinE = -4:dblStep:4;
+	else
+		dblStep = 0.1;
+		vecBinE = -4:dblStep:4;
+	end
 	vecBinC = vecBinE(2:end)-dblStep/2;
 	figure;maxfig;
 	subplot(2,3,1);
 	hold on
+	intMidQ = ceil(intQuantiles/2);
+	dblAggMu1 = mean(flat(cellfun(@mean,cellUseLRActPerQ(:,:,1,:,:))));
+	dblAggMu2 = mean(flat(cellfun(@mean,cellUseLRActPerQ(:,:,2,:,:))));
+	cellMidMu1 = num2cell(repmat(cellfun(@mean,cellUseLRActPerQ(intMidQ,:,1,:,:)),[5 1 1 1 1]));
+	cellMidMu2 = num2cell(repmat(cellfun(@mean,cellUseLRActPerQ(intMidQ,:,2,:,:)),[5 1 1 1 1]));
+	cellMidSd1 = num2cell(repmat(cellfun(@std,cellUseLRActPerQ(intMidQ,:,1,:,:)),[5 1 1 1 1]));
+	cellMidSd2 = num2cell(repmat(cellfun(@std,cellUseLRActPerQ(intMidQ,:,2,:,:)),[5 1 1 1 1]));
+	
+	%cellUseLRActPerQ(:,:,1,:,:)  = cellfun(@(x,m,s) dblAggMu1+((x-m)/s),cellUseLRActPerQ(:,:,1,:,:),cellMidMu1,cellMidSd1,'UniformOutput',false);
+	%cellUseLRActPerQ(:,:,2,:,:)  = cellfun(@(x,m,s) dblAggMu2+((x-m)/s),cellUseLRActPerQ(:,:,2,:,:),cellMidMu2,cellMidSd2,'UniformOutput',false);
+	
 	for intQ=1:intQuantiles
 		%plot distros
-		vecAct1 = cell2vec(cellAggLRActPerQ(intQ,:,1,intType,:));
-		vecAct2 = cell2vec(cellAggLRActPerQ(intQ,:,2,intType,:));
+		vecAct1 = cell2vec(cellUseLRActPerQ(intQ,:,1,intType,:));
+		vecAct2 = cell2vec(cellUseLRActPerQ(intQ,:,2,intType,:));
 		vecCounts1 = histcounts(vecAct1,vecBinE);
 		vecCounts2 = histcounts(vecAct2,vecBinE);
 		plot(vecBinC,0.8*(vecCounts1/max(vecCounts1))+intQ,'Color',[1 0 0]);
@@ -88,8 +120,7 @@ for intType=1:3
 	fixfig;grid off
 	
 	%plot d', variance and distance in mean
-	matDprime = nan(intQuantiles,intStimNum,intRecs);
-	matPooledVar = nan(intQuantiles,intStimNum,intRecs);
+	matPooledSd = nan(intQuantiles,intStimNum,intRecs);
 	matMeanD = nan(intQuantiles,intStimNum,intRecs);
 	matQ = nan(intQuantiles,intStimNum,intRecs);
 	for intRec=1:intRecs
@@ -97,14 +128,14 @@ for intType=1:3
 			for intOriIdx = 1:intStimNum
 				vecR1 = cellAggLRActPerQ{intQ,intOriIdx,1,intType,intRec};
 				vecR2 = cellAggLRActPerQ{intQ,intOriIdx,2,intType,intRec};
-				matDprime(intQ,intOriIdx,intRec) = abs(mean(vecR1) - mean(vecR2))/((var(vecR1) + var(vecR2))*0.5);
-				%matDprime(intQ,intOriIdx,intRec) = abs(getdprime2(vecR1,vecR2));
-				matPooledVar(intQ,intOriIdx,intRec) = (var(vecR1) + var(vecR2))/2;
+				%matPooledVar(intQ,intOriIdx,intRec) = (var(vecR1) + var(vecR2))/2;
+				matPooledSd(intQ,intOriIdx,intRec) = ((std(vecR1) + std(vecR2))/2);
 				matMeanD(intQ,intOriIdx,intRec)  = abs(mean(vecR1) - mean(vecR2));
 				matQ(intQ,intOriIdx,intRec) = intQ;
 			end
 		end
 	end
+	matDprime = matMeanD ./ matPooledSd;
 	matColMap = redbluepurple(intQuantiles);
 	matColor2 = matColMap(matQ(:),:);
 	
@@ -112,20 +143,20 @@ for intType=1:3
 	colormap(h,matColMap);
 	%scatter(mean(matPooledSd,2),mean(matMeanD,2),[],matColMap)
 	%calc mean+sem per q
-	matVarV = mean(matPooledVar,2);
+	matSdV = mean(matPooledSd,2);
 	matDp = mean(matDprime,2);
 	matMuV = mean(matMeanD,2);
-	indRem = any(isnan(matVarV),1) | any(isnan(matDp),1) | any(isnan(matMuV),1);
-	matVarV(:,:,indRem) = [];
+	indRem = any(matDp > 100,1) | any(isnan(matSdV),1) | any(isnan(matDp),1) | any(isnan(matMuV),1);
+	matSdV(:,:,indRem) = [];
 	matDp(:,:,indRem) = [];
 	matMuV(:,:,indRem) = [];
 	intRecs = sum(~indRem);
 	
 	vecMeanDprime = mean(matDp,3);
 	vecSemDprime = std(matDp,[],3)./sqrt(intRecs);
-	vecMeanSd = mean(matVarV,3);
-	vecSemSdL = (std(matVarV,[],3)./sqrt(intRecs))/2;
-	vecSemSdR = (std(matVarV,[],3)./sqrt(intRecs))/2;
+	vecMeanSd = mean(matSdV,3);
+	vecSemSdL = (std(matSdV,[],3)./sqrt(intRecs))/2;
+	vecSemSdR = (std(matSdV,[],3)./sqrt(intRecs))/2;
 	vecMeanMu = mean(matMuV,3);
 	vecSemMu = std(matMuV,[],3)./sqrt(intRecs);
 	hold on
@@ -134,7 +165,7 @@ for intType=1:3
 		errorbar(vecMeanSd(intQ),vecMeanMu(intQ),vecSemMu(intQ)/2,vecSemMu(intQ)/2,vecSemSdL(intQ),vecSemSdR(intQ),'x','color',matColMap(intQ,:));
 	end
 	hold off
-	xlabel('Pooled var over trials');
+	xlabel('Pooled sd over trials');
 	ylabel('\DeltaMean over trials');
 	title('Point = stim+quantile mu+/-sem');
 	xlim([min(0,min(get(gca,'xlim'))) max(get(gca,'xlim'))]);
@@ -149,8 +180,8 @@ for intType=1:3
 		errorbar(vecMeanSd(intQ),vecMeanDprime(intQ),vecSemDprime(intQ)/2,vecSemDprime(intQ)/2,vecSemSdL(intQ),vecSemSdR(intQ),'x','color',matColMap(intQ,:));
 	end
 	hold off
-	xlabel('Pooled var over trials');
-	ylabel('Discriminability (mean/var)');
+	xlabel('Pooled sd over trials');
+	ylabel('Discriminability (d'')');
 	title('Point = stim+quantile mu+/-sem');
 	xlim([min(0,min(get(gca,'xlim'))) max(get(gca,'xlim'))]);
 	ylim([min(0,min(get(gca,'ylim'))) max(get(gca,'ylim'))]);
@@ -158,11 +189,11 @@ for intType=1:3
 	
 	%corrs per rec
 	matFanoV = squeeze(matDp);
-	matVarV = squeeze(matVarV);
+	matSdV = squeeze(matSdV);
 	matMuV = squeeze(matMuV);
 	for intRec=1:intRecs
-		matR_Discr(intType,intRec) = corr(matMuV(:,intRec),matFanoV(:,intRec));
-		matR_MuVar(intType,intRec) = corr(matMuV(:,intRec),matVarV(:,intRec));
+		matR_Discr(intType,intRec) = corr(flat(matMeanD(:,:,intRec)),flat(matDprime(:,:,intRec)));
+		matR_MuVar(intType,intRec) = corr(flat(matMeanD(:,:,intRec)),flat(matPooledSd(:,:,intRec)));
 	end
 	
 	subplot(2,3,4)
@@ -172,7 +203,7 @@ for intType=1:3
 	vecBinsMV = histcounts(matR_MuVar(intType,:),vecBinsE);
 	plot(vecBinsC,vecBinsMV)
 	ylabel('# of recordings');
-	xlabel('Pearson correlation mean/var');
+	xlabel('Pearson correlation mean/sd');
 	title('muvar');
 	fixfig;
 	
@@ -184,8 +215,8 @@ for intType=1:3
 	[h,pD]=ttest(matR_Discr(intType,:));
 	plot(vecBinsC,vecBinsMD)
 	ylabel('# of recordings');
-	xlabel('Pearson correlation mean vs (mean/var)');
-	title(sprintf('Pearson r(mu,fano-1), mu=%.3f, p=%.2e',nanmean(matR_Discr(intType,:)),pD));
+	xlabel('Pearson correlation mean vs d''');
+	title(sprintf('Pearson r(mu,d''), mu=%.3f, p=%.2e',nanmean(matR_Discr(intType,:)),pD));
 	fixfig;
 	
 	if intType == 2

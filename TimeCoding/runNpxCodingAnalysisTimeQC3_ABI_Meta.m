@@ -37,9 +37,9 @@ else
 end
 
 %% find data
-strStim = 'NM';%DG/NM
+strStim = 'DG';%DG/NM
 cellTypes = {'Real','Shuff','Poiss'};
-sDir = dir([strTargetDataPath 'TimeCodingAggQC3ABA*.mat']);
+sDir = dir([strTargetDataPath 'TimeCodingAggQC3ABI*.mat']); %or ABA if old
 indOri = contains({sDir.name},'ABI_Ori');
 if strcmp(strStim,'DG')
 	sDir(~indOri) = [];
@@ -61,6 +61,7 @@ cellR2_TuneN = cell(1,3); %only tuning
 cellR2_MeanN = cell(1,3);%tuning * pop-mean
 cellR2_Gain1N = cell(1,3);%tuning * unitary pop-gain
 cellR2_GainN = cell(1,3);%tuning * stim-specific pop-gain
+cellFilenames = cell(1,3);%names
 
 %projection data;[3 x 1] cell (type (real/poiss/shuff)
 cellReflDistMuOrth = cell(1,3);
@@ -86,8 +87,8 @@ for intFile=1:numel(sDir)
 	%% load data
 	strFolder = sDir(intFile).folder;
 	strFile = sDir(intFile).name;
-	%strType = strrep(strrep(getFlankedBy(strFile,'AggQC3ABI','_','first'),'ABI',''),'_Ori','');
-	strType = strrep(strrep(getFlankedBy(strFile,'AggQC3ABA','_','first'),'ABA',''),'_Ori','');
+	strType = strrep(strrep(getFlankedBy(strFile,'AggQC3ABI','_','first'),'ABI',''),'_Ori','');
+	%strType = strrep(strrep(getFlankedBy(strFile,'AggQC3ABA','_','first'),'ABA',''),'_Ori','');
 	intType = find(ismember(cellTypes,strType));
 	if toc(hTic) > 5
 		hTic = tic;
@@ -110,6 +111,8 @@ for intFile=1:numel(sDir)
 	cellR2_MeanN{intType}(end+1) = sPrediction.dblPredPerNeuronMean;%tuning * pop-mean
 	cellR2_GainN{intType}(end+1) = sPrediction.dblPredPerNeuronGain;%tuning * pop-gain
 	cellR2_Gain1N{intType}(end+1) = sPrediction.dblPredPerNeuronGain1;%tuning * pop-gain
+	%save name
+	cellFilenames{intType}{end+1} = sData.strRec;
 	
 	%save projection data
 	sProjection = sData.sProjection;

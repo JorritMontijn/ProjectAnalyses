@@ -37,17 +37,14 @@ else
 end
 
 %% find data
-strStim = 'DG';%DG/NM
+strStim = 'NM';%DG/NM
+dblBimoThreshold = inf;%0.5;%0.4
+dblDevThreshold = 0.7;%0.7;%0.7
+
 cellTypes = {'Real','Shuff','Poiss'};
 sDir = dir([strTargetDataPath 'TimeCodingAggQC3ABI*.mat']); %or ABA if old
-indOri = contains({sDir.name},'ABI_Ori');
-if strcmp(strStim,'DG')
-	sDir(~indOri) = [];
-elseif strcmp(strStim,'NM')
-	sDir(indOri) = [];
-else
-	error;
-end
+indUseRecs = contains({sDir.name},['ABI_' strStim]);
+sDir(~indUseRecs) = [];
 
 %% aggregate data
 %[3 x 1] cell (type (real/poiss/shuff), content=vector with r2 per recording
@@ -87,8 +84,7 @@ for intFile=1:numel(sDir)
 	%% load data
 	strFolder = sDir(intFile).folder;
 	strFile = sDir(intFile).name;
-	strType = strrep(strrep(getFlankedBy(strFile,'AggQC3ABI','_','first'),'ABI',''),'_Ori','');
-	%strType = strrep(strrep(getFlankedBy(strFile,'AggQC3ABA','_','first'),'ABA',''),'_Ori','');
+	strType = strrep(strrep(getFlankedBy(strFile,'AggQC3ABI','_','first'),'ABI',''),['_' strStim],'');
 	intType = find(ismember(cellTypes,strType));
 	if toc(hTic) > 5
 		hTic = tic;
@@ -99,7 +95,16 @@ for intFile=1:numel(sDir)
 	
 	%save pop pred r2s
 	sPrediction = sData.sPrediction;
+	dblBC = sData.dblBC;
+	dblMaxDevFrac = sData.dblMaxDevFrac;
 	%if size(sPrediction.matMeanRate,2) < 600,continue;end
+	%if size(sData.cellLRActPerQ,2) < 8 || any(flat(cellfun(@(x) any(isnan(x(:))),sData.cellLRActPerQ)))
+	%	continue;
+	%end
+	
+	if sData.dblBC > dblBimoThreshold || sData.dblMaxDevFrac > dblDevThreshold
+		continue;
+	end
 	
 	cellR2_Tune{intType}(end+1) = sPrediction.dblR2_Tune; %only tuning
 	cellR2_Mean{intType}(end+1) = sPrediction.dblR2_Mean;%tuning * pop-mean

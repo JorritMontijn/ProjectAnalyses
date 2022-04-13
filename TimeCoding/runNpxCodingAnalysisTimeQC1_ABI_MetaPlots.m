@@ -12,7 +12,7 @@ or end? does this ordering differ between orientations?
 %% define qualifying areas
 %close all;
 clear all;
-boolSaveFigs = false;
+boolSaveFigs = true;
 boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
@@ -29,15 +29,10 @@ dblDevThreshold = 0.7;%0.7;%0.7
 %% find data
 strStim = 'NM';%DG/NM
 cellTypes = {'Real','Shuff','Poiss'};
-sDir = dir([strTargetDataPath 'TimeCodingAggQC1ABI*.mat']);
-indOri = contains({sDir.name},'ABI_Ori');
-if strcmp(strStim,'DG')
-	sDir(~indOri) = [];
-elseif strcmp(strStim,'NM')
-	sDir(indOri) = [];
-else
-	error;
-end
+sDir = dir([strTargetDataPath 'TimeCodingAggQC1ABI*.mat']); %or ABA if old
+indUseRecs = contains({sDir.name},['ABI_' strStim]);
+sDir(~indUseRecs) = [];
+
 cellAggLRActPerQ = cell([0 0 0 0 0]);
 matBC = nan([0 0]);
 matMDV = nan([0 0]);
@@ -46,7 +41,7 @@ for intFile=1:numel(sDir)
 	%% load data
 	strFolder = sDir(intFile).folder;
 	strFile = sDir(intFile).name;
-	strType = strrep(strrep(getFlankedBy(strFile,'QC1ABI','_','first'),'ABI',''),'_Ori','');
+	strType = strrep(strrep(getFlankedBy(strFile,'AggQC1ABI','_','first'),'ABI',''),['_' strStim],'');
 	intType = find(ismember(cellTypes,strType));
 	sData = load(fullpath(strFolder,strFile));
 	if size(sData.cellLRActPerQ,2) < 8 || any(flat(cellfun(@(x) any(isnan(x(:))),sData.cellLRActPerQ)))
@@ -116,7 +111,7 @@ for intType=1:3
 	set(gca,'ytick',0.5 + (1:intQuantiles),'yticklabel',1:5);
 	ylabel('Quantile; y=trials per quantile');
 	xlabel('LR activation');
-	title(sprintf('%s; Mean over ~orth stim pairs',strType));
+	title(sprintf('%s; Mean over adj stim pairs',strType));
 	fixfig;grid off
 	
 	%plot d', variance and distance in mean
@@ -159,14 +154,16 @@ for intType=1:3
 	vecSemSdR = (std(matSdV,[],3)./sqrt(intRecs))/2;
 	vecMeanMu = mean(matMuV,3);
 	vecSemMu = std(matMuV,[],3)./sqrt(intRecs);
+	vecSemMuL = vecSemMu/2;
+	vecSemMuR = vecSemMu/2;
 	hold on
-	cline(h,vecMeanSd',vecMeanMu',[],1:5);
+	cline(h,vecMeanMu',vecMeanSd',[],1:5);
 	for intQ=1:intQuantiles
-		errorbar(vecMeanSd(intQ),vecMeanMu(intQ),vecSemMu(intQ)/2,vecSemMu(intQ)/2,vecSemSdL(intQ),vecSemSdR(intQ),'x','color',matColMap(intQ,:));
+		errorbar(vecMeanMu(intQ),vecMeanSd(intQ),vecSemSdL(intQ),vecSemSdR(intQ),vecSemMuL(intQ),vecSemMuR(intQ),'x','color',matColMap(intQ,:));
 	end
 	hold off
-	xlabel('Pooled sd over trials');
-	ylabel('\DeltaMean over trials');
+	ylabel('Pooled sd over trials');
+	xlabel('\DeltaMean over trials');
 	title('Point = stim+quantile mu+/-sem');
 	xlim([min(0,min(get(gca,'xlim'))) max(get(gca,'xlim'))]);
 	ylim([min(0,min(get(gca,'ylim'))) max(get(gca,'ylim'))]);
@@ -175,12 +172,12 @@ for intType=1:3
 	h=subplot(2,3,3);
 	colormap(h,matColMap);
 	hold on
-	cline(h,vecMeanSd,vecMeanDprime,[],1:5);
+	cline(h,vecMeanMu,vecMeanDprime,[],1:5);
 	for intQ=1:intQuantiles
-		errorbar(vecMeanSd(intQ),vecMeanDprime(intQ),vecSemDprime(intQ)/2,vecSemDprime(intQ)/2,vecSemSdL(intQ),vecSemSdR(intQ),'x','color',matColMap(intQ,:));
+		errorbar(vecMeanMu(intQ),vecMeanDprime(intQ),vecSemDprime(intQ)/2,vecSemDprime(intQ)/2,vecSemMuL(intQ),vecSemMuR(intQ),'x','color',matColMap(intQ,:));
 	end
 	hold off
-	xlabel('Pooled sd over trials');
+	xlabel('\DeltaMean over trials');
 	ylabel('Discriminability (d'')');
 	title('Point = stim+quantile mu+/-sem');
 	xlim([min(0,min(get(gca,'xlim'))) max(get(gca,'xlim'))]);

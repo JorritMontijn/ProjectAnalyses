@@ -23,10 +23,11 @@ clearvars -except sAggABI;
 %{'VISal'}    {'VISam'}    {'VISl'}    {'VISp'}    {'VISpm'}    {'VISrl'}
 strRunArea = 'VISp';%'posteromedial visual area' 'Primary visual area'
 cellUseAreas = {strRunArea};
+strRunStim = 'NM'; %DG,NM
 
 vecRandomize = 1:3; %1=real data, 2=shuffled, 3=generated
 boolMakeFigs = true;
-boolSaveFigs = false;
+boolSaveFigs = true;
 boolSaveData = true;
 boolHome = true;
 if boolHome
@@ -64,190 +65,85 @@ for intRec=1:numel(vecUseRec)
 	sRec = sAggABI(intRec);
 	strRecOrig = sRec.Exp;
 	
-	% concatenate stimulus structures
-	if ~isfield(sRec.structStimAgg,'sNM'),continue;end
-	structStim = sRec.structStimAgg.sNM; %sDG, sNM, sNS
-	vecOrigStartIdx = [1; 1+find(diff(structStim.frame)<0)];
-	vecOrigStimOnTime = flat(structStim.startT(vecOrigStartIdx))';
-	dblDur = median(diff(vecOrigStimOnTime));
-	vecOrigStimOffTime = vecOrigStimOnTime+dblDur;
-	intFramesInMovie = max(structStim.frame)+1;
-	dblBinAvg = 10;
-	intUseBinsInMovie = intFramesInMovie/dblBinAvg;
-	dblBinRate = round(intUseBinsInMovie/dblDur);
-	dblBinDur = 1/dblBinRate;
-	vecBinEdges = linspace(0,dblBinDur*intUseBinsInMovie,intUseBinsInMovie+1);
-	
-	%generate fake stimulus vectors
-	vecUniqueStims = 1:intUseBinsInMovie;
-	vecFrameIdx = repmat(vecUniqueStims,[1 numel(vecOrigStimOnTime)]);
-	vecStimOnTime = flat(vecBinEdges(1:(end-1))' + vecOrigStimOnTime)';
-	vecStimOffTime = vecStimOnTime + dblBinDur;
-	
-	[vecStimIdx,vecUniqueStims,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecFrameIdx);
+	strField = ['s' strRunStim];
+	if strcmp(strRunStim,'DG') && isfield(sRec.structStimAgg,strField)
+		%% DG
+		% concatenate stimulus structures
+		structStim = sRec.structStimAgg.sDG; %sDG, sNM, sNS
+		
+		%generate stimulus vectors
+		vecStimLabels = mod(structStim.orientation(:)',360);
+		vecStimOnTime = structStim.startT(:)';
+		vecStimOffTime = structStim.stopT(:)';
+		%remove nans
+		indRem = isnan(vecStimLabels);
+		vecStimLabels(indRem) = [];
+		vecStimOnTime(indRem) = [];
+		vecStimOffTime(indRem) = [];
+		
+		
+	elseif strcmp(strRunStim,'NM') && isfield(sRec.structStimAgg,strField)
+		%% NM
+		% concatenate stimulus structures
+		structStim = sRec.structStimAgg.sNM; %sDG, sNM, sNS
+		vecOrigStartIdx = [1; 1+find(diff(structStim.frame)<0)];
+		vecOrigStimOnTime = flat(structStim.startT(vecOrigStartIdx))';
+		dblDur = median(diff(vecOrigStimOnTime));
+		vecOrigStimOffTime = vecOrigStimOnTime+dblDur;
+		intFramesInMovie = max(structStim.frame)+1;
+		dblBinAvg = 10;
+		intUseBinsInMovie = intFramesInMovie/dblBinAvg;
+		dblBinRate = round(intUseBinsInMovie/dblDur);
+		dblBinDur = 1/dblBinRate;
+		vecBinEdges = linspace(0,dblBinDur*intUseBinsInMovie,intUseBinsInMovie+1);
+		
+		%generate fake stimulus vectors
+		vecUniqueStims = 1:intUseBinsInMovie;
+		vecFrameIdx = repmat(vecUniqueStims,[1 numel(vecOrigStimOnTime)]);
+		vecStimLabels = (vecFrameIdx/max(vecFrameIdx))*180;
+		vecStimOnTime = flat(vecBinEdges(1:(end-1))' + vecOrigStimOnTime)';
+		vecStimOffTime = vecStimOnTime + dblBinDur;
+	else
+		continue;
+	end
+	%general prep
+	[vecStimIdx,vecUniqueStims,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecStimLabels);
+	intRepNum = min(vecRepNum);
+	indRem2 = vecTrialRepetition>intRepNum;
+	vecStimLabels(indRem2) = [];
+	vecStimOnTime(indRem2) = [];
+	vecStimOffTime(indRem2) = [];
+	[vecStimIdx,vecUniqueStims,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecStimLabels);
 	intTrialNum = numel(vecStimOnTime);
 	intStimNum = numel(vecUniqueStims);
-	intRepNum = intTrialNum/intStimNum;
 	
-	%change name
-	for intRandomize = vecRandomize
-		if intRandomize == 1
-			strType = 'Real';
-		elseif intRandomize == 2
-			strType = 'Shuff';
-		elseif intRandomize == 3
-			strType = 'Poiss';
-		end
-		strRec = [strType '_' strRecOrig];
+	%% select area 1
+	for intArea=1:intAreas
+		strArea = cellUseAreas{intArea};
+		indArea1Neurons = contains(sRec.cellAreas,strArea,'IgnoreCase',true);
+		if sum(indArea1Neurons) == 0, continue;end
+		fprintf('Preparing %d/%d: %s, area %s [%s]\n',intRec,numel(vecUseRec),strRecOrig,strArea,getTime);
 		
-		%% select area 1
-		for intArea=1:intAreas
-			strArea = cellUseAreas{intArea};
-			indArea1Neurons = contains(sRec.cellAreas,strArea,'IgnoreCase',true);
-			if sum(indArea1Neurons) == 0, continue;end
-			fprintf('Preparing %d: %s, area %s [%s]\n',intRec,strRec,strArea,getTime);
-			
-			%% remove untuned cells
-			%get data matrix
-			cellSpikeTimes = sRec.cellSpikes(indArea1Neurons);
-			dblDur = median(vecStimOffTime-vecStimOnTime);
-			matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur);
-			[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matData,vecStimIdx);
-			matAvgR = mean(matRespNSR,3);
-			matTrialR = squeeze(mean(matRespNSR,2));
-			vecP_A = nan(1,size(matData,1));
-			vecP_Z = nan(1,size(matData,1));
-			for intN=1:size(matData,1)
-				vecP_A(intN) = anova1(matData(intN,:),vecStimIdx,'off');
-				vecP_Z(intN) = zetatest(cellSpikeTimes{intN},vecOrigStimOnTime,[],[],0);
+		%% prep recording
+		runPopCodingPrep;
+		if intNeuronNum < 25
+			fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronNum,strRecOrig,getTime);
+			continue;
+		end
+		
+		%% run data types
+		%change name
+		for intRandomize = vecRandomize
+			if intRandomize == 1
+				strType = 'Real';
+			elseif intRandomize == 2
+				strType = 'Shuff';
+			elseif intRandomize == 3
+				strType = 'Poiss';
 			end
-			vecP = min(vecP_Z,vecP_A);
-			
-			%remove untuned cells
-			sOut = getTuningCurves(matData,(vecFrameIdx/max(vecFrameIdx))*180,0);
-			dblMinCount = 100;
-			indTuned = vecP<0.05;
-			indResp = sum(matData,2)'>dblMinCount;
-			
-			%prep
-			vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
-			vecPrefRad = sOut.matFittedParams(indResp,1);
-			cellSpikeTimes(~indResp)=[];
-			indTuned(~indResp)=[];
-			intRespN = sum(indResp);
-			
-			dblStimDur = roundi(min(vecStimOffTime - vecStimOnTime),1,'ceil');
-			dblPreTime = -dblStartT;%0.3;
-			dblPostTime = 0;%0.3;
-			dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
-			dblBinWidth = 0.05;
-			vecBinEdges = 0:dblBinWidth:dblMaxDur;
-			vecStimTime = vecBinEdges(2:end)-dblBinWidth/2 - dblPreTime;
-			indStimBins = vecStimTime > 0 & vecStimTime < dblStimDur;
-			intBinNum = numel(vecBinEdges)-1;
-			matBNSR = nan(intBinNum,intRespN,intStimNum,intRepNum);
-			matBNT = nan(intBinNum,intRespN,intTrialNum);
-			%matBNT_shifted = nan(intBinNum,intRespN,intTrialNum);
-			
-			%% check non-stationarity
-			vecRepCounter = zeros(1,intStimNum);
-			%get spikes per trial per neuron
-			cellSpikeTimesPerCellPerTrial = cell(intRespN,intTrialNum);
-			vecNonStat = nan(1,intRespN);
-			vecViolIdx1ms = nan(1,intRespN);
-			vecViolIdx2ms = nan(1,intRespN);
-			boolDiscardEdges = true;
-			cellPseudoSpikeTimes = cell(size(cellSpikeTimes));
-			for intN=1:intRespN
-				% build pseudo data, stitching stimulus periods
-				[vecPseudoSpikeTimes,vecPseudoEventT] = getPseudoSpikeVectors(cellSpikeTimes{intN},vecStimOnTime-dblPreTime,dblMaxDur,true);
-				cellPseudoSpikeTimes{intN} = vecPseudoSpikeTimes;
-				
-				%real
-				[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecPseudoSpikeTimes,vecPseudoEventT,dblMaxDur);
-				for intTrial=1:intTrialNum
-					vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
-					cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
-				end
-				
-				%calc non-stationarity
-				vecSortedSpikeTimes = sort(vecPseudoSpikeTimes,'ascend') - min(vecPseudoSpikeTimes);
-				dblAUC = sum(vecSortedSpikeTimes);
-				dblLinAUC = (max(vecSortedSpikeTimes) * numel(vecSortedSpikeTimes) ) / 2;
-				vecNonStat(intN) = (dblAUC - dblLinAUC) / dblLinAUC;
-			end
-			matData = getSpikeCounts(cellPseudoSpikeTimes,vecPseudoEventT,dblMaxDur);
-			vecStimOnStitched = vecPseudoEventT;
-			matDataZ = zscore(log(1+matData),[],2);
-			vecMeanZ = mean(matDataZ,1);
-			vecFilt = normpdf(-4:4,0,1)/sum(normpdf(-4:4,0,1));
-			vecFiltM = imfilt(vecMeanZ,vecFilt);
-			
-			%calc metrics
-			[h,pKS,ksstat,cv] = kstest(vecFiltM);
-			[BF, dblBC] = bimodalitycoeff(vecFiltM);
-			dblMaxDevFrac = max(abs(vecFiltM));
-			
-			if boolSaveFigs
-				figure;maxfig;
-				subplot(1,2,1);
-				imagesc(matDataZ);
-				fixfig;grid off;
-				subplot(1,2,2);
-				plot(vecFiltM);
-				title(sprintf('%s: K-S test,p =%.1e; BC=%.3f; Dev =%.3f',strRec,pKS,dblBC,dblMaxDevFrac),'interpreter','none');
-				drawnow;
-				fixfig;
-				
-				%% save fig
-				export_fig(fullpath(strFigurePath,sprintf('2C0_BimoCheck_%s.tif',strRec)));
-				export_fig(fullpath(strFigurePath,sprintf('2C0_BimoCheck_%s.pdf',strRec)));
-			end
-			
-			%if dblBC > dblBimoThreshold || dblMaxDevFrac > dblDevThreshold
-			%	fprintf('Population drift is bimodal (BC=%.3f) for %s: skipping... [%s]\n',dblBC,strRec,getTime);
-			%	continue;
-			%end
-			
-			%% define quantiles and remove zero-variance neurons
-			%constants
-			[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecFrameIdx);
-			intStimNum = numel(vecUnique);
-			dblLambda = 1;%1
-			intTypeCV = 2;
-			dblUseStartT = 0;
-			dblUseMaxDur = dblMaxDur-dblUseStartT;
-			intUseMax = inf;
-			intReps = mean(vecPriorDistribution);
-			
-			%remove zero-variance neurons
-			matSpikeCounts_pre = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
-			matMeanRate_pre = matSpikeCounts_pre./dblUseMaxDur;
-			vecPopRate_pre = sum(matMeanRate_pre,1);
-			
-			intQuantiles = 5;
-			vecStartTrials = round(intReps*linspace(1/intReps,(1+1/intReps),intQuantiles+1));
-			vecStartTrials(end)=[];
-			intSplitTrialsPerOri = min(floor(cellfun(@sum,cellSelect)/intQuantiles));
-			indZeroVarNeurons = false(intRespN,1);
-			for intQ=1:intQuantiles
-				vecUseTrialsTemp = vecStartTrials(intQ):(vecStartTrials(intQ)+intSplitTrialsPerOri-1);
-				for intStim=1:intStimNum
-					vecThisStim = find(cellSelect{intStim});
-					[vecSorted,vecReorder]=sort(vecPopRate_pre(vecThisStim));
-					vecQualifyingTrials = vecThisStim(vecReorder(vecUseTrialsTemp));
-					indZeroVarNeurons = indZeroVarNeurons | (var(matMeanRate_pre(:,vecQualifyingTrials),[],2) == 0);
-				end
-			end
-			indZeroVarNeurons = false(size(indZeroVarNeurons));
-			vecUseNeurons = find(~indZeroVarNeurons);
-			vecRemNeurons = find(indZeroVarNeurons);
-			cellSpikeTimesPerCellPerTrial(vecRemNeurons,:) = [];
-			intNeuronNum = numel(vecUseNeurons);
-			if intNeuronNum < 25
-				fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronNum,strRec,getTime);
-				continue;
-			end
+			strRec = [strType '_' strRecOrig];
+			close all;
+			fprintf('Running data type %s for %s [%s]\n',strType,strRecOrig,getTime);
 			
 			%simple "rate code"
 			matSpikeCounts = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
@@ -427,8 +323,8 @@ for intRec=1:numel(vecUseRec)
 				
 				if boolSaveFigs
 					%% save fig
-					export_fig(fullpath(strFigurePath,sprintf('2C1_PopSpikeStatistics_%s.tif',strRec)));
-					export_fig(fullpath(strFigurePath,sprintf('2C1_PopSpikeStatistics_%s.pdf',strRec)));
+					export_fig(fullpath(strFigurePath,sprintf('2C1%s_PopSpikeStatistics_%s.tif',strRunStim,strRec)));
+					export_fig(fullpath(strFigurePath,sprintf('2C1%s_PopSpikeStatistics_%s.pdf',strRunStim,strRec)));
 				end
 			end
 			
@@ -482,7 +378,7 @@ for intRec=1:numel(vecUseRec)
 				hold on;
 			end
 			dblStep = 1;
-			vecBinE = (-10:dblStep:10)/3;
+			vecBinE = (-10:dblStep:10)/10;
 			vecBinC = vecBinE(2:end)-dblStep/2;
 			vecAllAct = nan(1,numel(vecTQR));
 			vecAbsW = nan(1,intQuantiles);
@@ -498,7 +394,6 @@ for intRec=1:numel(vecUseRec)
 				%calculate normalization factors
 				vecBinIdx = val2idx(vecUseOri);
 				vecRepWeights = squeeze(sum(abs(matAggWeights(:,1,:)),1));
-				%vecNormFactors = ones(size(vecRepWeights(vecAggRep)));
 				vecNormFactors = vecRepWeights(vecAggRep);
 			end
 			
@@ -513,7 +408,7 @@ for intRec=1:numel(vecUseRec)
 					
 					vecBinaryPerf(intQ) = dblPerfP;
 					vecAbsW(intQ) = sum(abs(matWeightsBin(:,1)));
-					vecAllAct(vecUseTrialsQ) = matActivation(1,:)/vecAbsW(intQ);
+					vecAllAct(vecUseTrialsQ) = matActivation(1,1:sum(vecUseTrialsQ))/vecAbsW(intQ);
 					
 					%split by group & plot
 					vecAct = matActivation(1,1:sum(vecUseTrialsQ))/vecAbsW(intQ);
@@ -523,7 +418,7 @@ for intRec=1:numel(vecUseRec)
 					
 					vecBinaryPerf(intQ) = sum(vecDecodedIndexRateCV(vecUseTrialsQ) == vecBinIdx(vecUseTrialsQ)) / sum(vecUseTrialsQ);
 					vecAbsW(intQ) = mean(vecNormFactors(vecUseTrialsQ));
-					vecAllAct(vecUseTrialsQ) = matActivation(1,vecUseTrialsQ)/vecAbsW(intQ);
+					vecAllAct(vecUseTrialsQ) = matActivation(1,1:sum(vecUseTrialsQ))/vecAbsW(intQ);
 					
 					%split by group & plot
 					vecAct = matActivation(1,vecUseTrialsQ)'./vecNormFactors(vecUseTrialsQ);
@@ -570,8 +465,8 @@ for intRec=1:numel(vecUseRec)
 				%% get axes and projection per quantile
 				for intQ=1:intQuantiles
 					for intOriIdx1 = 1:intStimNum
-						%intOriIdx2 = intOriIdx1+1;
-						intOriIdx2 = intOriIdx1+floor(intStimNum/2)-1;
+						intOriIdx2 = intOriIdx1+1;
+						%intOriIdx2 = intOriIdx1+floor(intStimNum/2)-1;
 						intOriIdx2 = modx(intOriIdx2,intStimNum);
 						
 						vecUseTrials = vecTrialQuantile==intQ & (vecTrialTypeIdx == intOriIdx1 | vecTrialTypeIdx == intOriIdx2);
@@ -610,8 +505,7 @@ for intRec=1:numel(vecUseRec)
 					vecBinIdx = val2idx(vecTrialTypeIdx(indUseTrainTrials));
 					vecQuantInOri = vecTrialQuantile(indUseTrainTrials);
 					vecRepWeights = squeeze(sum(abs(matAggWeights(:,1,:)),1));
-					%vecNormFactors = vecRepWeights(vecAggRep);
-					vecNormFactors = ones(size(vecRepWeights(vecAggRep)));
+					vecNormFactors = vecRepWeights(vecAggRep);
 					
 					for intQ=1:intQuantiles
 						indUseTrials = vecQuantInOri==intQ;
@@ -724,16 +618,15 @@ for intRec=1:numel(vecUseRec)
 				
 				if boolSaveFigs
 					%% save fig
-					export_fig(fullpath(strFigurePath,sprintf('2C3_DynamicCoding_%s.tif',strRec)));
-					export_fig(fullpath(strFigurePath,sprintf('2C3_DynamicCoding_%s.pdf',strRec)));
+					export_fig(fullpath(strFigurePath,sprintf('2C3%s_DynamicCoding_%s.tif',strRunStim,strRec)));
+					export_fig(fullpath(strFigurePath,sprintf('2C3%s_DynamicCoding_%s.pdf',strRunStim,strRec)));
 				end
 			end
 			
 			%% save data
 			if boolSaveData
-				save([strTargetDataPath 'TimeCodingAggQC1ABI' strRec '_' strRunArea '.mat'],'strRec','strRunArea','matMeanRate','cellLRActPerQ','dblBC','dblMaxDevFrac');
+				save([strTargetDataPath 'TimeCodingAggQC1ABI_' strRunStim strRec '_' strRunArea '.mat'],'strRec','strRunArea','strRunStim','matMeanRate','cellLRActPerQ','dblBC','dblMaxDevFrac');
 			end
-			close all;
 		end
 	end
 end

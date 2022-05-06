@@ -8,7 +8,22 @@ q1: is coding better in trials with higher or lower firing rates?
 q2: can we define peaks in the IFR as population events, and find which cells spike in the beginning
 or end? does this ordering differ between orientations?
 
+%%
+see grant notes and photo of whiteboard on phone
+ 
+
+to do pop coding:
+- plot pop coding effects with pop mu as x rather than delta-mu (see photo for effect; real is more spread-out)
+shuffle activity
+- shuffle activity like before (repetitions per stimulus randomly and independently permuted for
+each neuron), but then rescale each trial to the pop mean (or by gain?) in that trial of the
+original data set; this will recapture the original distribution of population firing rates, while
+keeping the noise correlation uniform in all directions except the gain   
+
+conclusion so far: low-q and high-q are different from rest in different ways; low-q has lower
+delta-mu, while high-q has higher sd than expected from gain-only 
 %}
+
 %% define qualifying areas
 %close all;
 clear all;
@@ -25,18 +40,25 @@ else
 end
 dblBimoThreshold = inf;%0.5;%0.4
 dblDevThreshold = 0.7;%0.7;%0.7
+intPlotMu = 2;
+if intPlotMu == 1
+	strMu = '\DeltaMu';
+else
+	strMu = 'Pop mean';
+end
 
 %% find data
 strStim = 'NM';%DG/NM
-cellTypes = {'Real','Shuff','Poiss'};
+cellTypes = {'Real','Shuff','Poiss','UniStretch'};
 sDir = dir([strTargetDataPath 'TimeCodingAggQC1ABI*.mat']); %or ABA if old
 indUseRecs = contains({sDir.name},['ABI_' strStim]);
 sDir(~indUseRecs) = [];
 
 cellAggLRActPerQ = cell([0 0 0 0 0]);
+cellAggPopMuPerQ = cell([0 0 0 0 0]);
 matBC = nan([0 0]);
 matMDV = nan([0 0]);
-vecCounter = [0 0 0];
+vecCounter = zeros(1,numel(cellTypes));
 for intFile=1:numel(sDir)
 	%% load data
 	strFolder = sDir(intFile).folder;
@@ -61,20 +83,24 @@ for intFile=1:numel(sDir)
 	matBC(intType,vecCounter(intType)) = sData.dblBC;
 	matMDV(intType,vecCounter(intType)) = sData.dblMaxDevFrac;
 	cellAggLRActPerQ(:,:,:,intType,vecCounter(intType)) = sData.cellLRActPerQ;
+	cellAggPopMuPerQ(:,:,:,intType,vecCounter(intType)) = sData.cellPopMuPerQ;
 end
 
 %% plot
 %pre-allocate
 %intUseRec = 1:31;
 cellUseLRActPerQ = cellAggLRActPerQ;%(:,:,:,:,intUseRec);
+cellUsePopMuPerQ = cellAggPopMuPerQ;
 intRecs = size(cellUseLRActPerQ,5);
 matR_Discr=nan(3,intRecs);
 matR_MuVar=nan(3,intRecs);
-for intType=1:3
+hAggFig = figure;
+hAggAx = axes();
+hold on;
+for intType=1:numel(cellTypes)
 	strType = cellTypes{intType};
 	
 	%% average over all orthogonal (or adjacent?) stimuli
-	
 	if intType == 3
 		dblStep = 0.1;
 		vecBinE = -4:dblStep:4;
@@ -117,6 +143,8 @@ for intType=1:3
 	%plot d', variance and distance in mean
 	matPooledSd = nan(intQuantiles,intStimNum,intRecs);
 	matMeanD = nan(intQuantiles,intStimNum,intRecs);
+	matPopMu = nan(intQuantiles,intStimNum,intRecs);
+	
 	matQ = nan(intQuantiles,intStimNum,intRecs);
 	for intRec=1:intRecs
 		for intQ=1:intQuantiles
@@ -127,6 +155,10 @@ for intType=1:3
 				matPooledSd(intQ,intOriIdx,intRec) = ((std(vecR1) + std(vecR2))/2);
 				matMeanD(intQ,intOriIdx,intRec)  = abs(mean(vecR1) - mean(vecR2));
 				matQ(intQ,intOriIdx,intRec) = intQ;
+				
+				dblPopMu1 = mean(cellUsePopMuPerQ{intQ,intOriIdx,1,intType,intRec});
+				dblPopMu2 = mean(cellUsePopMuPerQ{intQ,intOriIdx,2,intType,intRec});
+				matPopMu(intQ,intOriIdx,intRec) = (dblPopMu1 + dblPopMu2)/2;
 			end
 		end
 	end
@@ -140,7 +172,11 @@ for intType=1:3
 	%calc mean+sem per q
 	matSdV = mean(matPooledSd,2);
 	matDp = mean(matDprime,2);
-	matMuV = mean(matMeanD,2);
+	if intPlotMu == 1
+		matMuV = mean(matMeanD,2);
+	else
+		matMuV = mean(matPopMu,2);
+	end
 	indRem = any(matDp > 100,1) | any(isnan(matSdV),1) | any(isnan(matDp),1) | any(isnan(matMuV),1);
 	matSdV(:,:,indRem) = [];
 	matDp(:,:,indRem) = [];
@@ -163,7 +199,7 @@ for intType=1:3
 	end
 	hold off
 	ylabel('Pooled sd over trials');
-	xlabel('\DeltaMean over trials');
+	xlabel([strMu ' over trials']);
 	title('Point = stim+quantile mu+/-sem');
 	xlim([min(0,min(get(gca,'xlim'))) max(get(gca,'xlim'))]);
 	ylim([min(0,min(get(gca,'ylim'))) max(get(gca,'ylim'))]);
@@ -177,12 +213,13 @@ for intType=1:3
 		errorbar(vecMeanMu(intQ),vecMeanDprime(intQ),vecSemDprime(intQ)/2,vecSemDprime(intQ)/2,vecSemMuL(intQ),vecSemMuR(intQ),'x','color',matColMap(intQ,:));
 	end
 	hold off
-	xlabel('\DeltaMean over trials');
+	xlabel([strMu ' over trials']);
 	ylabel('Discriminability (d'')');
 	title('Point = stim+quantile mu+/-sem');
 	xlim([min(0,min(get(gca,'xlim'))) max(get(gca,'xlim'))]);
 	ylim([min(0,min(get(gca,'ylim'))) max(get(gca,'ylim'))]);
 	fixfig;
+	
 	
 	%corrs per rec
 	matFanoV = squeeze(matDp);
@@ -227,4 +264,28 @@ for intType=1:3
 		export_fig(fullpath(strFigurePath,sprintf('2C_ABI_%s_Agg3_GainInvariance_%s.tif',strStim,strType)));
 		export_fig(fullpath(strFigurePath,sprintf('2C_ABI_%s_Agg3_GainInvariance_%s.pdf',strStim,strType)));
 	end
+	
+	%% add plot to agg fig
+	axes(hAggAx);
+	colormap(hAggAx,matColMap);
+	cline(hAggAx,vecMeanMu,vecMeanDprime,[],1:5);
+	for intQ=1:intQuantiles
+		errorbar(hAggAx,vecMeanMu(intQ),vecMeanDprime(intQ),vecSemDprime(intQ)/2,vecSemDprime(intQ)/2,vecSemMuL(intQ),vecSemMuR(intQ),'x','color',matColMap(intQ,:));
+	end
+	text(hAggAx,vecMeanMu(end),vecMeanDprime(end),strType);
+end
+% finish agg fig
+axes(hAggAx);
+hold off
+xlabel([strMu ' over trials']);
+ylabel('Discriminability (d'')');
+title('Point = stim+quantile mu+/-sem');
+xlim([min(0,min(get(gca,'xlim'))) max(get(gca,'xlim'))]);
+ylim([min(0,min(get(gca,'ylim'))) max(get(gca,'ylim'))]);
+fixfig;
+
+if boolSaveFigs
+	%% save fig
+	export_fig(fullpath(strFigurePath,sprintf('2C_ABI_%s_Agg4_GainInvariance.tif',strStim)));
+	export_fig(fullpath(strFigurePath,sprintf('2C_ABI_%s_Agg4_GainInvariance.pdf',strStim)));
 end

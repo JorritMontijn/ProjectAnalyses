@@ -25,9 +25,9 @@ strRunArea = 'VISp';%'posteromedial visual area' 'Primary visual area'
 cellUseAreas = {strRunArea};
 strRunStim = 'NM'; %DG,NM
 
-vecRandomize = 1:3; %1=real data, 2=shuffled, 3=generated
-boolMakeFigs = true;
-boolSaveFigs = true;
+vecRandomize = 1:4; %1=real data, 2=shuffled, 3=generated, 4=shuffle & stretch to original gain (unistretch)
+boolMakeFigs = false;
+boolSaveFigs = false;
 boolSaveData = true;
 boolHome = true;
 if boolHome
@@ -140,6 +140,12 @@ for intRec=1:numel(vecUseRec)
 				strType = 'Shuff';
 			elseif intRandomize == 3
 				strType = 'Poiss';
+			elseif intRandomize == 4
+				strType = 'UniStretch';
+				%shuffle activity like before (repetitions per stimulus randomly and independently permuted for
+				%each neuron), but then rescale each trial to the pop mean (or by gain?) in that trial of the
+				%original data set; this will recapture the original distribution of population firing rates, while
+				%keeping the noise correlation uniform in all directions except the gain
 			end
 			strRec = [strType '_' strRecOrig];
 			close all;
@@ -148,6 +154,16 @@ for intRec=1:numel(vecUseRec)
 			%simple "rate code"
 			matSpikeCounts = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
 			matMeanRate = matSpikeCounts./dblUseMaxDur;
+			
+			%calculate gain axis for this stimulus from training trials
+			
+			%get population gain
+			vecGainAx = mean(matMeanRate,2);
+			vecPopGainPerTrial=getProjOnLine(matMeanRate,vecGainAx);
+			vecPopGainFactor = vecPopGainPerTrial ./ mean(vecPopGainPerTrial);
+			
+			%get population mean
+			vecOldMean = mean(matMeanRate,1);
 			
 			%randomize per orientation
 			if intRandomize > 1
@@ -159,13 +175,21 @@ for intRec=1:numel(vecUseRec)
 							matMeanRate(intN,vecUseT) = matMeanRate(intN,vecUseT(randperm(numel(vecUseT))));
 						elseif intRandomize == 3
 							%generate spikes
-							dblMean = mean(cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial(intN,vecUseT)));
+							dblMean = mean(matMeanRate(intN,vecUseT));
 							vecRates = poissrnd(dblMean,size(vecUseT));
 							matMeanRate(intN,vecUseT) = vecRates;
+						elseif intRandomize == 4
+							%shuffle spikes & compensate for pop-rate change later
+							matMeanRate(intN,vecUseT) = matMeanRate(intN,vecUseT(randperm(numel(vecUseT))));
 						else
 							error
 						end
 					end
+				end
+				if intRandomize == 4
+					vecNewMean = mean(matMeanRate,1);
+					vecCompensateBy = vecOldMean./vecNewMean;
+					matMeanRate = bsxfun(@times,matMeanRate,vecCompensateBy);
 				end
 			end
 			
@@ -457,6 +481,7 @@ for intRec=1:numel(vecUseRec)
 			%% average over all orthogonal (or adjacent?) stimuli
 			matBinaryPerf = nan(intQuantiles,intStimNum);
 			cellLRActPerQ = cell(intQuantiles,intStimNum,2);
+			cellPopMuPerQ = cell(intQuantiles,intStimNum,2);
 			
 			[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecStimIdx);
 			
@@ -487,6 +512,8 @@ for intRec=1:numel(vecUseRec)
 						end
 						cellLRActPerQ{intQ,intOriIdx1,1} = vecAct1;
 						cellLRActPerQ{intQ,intOriIdx1,2} = vecAct2;
+						cellPopMuPerQ{intQ,intOriIdx1,1} = mean(matUseResp(vecUseOri==intOriIdx1,:),2);
+						cellPopMuPerQ{intQ,intOriIdx2,2} = mean(matUseResp(vecUseOri==intOriIdx2,:),2);
 					end
 				end
 			else
@@ -519,6 +546,8 @@ for intRec=1:numel(vecUseRec)
 						end
 						cellLRActPerQ{intQ,intOriIdx1,1} = vecAct1;
 						cellLRActPerQ{intQ,intOriIdx1,2} = vecAct2;
+						cellPopMuPerQ{intQ,intOriIdx1,1} = mean(matUseResp(vecUseOri==intOriIdx1 & indUseTrials,:),2);
+						cellPopMuPerQ{intQ,intOriIdx1,2} = mean(matUseResp(vecUseOri==intOriIdx2 & indUseTrials,:),2);
 					end
 				end
 			end
@@ -625,7 +654,8 @@ for intRec=1:numel(vecUseRec)
 			
 			%% save data
 			if boolSaveData
-				save([strTargetDataPath 'TimeCodingAggQC1ABI_' strRunStim strRec '_' strRunArea '.mat'],'strRec','strRunArea','strRunStim','matMeanRate','cellLRActPerQ','dblBC','dblMaxDevFrac');
+				save([strTargetDataPath 'TimeCodingAggQC1ABI_' strRunStim strRec '_' strRunArea '.mat'],...
+					'strRec','strRunArea','strRunStim','vecTrialTypeIdx','vecTrialQuantile','matMeanRate','cellPopMuPerQ','cellLRActPerQ','dblBC','dblMaxDevFrac');
 			end
 		end
 	end

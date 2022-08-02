@@ -1,8 +1,6 @@
 %% exploratory analysis, no proper controls
 
 %% load data
-strAllenCCFPath = 'F:\Data\AllenCCF';
-[tv,av,st] = RP_LoadABA(strAllenCCFPath);
 strDataPath = 'F:\Data\Processed\Neuropixels';
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
 if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform')
@@ -23,9 +21,6 @@ if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform'
 		[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
 		sAP.sSources.sMetaIM = sMetaIM;
 		
-		%calculate distance to area boundary
-		sLocCh = getBrainAreasPerChannel(sAP,tv,av,st);
-		vecChDistToAreaBoundary = sLocCh.vecDistToBoundaryPerCh;
 		%get cluster depths
 		[spikeAmps, vecAllSpikeDepth] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
 		dblProbeLength = max(sSpikes.ycoords);
@@ -40,7 +35,6 @@ if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform'
 			
 			%assign
 			sAP.sCluster(intClust).Waveform = matClustWaveforms(sAP.sCluster(intClust).IdxClust == vecClustIdx,:);
-			sAP.sCluster(intClust).BoundDist = vecChDistToAreaBoundary(intDominantChannel);
 		end
 		
 		if isempty(sExp)
@@ -51,11 +45,6 @@ if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform'
 		
 	end
 end
-
-strTargetPath = 'D:\Data\Results\AlbinoProject';
-
-%best rec BL6: 20191216B5 (rec 17)
-%best rec DBA: 20210212B2 (rec 5)
 
 %% define area categories
 %cortex
@@ -104,7 +93,7 @@ for intSubType=1:2
 			cellCellsPerArea{intArea} = contains(cellAreasPerCluster(:),cellUseAreas{intArea},'IgnoreCase',true);
 		end
 		vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
-		dblSampRateIM = str2double(sAP.sSources.sMetaIM.imSampRate);
+		dblSampRateIM = str2double(sAP.sSources.sMetaNI.imSampRate);
 		dblSampRateNI = str2double(sAP.sSources.sMetaNI.niSampRate);
 		
 		%get waveform in areas

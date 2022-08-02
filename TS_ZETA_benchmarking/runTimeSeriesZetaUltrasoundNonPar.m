@@ -18,7 +18,7 @@
 %?	Condition4 (Control): Set of temporal onsets of the stimulation.  Saved as an array with dimension (# animal x # onsets (in frames)) Each row corresponds to an animal and each column corresponds to an onset of the stimulation (20 stim per condition)
 
 %% set recording
-close all;
+%close all;
 clear all;
 strDataTargetPath = 'D:\Data\Processed\DataCamiloValeria\';
 vecRunTypes = [1 2];
@@ -101,7 +101,7 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 	for intRec=1:numel(sRec)
 		dblUseMaxDur = floor(min(diff(sRec(intRec).structStim.vecStimOn / sRec(intRec).SampFreq)));
 		dblEndSecs = (numel(sRec(intRec).neuron(1).dFoF) - sRec(intRec).structStim.vecStimOn(end)) / sRec(intRec).SampFreq;
-		dblUseMaxDur = min(dblUseMaxDur,dblEndSecs/2);
+		dblUseMaxDur = min([10 dblUseMaxDur dblEndSecs-1]);
 		[varDataOut,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(sRec(intRec).structStim.vecStimType);
 		intStimTypes = numel(vecUnique);
 		intNeurons = numel(sRec(intRec).neuron);

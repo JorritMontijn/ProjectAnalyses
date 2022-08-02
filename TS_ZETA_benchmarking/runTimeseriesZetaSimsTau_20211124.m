@@ -119,12 +119,12 @@ for intNeuron=1:intNeurons
 				intPlot = 0;
 			end
 			%run zeta & ts-zeta
-			[dblTsZetaP,sTsZETA] = getTraceZeta(vecTimestamps,vecdFoF,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
+			[dblTsZetaP,sTsZETA] = zetatstest(vecTimestamps,vecdFoF,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
 			dblTsZeta = sTsZETA.dblZETA;
 			matTsZeta(intNeuron,intRunType,intTauIdx) = dblTsZeta;
 			%save
 			if intTauIdx == 1
-				[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,0);
+				[dblZetaP,sZETA] = zetatest(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,0);
 				dblZeta = sZETA.dblZETA;
 				matZeta(intNeuron,intRunType) = dblZeta;
 			end
@@ -142,7 +142,7 @@ for intNeuron=1:intNeurons
 				export_fig(fullpath(strFigPath,[strRec,strRand,sprintf('%.3f',dblTau*dblTau0),'Example.pdf']));
 				
 				if intTauIdx == 1
-					[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,3);
+					[dblZetaP,sZETA] = zetatest(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,3);
 					dblZeta = sZETA.dblZETA;
 					matZeta(intNeuron,intRunType) = dblZeta;
 					hFig=gcf;

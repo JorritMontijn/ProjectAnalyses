@@ -5,11 +5,12 @@ close all;
 clear all;
 strDataTargetPath = 'D:\Data\Processed\TraceZeta\data\';
 vecRunTypes = [1 2];
-intResampNum = 501;
+intResampNum = 500;
 boolSave = true;%true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 dblUseDur = 8;
 boolDirectQuantile = false;
+intUseTrials = 8; %limit number of used trials to reduce performance saturation
 				
 %% load data
 for boolDoOGB = [false true]
@@ -58,7 +59,11 @@ for boolDoOGB = [false true]
 			vecAnovaP = nan(1,intNeurons);
 			vecAnovaDur = nan(1,intNeurons);
 			vecZetaDur = nan(1,intNeurons);
-			
+			vecKsP = nan(1,intNeurons);
+			vecWilcoxP = nan(1,intNeurons);
+			vecKsDur = nan(1,intNeurons);
+			vecWilcoxDur = nan(1,intNeurons);
+		
 			%% analyze
 			hTic = tic;
 			for intNeuron=1:intNeurons%[1:intNeurons]%43%1:27, 2:69
@@ -78,7 +83,9 @@ for boolDoOGB = [false true]
 				
 				%get data
 				intTotTrials = numel(ses.structStim.FrameOn);
-				intUseTrials = 8;
+				if isnan(intUseTrials) || intUseTrials > intTotTrials
+					intUseTrials = intTotTrals;
+				end
 				vecOn = ses.structStim.FrameOn(1:intUseTrials);
 				vecOff = ses.structStim.FrameOff(1:intUseTrials);
 				vecdFoF = cellData{intNeuron};
@@ -124,6 +131,13 @@ for boolDoOGB = [false true]
 				else
 					matEventTimes = cat(2,vecEventStarts,vecEventStarts+matTrialStarts(:,2)-matTrialStarts(:,1));
 				end
+				
+				%check length
+				dblMaxEndDur = max(vecTraceT) - matEventTimes(end,1);
+				if dblUseMaxDur > dblMaxEndDur
+					matEventTimes(end,:) = [];
+				end
+				
 				%ANOVA
 				hTicA = tic;
 				[vecRefT2,matTracePerTrial] = getTraceInTrial(vecTraceT,vecTraceAct,matEventTimes(:,1),dblSamplingInterval,dblUseMaxDur);
@@ -148,6 +162,19 @@ for boolDoOGB = [false true]
 				dblZetaDur = toc(hTicZ);
 				vecZetaDur(intNeuron) = dblZetaDur;
 				
+				%kruskal-wallis
+				hTicK = tic;
+				dblKsP = kruskalwallis(matTracePerTrial,[],'off');
+				vecKsP(intNeuron) = dblKsP;
+				vecKsDur(intNeuron) = toc(hTicK);
+				
+				%wilcoxon ranksum
+				if ~isempty(sZETA.vecMu_Dur) && ~isempty(sZETA.vecMu_Pre)
+					hTicW = tic;
+					vecWilcoxP(intNeuron) = ranksum(sZETA.vecMu_Dur,sZETA.vecMu_Pre);
+					vecWilcoxDur(intNeuron) = toc(hTicW);
+				end
+				
 				if 0%dblZetaZ > 3 && dblMeanZ < 1.5
 					[dblZetaP,sZETA] = zetatstest(vecTraceT,vecTraceAct,matEventTimes,vecUseDur,intResampNum,2); %16
 					
@@ -171,7 +198,8 @@ for boolDoOGB = [false true]
 			fprintf('%s; Mean comp time per neuron was %.3fs\n',strRec,mean(vecZetaDur));
 			
 			if boolSave
-				save([strDataTargetPath 'TsZeta' strIndicator '_Q' num2str(boolDirectQuantile) '_' strRunType strUseDur 'Resamp' num2str(intResampNum) '.mat' ],...
+				save([strDataTargetPath 'TsZeta' strIndicator '_Q' num2str(boolDirectQuantile) '_' strRunType strUseDur 'T' num2str(intUseTrials) 'Resamp' num2str(intResampNum) '.mat' ],...
+					'intUseTrials','vecWilcoxP','vecWilcoxDur','vecKsP','vecKsDur',...
 					'vecAnovaP','vecZetaP','vecMeanP','vecAnovaDur','vecZetaDur','strRunType','strRecIdx');
 			end
 		end

@@ -6,7 +6,7 @@ clear all;
 strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
 strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
 vecRunTypes = [1 2];
-intResampNum = 500;
+intResampNum = 250;
 boolSave = true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
@@ -114,13 +114,13 @@ for intNeuron=1:intNeurons
 			end
 			%run zeta & ts-zeta
 			intResampNum = 100;
-			[dblTsZetaP,sTsZETA] = getTraceZeta(vecTimestamps,vecdFoF,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
+			[dblTsZetaP,sTsZETA] = zetatstest(vecTimestamps,vecdFoF,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
 			dblTsZeta = sTsZETA.dblZETA;
 			matTsZeta(intNeuron,intRunType,intSampFreqIdx) = dblTsZeta;
 			
 			%save
 			if 1%intSampFreqIdx == 1
-				[dblZetaP,vecLatencies,sZETA] = getZeta(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
+				[dblZetaP,sZETA] = zetatest(vecSpikeTimes,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
 				dblZeta = sZETA.dblZETA;
 				matZeta(intNeuron,intRunType,intSampFreqIdx) = dblZeta;
 			end

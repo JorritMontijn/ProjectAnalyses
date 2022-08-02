@@ -1,4 +1,9 @@
 %% load spiking data & plot tuning curves
+%{
+Columns 1 through 30
+
+     1     4     7     8    10    13    14    17    18    19    20    21    22    24    27    38    41    46    49    50    65    75    79    81    82    85    87   106   111   112
+%}
 
 %% set recording
 %close all;
@@ -34,12 +39,11 @@ strDisk = 'F:';
 strDataSourcePath = [strDisk '\Data\Processed\Neuropixels\'];
 strDataTargetPath = [strDisk '\Data\Processed\ZETA\Latencies\'];
 strFigPath = [strDisk '\Data\Results\ZETA\Latencies\'];
-intMakePlots =4; %0=none, 1=normal plot, 2=including raster
+intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
-vecBinDurs = [(2.^(-10:0))*0.1];
-vecRunAreas = 8;%[7:16];%[7:24];%[1:4];%1:6;%1:5;
+vecRunAreas = 8;%[10:16];%[7:24];%[1:4];%1:6;%1:5;
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -90,6 +94,7 @@ for intArea=vecRunAreas
 				%% find data
 				sFiles = dir([strDataSourcePath '*.mat']);
 				cellFiles = {sFiles(:).name}';
+				cellFiles(contains(cellFiles,'MA'))=[];
 				strName = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));
 				
 				%% go through files
@@ -141,14 +146,15 @@ for intArea=vecRunAreas
 			
 			
 			%% pre-allocate output variables
-			intBinNum = numel(vecBinDurs);
 			vecNumSpikes = nan(1,intNeurons);
-			matBinLatencies = nan(intBinNum,intNeurons);
-			vecZetaLatencies = nan(1,intNeurons);
+			vecRateDiffAtPeak = nan(1,intNeurons);
 			vecSU = nan(1,intNeurons);
-			
+			vecOnsetLatencies = nan(1,intNeurons);
+			vecPeakLatencies = nan(1,intNeurons);
+			vecZetaP = nan(1,intNeurons);
+				
 			%% message
-			fprintf('Processing %s, # of bins = %d [%s]\n',strRunType,intBinNum,getTime);
+			fprintf('Processing %s [%s]\n',strRunType,getTime);
 			hTic=tic;
 			
 			%% analyze
@@ -214,11 +220,14 @@ for intArea=vecRunAreas
 		pause
 		continue
 				%}
-				
+				%[dblZetaP,sZETA,sRate,vecLatencies] = zetatest(vecSpikeTimes,matEventTimes,dblUseMaxDur,100,intMakePlots,4,vecRestrictRange);
+				intMakePlots = 0;
 				[dblZetaP,sZETA,sRate,vecLatencies] = zetatest(vecSpikeTimes,matEventTimes,dblUseMaxDur,100,intMakePlots,4,vecRestrictRange);
-				vecZetaLatencies(intNeuron) = vecLatencies(4);
+				vecOnsetLatencies(intNeuron) = vecLatencies(4);
+				vecPeakLatencies(intNeuron) = vecLatencies(3);
+				vecZetaP(intNeuron) = dblZetaP;
 				vecSU(intNeuron) = intSU;
-				if 0%intMakePlots > 0
+				if intMakePlots > 0
 					strTit = sprintf('%s-N%dSU%d',strRunType,intNeuron,intSU);
 					title(subplot(2,3,2),strTit);
 					drawnow;
@@ -228,92 +237,18 @@ for intArea=vecRunAreas
 					boolSave = false;
 					continue;
 				end
-				%%{
-				%% calculate mean-rate difference
-				%pre-allocate
-				intMaxRep = size(matEventTimes,1);
-				vecEventStops = matEventTimes(:,2);
-				vecStimHz = zeros(intMaxRep,1);
-				vecBaseHz = zeros(intMaxRep,1);
-				dblMedianBaseDur = median(matEventTimes(2:end,1) - matEventTimes(1:(end-1),2));
-				
-				%go through trials to build spike time vector
-				for intEvent=1:intMaxRep
-					%get times
-					dblStartT = matEventTimes(intEvent,1);
-					dblStopT = dblStartT + dblUseMaxDur;
-					dblPreT = dblStartT - dblMedianBaseDur;
-					
-					% build trial assignment
-					vecStimHz(intEvent) = sum(vecSpikeTimes < dblStopT & vecSpikeTimes > dblStartT)/(dblStopT - dblStartT);
-					vecBaseHz(intEvent) = sum(vecSpikeTimes < dblStartT & vecSpikeTimes > dblPreT)/dblMedianBaseDur;
-				end
-				
-				%get metrics
-				dblMeanD = mean(vecStimHz - vecBaseHz) / ( (std(vecStimHz) + std(vecBaseHz))/2);
-				[h,dblMeanP]=ttest(vecStimHz,vecBaseHz);
-				
-				figure
-				bplot([vecBaseHz vecStimHz])
-				
-				xlabel('Base/stim')
-				ylabel('Firing rate (Hz)')
-				xlim([0 3]);
-				fixfig;
-				title(sprintf('p=%.3f',dblMeanP))
-				%}
-				%% get bin-wise approach
-				%get data
-				for intBinIdx=1:intBinNum
-					
-					dblFrameDur = vecBinDurs(intBinIdx);
-					dblStimDur = median(diff(vecStimOnTime));
-					vecBinEdges = 0:dblFrameDur:1.5;
-					vecBinCenters = vecBinEdges(2:end)-dblFrameDur/2;
-					intBins = numel(vecBinCenters);
-					intTrials = numel(vecStimOnTime);
-					matResp = nan(intTrials,intBins);
-					for intTrial=1:intTrials
-						matResp(intTrial,:) = histcounts(vecSpikeTimes,vecBinEdges+matEventTimes(intTrial,1));
-					end
-					
-					%test
-					vecR = mean(matResp,1);
-					%get MSD peak
-					[dblPeakRate,dblPeakTime,dblPeakWidth,vecPeakStartStop,intPeakLoc,vecPeakStartStopIdx] = getPeak(vecR,vecBinCenters,vecRestrictRange);
-					
-					
-					if ~isnan(dblPeakTime)
-						%get onset
-						[dblOnset,dblOnsetVal] = getOnset(vecR,vecBinCenters,dblPeakTime,vecRestrictRange);
-					end
-					
-					matBinLatencies(intBinIdx,intNeuron) = dblOnset;
-				end
-				
-				%% MIMI
-				%vecCoeffs0 = sMIMI.FitCoeffs;
-				vecCoeffs0 = [];
-				[dblMIMI_P,vecLatencies,sMIMI,sRate] = getMIMI(vecSpikeTimes,matEventTimes,dblUseMaxDur,intMakePlots,2,vecRestrictRange,[],[],[],vecCoeffs0);
-				vecMimiLatencies(intNeuron) = vecLatencies(2);
-				
-				if intMakePlots > 0
-					strTit = sprintf('MIMI_%s-N%dSU%d',strRunType,intNeuron,intSU);
-					title(subplot(2,3,2),[strTit sprintf('; onset=%.2f',sRate.dblOnset*1000)]);
-					hold(subplot(2,3,2),'on');
-					scatter(subplot(2,3,2),sRate.dblOnset,sRate.dblPeakRate,'x')
-					drawnow;
-					
-					export_fig([strFigPath strTit '.tif']);
-					export_fig([strFigPath strTit '.pdf']);
-					boolSave = false;
-					%continue;
-				end
 				
 				%% save output
 				% assign data
 				vecNumSpikes(intNeuron) = numel(vecSpikeTimes);
-				
+				if isempty(sRate) || isempty(sRate.vecT) || all(isnan(vecLatencies))
+					dblRateDiff = nan;
+				else
+					dblRateDiff = sRate.vecRate(find(vecLatencies(4) < sRate.vecT,1)-1) - mean(sRate.vecRate);
+				end
+				if ~isempty(dblRateDiff)
+					vecRateDiffAtPeak(intNeuron) = dblRateDiff;
+				end
 			end
 			%save
 			%vecNumSpikes = nan(1,intNeurons);
@@ -324,8 +259,8 @@ for intArea=vecRunAreas
 			%cellZeta = cell(1,intNeurons);
 			%cellArea = cell(1,intNeurons);
 			if boolSave
-				save([strDataTargetPath 'ZetaDataBinsLatencies2' strRunType strRunStim '.mat' ],...
-					'vecSU','vecBinDurs','matBinLatencies','vecZetaLatencies','vecNumSpikes');
+				save([strDataTargetPath 'NpxLatencies' strRunType strRunStim '.mat' ],...
+					'vecSU','vecOnsetLatencies','vecPeakLatencies','vecZetaP','vecRateDiffAtPeak','vecNumSpikes');
 			end
 		end
 	end

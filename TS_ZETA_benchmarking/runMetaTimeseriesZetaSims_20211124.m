@@ -72,7 +72,7 @@ for intSampIdx=1:numel(vecSampFreqs)
 		
 		plot(vecFP,vecTP,'Color',cellColor{intTest});
 		
-		[dblAUC,Aci] = auc(cat(2,vecBothLabels,vecBothData));
+		[dblAUC,Aci] = getAuc(vecTP,vecFP);
 		vecAUC(intTest) = dblAUC;
 	end
 	hold off;

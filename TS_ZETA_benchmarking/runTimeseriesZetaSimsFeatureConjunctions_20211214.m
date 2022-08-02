@@ -102,12 +102,12 @@ for intNeuron=1:intNeurons
 			
 			%run zeta & ts-zeta
 			intPlot = 0;
-			[dblTsZetaP,sTsZETA] = getTraceZeta(vecTimestamps,vecdFoF,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
+			[dblTsZetaP,sTsZETA] = zetatstest(vecTimestamps,vecdFoF,vecUseTrialStart,dblTrialDur,intResampNum,intPlot);
 			dblTsZeta = sTsZETA.dblZETA;
 			matTsZeta(intNeuron,intRunType,intTrialDurIdx,intTauIdx,intSampFreqIdx) = dblTsZeta;
 			%save
 			if intTauIdx == intTauNum && intSampFreqIdx == intSampFreqNum
-				[dblZetaP,vecLatencies,sZETA] = zetatest(vecSpikeTimes,matUseTrialT,dblTrialDur,intResampNum,0);
+				[dblZetaP,sZETA] = zetatest(vecSpikeTimes,matUseTrialT,dblTrialDur,intResampNum,0);
 				dblZeta = sZETA.dblZETA;
 				dblMeanZ = sZETA.dblMeanZ;
 				matZeta(intNeuron,intRunType,intTrialDurIdx) = dblZeta;

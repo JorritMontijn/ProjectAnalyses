@@ -4,8 +4,9 @@ strPath = 'D:\Data\Processed\TraceZeta\';
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 %% prep
-intResamps = 100;
-strFileSearch = ['TsZetaSimTau*Resamp' num2str(intResamps) '.mat'];
+intResamps = 250;
+intNeurons = 100;
+strFileSearch = ['TsZetaSim*Tau*Resamp' num2str(intResamps) '.mat'];
 sDir = dir(fullpath(strPath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
@@ -23,8 +24,8 @@ matR_ci = nan(2,numel(vecTau));
 vecAUC_Tau = nan(1,numel(vecTau));
 matAUC_TauCi = nan(2,numel(vecTau));
 vecRunTau = 1:numel(vecTau);
-matTP = zeros(numel(vecTau),intResamps*2);
-matFP = zeros(numel(vecTau),intResamps*2);
+matTP = zeros(numel(vecTau),intNeurons*2);
+matFP = zeros(numel(vecTau),intNeurons*2);
 		
 intRunTauNum = numel(vecRunTau);
 
@@ -104,7 +105,7 @@ for intTauIdx=1:numel(vecRunTau)
 		
 		plot(vecFP,vecTP,'Color',cellColor{intTest});
 		
-		[dblAUC,Aci] = auc(cat(2,vecBothLabels,vecBothData));
+		[dblAUC,Aci] = getAuc(vecTP,vecFP);
 		vecAUC(intTest) = dblAUC;
 		
 		if intTest == 1

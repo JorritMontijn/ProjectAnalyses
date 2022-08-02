@@ -6,7 +6,7 @@ clear all;
 strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
 strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
 vecRunTypes = [1 2];
-intResampNum = 251;%[100 200 500 1000 2000];
+intResampNum = 500;%[100 200 500 1000 2000];
 boolSave = true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 

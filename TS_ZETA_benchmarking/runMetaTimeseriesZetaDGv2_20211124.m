@@ -2,8 +2,10 @@ clear all;
 %close all;
 strPath = 'D:\Data\Processed\TraceZeta\data\';
 strFigPath = 'D:\Data\Results\TraceZeta\';
-intResamps = 501;
+intResamps = 500;
+intT = 8;
 boolDirectQuantile = false;
+strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
 cellRunRand = {...
@@ -25,8 +27,8 @@ for boolDoOGB = [false true]
 	else
 		strIndicator = 'GCaMP';
 	end
-	sDirAll1=dir([strPath 'TsZeta' strIndicator '*' strQ '*sesDur*' strR '.mat']);
-	sDirAll2=dir([strPath 'TsZeta' strIndicator '*' strQ '*ses-RandDur*' strR '.mat']);
+	sDirAll1=dir([strPath 'TsZeta' strIndicator '*' strQ '*sesDur*' strT strR '.mat']);
+	sDirAll2=dir([strPath 'TsZeta' strIndicator '*' strQ '*ses-RandDur*' strT strR '.mat']);
 	sDirAll = cat(1,sDirAll1,sDirAll2);
 	vecRand = contains({sDirAll.name},'Rand');
 	sDirReal = sDirAll(~vecRand);
@@ -34,6 +36,8 @@ for boolDoOGB = [false true]
 	cellMeanP = [];
 	cellZetaP = [];
 	cellAnovaP = [];
+	cellKsP = [];
+	cellWilcoxP = [];
 	cellZetaDur = [];
 	cellAnovaDur = [];
 	
@@ -57,6 +61,8 @@ for boolDoOGB = [false true]
 			cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;
 			cellZetaDur{intRandType}{intFile} = sLoad.vecZetaDur;
 			cellAnovaDur{intRandType}{intFile} = sLoad.vecAnovaDur;
+			cellKsP{intRandType}{intFile} = sLoad.vecKsP;
+			cellWilcoxP{intRandType}{intFile} = sLoad.vecWilcoxP;
 		end
 	end
 	
@@ -72,6 +78,10 @@ for boolDoOGB = [false true]
 	cellZetaP{2}(indRemRecs) = [];
 	cellAnovaP{1}(indRemRecs) = [];
 	cellAnovaP{2}(indRemRecs) = [];
+	cellKsP{1}(indRemRecs) = [];
+	cellKsP{2}(indRemRecs) = [];
+	cellWilcoxP{1}(indRemRecs) = [];
+	cellWilcoxP{2}(indRemRecs) = [];
 	cellZetaDur{1}(indRemRecs) = [];
 	cellZetaDur{2}(indRemRecs) = [];
 	cellAnovaDur{1}(indRemRecs) = [];
@@ -83,6 +93,10 @@ for boolDoOGB = [false true]
 	vecRealZetaP = cell2vec(cellZetaP{1});
 	vecRandAnovaP = cell2vec(cellAnovaP{2});
 	vecRealAnovaP = cell2vec(cellAnovaP{1});
+	vecRandKsP = cell2vec(cellKsP{2});
+	vecRealKsP = cell2vec(cellKsP{1});
+	vecRandWilcoxP = cell2vec(cellWilcoxP{2});
+	vecRealWilcoxP = cell2vec(cellWilcoxP{1});
 	vecRandZetaDur = cell2vec(cellZetaDur{2});
 	vecRealZetaDur = cell2vec(cellZetaDur{1});
 	vecRandAnovaDur = cell2vec(cellAnovaDur{2});
@@ -91,25 +105,43 @@ for boolDoOGB = [false true]
 	matMeanP = cat(2,vecRealMeanP,vecRandMeanP)';
 	matZetaP = cat(2,vecRealZetaP,vecRandZetaP)';
 	matAnovaP = cat(2,vecRealAnovaP,vecRandAnovaP)';
+	matKsP = cat(2,vecRealKsP,vecRandKsP)';
+	matWilcoxP = cat(2,vecRealWilcoxP,vecRandWilcoxP)';
 	
 	matMeanZ = cat(2,norminv(1-vecRealMeanP/2),norminv(1-vecRandMeanP/2))';
 	matZetaZ = cat(2,norminv(1-vecRealZetaP/2),norminv(1-vecRandZetaP/2))';
 	matAnovaZ = cat(2,norminv(1-vecRealAnovaP/2),norminv(1-vecRandAnovaP/2))';
+	matKsZ = cat(2,norminv(1-vecRealKsP/2),norminv(1-vecRandKsP/2))';
+	matWilcoxZ = cat(2,norminv(1-vecRealWilcoxP/2),norminv(1-vecRandWilcoxP/2))';
 	
 	%remove nans
 	indRem = any(isnan(matZetaP),1) | any(isnan(matMeanP),1) | any(isnan(matAnovaZ),1);
 	matMeanP(:,indRem)=[];
-	matZetaP(:,indRem)=[];
 	matMeanZ(:,indRem)=[];
+	matZetaP(:,indRem)=[];
 	matZetaZ(:,indRem)=[];
 	matAnovaP(:,indRem)=[];
 	matAnovaZ(:,indRem)=[];
+	matKsP(:,indRem)=[];
+	matKsZ(:,indRem)=[];
+	matWilcoxP(:,indRem)=[];
+	matWilcoxZ(:,indRem)=[];
+	
+	%rename ks => anova, wilcox=>t
+	%matAnovaP = matKsP;
+	%matAnovaZ = matKsZ;
+	%matMeanP = matWilcoxP;
+	%matMeanZ = matWilcoxZ;
 	
 	%% plot
 	figure
+	matWilcoxZ(isinf(matWilcoxZ(:))) = max(matWilcoxZ(~isinf(matAnovaZ(:))));
+	matKsZ(isinf(matKsZ(:))) = max(matKsZ(~isinf(matAnovaZ(:))));
 	matMeanZ(isinf(matMeanZ(:))) = max(matMeanZ(~isinf(matAnovaZ(:))));
 	matZetaZ(isinf(matZetaZ(:))) = max(matZetaZ(~isinf(matAnovaZ(:))));
 	matAnovaZ(isinf(matAnovaZ(:))) = max(matAnovaZ(~isinf(matAnovaZ(:))));
+	matWilcoxP(matWilcoxP(:)==0) = 1e-29;
+	matKsP(matKsP(:)==0) = 1e-29;
 	matMeanP(matMeanP(:)==0) = 1e-29;
 	matZetaP(matZetaP(:)==0) = 1e-29;
 	matAnovaP(matAnovaP(:)==0) = 1e-29;

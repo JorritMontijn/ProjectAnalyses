@@ -908,15 +908,15 @@ for intRec=19%1:numel(sAggStim)
 		errorbar(3,mean(vecConfidenceHighLow),std(vecConfidenceHighLow)./sqrt(numel(vecConfidenceHighLow)),'x','color',[0.8 0 0.2]);
 		errorbar(4,mean(vecConfidenceHighHigh),std(vecConfidenceHighHigh)./sqrt(numel(vecConfidenceHighHigh)),'xr');
 		hold off
-		ylabel('Angular diff. pref. ori.');
+		ylabel('Decoder prob. of correct ori');
 		set(gca,'xtick',[1 2 3 4],'xticklabel',{'Low W-low A','Low W-high A','High W-low A','High W-high A'});
-		title(sprintf('Posterior p., L-H t-test,p=%.2e',pPP_HL));
+		title(sprintf('Train+test on low+low vs hi+hi act, t-test,p=%.2e',pPP_HL));
 		xtickangle(15);
 		fixfig;
 		
 		%%
-		export_fig(fullpath(strFigurePath,sprintf('B4_%s_OriCodingT%s_%s.tif',strDec,num2str(dblStartT),strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('B4_%s_OriCodingT%s_%s.pdf',strDec,num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('B4_LRDecConfidence_Qsplit_OriCodingT%s_%s.tif',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('B4_LRDecConfidence_Qsplit_OriCodingT%s_%s.pdf',num2str(dblStartT),strRec)));
 		
 		%% so why is there no effect on the decoder?
 		%=> compare greedy decoder of high vs low; greedy in neurons or spikes?

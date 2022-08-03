@@ -8,20 +8,6 @@ q1: is coding better in trials with higher or lower firing rates?
 q2: can we define peaks in the IFR as population events, and find which cells spike in the beginning
 or end? does this ordering differ between orientations?
 
-%%
-see grant notes and photo of whiteboard on phone
- 
-
-to do pop coding:
-- plot pop coding effects with pop mu as x rather than delta-mu (see photo for effect; real is more spread-out)
-shuffle activity
-- shuffle activity like before (repetitions per stimulus randomly and independently permuted for
-each neuron), but then rescale each trial to the pop mean (or by gain?) in that trial of the
-original data set; this will recapture the original distribution of population firing rates, while
-keeping the noise correlation uniform in all directions except the gain   
-
-conclusion so far: low-q and high-q are different from rest in different ways; low-q has lower
-delta-mu, while high-q has higher sd than expected from gain-only 
 %}
 
 %% define qualifying areas

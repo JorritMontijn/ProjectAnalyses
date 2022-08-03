@@ -17,6 +17,18 @@ https://www.nature.com/articles/nn.3711
 https://www.jneurosci.org/content/39/37/7344.abstract
 etc
 
+==========
+20220803:
+
+As a function of mean-rate, adjacent stimulus discriminability could theoretically be anything, such as:
+1) Fixed variance, tuning curves that scale with mean rate (= linear increasing curve)
+=> perhaps Poisson cells with a wider dynamic range already show this property
+2) Smoothly, slowly saturating Poisson neurons (constant for a range of mean rates, then reduction to d’=0)
+=> perhaps this can also be made to show a decreasing curve if saturation starts very early
+3) Fixed tuning curves, scaling variance (=linear decreasing curve)
+
+To do: show this in a figure
+
 %}
 %% define qualifying areas
 clearvars -except sAggABI;

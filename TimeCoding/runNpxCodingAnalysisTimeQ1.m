@@ -127,10 +127,10 @@ for intRec=19%1:numel(sAggStim)
 		intOriNum = numel(vecUnique);
 		intRepNum = min(vecPriorDistribution);
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
-		dblPreTime = 0.3;
-		dblPostTime = 0.3;
+		dblPreTime = 10/32;
+		dblPostTime = 10/32;
 		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
-		dblBinWidth = 0.1;
+		dblBinWidth = 1/32;
 		vecBinEdges = 0:dblBinWidth:dblMaxDur;
 		vecStimTime = vecBinEdges(2:end)-dblBinWidth/2 - dblPreTime;
 		indStimBins = vecStimTime > 0 & vecStimTime < dblStimDur;
@@ -163,7 +163,7 @@ for intRec=19%1:numel(sAggStim)
 		matDecIdxPerTrial = nan(intBinNum,intTrialNum);
 		matDecRealIdxPerTrial = nan(intBinNum,intTrialNum);
 		matDecConfPerTrial = nan(intBinNum,intTrialNum);
-		vecDecPerf = nan(intBinNum,1);
+		vecDecCorr = nan(intBinNum,1);
 		vecDecConf = nan(intBinNum,1);
 		dblLambda = 1;
 		intTypeCV = 2;
@@ -178,7 +178,7 @@ for intRec=19%1:numel(sAggStim)
 			[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
 				doCrossValidatedDecodingLR(squeeze(matBNT(intBinIdx,:,:)),vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
 			vecDecErr(intBinIdx) = dblMeanErrorDegs;
-			vecDecPerf(intBinIdx) = dblPerformanceCV;
+			vecDecCorr(intBinIdx) = dblPerformanceCV;
 			vecConf = nan(size(vecDecodedIndexCV));
 			for intTrial=1:numel(vecTrialTypeIdx)
 				vecConf(intTrial) = matPosteriorProbability(vecTrialTypeIdx(intTrial),intTrial);
@@ -255,6 +255,7 @@ for intRec=19%1:numel(sAggStim)
 		end
 		%%
 		%matDecPerf = matDecConf;
+		vecDecPerf = vecDecConf;%vecDecCorr
 		
 		dblChance = 1/numel(vecPriorDistribution);
 		figure;maxfig;
@@ -283,7 +284,7 @@ for intRec=19%1:numel(sAggStim)
 		fixfig;
 		
 		hS=subplot(2,3,4);
-		cMap=colormap(hS,blueredblue);
+		cMap=colormap(hS,circcol);
 		hB=colorbar;
 		set(gca,'clim',[min(vecStimTime) max(vecStimTime)]);
 		h=cline([vecSpikesPerBin(:); vecSpikesPerBin(1)]./dblBinWidth,[vecDecPerf(:,end); vecDecPerf(1,end)],[vecStimTime(:); vecStimTime(1)]);

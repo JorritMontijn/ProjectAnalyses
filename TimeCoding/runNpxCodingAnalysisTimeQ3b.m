@@ -287,7 +287,7 @@ for intRec=19%1:numel(sAggStim)
 				plot(vecTimeIFR+dblStartT,vecIFR)
 				xlabel('Time after onset (s)');
 				ylabel('Instant. firing rate (Hz)');
-				title(sprintf('Population spiking rate, trial %d',intTrial));
+				title(sprintf('Only broad spikers; population rate, trial %d',intTrial));
 				fixfig;
 				
 				subplot(2,3,2)
@@ -526,7 +526,7 @@ for intRec=19%1:numel(sAggStim)
 		hold on
 		scatter(vecTuningR2Low_shuff,vecTuningR2Low,[],lines(1),'.')
 		hold off
-		title(sprintf('Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecTuningR2Low),mean(vecTuningR2Low_shuff)))
+		title(sprintf('Only broad spikers; Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecTuningR2Low),mean(vecTuningR2Low_shuff)))
 		ylabel('Real mean tuning R2)');
 		xlabel('Shuffled mean tuning R2');
 		fixfig;
@@ -600,7 +600,7 @@ for intRec=19%1:numel(sAggStim)
 		hold on
 		scatter(vecCircPrecLow_shuff,vecCircPrecLow,[],lines(1),'.')
 		hold off
-		title(sprintf('Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecCircPrecLow),mean(vecCircPrecLow_shuff)))
+		title(sprintf('Only broad spikers; Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecCircPrecLow),mean(vecCircPrecLow_shuff)))
 		ylabel('Real circ prec');
 		xlabel('Shuffled circ prec');
 		fixfig;

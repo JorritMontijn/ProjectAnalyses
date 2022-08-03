@@ -17,7 +17,7 @@ cellUseAreas = {...
 	};
 
 intRandomize = 1; %1=real data, 2=shuffled, 3=generated
-boolSaveFigs = false;
+boolSaveFigs = true;
 boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';

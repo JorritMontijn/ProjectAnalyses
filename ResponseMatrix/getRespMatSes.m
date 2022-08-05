@@ -1,12 +1,17 @@
-function matResp = getRespMat(ses,vecNeurons,vecStims,structParams)
-	%getNeuronResponse Retrieves neuronal response for certain stimuli
-	%	Syntax: matResp = getNeuronResponse(ses,vecNeurons,vecStims)
+function matResp = getRespMatSes(ses,vecNeurons,vecStims,structParams)
+	%getRespMatSes Retrieves neuronal response for certain stimuli
+	%	Syntax: matResp = getRespMatSes(ses,vecNeurons,vecStims,structParams)
 	%   Input:
 	%	- ses, session data
-	%	- vecNeurons, vector of which neurons to include
+	%	- vecNeurons, vector of which neurons to include (optional)
 	%	- vecStims, vector of which stimuli to include [-1 returns response
 	%		outside stimulus presentations]; works well with cellSelect{}
-	%		output vector (output from getSelectionVectors)
+	%		output vector (output from getSelectionVectors)  (optional)
+	%	- structParams with fields: (optional)
+	%	-	intStopOffset
+	%	-	intStartOffset
+	%	-	intPreBaselineRemoval
+	%
 	%	Output: 
 	%	- matResp, 2D matrix containing neuronal response per stimulus per neuron:
 	%		matResp(intNeuron,intStimPres)
@@ -37,6 +42,7 @@ function matResp = getRespMat(ses,vecNeurons,vecStims,structParams)
 		%pre-stimulus baseline
 		vecStartFrames = [round(ses.samplingFreq*3) ses.structStim.FrameOff(1:(end-1))];
 		vecStopFrames = ses.structStim.FrameOn;
+		vecStartFrames = round(max((vecStartFrames + vecStopFrames)/2,vecStartFrames-25));
 	else
 		%stimuli
 		vecStartFrames = ses.structStim.FrameOn(vecStims);

@@ -1,10 +1,15 @@
-function [dblPredA,matPredA,dblDprimeSquaredOffDiagonal,matDprimeSquared,matDprimeSquared_diagonal] = getSeparation(matData,vecTrialTypes,boolLinear)
+function [dblPredA,matPredA,dblInformationOffDiagonal,matInformation,matInformation_diagonal] = getSeparation(matData,vecTrialTypes,boolLinear,dblDiffTheta)
 	%getSeparation Syntax:
-	%   [dblPredA,matPredA,dblDprimeSquaredOffDiagonal,matDprimeSquared,matDprimeSquared_diagonal] = getSeparation(matData,vecTrialTypes,boolLinear)
+	%   [dblPredA,matPredA,dblInformationOffDiagonal,matInformation,matInformation_diagonal] = getSeparation(matData,vecTrialTypes,boolLinear,dblDiffTheta)
+	%calculates information, as it is scaled by 1/dTheta^2
+	%If you instead want raw d'^2, you must multiply by dTheta^2
 	
 	%check which kind of cross-validation
 	if nargin < 3 || isempty(boolLinear) || ~(boolLinear < 2)
 		boolLinear = true;
+	end
+	if nargin < 4 || isempty(dblDiffTheta)
+		dblDiffTheta = 1;
 	end
 	intVerbose = 0;
 	
@@ -29,8 +34,8 @@ function [dblPredA,matPredA,dblDprimeSquaredOffDiagonal,matDprimeSquared,matDpri
 	vecTrialTypeIdx = label2idx(vecTrialTypes);
 	
 	%calculate D prime squared
-	matDprimeSquared = nan(intStimTypes,intStimTypes);
-	matDprimeSquared_diag = nan(intStimTypes,intStimTypes);
+	matInformation = nan(intStimTypes,intStimTypes);
+	matInformation_diag = nan(intStimTypes,intStimTypes);
 	if boolLinear
 		%linear case; use only the diagonal
 		for intStimType1=1:(intStimTypes-1)
@@ -43,7 +48,7 @@ function [dblPredA,matPredA,dblDprimeSquaredOffDiagonal,matDprimeSquared,matDpri
 				vecVar2 = xvar(matData(:,vecTrialTypeIdx==intStimType2),2);
 				
 				%get separation of means, and pooled variance
-				vecDeltaMu = vecMu1 - vecMu2;
+				vecDeltaMu = (vecMu1 - vecMu2)/dblDiffTheta;
 				vecVarPooled = (vecVar1 + vecVar2)/2;
 				
 				%build diagonal covariance matrix
@@ -51,16 +56,16 @@ function [dblPredA,matPredA,dblDprimeSquaredOffDiagonal,matDprimeSquared,matDpri
 				matCovarInv = diag(1./vecVarPooled);
 				
 				%calculate d'^2
-				dblDprimeSquared = vecDeltaMu'*matCovarInv*vecDeltaMu;
-				dblDprimeSquared_diag = (vecDeltaMu'*matCovarInv*vecDeltaMu).^2 / (vecDeltaMu'*matCovarInv*matCovar*matCovarInv*vecDeltaMu);
+				dblInfo = vecDeltaMu'*matCovarInv*vecDeltaMu;
+				dblInfo_diag = (vecDeltaMu'*matCovarInv*vecDeltaMu).^2 / (vecDeltaMu'*matCovarInv*matCovar*matCovarInv*vecDeltaMu);
 				
 				%assign to output
-				matDprimeSquared(intStimType1,intStimType2) = dblDprimeSquared;
-				matDprimeSquared(intStimType2,intStimType1) = dblDprimeSquared;
+				matInformation(intStimType1,intStimType2) = dblInfo;
+				matInformation(intStimType2,intStimType1) = dblInfo;
 				
 				%assign to output
-				matDprimeSquared_diag(intStimType1,intStimType2) = dblDprimeSquared_diag;
-				matDprimeSquared_diag(intStimType2,intStimType1) = dblDprimeSquared_diag;
+				matInformation_diag(intStimType1,intStimType2) = dblInfo_diag;
+				matInformation_diag(intStimType2,intStimType1) = dblInfo_diag;
 			end
 		end
 	else
@@ -81,38 +86,49 @@ function [dblPredA,matPredA,dblDprimeSquaredOffDiagonal,matDprimeSquared,matDpri
 				%matCovInv2 = inv(matCov2);
 				
 				%get separation of means
-				vecDeltaMu = vecMu1 - vecMu2;
+				vecDeltaMu = (vecMu1 - vecMu2)/dblDiffTheta;
 				
 				%get mean covariance matrix
 				matCovar = (matCov1 + matCov2)/2;
-				matCovarInv = inv(matCovar);
+				%matCovarInv = inv(matCovar);
+				matLeft = (vecDeltaMu'/matCovar);
 				
 				%calculate d'^2
-				dblDprimeSquared = vecDeltaMu'*matCovarInv*vecDeltaMu;
-				dblDprimeSquared_diag = (vecDeltaMu'*matCovarInv*vecDeltaMu).^2 / (vecDeltaMu'*matCovarInv*matCovar*matCovarInv*vecDeltaMu);
+				dblInfo = matLeft*vecDeltaMu;
+				dblInfo_diag = (matLeft*vecDeltaMu).^2 / (matLeft*matCovar*(matCovar\vecDeltaMu));
 				
 				%assign to output
-				matDprimeSquared(intStimType1,intStimType2) = dblDprimeSquared;
-				matDprimeSquared(intStimType2,intStimType1) = dblDprimeSquared;
+				matInformation(intStimType1,intStimType2) = dblInfo;
+				matInformation(intStimType2,intStimType1) = dblInfo;
 				
 				%assign to output
-				matDprimeSquared_diag(intStimType1,intStimType2) = dblDprimeSquared_diag;
-				matDprimeSquared_diag(intStimType2,intStimType1) = dblDprimeSquared_diag;
+				matInformation_diag(intStimType1,intStimType2) = dblInfo_diag;
+				matInformation_diag(intStimType2,intStimType1) = dblInfo_diag;
 			end
 		end
 	end
 	
 	%calculate predicted accuracy
-	vecDprimeSquaredOffDiag = [diag(matDprimeSquared,-1); matDprimeSquared(1,end)];
-	vecDprimeSquaredDiag_OffDiag = [diag(matDprimeSquared_diag,-1); matDprimeSquared_diag(1,end)];
-	matPredA = 0.5+0.5*erf((sqrt(matDprimeSquared)/2)/sqrt(2));
-	%dblPredA = mean((1/intStimTypes) + nansum((1/intStimTypes)* ((matPredA-0.5)*2)));
-	%dblPredA = xmean((1/intStimTypes) + nansum((1/intStimTypes)* matPredA),2);
-	dblDprimeSquaredOffDiagonal = xmean(vecDprimeSquaredOffDiag,1);
+	vecDprimeSquaredOffDiag = [diag(matInformation,-1); matInformation(1,end)];
+	vecDprimeSquaredDiag_OffDiag = [diag(matInformation_diag,-1); matInformation_diag(1,end)];
 	
-	matDprimeSquared_diagonal = xmean(vecDprimeSquaredDiag_OffDiag,1);
-	
-	dblPredA = nansum((1/intStimTypes)*erf((sqrt(vecDprimeSquaredOffDiag)/2)/sqrt(2)));
-	dblPredA = dblPredA + (1-dblPredA)*(1/intStimTypes);
+	%replace diagonal nans by zeros
+	matT = matInformation;
+	matT(diag(true(1,size(matT,1)))) = 0;
+	dblInformationOffDiagonal = xmean(vecDprimeSquaredOffDiag,1);
+	matInformation_diagonal = xmean(vecDprimeSquaredDiag_OffDiag,1);
+	matPredA = [];
+	dblPredA = [];
+	try
+		
+		matPredA = 0.5+0.5*erf((sqrt(matT)/2)/sqrt(2));
+		%dblPredA = mean((1/intStimTypes) + nansum((1/intStimTypes)* ((matPredA-0.5)*2)));
+		%dblPredA = xmean((1/intStimTypes) + nansum((1/intStimTypes)* matPredA),2);
+		
+		dblPredA = nansum((1/intStimTypes)*erf((sqrt(vecDprimeSquaredOffDiag)/2)/sqrt(2)));
+		dblPredA = dblPredA + (1-dblPredA)*(1/intStimTypes);
+	catch
+		warning([mfilename ':FailedPredCalc'],'Calculation of predicted decoding accuracy failed');
+	end
 end
 

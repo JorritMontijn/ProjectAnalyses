@@ -6,8 +6,9 @@
 for intMouse=1:8
 	close all
 	clearvars -except intMouse
-	boolUseNeuropilSubtraction = false;
+	intUseNeuropilSubtraction = 1; %[0=none,1=pre,2=post]
 	boolExcludeLocomotor = false;
+	strAnalyzeType = 'neuron';
 	
 	%get block data
 	if ~exist('cellMultiSes','var')
@@ -36,10 +37,12 @@ for intMouse=1:8
 			strSes = '20140715';
 			vecBlock = [1 1 1 1]; %define whether neurons are in same population or not
 		end
-		if boolUseNeuropilSubtraction
-			strSes = ['NPS' strSes];
+		if intUseNeuropilSubtraction == 1
+			strSes = [strSes 'NPS'];
+		elseif intUseNeuropilSubtraction == 2
+			strSes = [strSes 'NPSPost'];
 		end
-		load(['D:\Data\Results\stimdetection\dataPreProAggregate' strSes '.mat']);
+		load(['D:\Data\Processed\StimDetectionAgg\dataPreProAggregate' strSes '.mat']);
 	end
 	
 	%load separate ses files
@@ -65,20 +68,25 @@ for intMouse=1:8
 	%#ok<*ASGLU>
 	%#ok<*AGROW>
 	clear sLoad sSesAggregate ses
-	sParams.strFigDir = ['D:\Data\Results\stimdetection' filesep strSes filesep];
+	sParams.strFigDir = ['D:\Data\ResultsStimDetectionCa' filesep strSes filesep];
 	sParams.boolSavePlots = true;
 	sParams.boolSaveData = true;
 	strOldDir = cd(sParams.strFigDir);
 	
 	%change name for no split
 	if boolExcludeLocomotor
-		strSes = ['NS_NL' strSes];
-	else
-		strSes = ['NS' strSes];
+		strSes = ['NL_' strSes];
 	end
 	
 	for intPopulation = vecBlockTypes
 		%% GET RESPONSES AFTER COMBINING BLOCKS OF SAME POPULATION INTO ONE
+		%msg
+		fprintf('Now processing %s [pop %d], analyzing %ss [%s]\n',strSes,intPopulation,strAnalyzeType,getTime);
+		
+		%replace neurons with astrocytes
+		cellMultiSes{intPopulation}.neuron = cellMultiSes{intPopulation}.(strAnalyzeType);
+		boolOnlyPresence = true;
+		
 		%get neuronal tuning
 		if intMouse==8
 			%remove last trial
@@ -90,7 +98,7 @@ for intMouse=1:8
 		end
 		
 		%[indTuned,vecNeuronPrefStim,vecOSI,cellAggregate] = getTunedStimDetectionNeurons(cellSes(vecBlock==intPopulation));
-		[indTuned,vecNeuronPrefStim,vecOSI,cellAggregate] = getTunedStimDetectionNeurons(cellMultiSes{intPopulation});
+		[indTuned,vecNeuronPrefStim,vecOSI,cellAggregate] = getTunedStimDetectionNeurons(cellMultiSes{intPopulation},[],boolOnlyPresence);
 		structStim = cellMultiSes{intPopulation}.structStim;
 		
 		% remove trials with reaction time <100ms
@@ -282,7 +290,7 @@ for intMouse=1:8
 			drawnow;
 			strFig = sprintf('%sagg_dFoF_over_contrasts_pop%d_raw',strSes,intPopulation);
 			export_fig([strFig '.tif']);
-			export_fig([strFig '.pdf']);
+			%export_fig([strFig '.pdf']);
 		end
 		
 		%% calculate relative increase per neuron from miss => hit trials [new heat maps]
@@ -386,7 +394,7 @@ for intMouse=1:8
 			drawnow;
 			strFig = sprintf('%sagg_detectcorrelated_predictability1_pop%d_raw',strSes,intPopulation);
 			export_fig([strFig '.tif']);
-			export_fig([strFig '.pdf']);
+			%export_fig([strFig '.pdf']);
 		end
 		
 		% shuffle analysis
@@ -748,7 +756,7 @@ for intMouse=1:8
 		%loop through contrasts & stim types for trial reordering
 		intStimType = 0;
 		vecStimType = nan(1,length(cellSelectOri{1}));
-		for intStim=unique(vecNeuronPrefStim)
+		for intStim=unique(vecStimOris)
 			for intContrastIndex=2:length(cellSelectContrasts)
 				intStimType = intStimType + 1;
 				%trials
@@ -793,12 +801,12 @@ for intMouse=1:8
 				end
 			end
 			matCorr = nan(size(cellCorr{1}));
-			for intOriType=vecOriType
+			for intOriType=unique(vecStimOris)
 				if isnan(intOriType),continue;end
 				%get trials
 				indSelectTrials = vecOriType == intOriType;
 				%assign
-				matCorr(indSelectTrials,indSelectTrials) = cellCorr{intPrefType}(indSelectTrials,indSelectTrials);
+				matCorr(indSelectTrials,indSelectTrials) = cellCorr{intOriType}(indSelectTrials,indSelectTrials);
 			end
 			
 			
@@ -820,7 +828,7 @@ for intMouse=1:8
 			vecCorrMiss = [];
 			vecCorrFast = [];
 			vecCorrSlow = [];
-			for intOriType=vecOriType
+			for intOriType=unique(vecStimOris)
 				%% hit; select trials
 				if isnan(intOriType),continue;end
 				indSelectHitTrials = vecOriType == intOriType & indHit;
@@ -926,155 +934,10 @@ for intMouse=1:8
 			drawnow;
 			strFig = sprintf('%sagg_intertrialcorr_%s_pop%d__raw',strSes,strPopType,intPopulation);
 			export_fig([strFig '.tif']);
-			export_fig([strFig '.pdf']);
+			%export_fig([strFig '.pdf']);
 		end
 		
-		%{
-		%% inter-trial correlations
-		%for whole pop or only preferred pop
-		matRespNormPerTrial = zscore(matTrialResponse,[],1);
-		matCorrAll = nan(intTrials,intTrials);
-		matCorrPref = nan(intTrials,intTrials);
-		matCorrNonPref = nan(intTrials,intTrials);
-		for intContrast=2:(intContrasts-1)
-			indContrastTrials = vecStimContrasts==intContrast;
-			for intOri=1:intOris
-				%get general info about this ori
-				indOriTrials = vecStimOris==intOri;
-				indPrefPop = vecNeuronPrefStim == intOri;
-				indNonPrefPop = vecNeuronPrefStim ~= intOri;
-				indSelectTrials = indOriTrials & indContrastTrials;
-				intOriConReps = sum(indSelectTrials);
-				vecOriConTrials = find(indSelectTrials);
-				
-				%all neurons
-				matCorrOri = nan(intOriConReps,intOriConReps);
-				for intTrialCounter=1:intOriConReps
-					intOriConTrial = vecOriConTrials(intTrialCounter);
-					matCorrOri(intTrialCounter,:) = mean(bsxfun(@times,matRespNormPerTrial(:,intOriConTrial),matRespNormPerTrial(:,vecOriConTrials))) * (intOriConReps/(intOriConReps-1));
-				end
-				matCorrAll(vecOriConTrials,vecOriConTrials) = matCorrOri;
-				
-				%pref neurons
-				matCorrOri = nan(intOriConReps,intOriConReps);
-				for intTrialCounter=1:intOriConReps
-					intOriConTrial = vecOriConTrials(intTrialCounter);
-					matCorrOri(intTrialCounter,:) = mean(bsxfun(@times,matRespNormPerTrial(indPrefPop,intOriConTrial),matRespNormPerTrial(indPrefPop,vecOriConTrials))) * (intOriConReps/(intOriConReps-1));
-				end
-				matCorrPref(vecOriConTrials,vecOriConTrials) = matCorrOri;
-				
-				%pref neurons
-				matCorrOri = nan(intOriConReps,intOriConReps);
-				for intTrialCounter=1:intOriConReps
-					intOriConTrial = vecOriConTrials(intTrialCounter);
-					matCorrOri(intTrialCounter,:) = mean(bsxfun(@times,matRespNormPerTrial(indNonPrefPop,intOriConTrial),matRespNormPerTrial(indNonPrefPop,vecOriConTrials))) * (intOriConReps/(intOriConReps-1));
-				end
-				matCorrNonPref(vecOriConTrials,vecOriConTrials) = matCorrOri;
-			end
-		end
-		hPopCorr = figure;
-		subplot(2,2,1)
-		imagesc(matCorrAll,[-1 1]);colormap(redblue);nancolorbar(matCorrAll,[-1 1],redblue);
-		title('Whole population');
-		xlabel('Trial')
-		ylabel('Trial')
 		
-		subplot(2,2,3)
-		imagesc(matCorrNonPref,[-1 1]);colormap(redblue);nancolorbar(matCorrNonPref,[-1 1],redblue);
-		title('Non-preferred population');
-		xlabel('Trial')
-		ylabel('Trial')
-		
-		subplot(2,2,4)
-		imagesc(matCorrPref,[-1 1]);colormap(redblue);nancolorbar(matCorrPref,[-1 1],redblue);
-		title('Preferred population');
-		xlabel('Trial')
-		ylabel('Trial')
-		
-		%split for miss/slow/fast
-		vecMiss = find(indMiss);
-		vecFast = find(indFast);
-		vecSlow = find(indSlow);
-		vecMeanCorrPref = nan(1,3);
-		vecErCorrPref = nan(1,3);
-		vecMeanCorrNonPref = nan(1,3);
-		vecErCorrNonPref = nan(1,3);
-		for intResp = 1:3
-			%get data
-			if intResp==1,vecResp=vecMiss;
-			elseif intResp==2,vecResp=vecSlow;
-			elseif intResp==3,vecResp=vecFast;
-			end
-			%calc
-			matThisCorrP = matCorrPref(vecResp,vecResp);
-			matThisCorrNP = matCorrNonPref(vecResp,vecResp);
-			matSelect = tril(true(size(matThisCorrP)),-1);
-			vecCorrP = matThisCorrP(matSelect);
-			vecCorrNP = matThisCorrNP(matSelect);
-			dblErrF = sum(matSelect(:));
-			%dblErrF = length(vecResp)^2;
-			
-			%cellRespP{intResp} = [cellRespP{intResp};vecCorrP(~isnan(vecCorrP))];
-			%cellRespNP{intResp} = [cellRespP{intResp};vecCorrNP(~isnan(vecCorrNP))];
-			
-			%save
-			vecMeanCorrPref(intResp) = nanmean(vecCorrP(:));
-			vecErCorrPref(intResp) = nanstd(vecCorrP(:))/sqrt(dblErrF);
-			vecMeanCorrNonPref(intResp) = nanmean(vecCorrNP(:));
-			vecErCorrNonPref(intResp) = nanstd(vecCorrNP(:))/sqrt(dblErrF);
-		end
-		hPopCorrPlot = figure;
-		subplot(2,2,1)
-		cellColor={'r','m','g'};
-		hold on;
-		for intResp=1:3
-			errorbar(intResp,vecMeanCorrNonPref(intResp),vecErCorrNonPref(intResp),['x' cellColor{intResp}]);
-		end
-		hold off
-		title('Non-preferred population');
-		cellLabels = {'Miss','Slow','Fast'};
-		set(gca,'xtick',1:3,'xticklabel',cellLabels)
-		ylabel('Inter-trial correlation');
-		ylim([0 1]);
-		
-		subplot(2,2,2)
-		hold on;
-		for intResp=1:3
-			errorbar(intResp,vecMeanCorrPref(intResp),vecErCorrPref(intResp),['x' cellColor{intResp}]);
-		end
-		hold off
-		title('Preferred population');
-		set(gca,'xtick',1:3,'xticklabel',cellLabels)
-		ylabel('Inter-trial correlation');
-		ylim([0 1]);
-		
-		
-		%save data
-		cellSaveITC{intPopulation} = [vecMeanCorrNonPref;vecMeanCorrPref];
-		
-		%% plot
-		if sParams.boolSavePlots
-			figure(hPopCorr);
-			drawnow;
-			jFig = get(handle(hPopCorr), 'JavaFrame');
-			jFig.setMaximized(true);
-			figure(hPopCorr);
-			drawnow;
-			strFig = sprintf('%sagg_intertrialcorrmaps_pop%d__raw',strSes,intPopulation);
-			export_fig([strFig '.tif']);
-			export_fig([strFig '.pdf']);
-			
-			figure(hPopCorrPlot);
-			drawnow;
-			jFig = get(handle(hPopCorrPlot), 'JavaFrame');
-			jFig.setMaximized(true);
-			figure(hPopCorrPlot);
-			drawnow;
-			strFig = sprintf('%sagg_intertrialcorrplot_pop%d__raw',strSes,intPopulation);
-			export_fig([strFig '.tif']);
-			export_fig([strFig '.pdf']);
-		end
-		%}
 		
 		%% plot dependency on reaction times
 		vecRTs = structStim.vecTrialRespSecs(indSelectRespTrials) - structStim.SecsOn(indSelectRespTrials); %get RTs for hit trials and selected contrasts
@@ -1186,7 +1049,7 @@ for intMouse=1:8
 			drawnow;
 			strFig = sprintf('%sagg_behaviorallycorrelated_act_z_dissimilarity_pop%d_raw',strSes,intPopulation);
 			export_fig([strFig '.tif']);
-			export_fig([strFig '.pdf']);
+			%export_fig([strFig '.pdf']);
 		end
 		
 		%% heterogeneity for different contrasts, split for hit/miss (like dF/F)
@@ -1420,7 +1283,7 @@ for intMouse=1:8
 		drawnow;
 		strFig = sprintf('%s_heterogeneity_over_contrasts_pop%d_raw',strSes,intPopulation);
 		export_fig([strFig '.tif']);
-		export_fig([strFig '.pdf']);
+		%export_fig([strFig '.pdf']);
 		%end
 		
 		%% calculate Cohen's d vs. behavioural d' to check dependency of the effects
@@ -1534,7 +1397,7 @@ for intMouse=1:8
 			drawnow;
 			strFig = sprintf('%s_activity_over_time_pop%d_raw',strSes,intPopulation);
 			export_fig([strFig '.tif']);
-			export_fig([strFig '.pdf']);
+			%export_fig([strFig '.pdf']);
 		end
 		
 		%% decode if trial will be fast, slow or miss based on dF/F and heterogeneity
@@ -1864,7 +1727,7 @@ for intMouse=1:8
 			drawnow;
 			strFig = sprintf('%s_heterogen_vs_ActualIdeal_popresp%d_raw',strSes,intPopulation);
 			export_fig([strFig '.tif']);
-			export_fig([strFig '.pdf']);
+			%export_fig([strFig '.pdf']);
 		end
 		
 		%% make example correlation figure
@@ -1911,7 +1774,7 @@ for intMouse=1:8
 		%if exist(['D:\Data\Results\stimdetection\' strFile '.mat'],'file')
 		%	load(['D:\Data\Results\stimdetection\' strFile]);
 		%end
-		save(['D:\Data\Results\stimdetection\' strFile],'cellSave*','-v7.3');
+		save(['D:\Data\ResultsStimDetectionCa\' strFile],'cellSave*','-v7.3');
 		cd(strOldDir);
 	end
 end

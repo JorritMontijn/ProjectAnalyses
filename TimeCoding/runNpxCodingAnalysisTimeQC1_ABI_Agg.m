@@ -38,7 +38,7 @@ cellUseAreas = {strRunArea};
 strRunStim = 'DG'; %DG,NM
 
 %vecRandomize = 1:4; %1=real data, 2=shuffled, 3=generated, 4=shuffle & stretch to original gain (unistretch)
-vecRandomize = 5:6; %5=fixed variance, scaling tuning; 6=smoothly saturating poisson
+vecRandomize = 8:9; %5=fixed variance, scaling tuning; 6=smoothly saturating poisson
 boolMakeFigs = false;
 boolSaveFigs = false;
 boolSaveData = true;
@@ -48,7 +48,7 @@ if boolHome
 	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
 	strTargetDataPath = 'F:\Data\Results\PopTimeCoding\data\';
 else
-	strDataPath = 'D:\AllenBrainVisualEphys\Aggregates\';
+	strDataPath = 'E:\AllenBrainVisualEphys\';
 	strFigurePath = 'D:\Data\Results\PopTimeCoding\figures\';
 	strTargetDataPath = 'D:\Data\Results\PopTimeCoding\data\';
 end
@@ -165,11 +165,14 @@ for intRec=1:numel(vecUseRec)
 			elseif intRandomize == 6
 				strType = 'Saturating';
 			elseif intRandomize == 7
-				strType = 'TuneFixed';
+				strType = 'VarScaling';
+			elseif intRandomize == 8
+				strType = 'SdLinear';
+			elseif intRandomize == 9
+				strType = 'VarLinear';
 			end
 			strRec = [strType '_' strRecOrig];
 			close all;
-			fprintf('Running data type %s for %s [%s]\n',strType,strRecOrig,getTime);
 			
 			%simple "rate code"
 			matSpikeCounts = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
@@ -181,6 +184,8 @@ for intRec=1:numel(vecUseRec)
 			vecGainAx = mean(matMeanRate,2);
 			vecPopGainPerTrial=getProjOnLine(matMeanRate,vecGainAx);
 			vecPopGainFactor = vecPopGainPerTrial ./ mean(vecPopGainPerTrial);
+			if any(vecPopGainFactor==0),continue;end
+			fprintf('Running data type %s for %s [%s]\n',strType,strRecOrig,getTime);
 			
 			%get population mean
 			vecOldMean = mean(matMeanRate,1);
@@ -242,8 +247,52 @@ for intRec=1:numel(vecUseRec)
 					%remove mean
 					matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
 					
-					%scale sd
+					%make sd uniform
 					matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
+					
+					%add mean back in
+					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
+				elseif intRandomize == 7
+					%scaling sd as pop mean
+					
+					%remove mean
+					matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
+					
+					%make sd uniform
+					matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
+					
+					%multiply sd
+					matMeanRate = bsxfun(@times,matMeanRate,vecOldMean); %basically recapitulates real data
+					
+					%add mean back in
+					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
+					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
+				elseif intRandomize == 8
+					%linear scaling sd
+					
+					%remove mean
+					matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
+					
+					%make sd uniform
+					matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
+					
+					%multiply sd
+					matMeanRate = bsxfun(@times,matMeanRate,vecPopMeanFactor);
+					
+					%add mean back in
+					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
+				elseif intRandomize == 9
+					%linear scaling variance
+					
+					%remove mean
+					matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
+					
+					%make sd uniform
+					matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
+					
+					%multiply sd
+					%matMeanRate = bsxfun(@times,matMeanRate,vecOldMean); %basically recapitulates real data
+					matMeanRate = bsxfun(@times,matMeanRate,vecPopMeanFactor.^2);
 					
 					%add mean back in
 					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);

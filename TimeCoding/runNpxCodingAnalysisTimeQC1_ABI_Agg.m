@@ -37,7 +37,8 @@ strRunArea = 'VISp';%'posteromedial visual area' 'Primary visual area'
 cellUseAreas = {strRunArea};
 strRunStim = 'NM'; %DG,NM
 
-vecRandomize = 1:4; %1=real data, 2=shuffled, 3=generated, 4=shuffle & stretch to original gain (unistretch)
+%vecRandomize = 1:4; %1=real data, 2=shuffled, 3=generated, 4=shuffle & stretch to original gain (unistretch)
+vecRandomize = 5:6; %5=fixed variance, scaling tuning; 6=smoothly saturating poisson
 boolMakeFigs = false;
 boolSaveFigs = false;
 boolSaveData = true;
@@ -146,6 +147,7 @@ for intRec=1:numel(vecUseRec)
 		%% run data types
 		%change name
 		for intRandomize = vecRandomize
+			%vecRandomize = 5:7; %5=fixed variance, scaling tuning; 6=smoothly saturating poisson; 7=fixed tuning, scaling variance
 			if intRandomize == 1
 				strType = 'Real';
 			elseif intRandomize == 2
@@ -158,6 +160,12 @@ for intRec=1:numel(vecUseRec)
 				%each neuron), but then rescale each trial to the pop mean (or by gain?) in that trial of the
 				%original data set; this will recapture the original distribution of population firing rates, while
 				%keeping the noise correlation uniform in all directions except the gain
+			elseif intRandomize == 5
+				strType = 'VarFixed';
+			elseif intRandomize == 6
+				strType = 'Saturating';
+			elseif intRandomize == 7
+				strType = 'TuneFixed';
 			end
 			strRec = [strType '_' strRecOrig];
 			close all;
@@ -176,12 +184,15 @@ for intRec=1:numel(vecUseRec)
 			
 			%get population mean
 			vecOldMean = mean(matMeanRate,1);
+			vecPopMeanFactor = vecOldMean ./ mean(vecOldMean);
+			vecOldSd = std(matMeanRate,[],1);
+			vecPopSdFactor = vecOldSd ./ mean(vecOldSd);
 			
 			%randomize per orientation
 			if intRandomize > 1
-				for intStim=1:intStimNum
-					vecUseT = find(vecTrialTypeIdx==intStim);
-					for intN=1:intRespN
+				for intN=1:intRespN
+					for intStim=1:intStimNum
+						vecUseT = find(vecTrialTypeIdx==intStim);
 						if intRandomize == 2
 							%shuffle spikes
 							matMeanRate(intN,vecUseT) = matMeanRate(intN,vecUseT(randperm(numel(vecUseT))));
@@ -194,22 +205,50 @@ for intRec=1:numel(vecUseRec)
 							%shuffle spikes & compensate for pop-rate change later
 							matMeanRate(intN,vecUseT) = matMeanRate(intN,vecUseT(randperm(numel(vecUseT))));
 						else
-							error
+							%error
 						end
+					end
+					
+					%change for each neuron
+					if intRandomize == 6
+						%smoothly saturating poisson
+						vecR = matMeanRate(intN,:);
+						
+						%logistic slope is 0.5; both k and L increase slope
+						vecOldHz = vecR;
+						dblSatStart = mean(vecR);
+						indSat = vecR > dblSatStart;
+						
+						fLogistic = @(x,x0,L) x0 + L*2* (-0.5+1./(1+exp(-(2/L)*(x-x0))));
+						x = vecR(indSat);
+						x0 = dblSatStart;
+						L = dblSatStart + 2*sqrt(dblSatStart);
+						vecNewSat = fLogistic(x,x0,L);
+						
+						vecR(indSat) = vecNewSat;
+						matMeanRate(intN,:) = vecR;
+						
+						%scatter(vecOldHz,vecR);
 					end
 				end
 				if intRandomize == 4
+					%unistretch
 					vecNewMean = mean(matMeanRate,1);
 					vecCompensateBy = vecOldMean./vecNewMean;
 					matMeanRate = bsxfun(@times,matMeanRate,vecCompensateBy);
+				elseif intRandomize == 5
+					%fixed variance, scaling tuning
+					
+					%remove mean
+					matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
+					
+					%scale sd
+					matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
+					
+					%add mean back in
+					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
 				end
 			end
-			
-			%run approximation by mean-rate multiplied with tuning curve
-			[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matMeanRate,vecStimIdx);
-			matTuningCurves = mean(matRespNSR,3);
-			vecMeanPopRate = mean(matMeanRate,1);
-			vecNormPopRate = vecMeanPopRate ./ mean(vecMeanPopRate);
 			
 			%% plot population mean + sd over neurons, compare with neuron mean+sd over trials
 			%real pop mean+sd
@@ -366,6 +405,7 @@ for intRec=1:numel(vecUseRec)
 			
 			%% prep analysis
 			%select balanced trials
+			dblLambda = 1;
 			vecPopRate = sum(matMeanRate,1);
 			vecStartTrials = round(intReps*linspace(1/intReps,(1+1/intReps),intQuantiles+1));
 			vecStartTrials(end)=[];

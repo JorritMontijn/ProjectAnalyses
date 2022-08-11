@@ -35,7 +35,8 @@ end
 
 %% find data
 strStim = 'NM';%DG/NM
-cellTypes = {'Real','Shuff','Poiss','UniStretch'};
+%cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating','TuneFixed'};
+cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating'};
 sDir = dir([strTargetDataPath 'TimeCodingAggQC1ABI*.mat']); %or ABA if old
 indUseRecs = contains({sDir.name},['ABI_' strStim]);
 sDir(~indUseRecs) = [];

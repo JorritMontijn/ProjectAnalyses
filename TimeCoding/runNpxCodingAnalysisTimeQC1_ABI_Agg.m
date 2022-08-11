@@ -23,7 +23,7 @@ etc
 As a function of mean-rate, adjacent stimulus discriminability could theoretically be anything, such as:
 1) Fixed variance, tuning curves that scale with mean rate (= linear increasing curve)
 => perhaps Poisson cells with a wider dynamic range already show this property
-2) Smoothly, slowly saturating Poisson neurons (constant for a range of mean rates, then reduction to d’=0)
+2) Smoothly, slowly saturating Poisson neurons (constant for a range of mean rates, then reduction to d?=0)
 => perhaps this can also be made to show a decreasing curve if saturation starts very early
 3) Fixed tuning curves, scaling variance (=linear decreasing curve)
 
@@ -35,20 +35,20 @@ clearvars -except sAggABI;
 %{'VISal'}    {'VISam'}    {'VISl'}    {'VISp'}    {'VISpm'}    {'VISrl'}
 strRunArea = 'VISp';%'posteromedial visual area' 'Primary visual area'
 cellUseAreas = {strRunArea};
-strRunStim = 'NM'; %DG,NM
+strRunStim = 'DG'; %DG,NM
 
 %vecRandomize = 1:4; %1=real data, 2=shuffled, 3=generated, 4=shuffle & stretch to original gain (unistretch)
 vecRandomize = 5:6; %5=fixed variance, scaling tuning; 6=smoothly saturating poisson
 boolMakeFigs = false;
 boolSaveFigs = false;
 boolSaveData = true;
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\AllenBrainVisualEphys\Aggregates\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
 	strTargetDataPath = 'F:\Data\Results\PopTimeCoding\data\';
 else
-	strDataPath = 'D:\Data\Processed\AllenBrainVisualEphys\Aggregates\';
+	strDataPath = 'D:\AllenBrainVisualEphys\Aggregates\';
 	strFigurePath = 'D:\Data\Results\PopTimeCoding\figures\';
 	strTargetDataPath = 'D:\Data\Results\PopTimeCoding\data\';
 end

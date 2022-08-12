@@ -35,14 +35,14 @@ clearvars -except sAggABI;
 %{'VISal'}    {'VISam'}    {'VISl'}    {'VISp'}    {'VISpm'}    {'VISrl'}
 strRunArea = 'VISp';%'posteromedial visual area' 'Primary visual area'
 cellUseAreas = {strRunArea};
-strRunStim = 'DG'; %DG,NM
+strRunStim = 'NM'; %DG,NM
 
 %vecRandomize = 1:4; %1=real data, 2=shuffled, 3=generated, 4=shuffle & stretch to original gain (unistretch)
-vecRandomize = 8:9; %5=fixed variance, scaling tuning; 6=smoothly saturating poisson
+vecRandomize = 1:10; %5=fixed variance, scaling tuning; 6=smoothly saturating poisson
 boolMakeFigs = false;
 boolSaveFigs = false;
 boolSaveData = true;
-boolHome = false;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\AllenBrainVisualEphys\Aggregates\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
@@ -170,6 +170,8 @@ for intRec=1:numel(vecUseRec)
 				strType = 'SdLinear';
 			elseif intRandomize == 9
 				strType = 'VarLinear';
+			elseif intRandomize == 10
+				strType = 'VarQuad';
 			end
 			strRec = [strType '_' strRecOrig];
 			close all;
@@ -266,7 +268,6 @@ for intRec=1:numel(vecUseRec)
 					
 					%add mean back in
 					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
-					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
 				elseif intRandomize == 8
 					%linear scaling sd
 					
@@ -293,6 +294,21 @@ for intRec=1:numel(vecUseRec)
 					%multiply sd
 					%matMeanRate = bsxfun(@times,matMeanRate,vecOldMean); %basically recapitulates real data
 					matMeanRate = bsxfun(@times,matMeanRate,vecPopMeanFactor.^2);
+					
+					%add mean back in
+					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
+				elseif intRandomize == 10
+					%quadratic scaling variance
+					
+					%remove mean
+					matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
+					
+					%make sd uniform
+					matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
+					
+					%multiply sd
+					%matMeanRate = bsxfun(@times,matMeanRate,vecOldMean); %basically recapitulates real data
+					matMeanRate = bsxfun(@times,matMeanRate,vecPopMeanFactor.^4);
 					
 					%add mean back in
 					matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);

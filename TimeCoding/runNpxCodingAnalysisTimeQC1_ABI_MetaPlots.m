@@ -14,7 +14,7 @@ or end? does this ordering differ between orientations?
 %close all;
 clear all;
 boolSaveFigs = true;
-boolHome = false;
+boolHome = true;
 if boolHome
 	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
 	strTargetDataPath = 'F:\Data\Results\PopTimeCoding\data\';
@@ -32,9 +32,9 @@ else
 end
 
 %% find data
-strStim = 'DG';%DG/NM
+strStim = 'NM';%DG/NM
 %cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating','TuneFixed'};
-cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating','VarScaling','SdLinear','VarLinear'};
+cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating','VarScaling','SdLinear','VarLinear','VarQuad'};
 sDir = dir([strTargetDataPath 'TimeCodingAggQC1ABI*.mat']); %or ABA if old
 indUseRecs = contains({sDir.name},['ABI_' strStim]);
 sDir(~indUseRecs) = [];

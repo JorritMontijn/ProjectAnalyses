@@ -20,8 +20,11 @@ etc
 %}
 %% define qualifying areas
 clearvars -except sAggStim sAggNeuron sAggSources;
-strRunArea = 'posteromedial visual area';%'posteromedial visual area' 'Primary visual area'
-
+%cellUseAreas = {'hippocampal formation','Dentate gyrus','Field CA1','Field CA2','Field CA3','subiculum'};
+%cellUseAreas = {'Dentate gyrus','Field CA1','Field CA2','Field CA3'};
+%cellUseAreas = {'posteromedial'};
+cellUseAreas = {'anteromedial'};
+	
 intRandomize = 1; %1=real data, 2=shuffled, 3=generated
 boolSaveFigs = true;
 boolHome = true;
@@ -58,6 +61,11 @@ tic
 for intRec=vecUseRec
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
+	%if ~strcmp(strRec,'20191213_MP3_RunDriftingGratingsR01_g0_t0'),continue;end
+	%if ~strcmp(strRec,'20200116_MP4_RunDriftingGratingsR01_g0_t0'),continue;end
+	if ~strcmp(strRec,'20191212_MP3_RunNaturalMovieR01_g0_t0'),continue;end
+	
+	
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
 	sThisSource = sAggSources(strcmpi(strRec,{sAggSources(:).Exp}));
 	
@@ -70,8 +78,8 @@ for intRec=vecUseRec
 	dblDur = median(diff(vecOrigStimOnTime));
 	vecOrigStimOffTime = vecOrigStimOnTime+dblDur;
 	intFramesInMovie = 500;
-	dblBinAvg = 50;
-	intUseBinsInMovie = intFramesInMovie/dblBinAvg;
+	dblBinAvg = 25;
+	intUseBinsInMovie = round(intFramesInMovie/dblBinAvg);
 	dblBinRate = roundi(intUseBinsInMovie/dblDur,2);
 	dblBinDur = 1/dblBinRate;
 	vecBinEdges = linspace(0,dblBinDur*intUseBinsInMovie,intUseBinsInMovie+1);
@@ -88,10 +96,9 @@ for intRec=vecUseRec
 	intRepNum = intTrialNum/intStimNum;
 	%remove neurons from other recs
 	indQualifyingNeurons = contains({sAggNeuron.Exp},strRec);
+	sTheseNeurons = sAggNeuron(indQualifyingNeurons);
 	
 	%remove neurons in incorrect areas
-	%cellUseAreas = {'Dentate gyrus','Field CA1','Field CA2','Field CA3'};
-	cellUseAreas = {'hippocampal formation','Dentate gyrus','Field CA1','Field CA2','Field CA3','subiculum'};
 	indConsiderNeurons = contains({sAggNeuron.Area},cellUseAreas,'IgnoreCase',true);
 	
 	%remove bad clusters
@@ -105,7 +112,12 @@ for intRec=vecUseRec
 	%get data matrix
 	cellSpikeTimes = {sUseNeuron.SpikeTimes};
 	dblDur = median(vecStimOffTime-vecStimOnTime);
-	matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur);
+	matDataC = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur);
+	matDataL = getSpikeCounts(cellSpikeTimes,vecStimOnTime-0.5,dblDur);
+	matDataR = getSpikeCounts(cellSpikeTimes,vecStimOnTime+0.5,dblDur);
+	matDataLL = getSpikeCounts(cellSpikeTimes,vecStimOnTime-1,dblDur);
+	matDataRR = getSpikeCounts(cellSpikeTimes,vecStimOnTime+1,dblDur);
+	matData = (matDataC + matDataL + matDataR)./3;
 	[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matData,vecStimIdx);
 	vecNonStat = cell2vec({sUseNeuron.NonStationarity});
 	matAvgR = mean(matRespNSR,3);
@@ -121,16 +133,62 @@ for intRec=vecUseRec
 	%% decode
 	vecTrialTypes = vecStimIdx;
 	intTypeCV = 2;
-	vecPriorDistribution = [];%vecRepNum;
+	vecPriorDistribution = vecRepNum;
 	dblLambda = 1;
 	[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights,matAggActivation,matAggWeights,vecRepetition] = ...
 		doCrossValidatedDecodingLR(matData(indResp,:),vecTrialTypes,intTypeCV,vecPriorDistribution,dblLambda);
 	
 	pBinom=myBinomTest(dblPerformanceCV*intTrialNum,intTrialNum,1/intStimNum);
+	%%
+	matFilt = normpdf(-2:2,0,0.5)' * normpdf(-2:2,0,0.5);
+	matConfusion2 = imfilt(matConfusion,matFilt./sum(matFilt(:)));
+	vecT = vecBinEdges(2:end) - mean(diff(vecBinEdges))/2;
 	
+	matConfusion3 = matConfusion(1:2:end,:) + matConfusion(2:2:end,:);
+	matConfusion3 = matConfusion3(:,1:2:end) + matConfusion3(:,2:2:end);
+	
+	intReps = mean(vecRepNum);
+	matConfusionPlot = matConfusion2;
 	figure
-	imagesc(matConfusion)
-	title(sprintf('%s - %d%%, N=%d,p=%.3f',strRec,round(dblPerformanceCV*100),sum(indResp),pBinom),'interpreter','none');
+	imagesc(vecT,vecT,matConfusionPlot./intReps,[0 20]./intReps);
+	colormap(hot);
+	vecTransitions = ([0 3 10 13 20]./20);
+	hold on
+	strCol = 'b';
+	matBlockConf = nan(size(matConfusionPlot));
+	for intTransition=1:(numel(vecTransitions)-1)
+		for intTransition2=1:(numel(vecTransitions)-1)
+			vecUseTrans = vecTransitions*size(matConfusionPlot,1);
+			vecSelectX = round(vecUseTrans(intTransition2):vecUseTrans(intTransition2+1));
+			vecSelectY = round(vecUseTrans(intTransition):vecUseTrans(intTransition+1));
+			vecSelectX(vecSelectX==0)=[];
+			vecSelectY(vecSelectY==0)=[];
+			matBlockConf(vecSelectY,vecSelectX) = mean(flat(matConfusionPlot(vecSelectY,vecSelectX)));
+		end
+		dblT0 = vecTransitions(intTransition)*dblBinDur*intUseBinsInMovie;
+		dblT1 = vecTransitions(intTransition+1)*dblBinDur*intUseBinsInMovie;
+		plot([dblT1 dblT1],[dblT0 dblT1],strCol);
+		plot([dblT0 dblT1],[dblT1 dblT1],strCol);
+		plot([dblT1 dblT1],[dblT0 dblT1],strCol);
+		plot([dblT0 dblT1],[dblT1 dblT1],strCol);
+		
+		plot([dblT0 dblT0],[dblT0 dblT1],strCol);
+		plot([dblT0 dblT1],[dblT0 dblT0],strCol);
+		plot([dblT0 dblT0],[dblT0 dblT1],strCol);
+		plot([dblT0 dblT1],[dblT0 dblT0],strCol);
+	end
+	hold off
+	colorbar;
+	axis image;
+	xlabel('Real movie time (s)');
+	ylabel('Decoded movie time (s)');
+	fixfig;
+	grid off;
+	title(sprintf('%s\n%s - %d%%, N=%d,p=%.2e',strRec,cellUseAreas{1},round((sum(diag(matConfusionPlot))./sum(matConfusionPlot(:)))*100),sum(indResp),pBinom),'interpreter','none');
+	drawnow;
+	strFigName = [cellUseAreas{1} '_' strRec];
+	export_fig([strFigurePath strFigName '.tif']);
+	export_fig([strFigurePath strFigName '.pdf']);
 	
 	%% save
 	strTargetFile = [strTargetDataPath sprintf('NatMovDec_%s',strRec)];

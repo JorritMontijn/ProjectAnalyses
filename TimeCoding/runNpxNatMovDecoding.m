@@ -61,9 +61,9 @@ tic
 for intRec=vecUseRec
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
-	%if ~strcmp(strRec,'20191213_MP3_RunDriftingGratingsR01_g0_t0'),continue;end
-	%if ~strcmp(strRec,'20200116_MP4_RunDriftingGratingsR01_g0_t0'),continue;end
-	if ~strcmp(strRec,'20191212_MP3_RunNaturalMovieR01_g0_t0'),continue;end
+	%if ~strcmp(strRec,'20191213_MP3_RunDriftingGratingsR01_g0_t0'),continue;end %PM+NOT
+	%if ~strcmp(strRec,'20200116_MP4_RunDriftingGratingsR01_g0_t0'),continue;end %AM+LP
+	if ~strcmp(strRec,'20191212_MP3_RunNaturalMovieR01_g0_t0'),continue;end %AM+LP
 	
 	
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
@@ -100,7 +100,13 @@ for intRec=vecUseRec
 	
 	%remove neurons in incorrect areas
 	indConsiderNeurons = contains({sAggNeuron.Area},cellUseAreas,'IgnoreCase',true);
-	
+	%strRec
+	%unique({sTheseNeurons.Area})'
+	%cellUniqueAreas{intRec} = unique({sTheseNeurons.Area});
+	%continue;
+%end
+%return
+%for i=1
 	%remove bad clusters
 	indGoodNeurons = (cell2vec({sAggNeuron.KilosortGood}) == 1) | (cell2vec({sAggNeuron.Contamination}) < 0.1);
 	

@@ -1,42 +1,19 @@
 %% ccg analysis
 %v) make ccgs in NOT to check for local connections
 
-%% load data
-strDataPath = 'E:\DataPreProcessed';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp)
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		sAP = sLoad.sAP;
-		if ~isfield(sAP,'sPupil')
-			sAP.sPupil = [];
-		end
-		
-		if isempty(sExp)
-			sExp = sAP;
-		else
-			sExp(end+1) = sAP;
-		end
-		
-	end
-end
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
 
-strTargetPath = 'D:\Data\Results\AlbinoProject';
-
-%best rec BL6: 20191216B5 (rec 17)
-%best rec DBA: 20210212B2 (rec 5)
-
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
+%%
 intUseAreaNum = numel(cellUseAreas);
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);

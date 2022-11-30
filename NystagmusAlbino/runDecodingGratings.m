@@ -1,40 +1,16 @@
 %% exploratory analysis, no proper controls
 
-%% load data
-strDataPath = 'E:\DataPreProcessed';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp)
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		if ~isfield(sLoad.sAP,'sPupil') || isempty(sLoad.sAP.sPupil),continue;end
-		if isempty(sExp)
-			sExp = sLoad.sAP;
-		else
-			sExp(end+1) = sLoad.sAP;
-		end
-	end
-end
-
-%MP_20200115 eye tracking remove last stimulus (gunk in eye)
-cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
-cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
-cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
-strTargetPath = 'D:\Data\Results\AlbinoProject';
-
-%best rec BL6: 20191216B5 (rec 17)
-%best rec DBA: 20210212B2 (rec 5)
-
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
 
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
@@ -497,7 +473,7 @@ hold off
 ylabel('Decoding accuracy');
 set(gca,'xtick',[1 2],'xticklabel',{'Horz','Vert'});
 xlim([0.5 2.5]);
-ylim([0.45 0.75]);
+ylim([0.45 0.9]);
 title(cellAreaGroupsAbbr{1});
 legend(gca,{'BL6','DBA','Chance'},'location','best');
 fixfig;
@@ -520,10 +496,10 @@ legend(gca,{'BL6','DBA','Chance'},'location','best');
 fixfig;
 
 %calc diff
-vecWtCtxDiff = vecWtPerfNot_Horz - vecWtPerfNot_Vert;
-vecAlbCtxDiff = vecAlbPerfNot_Horz - vecAlbPerfNot_Vert;
-vecWtNotDiff = vecWtPerfCtx_Horz - vecWtPerfCtx_Vert;
-vecAlbNotDiff = vecAlbPerfCtx_Horz - vecAlbPerfCtx_Vert;
+vecWtNotDiff = vecWtPerfNot_Horz - vecWtPerfNot_Vert;
+vecAlbNotDiff = vecAlbPerfNot_Horz - vecAlbPerfNot_Vert;
+vecWtCtxDiff = vecWtPerfCtx_Horz - vecWtPerfCtx_Vert;
+vecAlbCtxDiff = vecAlbPerfCtx_Horz - vecAlbPerfCtx_Vert;
 
 [h,pWCD0]=ttest(vecWtCtxDiff);
 [h,pACD0]=ttest(vecAlbCtxDiff);
@@ -539,12 +515,12 @@ x1=beeswarm(ones(size(vecWtCtxDiff)),vecWtCtxDiff);
 x2=beeswarm(2*ones(size(vecAlbCtxDiff)),vecAlbCtxDiff);
 cla;
 subplot(2,3,4)
-hold on
 scatter(x1,vecWtCtxDiff,[],vecColBl6,'o');
+hold on
 scatter(x2,vecAlbCtxDiff,[],vecColAlb,'o');
 plot([0.5 2.5],[0 0],'--','color',[0.5 0.5 0.5]);
 hold off
-xlim([0.5 2.5]);
+xlim([0.5 2.5]);drawnow;
 ylim([-1.001 1.001]*max(abs(get(gca,'ylim'))));
 ylabel('Horz - Vert difference Dec. perf.');
 set(gca,'xtick',[1 2],'xticklabel',{'BL6','DBA'});
@@ -557,8 +533,8 @@ x1=beeswarm(ones(size(vecWtNotDiff)),vecWtNotDiff);
 x2=beeswarm(2*ones(size(vecAlbNotDiff)),vecAlbNotDiff);
 cla;
 subplot(2,3,5)
-hold on
 scatter(x1,vecWtNotDiff,[],vecColBl6,'o');
+hold on
 scatter(x2,vecAlbNotDiff,[],vecColAlb,'o');
 plot([0.5 2.5],[0 0],'--','color',[0.5 0.5 0.5]);
 hold off
@@ -644,8 +620,8 @@ x1=beeswarm(ones(size(vecAntiDirP_CtxWt)),vecAntiDirP_CtxWt);
 x2=beeswarm(2*ones(size(vecAntiDirP_NotWt)),vecAntiDirP_NotWt);
 cla;
 subplot(2,3,3)
-hold on
 scatter(x1,vecAntiDirP_CtxWt,[],vecColBl6,'o');
+hold on
 scatter(x2,vecAntiDirP_NotWt,[],vecColBl6,'o');
 plot([0.5 2.5],dblChanceP*[1 1],'--','color',[0.5 0.5 0.5]);
 hold off
@@ -663,8 +639,8 @@ x1=beeswarm(ones(size(vecAntiDirP_CtxAlb)),vecAntiDirP_CtxAlb);
 x2=beeswarm(2*ones(size(vecAntiDirP_NotAlb)),vecAntiDirP_NotAlb);
 cla;
 subplot(2,3,6)
-hold on
 scatter(x1,vecAntiDirP_CtxAlb,[],vecColAlb,'o');
+hold on
 scatter(x2,vecAntiDirP_NotAlb,[],vecColAlb,'o');
 plot([0.5 2.5],dblChanceP*[1 1],'--','color',[0.5 0.5 0.5]);
 hold off

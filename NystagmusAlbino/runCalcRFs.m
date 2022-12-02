@@ -60,6 +60,7 @@ for intSubType=1:2
 		for intBlockIdx=1:numel(vecBlocksRF)
 			intBlock = vecBlocksRF(intBlockIdx);
 			sBlock = sRec.cellBlock{intBlock};
+			strName=['RF_' sRec.sJson.subject '_' sRec.sJson.date 'B' num2str(intBlock)];
 			
 			vecPupilStimOn = sBlock.vecStimOnTime+median(vecPupilLatency);
 			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);
@@ -118,7 +119,7 @@ for intSubType=1:2
 			matSdCountsOff = nan([size(sStimObject(1).LinLoc) intNeurons]);
 			%% go through cells
 			for intNeuron=1:intNeurons
-				fprintf('Now at %d/%d\n',intNeuron,intNeurons);
+				fprintf('Running %s (rec %d/%d), neuron %d/%d\n',strName,intRecIdx,numel(vecRunRecs),intNeuron,intNeurons);
 				vecSpikeT = sRec.sCluster(intNeuron).SpikeTimes;
 				matTempZetaOn = nan(size(sStimObject(1).LinLoc));
 				matTempZetaOff = nan(size(sStimObject(1).LinLoc));
@@ -186,8 +187,8 @@ for intSubType=1:2
 			matR = matOnR;
 			
 			%% save data
-			strName=['RF_' sRec.sJson.subject '_' sRec.sJson.date 'B' num2str(intBlock)];
-			save([strName],'sBlock',...
+			strSavePath = [strTargetPath filesep 'RF_data'];
+			save(fullpath(strSavePath,strName),'sBlock',...
 				'intBlock',...
 				'matZetaOn',...
 				'matZetaOff',...

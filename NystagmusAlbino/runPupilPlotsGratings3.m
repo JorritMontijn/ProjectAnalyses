@@ -1,40 +1,14 @@
-%% creates pupil plot fig over time of grating
-%[done/ii) spike-triggered average of eye movement in NOT
-%[done/iv) plot pupil x position as function of time of grating
-
-%% load data
-clear all;
-strDataPath = 'E:\DataPreProcessed';
-%strDataPath = 'F:\Data\Processed\Neuropixels';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp)
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		if ~isfield(sLoad.sAP,'sPupil') || isempty(sLoad.sAP.sPupil),continue;end
-		if isempty(sExp)
-			sExp = sLoad.sAP;
-		else
-			sExp(end+1) = sLoad.sAP;
-		end
-	end
-end
-%MP_20200115 eye tracking remove last stimulus (gunk in eye)
-cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
-cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
-cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
-strTargetPath = 'D:\Data\Results\AlbinoProject';
-
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
 
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
@@ -47,7 +21,7 @@ cellAggY = {};
 cellAggSize = {};
 cellAggSync = {};
 cellAggOriIdx = {};
-cellSTA = cellfill(nan(0,numel(vecPupilSTA_edges)-1),[2 2])
+cellSTA = cellfill(nan(0,numel(vecPupilSTA_edges)-1),[2 numel(cellAreaGroups)])
 
 %run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -60,12 +34,12 @@ for intSubType=1:2
 	if intSubType == 1
 		strSubjectType = 'BL6';
 		dblOffsetT=0;
-		dblAverageMouseHeadTiltInSetup = -30; %average tilt due to head-bar placement; procedures changed between BL6 and DBA experiments
+		dblAverageMouseHeadTiltInSetup = -15; %average tilt due to head-bar placement; procedures changed between BL6 and DBA experiments
 		boolInvertX = 1; %other eye was recorded, so temporonasal is nasotemporal
 	elseif intSubType == 2
 		strSubjectType = 'DBA';
 		dblOffsetT=0;
-		dblAverageMouseHeadTiltInSetup = 0;
+		dblAverageMouseHeadTiltInSetup = -15;
 		boolInvertX = 0;
 	end
 	indUseRecs = contains(cellSubjectType,strSubjectType);
@@ -103,14 +77,20 @@ for intSubType=1:2
 		%% get DG blocks
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
 		vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true));
+		vecBlocksNM = find(contains(cellStimType,'naturalmovie','IgnoreCase',true));
+		%get timing for DG
+		intBlock = vecBlocksDG(1);
+		sBlock = sRec.cellBlock{intBlock};
+		if isfield(sBlock,'vecPupilStimOn')
+			vecPupilLatency = sBlock.vecPupilStimOn-sBlock.vecStimOnTime;
+		else
+			vecPupilLatency = 0;
+		end
 		for intBlockIdx=1:numel(vecBlocksDG)
 			intBlock = vecBlocksDG(intBlockIdx);
 			sBlock = sRec.cellBlock{intBlock};
-			if isfield(sBlock,'vecPupilStimOn')
-				vecPupilStimOn = sBlock.vecPupilStimOn;
-			else
-				vecPupilStimOn = sBlock.vecStimOnTime;
-			end
+			vecPupilStimOn = sBlock.vecStimOnTime+median(vecPupilLatency);
+			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);
 			
 			%split by ori
 			sTrialObjects = sBlock.sStimObject(sBlock.vecTrialStimTypes);

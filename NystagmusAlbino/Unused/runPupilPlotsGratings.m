@@ -1,26 +1,14 @@
-%% load data
-clear all;
-strDataPath = 'E:\DataPreProcessed';
-%strDataPath = 'F:\Data\Processed\Neuropixels';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp)
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		if ~isfield(sLoad.sAP,'sPupil') || isempty(sLoad.sAP.sPupil),continue;end
-		if isempty(sExp)
-			sExp = sLoad.sAP;
-		else
-			sExp(end+1) = sLoad.sAP;
-		end
-	end
-end
-%MP_20200115 eye tracking remove last stimulus (gunk in eye)
-cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
-cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
-cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
-strTargetPath = 'D:\Data\Results\AlbinoProject';
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
 
 %% plot
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -34,13 +22,11 @@ for intSubType=1:2
 	if intSubType == 1
 		strSubjectType = 'BL6';
 		dblOffsetT=0;
-		dblAverageMouseHeadTiltInSetup = -30; %average tilt due to head-bar placement; procedures changed between BL6 and DBA experiments
-		boolInvertX = 1; %other eye was recorded, so temporonasal is nasotemporal
+		dblAverageMouseHeadTiltInSetup = -15;
 	elseif intSubType == 2
 		strSubjectType = 'DBA';
 		dblOffsetT=0;
-		dblAverageMouseHeadTiltInSetup = 0;
-		boolInvertX = 0;
+		dblAverageMouseHeadTiltInSetup = -15;
 	end
 	indUseRecs = contains(cellSubjectType,strSubjectType);
 	vecRunRecs = find(indUseRecs & ~(indRemRecs | indRemRecs2));
@@ -48,25 +34,28 @@ for intSubType=1:2
 	matAggTE_LocY = [];
 	matAggTE_Size = [];
 	matAggTE_Sync = [];
-	vecTrialCounts = [];
-	matFracMoveRight = zeros(24,0);
-	matFracMoveUp = zeros(24,0);
 	vecAggOriIdx = [];
 	vecAggCounts = zeros(24,1);
 	for intRecIdx=1:numel(vecRunRecs)
 		intRec=vecRunRecs(intRecIdx)
 		sRec = sExp(intRec);
-		
+
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
 		vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true));
+		vecBlocksNM = find(contains(cellStimType,'naturalmovie','IgnoreCase',true));
+		%get timing for DG
+		intBlock = vecBlocksDG(1);
+		sBlock = sRec.cellBlock{intBlock};
+		if isfield(sBlock,'vecPupilStimOn')
+			vecPupilLatency = sBlock.vecPupilStimOn-sBlock.vecStimOnTime;
+		else
+			vecPupilLatency = 0;
+		end
 		for intBlockIdx=1:numel(vecBlocksDG)
 			intBlock = vecBlocksDG(intBlockIdx);
 			sBlock = sRec.cellBlock{intBlock};
-			if isfield(sBlock,'vecPupilStimOn')
-				vecPupilStimOn = sBlock.vecPupilStimOn;
-			else
-				vecPupilStimOn = sBlock.vecStimOnTime;
-			end
+			vecPupilStimOn = sBlock.vecStimOnTime+median(vecPupilLatency);
+			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);
 			vecPupilT = sRec.sPupil.vecTime;
 			
 			%split by ori
@@ -119,26 +108,6 @@ for intSubType=1:2
 			vecAggOriIdx = cat(1,vecAggOriIdx,vecOriIdx);
 			
 			vecAggCounts = vecAggCounts+vecCounts;
-			
-			%calc right movement
-			matTEX_dt = diff(matTE_LocX,[],2);
-			if boolInvertX,matTEX_dt=-matTEX_dt;end
-			matMoveR_MuX=splitapply(@(x) nansum(x>0),matTEX_dt,vecOriIdx); %0 or mean?
-			matMoveL_MuX=splitapply(@(x) nansum(x<0),matTEX_dt,vecOriIdx); %0 or mean?
-			matMoveR_Frac = matMoveR_MuX ./ (matMoveL_MuX+matMoveR_MuX);
-			vecFracMoveRight = mean(matMoveR_Frac,2);
-			matFracMoveRight(:,end+1) = vecFracMoveRight;
-			if any(vecFracMoveRight>1),error;end
-			
-			%calc left movement
-			matTEY_dt = diff(matTE_LocY,[],2);
-			matMoveU_MuY=splitapply(@(x) nansum(x>0),matTEY_dt,vecOriIdx); %0 or mean?
-			matMoveD_MuY=splitapply(@(x) nansum(x<0),matTEY_dt,vecOriIdx); %0 or mean?
-			matMoveU_Frac = matMoveU_MuY ./ (matMoveD_MuY+matMoveU_MuY);
-			vecFracMoveUp = mean(matMoveU_Frac,2);
-			matFracMoveUp(:,end+1) = vecFracMoveUp;
-			
-			vecTrialCounts(end+1) = size(matTE_LocX,1);
 		end
 	end
 	
@@ -146,11 +115,11 @@ for intSubType=1:2
 	%get mean per ori, X
 	subplot(2,4,1+(intSubType-1)*4)
 	matTEX_dt = diff(matAggTE_LocX,[],2);
-	if boolInvertX,matTEX_dt=-matTEX_dt;end
-	matMoveR_MuX=splitapply(@(x) nansum(x>0),matTEX_dt,vecAggOriIdx); %0 or mean?
-	matMoveL_MuX=splitapply(@(x) nansum(x<0),matTEX_dt,vecAggOriIdx); %0 or mean?
-	matMoveR_Frac = matMoveR_MuX ./ (matMoveL_MuX+matMoveR_MuX);
-	vecFracMoveRight = mean(matMoveR_Frac,2);
+	matMove_MuX=splitapply(@nanmean,matTEX_dt,vecAggOriIdx);
+	matNansX=splitapply(@(x) sum(isnan(x)),matTEX_dt,vecAggOriIdx);
+	vecNanFrac=mean(matNansX,2)./vecAggCounts;
+	vecEligibleX = (1 - vecNanFrac).*size(matMove_MuX,2);
+	vecFracMoveRight = sum(matMove_MuX>nanmean(matMove_MuX(:)),2)./vecEligibleX;
 	vecFracMoveRight = (vecFracMoveRight + circshift(vecFracMoveRight,-1) + circshift(vecFracMoveRight,1))/3;
 	vecFracMoveRightMinMax = [min(vecFracMoveRight) max(vecFracMoveRight)];
 	vecNormFracRight = vecFracMoveRight-min(vecFracMoveRight);
@@ -165,11 +134,11 @@ for intSubType=1:2
 	%get mean per ori, Y
 	subplot(2,4,2+(intSubType-1)*4)
 	matTEY_dt = -diff(matAggTE_LocY,[],2);
-	matMoveU_MuY=splitapply(@(x) nansum(x>0),matTEY_dt,vecAggOriIdx); %0 or mean?
-	matMoveD_MuY=splitapply(@(x) nansum(x<0),matTEY_dt,vecAggOriIdx);%0 or mean?
-	matMoveU_Frac = matMoveU_MuY ./ (matMoveD_MuY+matMoveU_MuY);
-	vecFracMoveUp = mean(matMoveU_Frac,2);
-	
+	matMove_MuY=splitapply(@nanmean,matTEY_dt,vecAggOriIdx);
+	matNansY=splitapply(@(x) sum(isnan(x)),matTEY_dt,vecAggOriIdx);
+	vecNanFrac=mean(matNansY,2)./vecAggCounts;
+	vecEligibleY = (1 - vecNanFrac).*size(matMove_MuY,2);
+	vecFracMoveUp = sum(matMove_MuY>nanmean(matMove_MuX(:)),2)./vecEligibleY;
 	vecFracMoveUp = (vecFracMoveUp + circshift(vecFracMoveUp,-1) + circshift(vecFracMoveUp,1))/3;
 	vecFracMoveUpMinMax = [min(vecFracMoveUp) max(vecFracMoveUp)];
 	vecNormFracUp = vecFracMoveUp-min(vecFracMoveUp);
@@ -224,7 +193,7 @@ for intSubType=1:2
 	errorbar([0.2 0.8],vecMeans,vecSems,'xr');
 	[h,pLR] = ttest2(vecFMR_Q1,vecFMR_Q3);
 	title(sprintf('L vs R, p=%.3e',pLR));
-	ylim([-0.06 0.06]);
+	ylim([-0.2 0.2]);
 	xlim([0 1]);
 	set(gca,'xtick',[0.2 0.8],'xticklabel',{'Left','Right'});
 	ylabel('Norm. frac. eye moving right');
@@ -260,49 +229,15 @@ for intSubType=1:2
 	errorbar([0.2 0.8],vecMeans,vecSems,'xb');
 	[h,pUD] = ttest2(vecFMU_Q2,vecFMU_Q4);
 	title(sprintf('U vs D, p=%.3e',pUD));
-	ylim([-0.06 0.06]);
+	ylim([-0.2 0.2]);
 	xlim([0 1]);
 	set(gca,'xtick',[0.2 0.8],'xticklabel',{'Down','Up'});
 	ylabel('Norm. frac. eye moving up');
 	xlabel('Stim. dir');
 	fixfig;
-	
-	%% save data
-	indRem=all(matFracMoveRight==0,1) | all(matFracMoveUp==0,1) | any(isnan(matFracMoveRight),1) | any(isnan(matFracMoveRight),1);
-	cellFracMoveRight{intSubType} = matFracMoveRight(:,~indRem);
-	cellFracMoveUp{intSubType} = matFracMoveUp(:,~indRem);
 end
 
-%% save plot
+%% save
 drawnow;maxfig;
 export_fig(fullpath(strTargetPath,['GratingTracking.tif']));
 export_fig(fullpath(strTargetPath,['GratingTracking.pdf']));
-
-return
-%% plot per rec
-cellFracMoveRightFilt{1} = (cellFracMoveRight{1} + circshift(cellFracMoveRight{1},[-1 0]) + circshift(cellFracMoveRight{1},[1 0]))/3;
-cellFracMoveRightFilt{2} = (cellFracMoveRight{2} + circshift(cellFracMoveRight{2},[-1 0]) + circshift(cellFracMoveRight{2},[1 0]))/3;
-cellFracMoveUpFilt{1} = (cellFracMoveUp{1} + circshift(cellFracMoveUp{1},[-1 0]) + circshift(cellFracMoveUp{1},[1 0]))/3;
-cellFracMoveUpFilt{2} = (cellFracMoveUp{2} + circshift(cellFracMoveUp{2},[-1 0]) + circshift(cellFracMoveUp{2},[1 0]))/3;
-figure
-subplot(2,3,1)
-hold on
-errorbar(vecOris,mean(cellFracMoveRightFilt{1},2),std(cellFracMoveRightFilt{1},[],2)/sqrt(size(cellFracMoveRightFilt{1},2)),'r');
-errorbar(vecOris,mean(cellFracMoveUpFilt{1},2),std(cellFracMoveUpFilt{1},[],2)/sqrt(size(cellFracMoveUpFilt{1},2)),'b');
-hold off
-
-subplot(2,3,4)
-hold on
-errorbar(vecOris,mean(cellFracMoveRightFilt{2},2),std(cellFracMoveRightFilt{2},[],2)/sqrt(size(cellFracMoveRightFilt{2},2)),'r');
-errorbar(vecOris,mean(cellFracMoveUpFilt{2},2),std(cellFracMoveUpFilt{2},[],2)/sqrt(size(cellFracMoveUpFilt{2},2)),'b');
-hold off
-
-vecBiasLR_BL6 = mean(cellFracMoveRight{1},1);
-[h,pHB] = ttest(vecBiasLR_BL6,0.5);
-vecBiasLR_DBA = mean(cellFracMoveRight{2},1);
-[h,pHA] = ttest(vecBiasLR_DBA,0.5);
-
-vecBiasUD_BL6 = mean(cellFracMoveUp{1},1);
-[h,pVB] = ttest(vecBiasUD_BL6,0.5);
-vecBiasUD_DBA = mean(cellFracMoveUp{2},1);
-[h,pVA] = ttest(vecBiasUD_DBA,0.5);

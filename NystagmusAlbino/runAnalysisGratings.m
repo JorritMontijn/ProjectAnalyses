@@ -113,18 +113,22 @@ for intSubType=1:2
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
 		vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true));
+		vecBlocksNM = find(contains(cellStimType,'naturalmovie','IgnoreCase',true));
+		%get timing for DG
+		intBlock = vecBlocksDG(1);
+		sBlock = sRec.cellBlock{intBlock};
+		if isfield(sBlock,'vecPupilStimOn')
+			vecPupilLatency = sBlock.vecPupilStimOn-sBlock.vecStimOnTime;
+		else
+			vecPupilLatency = 0;
+		end
 		for intBlockIdx=1:numel(vecBlocksDG)
 			intBlock = vecBlocksDG(intBlockIdx)
 			sBlock = sRec.cellBlock{intBlock};
 			intPopCounter = intPopCounter + 1;
 			
-			if isfield(sBlock,'vecPupilStimOn')
-				vecPupilStimOn = sBlock.vecPupilStimOn;
-				vecPupilStimOff = sBlock.vecPupilStimOff;
-			else
-				vecPupilStimOn = sBlock.vecStimOnTime;
-				vecPupilStimOff = sBlock.vecStimOffTime;
-			end
+			vecPupilStimOn = sBlock.vecStimOnTime+median(vecPupilLatency);
+			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);
 			
 			%% get pupil data
 			dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);
@@ -223,7 +227,7 @@ for intSubType=1:2
 				for intCellIdx=1:numel(vecSelectCells)
 					intCell = vecSelectCells(intCellIdx);
 					vecSpikeT = cellSpikeT{intCell};
-					dblZetaP = getZeta(vecSpikeT,vecStimOnTime,dblTrialDur);
+					dblZetaP = zetatest(vecSpikeT,vecStimOnTime,dblTrialDur);
 					vecZetaP(intCellIdx) = dblZetaP;
 				end
 				%[h, crit_p, vecZetaP_corr] = fdr_bh(vecZetaP);

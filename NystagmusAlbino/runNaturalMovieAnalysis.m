@@ -1,37 +1,15 @@
-%% load data
-strDataPath = 'E:\DataPreProcessed';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp)
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		if ~isfield(sLoad.sAP,'sPupil') || isempty(sLoad.sAP.sPupil),continue;end
-		if isempty(sExp)
-			sExp = sLoad.sAP;
-		else
-			sExp(end+1) = sLoad.sAP;
-		end
-	end
-end
-%MP_20200115 eye tracking remove last stimulus (gunk in eye)
-cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
-cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
-cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
-strTargetPath = 'D:\Data\Results\AlbinoProject';
 
-%best rec BL6: 20191216B5 (rec 17)
-%best rec DBA: 20210212B2 (rec 5)
-
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
 
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
@@ -58,7 +36,7 @@ dblAverageMouseHeadTiltInSetup = -15;
 for intSubType=1:2
 	intPopCounter = 0;
 	if intSubType == 1
-		intBestRec = 17;
+		intBestRec = 17;%topo3_20220201_3
 		strSubjectType = 'BL6';
 		dblOffsetT=0;
 	elseif intSubType == 2
@@ -74,18 +52,23 @@ for intSubType=1:2
 		sRec = sExp(intRec);
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
-		vecBlocksDG = find(contains(cellStimType,'naturalmovie','IgnoreCase',true));
-		for intBlockIdx=1:numel(vecBlocksDG)
-			intBlock = vecBlocksDG(intBlockIdx)
+		vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true));
+		vecBlocksNM = find(contains(cellStimType,'naturalmovie','IgnoreCase',true));
+		%get timing for DG
+		intBlock = vecBlocksDG(1);
+		sBlock = sRec.cellBlock{intBlock};
+		if isfield(sBlock,'vecPupilStimOn')
+			vecPupilLatency = sBlock.vecPupilStimOn-sBlock.vecStimOnTime;
+		else
+			vecPupilLatency = 0;
+		end
+		
+		for intBlockIdx=1:numel(vecBlocksNM)
+			intBlock = vecBlocksNM(intBlockIdx);
 			sBlock = sRec.cellBlock{intBlock};
 			
-			if isfield(sBlock,'vecPupilStimOn')
-				vecPupilStimOn = sBlock.vecPupilStimOn;
-				vecPupilStimOff = sBlock.vecPupilStimOff;
-			else
-				vecPupilStimOn = sBlock.vecStimOnTime;
-				vecPupilStimOff = sBlock.vecStimOffTime;
-			end
+			vecPupilStimOn = sBlock.vecStimOnTime+median(vecPupilLatency);
+			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);
 			
 			%% get pupil data
 			dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);

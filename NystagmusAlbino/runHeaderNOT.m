@@ -1,12 +1,16 @@
 %% load data
-strDataPath = 'F:\Data\Processed\Neuropixels';
+%strDataPath = 'F:\Data\Processed\Neuropixels';
+strDataPath = 'E:\DataPreProcessed';
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
 if ~exist('sExp','var') || isempty(sExp)
 	sExp = [];
 	for intFile=1:numel(sFiles)
 		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
 		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		if ~isfield(sLoad.sAP,'sPupil') || isempty(sLoad.sAP.sPupil),continue;end
+		sLoad.sAP.Name = sFiles(intFile).name;
+		if ~isfield(sLoad.sAP,'sPupil')
+			sLoad.sAP.sPupil = [];
+		end
 		if isempty(sExp)
 			sExp = sLoad.sAP;
 		else

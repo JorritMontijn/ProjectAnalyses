@@ -1,24 +1,34 @@
 %% exploratory analysis, no proper controls
 
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
+
 %% load data
-strAllenCCFPath = 'F:\Data\AllenCCF';
+%strAllenCCFPath = 'F:\Data\AllenCCF';
+strAllenCCFPath = 'E:\AllenCCF';
 [tv,av,st] = RP_LoadABA(strAllenCCFPath);
-strDataPath = 'F:\Data\Processed\Neuropixels';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform')
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		sAP = sLoad.sAP;
+if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDist')
+	sExpNew = [];
+	for intFile=1:numel(sExp)
+		sAP = sExp(intFile);
+		fprintf('Loading waveforms for %d/%d: %s [%s]\n',intFile,numel(sExp),sAP.Name,getTime);
 		if ~isfield(sAP,'sPupil')
 			sAP.sPupil = [];
 		end
 		%load clustering data
-		strSpikePath = sLoad.sAP.sSources.sClustered.folder;
+		strSpikePath = sAP.sSources.sClustered.folder;
 		sSpikes = loadKSdir(strSpikePath);
-		strImPath = sLoad.sAP.sSources.sEphysAp.folder;
-		strImFile = sLoad.sAP.sSources.sEphysAp.name;
+		strImPath = sAP.sSources.sEphysAp.folder;
+		strImFile = sAP.sSources.sEphysAp.name;
 		sMetaIM = DP_ReadMeta(strImFile,strImPath);
 		[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
 		sAP.sSources.sMetaIM = sMetaIM;
@@ -43,36 +53,24 @@ if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform'
 			sAP.sCluster(intClust).BoundDist = vecChDistToAreaBoundary(intDominantChannel);
 		end
 		
-		if isempty(sExp)
-			sExp = sAP;
+		if isempty(sExpNew)
+			sExpNew = sAP;
 		else
-			sExp(end+1) = sAP;
+			sExpNew(intFile) = sAP;
 		end
 		
 	end
+	sExp = sExpNew;
+	clear sExpNew;
 end
-
-strTargetPath = 'D:\Data\Results\AlbinoProject';
 
 %best rec BL6: 20191216B5 (rec 17)
 %best rec DBA: 20210212B2 (rec 5)
 
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
-intUseAreaNum = numel(cellUseAreas);
-vecColAlb = [0.9 0 0];
-vecColBl6 = lines(1);
-
 %% pre-allocate
-cellAggSpikeDur = cell(2,2);
-cellAggSpikePTR = cell(2,2);
+intUseAreaNum = numel(cellUseAreas);
+cellAggSpikeDur = cell(intUseAreaNum,2);
+cellAggSpikePTR = cell(intUseAreaNum,2);
 
 %% run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -104,8 +102,8 @@ for intSubType=1:2
 			cellCellsPerArea{intArea} = contains(cellAreasPerCluster(:),cellUseAreas{intArea},'IgnoreCase',true);
 		end
 		vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
-		dblSampRateIM = str2double(sAP.sSources.sMetaIM.imSampRate);
-		dblSampRateNI = str2double(sAP.sSources.sMetaNI.niSampRate);
+		dblSampRateIM = str2double(sRec.sSources.sMetaAP.imSampRate);
+		dblSampRateNI = str2double(sRec.sSources.sMetaNI.niSampRate);
 		
 		%get waveform in areas
 		for intArea=1:intUseAreaNum
@@ -153,7 +151,7 @@ for intSubType=1:2
 	hold on;
 	h1=plot(dblSWT*[1 1]*1000,[0 1.2],'color', [0.7 0.7 0.7],'linestyle','-');
 	h2=plot([0 1.5],dblPTT*[1 1],'color', [0.7 0.7 0.7],'linestyle','-');
-	for intArea=1:intUseAreaNum
+	for intArea=1:2
 		if intArea == 1
 			vecCol = [0 0 1];
 		elseif intArea == 2
@@ -168,7 +166,7 @@ for intSubType=1:2
 	ylim([0 1.2]);
 	ylabel('Peak-to-trough ratio');
 	xlabel('Spike width (ms)');
-	legend([{'';''}; cellAreaGroupsAbbr(:)],'location','best');
+	legend([{'';''}; cellAreaGroupsAbbr(1:2)'],'location','best');
 	title(sprintf('%s spike waveform properties',cellSubjectGroups{intSubType}));
 	fixfig;
 	grid off

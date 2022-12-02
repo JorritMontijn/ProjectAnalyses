@@ -1,41 +1,17 @@
 %% creates ori decoding figs, including pseudo pops
 %[done/iii) decoding left vs right: is DBA worse than BL6?
 
-%% load data
-strDataPath = 'E:\DataPreProcessed';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp)
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		if ~isfield(sLoad.sAP,'sPupil') || isempty(sLoad.sAP.sPupil),continue;end
-		if isempty(sExp)
-			sExp = sLoad.sAP;
-		else
-			sExp(end+1) = sLoad.sAP;
-		end
-	end
-end
-
-%MP_20200115 eye tracking remove last stimulus (gunk in eye)
-cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
-cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
-cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
-strTargetPath = 'D:\Data\Results\AlbinoProject';
-
-%best rec BL6: 20191216B5 (rec 17)
-%best rec DBA: 20210212B2 (rec 5)
-
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
 
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
@@ -207,8 +183,8 @@ end
 %% pseudo populations
 intTypeCV = 2;
 dblLambda = 1000;
-intUseCells = 40;
-intUseReps = 15;
+intUseCells = 20;
+intUseReps = 14;
 intRunPerms = 2500;
 cellPref = cell(2,2);
 matCellNum = nan(2,2);
@@ -325,7 +301,7 @@ fixfig;
 
 subplot(2,3,2)
 d=getCohensD(flat(matPermPerf(2,1,:)),flat(matPermPerf(2,2,:)));
-p_NOT=1-(normcdf(d,0,1)-normcdf(-d,0,1));
+p_NOT=normcdf(d,0,1,'upper')/2;
 
 vecCountsNotBL6 = histcounts(matPermPerf(2,1,:),vecBinEdges);
 vecCountsNotDBA = histcounts(matPermPerf(2,2,:),vecBinEdges);

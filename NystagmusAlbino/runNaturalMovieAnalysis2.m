@@ -1,41 +1,17 @@
 %% further analyses
 %2) is neural code of nat movs more variable during eye movements in NOT than Ctx?
 
-%% load data
-strDataPath = 'E:\DataPreProcessed';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp)
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		if ~isfield(sLoad.sAP,'sPupil') || isempty(sLoad.sAP.sPupil),continue;end
-		if isempty(sExp)
-			sExp = sLoad.sAP;
-		else
-			sExp(end+1) = sLoad.sAP;
-		end
-	end
-end
-
-%MP_20200115 eye tracking remove last stimulus (gunk in eye)
-cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
-cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
-cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
-strTargetPath = 'D:\Data\Results\AlbinoProject';
-
-%best rec BL6: 20191216B5 (rec 17)
-%best rec DBA: 20210212B2 (rec 5)
-
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
 
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
@@ -81,18 +57,26 @@ for intSubType=1:2
 		sRec = sExp(intRec);
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
-		vecBlocksDG = find(contains(cellStimType,'naturalmovie','IgnoreCase',true));
-		for intBlockIdx=1:numel(vecBlocksDG)
-			intBlock = vecBlocksDG(intBlockIdx)
+		vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true));
+		vecBlocksNM = find(contains(cellStimType,'naturalmovie','IgnoreCase',true));
+		%get timing for DG
+		intBlock = vecBlocksDG(1);
+		sBlock = sRec.cellBlock{intBlock};
+		if isfield(sBlock,'vecPupilStimOn')
+			vecPupilLatency = sBlock.vecPupilStimOn-sBlock.vecStimOnTime;
+		else
+			vecPupilLatency = 0;
+		end
+		
+		for intBlockIdx=1:numel(vecBlocksNM)
+			intBlock = vecBlocksNM(intBlockIdx);
 			sBlock = sRec.cellBlock{intBlock};
 			
-			if isfield(sBlock,'vecPupilStimOn')
-				vecPupilStimOn = sBlock.vecPupilStimOn;
-				vecPupilStimOff = sBlock.vecPupilStimOff;
-			else
-				vecPupilStimOn = sBlock.vecStimOnTime;
-				vecPupilStimOff = sBlock.vecStimOffTime;
-			end
+			vecPupilStimOn = sBlock.vecStimOnTime+median(vecPupilLatency);
+			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);
+			vecPupilStimOnOrig = vecPupilStimOn;
+			vecPupilStimOffOrig = vecPupilStimOff;
+			
 			
 			%% get pupil data
 			dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);
@@ -129,7 +113,7 @@ for intSubType=1:2
 			cellCellsPerArea = cell(1,numel(cellUseAreas));
 			cellAreasPerCluster = {sRec.sCluster.Area};
 			vecCorr = nan(1,numel(cellUseAreas));
-			matMeanMov = nan(2,numel(cellUseAreas));
+			matMeanMov = nan(1,numel(cellUseAreas),2);
 			for intArea=1:numel(cellUseAreas)
 				cellCellsPerArea{intArea} = contains(cellAreasPerCluster,cellUseAreas{intArea},'IgnoreCase',true);
 				vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
@@ -139,9 +123,8 @@ for intSubType=1:2
 				%get data matrix
 				vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);
 				vecStimOffTime = sBlock.vecStimOffTime(~indRemTrials);
-				if ~isfield(sBlock,'vecPupilStimOn'),continue;end
-				vecPupilStimOn = sBlock.vecPupilStimOn(~indRemTrials);
-				vecPupilStimOff = sBlock.vecPupilStimOff(~indRemTrials);
+				vecPupilStimOn = vecPupilStimOnOrig(~indRemTrials);
+				vecPupilStimOff = vecPupilStimOffOrig(~indRemTrials);
 		
 				if numel(vecStimOnTime) <= 10,close;continue;end
 				intPopCounter = intPopCounter + 1;
@@ -212,8 +195,8 @@ for intSubType=1:2
 				vecMoveCorrect = vecMovePupil(vecIsCorrect==1);
 				vecMoveIncorrect = vecMovePupil(vecIsCorrect==0);
 				[hT,pT]=ttest2(vecMoveCorrect,vecMoveIncorrect);
-				matMeanMov(intArea,1) = mean(vecMoveCorrect);
-				matMeanMov(intArea,2) = mean(vecMoveIncorrect);
+				matMeanMov(1,intArea,1) = mean(vecMoveCorrect);
+				matMeanMov(1,intArea,2) = mean(vecMoveIncorrect);
 				
 				%calculate correlation
 				[R,P,RL,RU] = corrcoef(vecMovePupil',vecProbCorrect');

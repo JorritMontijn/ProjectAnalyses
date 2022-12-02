@@ -1,47 +1,23 @@
 %% creates ori decoding figs, including pseudo pops
 %3) does info in NOT predict info in V1? [is this doable? sufficient twin recording??]
 
-%% load data
-strDataPath = 'E:\DataPreProcessed';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp)
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		if ~isfield(sLoad.sAP,'sPupil') || isempty(sLoad.sAP.sPupil),continue;end
-		if isempty(sExp)
-			sExp = sLoad.sAP;
-		else
-			sExp(end+1) = sLoad.sAP;
-		end
-	end
-end
-
-%MP_20200115 eye tracking remove last stimulus (gunk in eye)
-cellUseForEyeTrackingMP = {'20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
-cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
-cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
-strTargetPath = 'D:\Data\Results\AlbinoProject';
-
-%best rec BL6: 20191216B5 (rec 17)
-%best rec DBA: 20210212B2 (rec 5)
-
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
 
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
 
 %% pre-allocate
-intMinCells = 10;%NOT+interaction significant at (1-off diag): 7, 8, 9, 10; not sign. at 6; only diag: 6,7,8 (only interaction), 9,10 (both)
+intMinCells = 3;%NOT+interaction significant at (1-off diag): 7, 8, 9, 10; not sign. at 6; only diag: 6,7,8 (only interaction), 9,10 (both)
 intStimNr = 24;
 matDiag = diag(diag(true(intStimNr,intStimNr)));
 matIsCorrect = circshift(matDiag,-1) | matDiag | circshift(matDiag,1);
@@ -176,8 +152,9 @@ for intSubType=1:2
 			%select cells in Ctx and NOT
 			vecSelectCellsCtx = find(indUseCells(:) & cellCellsPerArea{1}(:));
 			vecSelectCellsNOT = find(indUseCells(:) & cellCellsPerArea{2}(:));
-			dblMinCells = 5;
+			dblMinCells = intMinCells;
 			if numel(vecSelectCellsCtx) < dblMinCells || numel(vecSelectCellsNOT) < dblMinCells
+				fprintf('Skipping %sB%d: Ctx=%d, NOT=%d\n',strName,intBlock,numel(vecSelectCellsCtx),numel(vecSelectCellsNOT));
 				continue;
 			else
 				fprintf('%s; %sB%d; Ctx=%d, NOT=%d\n',strSubjectType,strName,intBlock,numel(vecSelectCellsCtx),numel(vecSelectCellsNOT));
@@ -213,12 +190,12 @@ for intSubType=1:2
 			vecTrialTypes(indRemTrials) = [];
 			
 			%plot
-			close;
+			%close;
 			figure
 			subplot(2,3,1)
 			[r,p,ul,ll]=corrcoef(vecProbCorrectNOT(:),vecProbCorrectCtx(:));
 			scatter(vecProbCorrectNOT(:),vecProbCorrectCtx(:),'.')
-			title(sprintf('Probability of correct decoding, r=%.3f, p=%.3f',r(1,2),p(1,2)));
+			title(sprintf('%s - Ctx/NOT coding correlation, r=%.3f, p=%.3f',strName,r(1,2),p(1,2)));
 			xlabel('Cortex, Ori decoding P(correct)');
 			ylabel('NOT, Ori decoding P(correct)');
 			fixfig;

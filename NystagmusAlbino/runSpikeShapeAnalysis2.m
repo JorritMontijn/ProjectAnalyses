@@ -1,37 +1,58 @@
 %% exploratory analysis, no proper controls
 
-%% load data
-strAllenCCFPath = 'F:\Data\AllenCCF';
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
+
+%strAllenCCFPath = 'F:\Data\AllenCCF';
+strAllenCCFPath = 'E:\AllenCCF';
 [tv,av,st] = RP_LoadABA(strAllenCCFPath);
-strDataPath = 'E:\DataPreProcessed';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-strTargetPath = 'D:\Data\Results\AlbinoProject';
-if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform')
+if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDist')
+	sExpNew = [];
 	try
 		load(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'));
 	catch
-		sExp = [];
-		for intFile=1:numel(sFiles)
-			fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-			sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-			sAP = sLoad.sAP;
+		for intFile=1:numel(sExp)
+			sAP = sExp(intFile);
+			fprintf('Loading waveforms for %d/%d: %s [%s]\n',intFile,numel(sExp),sAP.Name,getTime);
 			if ~isfield(sAP,'sPupil')
 				sAP.sPupil = [];
 			end
 			%load clustering data
-			strSpikePath = sLoad.sAP.sSources.sClustered.folder;
+			strSpikePath = sAP.sSources.sClustered.folder;
 			sSpikes = loadKSdir(strSpikePath);
 			strImPath = sLoad.sAP.sSources.sEphysAp.folder;
 			strImFile = sLoad.sAP.sSources.sEphysAp.name;
 			sMetaIM = DP_ReadMeta(strImFile,strImPath);
-			[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
+			if ~exist('matClustWaveforms','var') || isempty(matClustWaveforms)
+				[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
+			end
 			sAP.sSources.sMetaIM = sMetaIM;
 			
 			%calculate distance to area boundary
-			[cellAreas,probe_areas,probe_area_boundaries,probe_area_centers,probe_area_labels,vecChDistToAreaBoundary,matCoordsPerCh] = getBrainAreasPerChannel(sAP,tv,av,st);
+			sLocCh = getBrainAreasPerChannel(sAP,tv,av,st,true);
+			cellAreaPerCh = sLocCh.cellAreaPerCh;
+			cellParentAreaPerCh = sLocCh.cellParentAreaPerCh;
+			vecParentAreaPerCh_av = sLocCh.vecParentAreaPerCh_av;
+			vecAreaBoundaries = sLocCh.vecAreaBoundaries;
+			vecAreaCenters = sLocCh.vecAreaCenters;
+			vecAreaLabels = sLocCh.vecAreaLabels;
+			vecDistToBoundaryPerCh = sLocCh.vecDistToBoundaryPerCh;
+			matCoordsPerCh = sLocCh.matCoordsPerCh;
+			
 			%get cluster depths
-			[spikeAmps, vecAllSpikeDepth] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
-			dblProbeLength = 3840;
+			if ~exist('vecAllSpikeDepth','var') || isempty(vecAllSpikeDepth)
+				[spikeAmps, vecAllSpikeDepth] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
+			end
+			dblProbeLength = range(sSpikes.ycoords);
 			vecAllSpikeClust = sSpikes.clu;
 			
 			%assign cluster data
@@ -43,18 +64,25 @@ if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform'
 				
 				%assign
 				sAP.sCluster(intClust).Waveform = matClustWaveforms(sAP.sCluster(intClust).IdxClust == vecClustIdx,:);
-				sAP.sCluster(intClust).BoundDist = vecChDistToAreaBoundary(intDominantChannel);
+				sAP.sCluster(intClust).BoundDist = vecDistToBoundaryPerCh(intDominantChannel);
+				sAP.sCluster(intClust).ParentArea = cellParentAreaPerCh{intDominantChannel};
+				sAP.sCluster(intClust).SelfArea = cellAreaPerCh{intDominantChannel};
+				sAP.sCluster(intClust).CoordsABA = matCoordsPerCh(:,intDominantChannel);
 			end
 			
-			if isempty(sExp)
-				sExp = sAP;
+			
+			if isempty(sExpNew)
+				sExpNew = sAP;
 			else
-				sExp(end+1) = sAP;
+				sExpNew(intFile) = sAP;
 			end
 			
-			save(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'),'-v7.3');
-			disp done
 		end
+		sExp = sExpNew;
+		clear sExpNew;
+		
+		save(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'),'-v7.3');
+		disp done
 	end
 end
 
@@ -62,16 +90,6 @@ end
 %best rec BL6: 20191216B5 (rec 17)
 %best rec DBA: 20210212B2 (rec 5)
 
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
-intUseAreaNum = numel(cellUseAreas);
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
 
@@ -101,7 +119,7 @@ for intSubType=1:2
 	vecRunRecs = find(indUseRecs & ~(indRemRecs));
 	%vecRunRecs = intBestRec;
 	for intRecIdx=1:numel(vecRunRecs)
-		intRec=vecRunRecs(intRecIdx)
+		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
 		
@@ -112,8 +130,8 @@ for intSubType=1:2
 			cellCellsPerArea{intArea} = contains(cellAreasPerCluster(:),cellUseAreas{intArea},'IgnoreCase',true);
 		end
 		vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
-		dblSampRateIM = str2double(sAP.sSources.sMetaIM.imSampRate);
-		dblSampRateNI = str2double(sAP.sSources.sMetaNI.niSampRate);
+		dblSampRateIM = str2double(sRec.sSources.sMetaAP.imSampRate);
+		dblSampRateNI = str2double(sRec.sSources.sMetaNI.niSampRate);
 		
 		%get waveform in areas
 		for intArea=1:intUseAreaNum
@@ -132,7 +150,7 @@ for intSubType=1:2
 			matData = [];
 			vecOrientation = [];
 			for intBlockIdx=1:numel(vecBlocksDG)
-				intBlock = vecBlocksDG(intBlockIdx)
+				intBlock = vecBlocksDG(intBlockIdx);
 				sBlock = sRec.cellBlock{intBlock};
 				intPopCounter = intPopCounter + 1;
 				

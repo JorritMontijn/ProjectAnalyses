@@ -1,69 +1,99 @@
 %% exploratory analysis, no proper controls
 
-%% load data
-strDataPath = 'F:\Data\Processed\Neuropixels';
-sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
-if ~exist('sExp','var') || isempty(sExp) || ~isfield(sExp(1).sCluster,'Waveform')
-	sExp = [];
-	for intFile=1:numel(sFiles)
-		fprintf('Loading %d/%d: %s [%s]\n',intFile,numel(sFiles),sFiles(intFile).name,getTime);
-		sLoad = load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-		sAP = sLoad.sAP;
-		if ~isfield(sAP,'sPupil')
-			sAP.sPupil = [];
-		end
-		%load clustering data
-		strSpikePath = sLoad.sAP.sSources.sClustered.folder;
-		sSpikes = loadKSdir(strSpikePath);
-		strImPath = sLoad.sAP.sSources.sEphysAp.folder;
-		strImFile = sLoad.sAP.sSources.sEphysAp.name;
-		sMetaIM = DP_ReadMeta(strImFile,strImPath);
-		[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
-		sAP.sSources.sMetaIM = sMetaIM;
-		
-		%get cluster depths
-		[spikeAmps, vecAllSpikeDepth] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
-		dblProbeLength = max(sSpikes.ycoords);
-		vecAllSpikeClust = sSpikes.clu;
-	
-		%assign cluster data
-		intClustNum = numel(sAP.sCluster);
-		for intClust=1:intClustNum
-			intClustIdx = sAP.sCluster(intClust).IdxClust;
-			intDepth = dblProbeLength-round(median(vecAllSpikeDepth(vecAllSpikeClust==intClustIdx)));
-			intDominantChannel = ceil(intDepth/10);
+
+%% load data and define groups
+%strDataPath
+%cellUseForEyeTracking
+%strTargetPath
+%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
+%cellUseAreas{2} = {'nucleus of the optic tract'};
+%cellUseAreas{3} = {'superior colliculus'};
+%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
+%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
+%cellSubjectGroups = {'BL6','DBA'};
+runHeaderNOT;
+
+%strAllenCCFPath = 'F:\Data\AllenCCF';
+strAllenCCFPath = 'E:\AllenCCF';
+[tv,av,st] = RP_LoadABA(strAllenCCFPath);
+if ~isfield(sExp(1).sCluster,'Waveform')
+	sExpNew = [];
+	try
+		load(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'));
+	catch
+		for intFile=1:numel(sExp)
+			sAP = sExp(intFile);
+			fprintf('Loading waveforms for %d/%d: %s [%s]\n',intFile,numel(sExp),sAP.Name,getTime);
+			if ~isfield(sAP,'sPupil')
+				sAP.sPupil = [];
+			end
+			%load clustering data
+			strSpikePath = sAP.sSources.sClustered.folder;
+			sSpikes = loadKSdir(strSpikePath);
+			strImPath = sLoad.sAP.sSources.sEphysAp.folder;
+			strImFile = sLoad.sAP.sSources.sEphysAp.name;
+			sMetaIM = DP_ReadMeta(strImFile,strImPath);
+			if ~exist('matClustWaveforms','var') || isempty(matClustWaveforms)
+				[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
+			end
+			sAP.sSources.sMetaIM = sMetaIM;
 			
-			%assign
-			sAP.sCluster(intClust).Waveform = matClustWaveforms(sAP.sCluster(intClust).IdxClust == vecClustIdx,:);
+			%calculate distance to area boundary
+			sLocCh = getBrainAreasPerChannel(sAP,tv,av,st,true);
+			cellAreaPerCh = sLocCh.cellAreaPerCh;
+			cellParentAreaPerCh = sLocCh.cellParentAreaPerCh;
+			vecParentAreaPerCh_av = sLocCh.vecParentAreaPerCh_av;
+			vecAreaBoundaries = sLocCh.vecAreaBoundaries;
+			vecAreaCenters = sLocCh.vecAreaCenters;
+			vecAreaLabels = sLocCh.vecAreaLabels;
+			vecDistToBoundaryPerCh = sLocCh.vecDistToBoundaryPerCh;
+			matCoordsPerCh = sLocCh.matCoordsPerCh;
+			
+			%get cluster depths
+			if ~exist('vecAllSpikeDepth','var') || isempty(vecAllSpikeDepth)
+				[spikeAmps, vecAllSpikeDepth] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
+			end
+			dblProbeLength = range(sSpikes.ycoords);
+			vecAllSpikeClust = sSpikes.clu;
+			
+			%assign cluster data
+			intClustNum = numel(sAP.sCluster);
+			for intClust=1:intClustNum
+				intClustIdx = sAP.sCluster(intClust).IdxClust;
+				intDepth = dblProbeLength-round(median(vecAllSpikeDepth(vecAllSpikeClust==intClustIdx)));
+				intDominantChannel = ceil(intDepth/10);
+				
+				%assign
+				sAP.sCluster(intClust).Waveform = matClustWaveforms(sAP.sCluster(intClust).IdxClust == vecClustIdx,:);
+				sAP.sCluster(intClust).BoundDist = vecDistToBoundaryPerCh(intDominantChannel);
+				sAP.sCluster(intClust).ParentArea = cellParentAreaPerCh{intDominantChannel};
+				sAP.sCluster(intClust).SelfArea = cellAreaPerCh{intDominantChannel};
+				sAP.sCluster(intClust).CoordsABA = matCoordsPerCh(:,intDominantChannel);
+			end
+			
+			
+			if isempty(sExpNew)
+				sExpNew = sAP;
+			else
+				sExpNew(intFile) = sAP;
+			end
+			
 		end
+		sExp = sExpNew;
+		clear sExpNew;
 		
-		if isempty(sExp)
-			sExp = sAP;
-		else
-			sExp(end+1) = sAP;
-		end
-		
+		save(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'),'-v7.3');
+		disp done
 	end
 end
 
-%% define area categories
-%cortex
-cellUseAreas = [];
-cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
-%NOT
-cellUseAreas{2} = {'nucleus of the optic tract'};
-cellAreaGroups = {'Vis. ctx','NOT'};
-cellAreaGroupsAbbr = {'Ctx','NOT'};
-cellSubjectGroups = {'BL6','DBA'};
 intUseAreaNum = numel(cellUseAreas);
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
 
-%% pre-allocate
-cellAggSpikeDur = cell(2,2);
-cellAggSpikePTR = cell(2,2);
-
 %% run
+cellAggSpikeDur = cell(intUseAreaNum,2);
+cellAggSpikePTR = cell(intUseAreaNum,2);
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
 cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
 cellRemove = {};%{'RecMA5_2021-03-01R01_g0_t0'};
@@ -93,8 +123,8 @@ for intSubType=1:2
 			cellCellsPerArea{intArea} = contains(cellAreasPerCluster(:),cellUseAreas{intArea},'IgnoreCase',true);
 		end
 		vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
-		dblSampRateIM = str2double(sAP.sSources.sMetaNI.imSampRate);
-		dblSampRateNI = str2double(sAP.sSources.sMetaNI.niSampRate);
+		dblSampRateIM = str2double(sRec.sSources.sMetaAP.imSampRate);
+		dblSampRateNI = str2double(sRec.sSources.sMetaNI.niSampRate);
 		
 		%get waveform in areas
 		for intArea=1:intUseAreaNum
@@ -224,3 +254,4 @@ drawnow;
 export_fig([strTargetPath filesep sprintf('SpikeShapes.tif')]);
 export_fig([strTargetPath filesep sprintf('SpikeShapes.pdf')]);
 	
+

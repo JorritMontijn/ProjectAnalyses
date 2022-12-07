@@ -41,7 +41,7 @@ for intSubType=1:2
 	matAggTE_Sync = [];
 	vecAggOriIdx = [];
 	vecAggCounts = zeros(24,1);
-	for intRecIdx=1:numel(vecRunRecs)
+	for intRecIdx=5:numel(vecRunRecs)
 		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		
@@ -118,6 +118,7 @@ for intSubType=1:2
 			matMeanCountsOff = nan([size(sStimObject(1).LinLoc) intNeurons]);
 			matSdCountsOff = nan([size(sStimObject(1).LinLoc) intNeurons]);
 			%% go through cells
+			boolSaveData = true;
 			for intNeuron=1:intNeurons
 				fprintf('Running %s (rec %d/%d), neuron %d/%d\n',strName,intRecIdx,numel(vecRunRecs),intNeuron,intNeurons);
 				vecSpikeT = sRec.sCluster(intNeuron).SpikeTimes;
@@ -168,6 +169,10 @@ for intSubType=1:2
 					matTempZetaOff(indAssign) = dblZetaP_off;
 					
 				end
+				if any(flat(cellfun(@isempty,cellCellOnSpikeT{intNeuron})))
+					boolSaveData = false;
+					break;
+				end
 				matZetaOn(:,:,intNeuron) = matTempZetaOn;
 				matZetaOff(:,:,intNeuron) = matTempZetaOff;
 				matMeanCountsOn(:,:,intNeuron) = cellfun(@(x) mean(cellfun(@numel,x)),cellCellOnSpikeT{intNeuron});
@@ -176,6 +181,7 @@ for intSubType=1:2
 				matSdCountsOff(:,:,intNeuron) = cellfun(@(x) std(cellfun(@numel,x)),cellCellOnSpikeT{intNeuron});
 				
 			end
+			if ~boolSaveData,continue;end
 			matSdCountsOn(isnan(matSdCountsOn))=inf;
 			matSdCountsOff(isnan(matSdCountsOn))=inf;
 			

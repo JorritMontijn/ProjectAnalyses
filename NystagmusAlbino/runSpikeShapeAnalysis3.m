@@ -14,7 +14,10 @@ runHeaderNOT;
 
 %strAllenCCFPath = 'F:\Data\AllenCCF';
 strAllenCCFPath = 'E:\AllenCCF';
-[tv,av,st] = RP_LoadABA(strAllenCCFPath);
+sAtlas = AL_PrepABA(strAllenCCFPath);
+tv = sAtlas.tv;
+av = sAtlas.av;
+st = sAtlas.st;
 if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea')
 	sExpNew = [];
 	%try
@@ -38,7 +41,9 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 			sAP.sSources.sMetaIM = sMetaIM;
 			
 			%calculate distance to area boundary
-			sLocCh = getBrainAreasPerChannel(sAP,tv,av,st,true);
+			vecDepth = sSpikes.ycoords;
+			sProbeCoords = sAP.sSources.sProbeCoords;
+			sLocCh = getBrainAreasPerChannel(sProbeCoords,sAtlas,false,numel(vecDepth));
 			cellAreaPerCh = sLocCh.cellAreaPerCh;
 			cellParentAreaPerCh = sLocCh.cellParentAreaPerCh;
 			vecParentAreaPerCh_av = sLocCh.vecParentAreaPerCh_av;
@@ -47,6 +52,15 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 			vecAreaLabels = sLocCh.vecAreaLabels;
 			vecDistToBoundaryPerCh = sLocCh.vecDistToBoundaryPerCh;
 			matCoordsPerCh = sLocCh.matCoordsPerCh;
+			
+			%check match
+			[vecClustAreaId,cellClustAreaLabel,cellClustAreaFull] = PF_GetAreaPerCluster(sProbeCoords,vecDepth);
+			indSame = strcmp(cellAreaPerCh(:),cellClustAreaFull(:));
+			dblOverlap = sum(indSame)/length(indSame);
+			if dblOverlap < 0.5
+				fprintf('Area assignment agreement for %s is %.3f, please check!\n',strName,dblOverlap);
+				error
+			end
 			
 			%get cluster depths
 			[spikeAmps, vecAllSpikeDepth] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
@@ -92,14 +106,15 @@ end
 
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
+intUseAreaNum = numel(cellUseAreas);
 
 %% pre-allocate
-cellAggBoundDist = cell(2,2);
-cellAggSpikeDur = cell(2,2);
-cellAggSpikePTR = cell(2,2);
-cellAggSpikeHz = cell(2,2);
-cellAggSpikeRLR = cell(2,2);
-cellAggCoords = cell(2,2);
+cellAggBoundDist = cell(intUseAreaNum,2);
+cellAggSpikeDur = cell(intUseAreaNum,2);
+cellAggSpikePTR = cell(intUseAreaNum,2);
+cellAggSpikeHz = cell(intUseAreaNum,2);
+cellAggSpikeRLR = cell(intUseAreaNum,2);
+cellAggCoords = cell(intUseAreaNum,2);
 
 % run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -120,7 +135,7 @@ for intSubType=1:2
 	vecRunRecs = find(indUseRecs & ~(indRemRecs));
 	%vecRunRecs = intBestRec;
 	for intRecIdx=1:numel(vecRunRecs)
-		intRec=vecRunRecs(intRecIdx)
+		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
 		
@@ -168,7 +183,8 @@ for intSubType=1:2
 			matData = [];
 			vecOrientation = [];
 			for intBlockIdx=1:numel(vecBlocksDG)
-				intBlock = vecBlocksDG(intBlockIdx)
+				intBlock = vecBlocksDG(intBlockIdx);
+				fprintf('Processing rec %d/%d (%s), B%d, area %s [%s]\n',intRecIdx,numel(vecRunRecs),strName,intBlockIdx,cellAreaGroupsAbbr{intArea},getTime);
 				sBlock = sRec.cellBlock{intBlock};
 				intPopCounter = intPopCounter + 1;
 				
@@ -335,7 +351,7 @@ for intSubType=1:2
 	
 	vecRLR = cellAggSpikeRLR{2,intSubType};
 	matCABA = cellAggCoords{2,intSubType};
-	scatter3(matCABA(2,:),matCABA(3,:),matCABA(1,:),[],vecRLR,'marker',cellMarker{intSubType});
+	scatter3(matCABA(3,:),matCABA(1,:),matCABA(2,:),[],vecRLR,'marker',cellMarker{intSubType});
 	
 	
 end

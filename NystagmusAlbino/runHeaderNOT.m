@@ -1,6 +1,6 @@
 %% load data
-%strDataPath = 'F:\Data\Processed\Neuropixels';
-strDataPath = 'E:\DataPreProcessed';
+strDataPath = 'F:\Data\Processed\Neuropixels';
+%strDataPath = 'E:\DataPreProcessed';
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
 if ~exist('sExp','var') || isempty(sExp)
 	sExp = [];
@@ -35,8 +35,9 @@ cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
 %NOT
 cellUseAreas{2} = {'nucleus of the optic tract'};
 %hippocampus
+cellUseAreas{3} = {'Field CA1','Field CA2','Field CA3'};
 %cellUseAreas{3} = {'Hippocampal','Field CA1','Field CA2','Field CA3','subiculum','Postsubiculum','Prosubiculum','dentate gyrus'};
-cellUseAreas{3} = {'superior colliculus'};
+%cellUseAreas{3} = {'superior colliculus'};
 cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
 cellSubjectGroups = {'BL6','DBA'};

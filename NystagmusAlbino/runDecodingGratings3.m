@@ -17,7 +17,7 @@ vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
 
 %% pre-allocate
-intMinCells = 3;%NOT+interaction significant at (1-off diag): 7, 8, 9, 10; not sign. at 6; only diag: 6,7,8 (only interaction), 9,10 (both)
+intMinCells = 1;%NOT+interaction significant at (1-off diag): 7, 8, 9, 10; not sign. at 6; only diag: 6,7,8 (only interaction), 9,10 (both)
 intStimNr = 24;
 matDiag = diag(diag(true(intStimNr,intStimNr)));
 matIsCorrect = circshift(matDiag,-1) | matDiag | circshift(matDiag,1);
@@ -205,8 +205,12 @@ for intSubType=1:2
 			subplot(2,3,2)
 			matConfusion = getFillGrid(zeros(intStimNr),vecDecodedIndexCV_LR_Ctx(indBothWrong),vecDecodedIndexCV_LR_NOT(indBothWrong),ones(intTrials,1));
 			imagesc(matConfusion);
-			dblOnDiag = sum(diag(matConfusion))/sum(matConfusion(:));
-			dblChanceDiag = intStimNr/(intStimNr.^2);
+			matOriX = repmat(vecUnique,[1 size(vecUnique,1)]);
+			matOriY = matOriX';
+			matOriDiff = abs(circ_dist(deg2rad(matOriX),deg2rad(matOriY)));
+			matUseDiag = matOriDiff < (0.5/intStimNr)*2*pi;
+			dblOnDiag = sum(matConfusion(matUseDiag))/sum(matConfusion(:));
+			dblChanceDiag = sum(matUseDiag(:))/(intStimNr.^2);
 			%dblOnDiag = sum(matConfusion(matIsCorrect))/sum(matConfusion(:));
 			%dblChanceDiag = dblChanceP;
 			[phat,pci]=binofit(dblOnDiag*sum(matConfusion(:)),sum(matConfusion(:)));
@@ -225,15 +229,36 @@ for intSubType=1:2
 			hold off
 			fixfig;grid off
 			title(sprintf('P(Same error) +/- 95-CI, -- chance; Bino-test.p=%.3f',pBino));
+			
+			%ori diff
+			vecOriDiff = round(rad2deg(matOriDiff(:)));
+			vecErrorCounts = matConfusion(:);
+			[vecTrialTypesDiff,vecUniqueDiff,vecCountsDiff] = val2idx(vecOriDiff);
+			
+			vecCountsPerOri= accumarray(vecTrialTypesDiff,vecErrorCounts);
+			vecErrorFracPerOri = (vecCountsPerOri ./vecCountsDiff);
+			vecErrorFracPerOri = vecErrorFracPerOri ./ sum(vecErrorFracPerOri(:));
+			[R,P] = corrcoef(vecUniqueDiff,vecErrorFracPerOri);
+			
+			subplot(2,3,4)
+			hold on
+			scatter(vecUniqueDiff,vecErrorFracPerOri)
+			hold off
+			ylabel('Norm. fraction of errors');
+			xlabel('Orientation difference Ctx/NOT (\Deltadeg)');
+			set(gca,'xtick',vecUniqueDiff(1:2:end));
+			xlim([0 max(vecUniqueDiff)]);
+			title(sprintf('R=%.3f, p=%.3e',R(1,2),P(1,2)));
+			fixfig;grid off
 			maxfig;drawnow;
 			
 			if strcmp(strSubjectType,'BL6')
 				matAggConfWt = matAggConfWt + matConfusion;
-				vecCorrectRWt(end+1) = r(1,2);
+				vecCorrectRWt(end+1) = R(1,2);
 				vecPropOnDiagWt(end+1) = dblOnDiag;
 			else
 				matAggConfAlb = matAggConfAlb + matConfusion;
-				vecCorrectRAlb(end+1) = r(1,2);
+				vecCorrectRAlb(end+1) = R(1,2);
 				vecPropOnDiagAlb(end+1) = dblOnDiag;
 			end
 		end

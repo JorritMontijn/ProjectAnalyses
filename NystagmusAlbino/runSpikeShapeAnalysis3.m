@@ -6,14 +6,14 @@
 %strTargetPath
 %cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
 %cellUseAreas{2} = {'nucleus of the optic tract'};
-%cellUseAreas{3} = {'superior colliculus'};
+%cellUseAreas{3} = {'Field CA1','Field CA2','Field CA3'};
 %cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 %cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
 %cellSubjectGroups = {'BL6','DBA'};
 runHeaderNOT;
 
-%strAllenCCFPath = 'F:\Data\AllenCCF';
-strAllenCCFPath = 'E:\AllenCCF';
+strAllenCCFPath = 'F:\Data\AllenCCF';
+%strAllenCCFPath = 'E:\AllenCCF';
 sAtlas = AL_PrepABA(strAllenCCFPath);
 tv = sAtlas.tv;
 av = sAtlas.av;
@@ -21,9 +21,11 @@ st = sAtlas.st;
 if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea')
 	sExpNew = [];
 	%try
-	%	load(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'));
+	%	load(fullpath(strDataPath,'ProbeLocationPreProWorkspace'));
 	%catch
 		for intFile=1:numel(sExp)
+			return
+			%%
 			sAP = sExp(intFile);
 			fprintf('Loading waveforms for %d/%d: %s [%s]\n',intFile,numel(sExp),sAP.Name,getTime);
 			if ~isfield(sAP,'sPupil')
@@ -95,7 +97,7 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 		sExp = sExpNew;
 		clear sExpNew;
 		
-		save(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'),'-v7.3');
+		save(fullpath(strDataPath,'ProbeLocationPreProWorkspace2'),'-v7.3');
 		disp done
 	%end
 end

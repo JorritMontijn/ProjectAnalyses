@@ -24,6 +24,7 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 		disp('loading workspace')
 		load(fullpath(strDataPath,'ProbeLocationPreProWorkspace2'));
 	catch
+		%%
 		for intFile=1:numel(sExp)
 			
 			%%
@@ -33,17 +34,8 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 				sAP.sPupil = [];
 			end
 			strName=sAP.Name;
-		
-			%load clustering data
-			strSpikePath = sAP.sSources.sClustered.folder;
-			sSpikes = loadKSdir(strSpikePath);
-			strImPath = sAP.sSources.sEphysAp.folder;
-			strImFile = sAP.sSources.sEphysAp.name;
-			sMetaIM = DP_ReadMeta(strImFile,strImPath);
-			if ~isfield(sAP.sCluster,'Waveform')
-				[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
-			end
-			sAP.sSources.sMetaIM = sMetaIM;
+			
+			%load metadata
 			sProbeCoords = sAP.sSources.sProbeCoords;
 			cellAreaOrig = sProbeCoords.sProbeAdjusted.probe_area_full_per_depth;
 			probe_n_coords=numel(cellAreaOrig);
@@ -86,25 +78,42 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 			end
 			
 			%get cluster depths
-			[spikeAmps, vecAllSpikeDepth, templateDepths] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
-			vecAllSpikeClust = sSpikes.clu;
-			dblProbeLengthChanMap = max(sSpikes.ycoords(:));
+			strSpikePath = sAP.sSources.sClustered.folder;
+			intClustNum = numel(sAP.sCluster);
+			vecDepthRaw = nan(1,intClustNum);
+			if isfolder(strSpikePath)
+				sSpikes = loadKSdir(strSpikePath);
+				if ~isfield(sAP.sCluster,'Waveform')
+					[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
+				end
+				[spikeAmps, vecAllSpikeDepth, templateDepths] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
+				vecAllSpikeClust = sSpikes.clu;
+				dblProbeLengthChanMap = max(sSpikes.ycoords(:));
+				for intClust=1:intClustNum
+					intClustIdx = sAP.sCluster(intClust).IdxClust;
+					vecDepthRaw(intClust) = dblProbeLengthChanMap-round(median(vecAllSpikeDepth(vecAllSpikeClust==intClustIdx)));
+				end
+			else
+				dblProbeLengthChanMap = 3840;
+				for intClust=1:intClustNum
+					vecDepthRaw(intClust) = (sAP.sCluster(intClust).Depth/dblProbeLengthOrig)*dblProbeLengthChanMap;
+				end
+			end
 			
 			%assign cluster data
-			intClustNum = numel(sAP.sCluster);
 			vecOldDepth = nan(1,intClustNum);
 			vecNewDepth = nan(1,intClustNum);
 			indSameAreaPerClust = false(1,intClustNum);
 			for intClust=1:intClustNum
 				intClustIdx = sAP.sCluster(intClust).IdxClust;
-				intNewDepthRaw = dblProbeLengthChanMap-round(median(vecAllSpikeDepth(vecAllSpikeClust==intClustIdx)));
+				intNewDepthRaw = vecDepthRaw(intClust);
 				intNewDepth = intNewDepthRaw*(dblProbeLengthOrig/dblProbeLengthChanMap);
 				intDominantChannel = ceil(intNewDepth/10);
 				
 				vecOldDepth(intClust) = sAP.sCluster(intClust).Depth;
 				vecNewDepth(intClust) = intNewDepth;
 				%check cluster match
-				[vecClustAreaId,cellClustAreaLabel,cellClustAreaFull] = PF_GetAreaPerCluster(sProbeCoords,intNewDepth);
+				[vecClustAreaId,cellClustAreaLabel,cellClustAreaFull] = PF_GetAreaPerCluster(sProbeCoords,intNewDepthRaw);
 				strOldArea = sAP.sCluster(intClust).Area;
 				strNewArea = cellClustAreaFull{1};
 				indSameAreaPerClust(intClust) = strcmp(strOldArea,strNewArea);
@@ -122,7 +131,7 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 				error([mfilename ':DepthMismatch'],sprintf('Original and recalculated depths for %s do not agree, please check!\n',strName));
 			end
 			dblClustOverlap = sum(indSameAreaPerClust)/length(indSameAreaPerClust);
-			if dblClustOverlap~=1
+			if dblClustOverlap<0.99
 				error([mfilename ':AreaMismatch'],sprintf('Original and atlas-retrieved cluster areas for %s do not agree, please check!\n',strName));
 			end
 			

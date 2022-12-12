@@ -1,6 +1,9 @@
 %% load data
-strDataPath = 'F:\Data\Processed\Neuropixels';
-%strDataPath = 'E:\DataPreProcessed';
+if exist('E:\DataPreProcessed','dir')
+	strDataPath = 'E:\DataPreProcessed';
+else
+	strDataPath = 'F:\Data\Processed\Neuropixels';
+end
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
 if ~exist('sExp','var') || isempty(sExp)
 	sExp = [];

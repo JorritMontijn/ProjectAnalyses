@@ -22,7 +22,9 @@ matAggPerfWt = nan(0,numel(cellUseAreas),intStimNr);
 vecAggPerfAlb = nan(0,numel(cellUseAreas),1);
 matAggPerfAlb = nan(0,numel(cellUseAreas),intStimNr);
 matAggConfusionWt = nan(0,numel(cellUseAreas),intStimNr,intStimNr);
+vecSourceRecWt = [];
 matAggConfusionAlb = nan(0,numel(cellUseAreas),intStimNr,intStimNr);
+vecSourceRecAlb = [];
 
 cellAggPrefWt = cell(0,numel(cellUseAreas));
 cellAggPrefAlb = cell(0,numel(cellUseAreas));
@@ -181,8 +183,10 @@ for intSubType=1:2
 				vecPerf(intArea) = dblPerformanceLR;
 				if strcmp(strSubjectType,'BL6')
 					matAggConfusionWt(intPopCounter,intArea,:,:) = matConfusionLR;
+					vecSourceRecWt(intPopCounter) = intRecIdx;
 				else
 					matAggConfusionAlb(intPopCounter,intArea,:,:) = matConfusionLR;
+					vecSourceRecAlb(intPopCounter) = intRecIdx;
 				end
 				
 				%subplot(2,3,intArea)
@@ -446,21 +450,21 @@ export_fig(fullpath(strTargetPath,['OriDecodingAndPreference.pdf']));
 %define horizontal and vertical
 figure;maxfig;
 dblSurroundDegs = 30;
-indVert = mod(vecUnique,180) <= 0+dblSurroundDegs | mod(vecUnique,180) >= 180-dblSurroundDegs;
-indHorz = mod(vecUnique,180) >= 90-dblSurroundDegs & mod(vecUnique,180) <= 90+dblSurroundDegs;
-vecVertOris = vecUnique(indVert);
-vecHorzOris = vecUnique(indHorz);
+indHorz = mod(vecUnique,180) <= 0+dblSurroundDegs | mod(vecUnique,180) >= 180-dblSurroundDegs;
+indVert = mod(vecUnique,180) >= 90-dblSurroundDegs & mod(vecUnique,180) <= 90+dblSurroundDegs;
+vecVertOris = vecUnique(indHorz);
+vecHorzOris = vecUnique(indVert);
 
 %extract data
-vecWtPerfCtx_Vert = mean(matWtPerfCtx(:,indVert),2);
-vecWtPerfCtx_Horz = mean(matWtPerfCtx(:,indHorz),2);
-vecAlbPerfCtx_Vert = mean(matAlbPerfCtx(:,indVert),2);
-vecAlbPerfCtx_Horz = mean(matAlbPerfCtx(:,indHorz),2);
+vecWtPerfCtx_Vert = mean(matWtPerfCtx(:,indHorz),2);
+vecWtPerfCtx_Horz = mean(matWtPerfCtx(:,indVert),2);
+vecAlbPerfCtx_Vert = mean(matAlbPerfCtx(:,indHorz),2);
+vecAlbPerfCtx_Horz = mean(matAlbPerfCtx(:,indVert),2);
 
-vecWtPerfNot_Vert = mean(matWtPerfNot(:,indVert),2);
-vecWtPerfNot_Horz = mean(matWtPerfNot(:,indHorz),2);
-vecAlbPerfNot_Vert = mean(matAlbPerfNot(:,indVert),2);
-vecAlbPerfNot_Horz = mean(matAlbPerfNot(:,indHorz),2);
+vecWtPerfNot_Vert = mean(matWtPerfNot(:,indHorz),2);
+vecWtPerfNot_Horz = mean(matWtPerfNot(:,indVert),2);
+vecAlbPerfNot_Vert = mean(matAlbPerfNot(:,indHorz),2);
+vecAlbPerfNot_Horz = mean(matAlbPerfNot(:,indVert),2);
 
 subplot(2,3,1)
 hold on
@@ -547,6 +551,7 @@ fixfig;grid off
 drawnow;
 
 %% decoding performance of anti-direction vs chance for bl6 and albino
+boolMergeBlocks = true;
 matConfCtxWt = squeeze(matAggConfusionWt(:,1,:,:));
 indRemCtxWt = sum(sum(matConfCtxWt,2),3)==0;
 matConfCtxWt(indRemCtxWt,:,:)=[];
@@ -561,6 +566,7 @@ matConfNotAlb = squeeze(matAggConfusionAlb(:,2,:,:));
 indRemNotAlb = sum(sum(matConfNotAlb,2),3)==0;
 matConfNotAlb(indRemNotAlb,:,:)=[];
 
+%merge
 matProDir = diag(diag(true(intStimNr,intStimNr)));
 matAntiDir = circshift(matProDir,intStimNr/2,1);
 

@@ -13,17 +13,17 @@
 clearvars -except sExp;
 runHeaderNOT;
 
-%strAllenCCFPath = 'F:\Data\AllenCCF';
-strAllenCCFPath = 'E:\AllenCCF';
+
 sAtlas = AL_PrepABA(strAllenCCFPath);
 tv = sAtlas.tv;
 av = sAtlas.av;
 st = sAtlas.st;
 if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea')
 	sExpNew = [];
-	%try
-	%	load(fullpath(strDataPath,'ProbeLocationPreProWorkspace'));
-	%catch
+	try
+		disp('loading workspace')
+		load(fullpath(strDataPath,'ProbeLocationPreProWorkspace2'));
+	catch
 		for intFile=1:numel(sExp)
 			
 			%%
@@ -168,7 +168,7 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 		
 		save(fullpath(strDataPath,'ProbeLocationPreProWorkspace2'),'-v7.3');
 		disp done
-	%end
+	end
 end
 
 
@@ -177,6 +177,7 @@ end
 
 vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
+cellUseAreas(3) = [];
 intUseAreaNum = numel(cellUseAreas);
 
 %% pre-allocate
@@ -186,6 +187,10 @@ cellAggSpikePTR = cell(intUseAreaNum,2);
 cellAggSpikeHz = cell(intUseAreaNum,2);
 cellAggSpikeRLR = cell(intUseAreaNum,2);
 cellAggCoords = cell(intUseAreaNum,2);
+cellAggCoords2 = cell(intUseAreaNum,2);
+cellAggArea = cell(intUseAreaNum,2);
+cellAggSelfArea = cell(intUseAreaNum,2);
+cellAggSourceRec = cell(intUseAreaNum,2);
 
 % run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -209,6 +214,7 @@ for intSubType=1:2
 		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
+		if sRec.sSources.sProbeCoords.sProbeAdjusted.probe_vector_sph(6)<450,continue;end
 		
 		% split cells into areas
 		cellCellsPerArea = cell(1,numel(cellUseAreas));
@@ -222,7 +228,7 @@ for intSubType=1:2
 		dblSampRateIM = str2double(sRec.sSources.sMetaAP.imSampRate);
 		dblSampRateNI = str2double(sRec.sSources.sMetaNI.niSampRate);
 		
-		%%
+		%% compare old and new areas
 		vecSame = false(1,numel(cellAreasPerCluster));
 		for i=1:numel(cellAreasPerCluster)
 			strCleanOld = strrep(strrep(cellAreasPerCluster{i},'layer ',''),'/','');
@@ -237,6 +243,63 @@ for intSubType=1:2
 			fprintf('Area assignment agreement for %s is %.3f, please check!\n',strName,dblAgreement);
 		end
 		
+		%% retrieve using alternative 2
+		%get locations along probe
+		sProbeCoords = sRec.sSources.sProbeCoords;
+		[probe_area_ids,probe_area_boundaries,probe_area_centers,matLocCh] = PH_GetProbeAreas(sProbeCoords.sProbeAdjusted.probe_vector_cart,sAtlas.av);
+		probe_area_idx = probe_area_ids(round(probe_area_centers));
+		probe_area_labels = sAtlas.st.acronym(probe_area_idx);
+		probe_area_full = sAtlas.st.name(probe_area_idx);
+		
+		cellAreasPerCluster3 = sProbeCoords.sProbeAdjusted.probe_area_full_per_cluster;
+		
+		sProbeAdjusted2 = sProbeCoords.sProbeAdjusted;
+		sProbeAdjusted2.probe_area_ids = probe_area_idx;
+		
+		%add locations to GUI data
+		sProbeAdjusted2.probe_area_ids_per_depth = probe_area_ids;
+		sProbeAdjusted2.probe_area_labels_per_depth = sAtlas.st.acronym(probe_area_ids);
+		sProbeAdjusted2.probe_area_full_per_depth = sAtlas.st.name(probe_area_ids);
+		sLocCh = getBrainAreasPerChannel(sProbeAdjusted2,sAtlas,false,numel(sProbeAdjusted2.probe_area_full_per_depth));
+		cellAreasPerChannel = sProbeAdjusted2.probe_area_full_per_depth;
+		
+		%get clusters
+		vecDepth = cell2vec({sRec.sCluster.Depth});
+		dblProbeLengthProbe = sRec.sSources.sProbeCoords.ProbeLengthMicrons;
+		dblProbeLengthPax = sRec.stereo_coordinates.ProbeLength;
+		dblProbeLengthSph = sRec.sSources.sProbeCoords.sProbeAdjusted.probe_vector_sph(6)*mean(sRec.sSources.sProbeCoords.VoxelSize);
+		dblProbeLengthCart = sqrt(sum((diff(sRec.sSources.sProbeCoords.sProbeAdjusted.probe_vector_cart,1,1).*sRec.sSources.sProbeCoords.VoxelSize).^2));
+		dblProbeLengthBregma = sRec.sSources.sProbeCoords.sProbeAdjusted.probe_vector_bregma(6);
+		
+		vecDepthAP = cell2vec({sRec.sCluster.Depth});
+		vecDepthUPF = mean(sProbeCoords.VoxelSize)*sProbeCoords.sProbeAdjusted.depth_per_cluster;
+		vecDepthOnProbe = (vecDepthAP./dblProbeLengthSph)*dblProbeLengthProbe;
+		
+		sProbeCoords2.sProbeAdjusted = sProbeAdjusted2;
+		sProbeCoords2.ProbeLengthMicrons = sProbeCoords.ProbeLengthMicrons;
+		[vecClustAreaId,cellClustAreaLabel,cellClustAreaFull,vecVoxelDepth] = PF_GetAreaPerCluster(sProbeCoords2,vecDepth);
+		vecUsedDepth = (min(max(round(vecVoxelDepth),1),floor(sProbeCoords2.sProbeAdjusted.probe_vector_sph(end)))/floor(sProbeCoords2.sProbeAdjusted.probe_vector_sph(end)))*sProbeCoords.ProbeLengthMicrons;
+		vecUsedLocsPerCluster = min(max(round(vecVoxelDepth),1),floor(sProbeCoords2.sProbeAdjusted.probe_vector_sph(end)));
+		matLocPerCluster = matLocCh(:,vecUsedLocsPerCluster);
+		
+		sLocCh = getBrainAreasPerChannel(sProbeAdjusted2,sAtlas,false,vecDepthUPF);
+		cellAreasPerClusterNew = sLocCh.cellAreaPerCh;
+		dblSimilarity = mean(strcmp(cellAreasPerClusterNew,cellClustAreaFull));
+		
+		dblSimilarityNewAPToOldUPF = mean(strcmp(cellAreasPerClusterNew,cellAreasPerCluster'));
+		
+		dblSimilarityNewUPFdToOldUPF = mean(strcmp(cellClustAreaFull,cellAreasPerCluster')); %this is wrong!
+		
+		dblSimilarityNewAPToOldAP = mean(strcmp(cellAreasPerClusterNew,cellSelfPerCluster'));
+		
+		dblSimilarityNewUPFToOldAP = mean(strcmp(cellClustAreaFull,cellSelfPerCluster'));
+		
+		
+		%% check UPF depth vs AP depth
+		[vecClustCorrAreaId,cellClustCorrAreaLabel,cellClustCorrAreaFull,vecCorrVoxelDepth] = PF_GetAreaPerCluster(sProbeCoords2,vecDepthOnProbe);
+		dblSimilarityNewestUPFdToOldUPF = mean(strcmp(cellClustCorrAreaFull,cellAreasPerClusterNew));
+		
+		%% waveforms
 		%get waveform in areas
 		for intArea=1:intUseAreaNum
 			%include?
@@ -340,11 +403,17 @@ for intSubType=1:2
 			%get distance to boundary and mean rates
 			vecSpikeHz = mean(matUseData,2)';
 			
+			%get source rec
+			vecSourceRec = ones(size(vecSpikeHz))*intRec;
+			
 			%get waveform props
 			dblRecDur = max(cellfun(@max,{sRec.sCluster(vecSelectCells).SpikeTimes})) - min(cellfun(@min,{sRec.sCluster(vecSelectCells).SpikeTimes}));
 			vecSpikeRate = cellfun(@numel,{sRec.sCluster(vecSelectCells).SpikeTimes})/dblRecDur;
 			matAreaWaveforms = cell2mat({sRec.sCluster(vecSelectCells).Waveform}'); %[cell x sample]
 			matCABA = cell2mat({sRec.sCluster(vecSelectCells).CoordsABA}')'; %[cell x sample]
+			matCUPF = matLocPerCluster(:,vecSelectCells);
+			cellArea = {sRec.sCluster(vecSelectCells).Area};
+			cellSelfArea = {sRec.sCluster(vecSelectCells).SelfArea};
 			intNeurons=size(matAreaWaveforms,1);
 			vecSpikeDur = nan(1,intNeurons);
 			vecSpikePTR = nan(1,intNeurons);
@@ -366,40 +435,29 @@ for intSubType=1:2
 			cellAggSpikeHz{intArea,intSubType} = cat(2,cellAggSpikeHz{intArea,intSubType},vecSpikeHz(:)');
 			cellAggSpikeRLR{intArea,intSubType} = cat(2,cellAggSpikeRLR{intArea,intSubType},vecRLR(:)');
 			cellAggCoords{intArea,intSubType} = cat(2,cellAggCoords{intArea,intSubType},matCABA);
+			cellAggCoords2{intArea,intSubType} = cat(2,cellAggCoords2{intArea,intSubType},matCUPF);
+			cellAggArea{intArea,intSubType} = cat(2,cellAggArea{intArea,intSubType},cellArea);
+			cellAggSelfArea{intArea,intSubType} = cat(2,cellAggSelfArea{intArea,intSubType},cellSelfArea);
+			cellAggSourceRec{intArea,intSubType} = cat(2,cellAggSourceRec{intArea,intSubType},vecSourceRec);
 		end
 	end
 end
 
-%% plot 1
-%av is [AP x DV x ML]
-dblReduceBy = 2;
-vecAP = (dblReduceBy/2):dblReduceBy:size(av,1);
-vecDV = (dblReduceBy/2):dblReduceBy:size(av,2);
-vecML = (dblReduceBy/2):dblReduceBy:size(av,3);
-
-avRed = av(vecAP,vecDV,vecML);
-SE = strel('sphere',1);
-avCenter = avRed>1;
-avCenter = imfill(avCenter,'holes');
-avErode = imerode(avCenter,SE);
-avEdge = avCenter - avErode;
-
-SE1 = strel('disk',1);
-intPoints = 7;
-matLines = dblReduceBy*getTrace3D(avEdge,intPoints);
-
-%h = plot3(matLines(:,3), matLines(:,1), matLines(:,2), 'Color', [0 0 0 0.3]);
-
 %% find NOT
+%find bregma
+vecBregma = sAtlas.Bregma;
+
 avNot=av==(st.index(contains(st.name,'nucleus of the optic tract','ignorecase',true))+1);
 vecRangeNot1 = find(sum(sum(avNot,2),3));
 vecRangeNot2 = find(sum(sum(avNot,1),3));
 vecRangeNot3 = find(sum(sum(avNot,1),2));
 vecNot1 = (vecRangeNot1(1)-1):(vecRangeNot1(end)+1);
+vecNot1(vecNot1>vecBregma(1))=[];
 vecNot2 = (vecRangeNot2(1)-1):(vecRangeNot2(end)+1);
 vecNot3 = (vecRangeNot3(1)-1):(vecRangeNot3(end)+1);
 avNot = avNot(vecNot1,vecNot2,vecNot3);
 avCenter = imfill(avNot,'holes');
+SE = strel('sphere',1);
 avErode = imerode(avNot,SE);
 avEdge = avCenter - avErode;
 
@@ -414,17 +472,30 @@ matLinesNot2(indRem,:) = [];
 %% plot all NOT cells at their respective locations and colour by RLR
 figure;maxfig;
 hold on
-h = plot3(matLinesNot2(:,3), matLinesNot2(:,1), matLinesNot2(:,2), 'Color', [1 0 0 0.3]);
+h = plot3(matLinesNot2(:,1), matLinesNot2(:,2), matLinesNot2(:,3), 'Color', [1 0 0 0.3]);
 h.Annotation.LegendInformation.IconDisplayStyle = 'off';
 
 cellMarker = {'x','o'};
+for intAreaType=1:2
 for intSubType=1:2
 	
-	vecRLR = cellAggSpikeRLR{2,intSubType};
-	matCABA = cellAggCoords{2,intSubType};
-	scatter3(matCABA(3,:),matCABA(1,:),matCABA(2,:),[],vecRLR,'marker',cellMarker{intSubType});
+	vecRLR = cellAggSpikeRLR{intAreaType,intSubType};
+	matCABA = cellAggCoords{intAreaType,intSubType};
+	matCABA(1,matCABA(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCABA(1,matCABA(1,:)>vecBregma(1));
+	matCUPF = cellAggCoords2{intAreaType,intSubType};
+	matCUPF(1,matCUPF(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCUPF(1,matCUPF(1,:)>vecBregma(1));
+	
+	line([matCUPF(1,:)' matCABA(1,:)']',[matCUPF(2,:)' matCABA(2,:)']',[matCUPF(3,:)' matCABA(3,:)']')
 	
 	
+	h= scatter3(matCABA(1,:),matCABA(2,:),matCABA(3,:),[],vecRLR,'marker',cellMarker{1});
+	cellText = cellAggSelfArea{intAreaType,intSubType};
+	%text(matCABA(1,:),matCABA(2,:),matCABA(3,:),cellText);
+	
+	h2= scatter3(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),[],vecRLR,'marker',cellMarker{2});
+	cellText = cellAggArea{intAreaType,intSubType};
+	%text(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),cellText);
+end
 end
 hold off
 legend(cellSubjectGroups)
@@ -432,10 +503,9 @@ xlabel('ML');
 ylabel('AP');
 zlabel('DV');
 axis equal;
-set(gca,'Zdir','reverse');
 hc=colorbar;
 clabel(hc,'R-L ratio');
-
+axis equal
 fixfig;
 grid off;
 campos([1250 250 -100]);
@@ -444,15 +514,40 @@ title(sprintf('Recording locations in NOT'));
 
 %save plot
 drawnow;
-export_fig([strTargetPath filesep sprintf('RecLocNot.tif')]);
-export_fig([strTargetPath filesep sprintf('RecLocNot.pdf')]);
+%export_fig([strTargetPath filesep sprintf('RecLocNot.tif')]);
+%export_fig([strTargetPath filesep sprintf('RecLocNot.pdf')]);
+
+%% plot shift
+figure;maxfig;
+
+for intAreaType=1:2
+for intSubType=1:2
+	
+	vecRLR = cellAggSpikeRLR{intAreaType,intSubType};
+	matCABA = cellAggCoords{intAreaType,intSubType};
+	matCABA(1,matCABA(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCABA(1,matCABA(1,:)>vecBregma(1));
+	matCUPF = cellAggCoords2{intAreaType,intSubType};
+	matCUPF(1,matCUPF(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCUPF(1,matCUPF(1,:)>vecBregma(1));
+	
+	vecDist = sqrt(sum((matCUPF - matCABA).^2));
+	vecDepth = matCUPF(3,:);
+	vecProbeLength = arrayfun(@(x) x.stereo_coordinates.ProbeLength,sExp(cellAggSourceRec{intAreaType,intSubType}));
+	subplot(2,3,(intAreaType-1)*3+intSubType)%ML,AP,DV
+	
+	scatter3(vecDist,vecDepth,vecProbeLength);
+	xlabel('ABA-UPF shift')
+	ylabel('DV-Depth')
+	zlabel('Probe Length')
+	
+end
+end
 
 %% single axes
 figure;maxfig;
 subplot(2,3,1)%DV,ML,AP
 [r,p]=corr(cellAggCoords{2,1}(1,:)',cellAggSpikeRLR{2,1}');
 scatter(cellAggCoords{2,1}(1,:),cellAggSpikeRLR{2,1},'x');
-xlabel('DV');
+xlabel('ML');
 ylabel('R-L ratio');
 title(sprintf('BL6, r(DV,RLR)=%.3f,p=%.3f',r,p));
 fixfig;
@@ -460,7 +555,7 @@ fixfig;
 subplot(2,3,2)%DV,ML,AP
 [r,p]=corr(cellAggCoords{2,1}(2,:)',cellAggSpikeRLR{2,1}');
 scatter(cellAggCoords{2,1}(2,:),cellAggSpikeRLR{2,1},'x');
-xlabel('ML');
+xlabel('AP');
 ylabel('R-L ratio');
 title(sprintf('BL6, r(ML,RLR)=%.3f,p=%.3f',r,p));
 fixfig;
@@ -468,7 +563,7 @@ fixfig;
 subplot(2,3,3)%DV,ML,AP
 [r,p]=corr(cellAggCoords{2,1}(3,:)',cellAggSpikeRLR{2,1}');
 scatter(cellAggCoords{2,1}(3,:),cellAggSpikeRLR{2,1},'x');
-xlabel('AP');
+xlabel('DV');
 ylabel('R-L ratio');
 title(sprintf('BL6, r(AP,RLR)=%.3f,p=%.3f',r,p));
 fixfig;

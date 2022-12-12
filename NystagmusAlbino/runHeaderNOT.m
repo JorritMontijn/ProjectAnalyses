@@ -32,6 +32,13 @@ strTargetPath = 'D:\Data\Results\AlbinoProject';
 %best rec DBA: 20210212B2 (rec 5)
 
 %% define area categories
+%atlas location
+if exist('E:\AllenCCF','dir')
+	strAllenCCFPath = 'E:\AllenCCF';
+else
+	strAllenCCFPath = 'F:\Data\AllenCCF';
+end
+
 %cortex
 %cellUseAreas{1} = {'Primary visual','Posteromedial visual','anteromedial visual'};
 cellUseAreas{1} = {'Primary visual','Posteromedial visual'};

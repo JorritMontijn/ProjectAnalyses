@@ -26,7 +26,7 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 	catch
 		%%
 		for intFile=1:numel(sExp)
-			
+			return
 			%%
 			sAP = sExp(intFile);
 			fprintf('Loading waveforms for %d/%d: %s [%s]\n',intFile,numel(sExp),sAP.Name,getTime);
@@ -80,7 +80,7 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 			%get cluster depths
 			strSpikePath = sAP.sSources.sClustered.folder;
 			intClustNum = numel(sAP.sCluster);
-			vecDepthRaw = nan(1,intClustNum);
+			vecDepthOnProbe = nan(1,intClustNum);
 			if isfolder(strSpikePath)
 				sSpikes = loadKSdir(strSpikePath);
 				if ~isfield(sAP.sCluster,'Waveform')
@@ -91,12 +91,12 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 				dblProbeLengthChanMap = max(sSpikes.ycoords(:));
 				for intClust=1:intClustNum
 					intClustIdx = sAP.sCluster(intClust).IdxClust;
-					vecDepthRaw(intClust) = dblProbeLengthChanMap-round(median(vecAllSpikeDepth(vecAllSpikeClust==intClustIdx)));
+					vecDepthOnProbe(intClust) = dblProbeLengthChanMap-round(median(vecAllSpikeDepth(vecAllSpikeClust==intClustIdx)));
 				end
 			else
 				dblProbeLengthChanMap = 3840;
 				for intClust=1:intClustNum
-					vecDepthRaw(intClust) = (sAP.sCluster(intClust).Depth/dblProbeLengthOrig)*dblProbeLengthChanMap;
+					vecDepthOnProbe(intClust) = (sAP.sCluster(intClust).Depth/dblProbeLengthOrig)*dblProbeLengthChanMap;
 				end
 			end
 			
@@ -106,7 +106,7 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 			indSameAreaPerClust = false(1,intClustNum);
 			for intClust=1:intClustNum
 				intClustIdx = sAP.sCluster(intClust).IdxClust;
-				intNewDepthRaw = vecDepthRaw(intClust);
+				intNewDepthRaw = vecDepthOnProbe(intClust);
 				intNewDepth = intNewDepthRaw*(dblProbeLengthOrig/dblProbeLengthChanMap);
 				intDominantChannel = ceil(intNewDepth/10);
 				
@@ -207,7 +207,7 @@ cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
 cellRemove = {};%{'RecMA5_2021-03-01R01_g0_t0'};
 indRemRecs = contains(cellExperiment,cellRemove);
 cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
-for intSubType=1:2
+for intSubType=[2 1]
 	intPopCounter = 0;
 	if intSubType == 1
 		intBestRec = 17;
@@ -223,7 +223,6 @@ for intSubType=1:2
 		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
-		if sRec.sSources.sProbeCoords.sProbeAdjusted.probe_vector_sph(6)<450,continue;end
 		
 		% split cells into areas
 		cellCellsPerArea = cell(1,numel(cellUseAreas));
@@ -273,20 +272,21 @@ for intSubType=1:2
 		cellAreasPerChannel = sProbeAdjusted2.probe_area_full_per_depth;
 		
 		%get clusters
-		vecDepth = cell2vec({sRec.sCluster.Depth});
 		dblProbeLengthProbe = sRec.sSources.sProbeCoords.ProbeLengthMicrons;
 		dblProbeLengthPax = sRec.stereo_coordinates.ProbeLength;
 		dblProbeLengthSph = sRec.sSources.sProbeCoords.sProbeAdjusted.probe_vector_sph(6)*mean(sRec.sSources.sProbeCoords.VoxelSize);
 		dblProbeLengthCart = sqrt(sum((diff(sRec.sSources.sProbeCoords.sProbeAdjusted.probe_vector_cart,1,1).*sRec.sSources.sProbeCoords.VoxelSize).^2));
 		dblProbeLengthBregma = sRec.sSources.sProbeCoords.sProbeAdjusted.probe_vector_bregma(6);
 		
+		vecDepth = cell2vec({sRec.sCluster.Depth});
+		vecDepthOnProbe = (vecDepth/dblProbeLengthSph)*dblProbeLengthProbe;
+		
 		vecDepthAP = cell2vec({sRec.sCluster.Depth});
 		vecDepthUPF = mean(sProbeCoords.VoxelSize)*sProbeCoords.sProbeAdjusted.depth_per_cluster;
-		vecDepthOnProbe = (vecDepthAP./dblProbeLengthSph)*dblProbeLengthProbe;
 		
 		sProbeCoords2.sProbeAdjusted = sProbeAdjusted2;
 		sProbeCoords2.ProbeLengthMicrons = sProbeCoords.ProbeLengthMicrons;
-		[vecClustAreaId,cellClustAreaLabel,cellClustAreaFull,vecVoxelDepth] = PF_GetAreaPerCluster(sProbeCoords2,vecDepth);
+		[vecClustAreaId,cellClustAreaLabel,cellClustAreaFull,vecVoxelDepth] = PF_GetAreaPerCluster(sProbeCoords2,vecDepthOnProbe);
 		vecUsedDepth = (min(max(round(vecVoxelDepth),1),floor(sProbeCoords2.sProbeAdjusted.probe_vector_sph(end)))/floor(sProbeCoords2.sProbeAdjusted.probe_vector_sph(end)))*sProbeCoords.ProbeLengthMicrons;
 		vecUsedLocsPerCluster = min(max(round(vecVoxelDepth),1),floor(sProbeCoords2.sProbeAdjusted.probe_vector_sph(end)));
 		matLocPerCluster = matLocCh(:,vecUsedLocsPerCluster);
@@ -297,16 +297,13 @@ for intSubType=1:2
 		
 		dblSimilarityNewAPToOldUPF = mean(strcmp(cellAreasPerClusterNew,cellAreasPerCluster'));
 		
-		dblSimilarityNewUPFdToOldUPF = mean(strcmp(cellClustAreaFull,cellAreasPerCluster')); %this is wrong!
+		dblSimilarityNewUPFdToOldUPF = mean(strcmp(cellClustAreaFull,cellAreasPerCluster'));
 		
 		dblSimilarityNewAPToOldAP = mean(strcmp(cellAreasPerClusterNew,cellSelfPerCluster'));
 		
 		dblSimilarityNewUPFToOldAP = mean(strcmp(cellClustAreaFull,cellSelfPerCluster'));
 		
-		
-		%% check UPF depth vs AP depth
-		[vecClustCorrAreaId,cellClustCorrAreaLabel,cellClustCorrAreaFull,vecCorrVoxelDepth] = PF_GetAreaPerCluster(sProbeCoords2,vecDepthOnProbe);
-		dblSimilarityNewestUPFdToOldUPF = mean(strcmp(cellClustCorrAreaFull,cellAreasPerClusterNew));
+		dblSimilarityOldUPFToOldAP = mean(strcmp(cellAreasPerCluster,cellSelfPerCluster));
 		
 		%% waveforms
 		%get waveform in areas
@@ -316,11 +313,16 @@ for intSubType=1:2
 			
 			%build cell vectors
 			vecSelectCells = find(indUseCells(:) & cellCellsPerArea{intArea}(:));
-			if isempty(vecSelectCells) || isempty(sRec.sPupil)
+			if isempty(vecSelectCells)
+				fprintf('No cells in %s for %s: skipping...\n',cellAreaGroupsAbbr{intArea},strName);
+				continue;
+			end
+			if 0%isempty(sRec.sPupil)
+				fprintf('No pupil data for %s: skipping...\n',strName);
 				continue;
 			end
 			
-			%collect data from all DG blocks
+			%% collect data from all DG blocks
 			cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
 			vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true));
 			matData = [];
@@ -341,34 +343,38 @@ for intSubType=1:2
 				end
 				
 				% get pupil data
-				dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);
-				dblFirstSamp = str2double(sRec.sSources.sMeta.firstSample);
-				vecPupilTime = sRec.sPupil.vecTime;
-				vecPupilLocX = sRec.sPupil.vecCenterX;
-				vecPupilLocY = sRec.sPupil.vecCenterY;
-				vecPupilSize = sRec.sPupil.vecRadius;
-				vecPupilSync = sRec.sPupil.vecSyncLum;
-				if isfield(sRec.sPupil,'vecBlinks') && ~all(sRec.sPupil.vecBlinks==0)
-					vecBlinks = sRec.sPupil.vecBlinks;
+				if isempty(sRec.sPupil)
+					indRemTrials = false(size(vecPupilStimOn));
 				else
-					%filter absvidlum
-					dblLowPass = 0.01/(1/median(diff(vecPupilTime)));
-					[fb,fa] = butter(2,dblLowPass,'high');
-					vecAbsVidLum = zscore(filtfilt(fb,fa, sRec.sPupil.sRaw.vecPupilAbsVidLum));
-					vecBlinks = vecAbsVidLum > 5;
+					dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);
+					dblFirstSamp = str2double(sRec.sSources.sMeta.firstSample);
+					vecPupilTime = sRec.sPupil.vecTime;
+					vecPupilLocX = sRec.sPupil.vecCenterX;
+					vecPupilLocY = sRec.sPupil.vecCenterY;
+					vecPupilSize = sRec.sPupil.vecRadius;
+					vecPupilSync = sRec.sPupil.vecSyncLum;
+					if isfield(sRec.sPupil,'vecBlinks') && ~all(sRec.sPupil.vecBlinks==0)
+						vecBlinks = sRec.sPupil.vecBlinks;
+					else
+						%filter absvidlum
+						dblLowPass = 0.01/(1/median(diff(vecPupilTime)));
+						[fb,fa] = butter(2,dblLowPass,'high');
+						vecAbsVidLum = zscore(filtfilt(fb,fa, sRec.sPupil.sRaw.vecPupilAbsVidLum));
+						vecBlinks = vecAbsVidLum > 5;
+					end
+					dblFs = 1/median(diff(vecPupilTime));
+					
+					% get blinking
+					vecBinEdges = [-inf vecPupilStimOn vecPupilStimOn(end)+median(diff(vecPupilStimOn)) inf];
+					[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecPupilTime,double(vecBlinks),vecBinEdges);
+					vecBlinkFractionPerTrial = vecMeans(2:(end-1));
+					
+					%remove trials with blinking
+					indRemTrials = vecBlinkFractionPerTrial > 0.1;
 				end
-				dblFs = 1/median(diff(vecPupilTime));
-				
-				% get blinking
-				vecBinEdges = [-inf vecPupilStimOn vecPupilStimOn(end)+median(diff(vecPupilStimOn)) inf];
-				[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecPupilTime,double(vecBlinks),vecBinEdges);
-				vecBlinkFractionPerTrial = vecMeans(2:(end-1));
-				
-				%remove trials with blinking
-				indRemTrials = vecBlinkFractionPerTrial > 0.1;
 				
 				%split by ori
-				sTrialObjects = sBlock.sStimObject(sBlock.vecTrialStimTypes);
+				sTrialObjects = sBlock.sStimObject(sBlock.vecTrialStimTypes(1:numel(sBlock.vecStimOnTime)));
 				vecThisOrientation = cell2vec({sTrialObjects.Orientation});
 				vecThisOrientation(indRemTrials) = [];
 				[vecOriIdx,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecThisOrientation);
@@ -485,27 +491,28 @@ h = plot3(matLinesNot2(:,1), matLinesNot2(:,2), matLinesNot2(:,3), 'Color', [1 0
 h.Annotation.LegendInformation.IconDisplayStyle = 'off';
 
 cellMarker = {'x','o'};
-for intAreaType=1:2
-for intSubType=1:2
-	
-	vecRLR = cellAggSpikeRLR{intAreaType,intSubType};
-	matCABA = cellAggCoords{intAreaType,intSubType};
-	matCABA(1,matCABA(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCABA(1,matCABA(1,:)>vecBregma(1));
-	matCUPF = cellAggCoords2{intAreaType,intSubType};
-	matCUPF(1,matCUPF(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCUPF(1,matCUPF(1,:)>vecBregma(1));
-	
-	line([matCUPF(1,:)' matCABA(1,:)']',[matCUPF(2,:)' matCABA(2,:)']',[matCUPF(3,:)' matCABA(3,:)']')
-	
-	
-	h= scatter3(matCABA(1,:),matCABA(2,:),matCABA(3,:),[],vecRLR,'marker',cellMarker{1});
-	cellText = cellAggSelfArea{intAreaType,intSubType};
-	%text(matCABA(1,:),matCABA(2,:),matCABA(3,:),cellText);
-	
-	h2= scatter3(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),[],vecRLR,'marker',cellMarker{2});
-	cellText = cellAggArea{intAreaType,intSubType};
-	%text(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),cellText);
-end
-end
+intAreaType = 2;
+%for intAreaType=1:2
+	for intSubType=1:2
+		
+		vecRLR = cellAggSpikeRLR{intAreaType,intSubType};
+		matCABA = cellAggCoords{intAreaType,intSubType};
+		matCABA(1,matCABA(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCABA(1,matCABA(1,:)>vecBregma(1));
+		matCUPF = cellAggCoords2{intAreaType,intSubType};
+		matCUPF(1,matCUPF(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCUPF(1,matCUPF(1,:)>vecBregma(1));
+		
+		%line([matCUPF(1,:)' matCABA(1,:)']',[matCUPF(2,:)' matCABA(2,:)']',[matCUPF(3,:)' matCABA(3,:)']')
+		
+		
+		%h= scatter3(matCABA(1,:),matCABA(2,:),matCABA(3,:),[],vecRLR,'marker',cellMarker{1});
+		%cellText = cellAggSelfArea{intAreaType,intSubType};
+		%text(matCABA(1,:),matCABA(2,:),matCABA(3,:),cellText);
+		
+		h2= scatter3(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),[],vecRLR,'marker',cellMarker{intSubType});
+		%cellText = cellAggArea{intAreaType,intSubType};
+		%text(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),cellText);
+	end
+%end
 hold off
 legend(cellSubjectGroups)
 xlabel('ML');
@@ -517,88 +524,103 @@ clabel(hc,'R-L ratio');
 axis equal
 fixfig;
 grid off;
-campos([1250 250 -100]);
-
+campos([1000 -50   100])
 title(sprintf('Recording locations in NOT'));
 
 %save plot
 drawnow;
-%export_fig([strTargetPath filesep sprintf('RecLocNot.tif')]);
-%export_fig([strTargetPath filesep sprintf('RecLocNot.pdf')]);
+export_fig([strTargetPath filesep sprintf('RecLocNot.tif')]);
+export_fig([strTargetPath filesep sprintf('RecLocNot.pdf')]);
 
 %% plot shift
 figure;maxfig;
 
 for intAreaType=1:2
-for intSubType=1:2
-	
-	vecRLR = cellAggSpikeRLR{intAreaType,intSubType};
-	matCABA = cellAggCoords{intAreaType,intSubType};
-	matCABA(1,matCABA(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCABA(1,matCABA(1,:)>vecBregma(1));
-	matCUPF = cellAggCoords2{intAreaType,intSubType};
-	matCUPF(1,matCUPF(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCUPF(1,matCUPF(1,:)>vecBregma(1));
-	
-	vecDist = sqrt(sum((matCUPF - matCABA).^2));
-	vecDepth = matCUPF(3,:);
-	vecProbeLength = arrayfun(@(x) x.stereo_coordinates.ProbeLength,sExp(cellAggSourceRec{intAreaType,intSubType}));
-	subplot(2,3,(intAreaType-1)*3+intSubType)%ML,AP,DV
-	
-	scatter3(vecDist,vecDepth,vecProbeLength);
-	xlabel('ABA-UPF shift')
-	ylabel('DV-Depth')
-	zlabel('Probe Length')
-	
-end
+	for intSubType=1:2
+		
+		vecRLR = cellAggSpikeRLR{intAreaType,intSubType};
+		matCABA = cellAggCoords{intAreaType,intSubType};
+		matCABA(1,matCABA(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCABA(1,matCABA(1,:)>vecBregma(1));
+		matCUPF = cellAggCoords2{intAreaType,intSubType};
+		matCUPF(1,matCUPF(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCUPF(1,matCUPF(1,:)>vecBregma(1));
+		
+		vecDist = sqrt(sum((matCUPF - matCABA).^2));
+		vecDepth = matCUPF(3,:);
+		vecProbeLength = arrayfun(@(x) x.stereo_coordinates.ProbeLength,sExp(cellAggSourceRec{intAreaType,intSubType}));
+		subplot(2,3,(intAreaType-1)*3+intSubType)%ML,AP,DV
+		
+		scatter3(vecDist,vecDepth,vecProbeLength);
+		xlabel('ABA-UPF shift')
+		ylabel('DV-Depth')
+		zlabel('Probe Length')
+		
+	end
 end
 
 %% single axes
+%swap to same hemisphere
+vecML1 = cellAggCoords{2,1}(1,:);
+vecML1(vecML1>vecBregma(1)) = 2*vecBregma(1) - vecML1(1,vecML1>vecBregma(1));
+vecAP1 = cellAggCoords{2,1}(2,:);
+vecDV1 = cellAggCoords{2,1}(3,:);
+vecML2 = cellAggCoords{2,2}(1,:);
+vecML2(vecML2>vecBregma(1)) = 2*vecBregma(1) - vecML2(1,vecML2>vecBregma(1));
+vecAP2 = cellAggCoords{2,2}(2,:);
+vecDV2 = cellAggCoords{2,2}(3,:);
+
 figure;maxfig;
 subplot(2,3,1)%DV,ML,AP
-[r,p]=corr(cellAggCoords{2,1}(1,:)',cellAggSpikeRLR{2,1}');
-scatter(cellAggCoords{2,1}(1,:),cellAggSpikeRLR{2,1},'x');
+[r,p]=corr(vecML1',cellAggSpikeRLR{2,1}');
+scatter(vecML1,cellAggSpikeRLR{2,1},'x');
 xlabel('ML');
 ylabel('R-L ratio');
 title(sprintf('BL6, r(DV,RLR)=%.3f,p=%.3f',r,p));
+ylim([0 1]);
 fixfig;
 
 subplot(2,3,2)%DV,ML,AP
-[r,p]=corr(cellAggCoords{2,1}(2,:)',cellAggSpikeRLR{2,1}');
-scatter(cellAggCoords{2,1}(2,:),cellAggSpikeRLR{2,1},'x');
+[r,p]=corr(vecAP1',cellAggSpikeRLR{2,1}');
+scatter(vecAP1,cellAggSpikeRLR{2,1},'x');
 xlabel('AP');
 ylabel('R-L ratio');
 title(sprintf('BL6, r(ML,RLR)=%.3f,p=%.3f',r,p));
+ylim([0 1]);
 fixfig;
 
 subplot(2,3,3)%DV,ML,AP
-[r,p]=corr(cellAggCoords{2,1}(3,:)',cellAggSpikeRLR{2,1}');
-scatter(cellAggCoords{2,1}(3,:),cellAggSpikeRLR{2,1},'x');
+[r,p]=corr(vecDV1',cellAggSpikeRLR{2,1}');
+scatter(vecDV1,cellAggSpikeRLR{2,1},'x');
 xlabel('DV');
 ylabel('R-L ratio');
 title(sprintf('BL6, r(AP,RLR)=%.3f,p=%.3f',r,p));
+ylim([0 1]);
 fixfig;
 
 subplot(2,3,4)%DV,ML,AP
-[r,p]=corr(cellAggCoords{2,2}(1,:)',cellAggSpikeRLR{2,2}');
-scatter(cellAggCoords{2,2}(1,:),cellAggSpikeRLR{2,2});
+[r,p]=corr(vecML2',cellAggSpikeRLR{2,2}');
+scatter(vecML2,cellAggSpikeRLR{2,2});
 xlabel('DV');
 ylabel('R-L ratio');
 title(sprintf('DBA, r(DV,RLR)=%.3f,p=%.3f',r,p));
+ylim([0 1]);
 fixfig;
 
 subplot(2,3,5)%DV,ML,AP
-[r,p]=corr(cellAggCoords{2,2}(2,:)',cellAggSpikeRLR{2,2}');
-scatter(cellAggCoords{2,2}(2,:),cellAggSpikeRLR{2,2});
+[r,p]=corr(vecAP2',cellAggSpikeRLR{2,2}');
+scatter(vecAP2,cellAggSpikeRLR{2,2});
 xlabel('ML');
 ylabel('R-L ratio');
 title(sprintf('DBA, r(ML,RLR)=%.3f,p=%.3f',r,p));
+ylim([0 1]);
 fixfig;
 
 subplot(2,3,6)%DV,ML,AP
-[r,p]=corr(cellAggCoords{2,2}(3,:)',cellAggSpikeRLR{2,2}');
-scatter(cellAggCoords{2,2}(3,:),cellAggSpikeRLR{2,2});
+[r,p]=corr(vecDV2',cellAggSpikeRLR{2,2}');
+scatter(vecDV2,cellAggSpikeRLR{2,2});
 xlabel('AP');
 ylabel('R-L ratio');
 title(sprintf('DBA, r(AP,RLR)=%.3f,p=%.3f',r,p));
+ylim([0 1]);
 fixfig;
 
 %save plot

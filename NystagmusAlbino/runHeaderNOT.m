@@ -5,6 +5,7 @@ else
 	strDataPath = 'F:\Data\Processed\Neuropixels';
 end
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
+sFiles(contains({sFiles.name},'MP')) = [];
 if ~exist('sExp','var') || isempty(sExp)
 	sExp = [];
 	for intFile=1:numel(sFiles)
@@ -23,7 +24,7 @@ if ~exist('sExp','var') || isempty(sExp)
 end
 
 %MP_20200115 eye tracking remove last stimulus (gunk in eye)
-cellUseForEyeTrackingMP = {'Topo','20191120','20191121','20191122','20191210','20191211','20191212','20191213','20191216','20191217','20200116','20200116R02'}; %don't forget to set high vid lum as blinks
+cellUseForEyeTrackingMP = {'Topo'}; %don't forget to set high vid lum as blinks
 cellUseForEyeTrackingMA = {'20210212','20210215','20210218','20210220','20210225','20210301'};
 cellUseForEyeTracking = cat(2,cellUseForEyeTrackingMA,cellUseForEyeTrackingMP);
 strTargetPath = 'D:\Data\Results\AlbinoProject';

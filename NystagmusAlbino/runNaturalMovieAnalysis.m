@@ -48,7 +48,7 @@ for intSubType=1:2
 	vecRunRecs = find(indUseRecs & ~(indRemRecs | indRemRecs2));
 	%vecRunRecs = intBestRec;
 	for intRecIdx=1:numel(vecRunRecs)
-		intRec=vecRunRecs(intRecIdx)
+		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
@@ -66,6 +66,7 @@ for intSubType=1:2
 		for intBlockIdx=1:numel(vecBlocksNM)
 			intBlock = vecBlocksNM(intBlockIdx);
 			sBlock = sRec.cellBlock{intBlock};
+			fprintf('Running %sB%d (rec %d/%d for %s) [%s]\n',strName,intBlock,intRecIdx,numel(vecRunRecs),strSubjectType,getTime);
 			
 			vecPupilStimOn = sBlock.vecStimOnTime+median(vecPupilLatency);
 			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);

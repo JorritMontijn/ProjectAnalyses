@@ -108,7 +108,7 @@ for intSubType=1:2
 	vecRunRecs = find(indUseRecs & ~(indRemRecs | indRemRecs2));
 	%vecRunRecs = intBestRec;
 	for intRecIdx=1:numel(vecRunRecs)
-		intRec=vecRunRecs(intRecIdx)
+		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
@@ -123,7 +123,8 @@ for intSubType=1:2
 			vecPupilLatency = 0;
 		end
 		for intBlockIdx=1:numel(vecBlocksDG)
-			intBlock = vecBlocksDG(intBlockIdx)
+			intBlock = vecBlocksDG(intBlockIdx);
+			fprintf('Running %sB%d (rec %d/%d for %s) [%s]\n',strName,intBlock,intRecIdx,numel(vecRunRecs),strSubjectType,getTime);
 			sBlock = sRec.cellBlock{intBlock};
 			intPopCounter = intPopCounter + 1;
 			
@@ -164,7 +165,7 @@ for intSubType=1:2
 			vecOrientation(indRemTrials) = [];
 			[vecOriIdx,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOrientation);
 			if numel(vecUnique) ~= 24,continue,end
-			numel({sTrialObjects.Orientation})
+			
 			%get data matrix
 			cellSpikeT = {sRec.sCluster(:).SpikeTimes};
 			vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);

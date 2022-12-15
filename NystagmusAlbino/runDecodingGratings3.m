@@ -69,6 +69,7 @@ for intSubType=1:2
 			intBlock = vecBlocksDG(intBlockIdx);
 			sBlock = sRec.cellBlock{intBlock};
 			intPopCounter = intPopCounter + 1;
+			fprintf('Running %sB%d (rec %d/%d for %s) [%s]\n',strName,intBlock,intRecIdx,numel(vecRunRecs),strSubjectType,getTime);
 			
 			if isfield(sBlock,'vecPupilStimOn')
 				vecPupilStimOn = sBlock.vecPupilStimOn;

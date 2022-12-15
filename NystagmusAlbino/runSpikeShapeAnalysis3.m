@@ -22,11 +22,10 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 	sExpNew = [];
 	try
 		disp('loading workspace')
-		load(fullpath(strDataPath,'ProbeLocationPreProWorkspace2'));
+		load(fullpath(strDataPath,'ProbeLocationPreProWorkspace'));
 	catch
 		%%
 		for intFile=1:numel(sExp)
-			return
 			%%
 			sAP = sExp(intFile);
 			fprintf('Loading waveforms for %d/%d: %s [%s]\n',intFile,numel(sExp),sAP.Name,getTime);
@@ -175,7 +174,7 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'SelfArea'
 		sExp = sExpNew;
 		clear sExpNew;
 		
-		save(fullpath(strDataPath,'ProbeLocationPreProWorkspace2'),'-v7.3');
+		save(fullpath(strDataPath,'ProbeLocationPreProWorkspace'),'-v7.3');
 		disp done
 	end
 end
@@ -530,6 +529,7 @@ title(sprintf('Recording locations in NOT'));
 %save plot
 drawnow;
 export_fig([strTargetPath filesep sprintf('RecLocNot.tif')]);
+export_fig([strTargetPath filesep sprintf('RecLocNot.jpg')]);
 export_fig([strTargetPath filesep sprintf('RecLocNot.pdf')]);
 
 %% plot shift

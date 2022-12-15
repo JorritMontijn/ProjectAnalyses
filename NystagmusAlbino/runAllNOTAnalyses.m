@@ -1,5 +1,5 @@
 %% retrieve files
-cellRem = {[mfilename '.m'],'runHeaderNOT.m'};
+cellRem = {[mfilename '.m'],'runHeaderNOT.m','runCalcRFs.m','runCrossCorrelogram.m'};
 [strPath,strFile,strExt] = fileparts(mfilename('fullpath'));
 
 sDir=dir(fullpath(strPath,filesep,'*.m'));
@@ -9,6 +9,8 @@ cellFailed = {};
 
 %% run all files
 for intFile=1:numel(cellFiles)
+	drawnow;
+	close all;
 	clearvars -except intFile cellFiles cellFailed;
 	strFile = cellFiles{intFile};
 	[strPath,strName,strExt] = fileparts(strFile);

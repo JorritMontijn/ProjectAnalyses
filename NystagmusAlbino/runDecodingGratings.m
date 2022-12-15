@@ -55,15 +55,16 @@ for intSubType=1:2
 	vecRunRecs = find(indUseRecs & ~(indRemRecs | indRemRecs2));
 	%vecRunRecs = intBestRec;
 	for intRecIdx=1:numel(vecRunRecs)
-		intRec=vecRunRecs(intRecIdx)
+		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		strName=[sRec.sJson.subject '_' sRec.sJson.date];
 		cellStimType = cellfun(@(x) x.strExpType,sRec.cellBlock,'uniformoutput',false);
 		vecBlocksDG = find(contains(cellStimType,'driftinggrating','IgnoreCase',true));
 		for intBlockIdx=1:numel(vecBlocksDG)
-			intBlock = vecBlocksDG(intBlockIdx)
+			intBlock = vecBlocksDG(intBlockIdx);
 			sBlock = sRec.cellBlock{intBlock};
 			intPopCounter = intPopCounter + 1;
+			fprintf('Running %sB%d (rec %d/%d for %s) [%s]\n',strName,intBlock,intRecIdx,numel(vecRunRecs),strSubjectType,getTime);
 			
 			if isfield(sBlock,'vecPupilStimOn')
 				vecPupilStimOn = sBlock.vecPupilStimOn;

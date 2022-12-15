@@ -54,7 +54,7 @@ for intSubType=1:2
 	vecAggOriIdx = [];
 	vecAggCounts = zeros(24,1);
 	for intRecIdx=1:numel(vecRunRecs)
-		intRec=vecRunRecs(intRecIdx)
+		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		
 		%% pupil loc
@@ -91,6 +91,7 @@ for intSubType=1:2
 			sBlock = sRec.cellBlock{intBlock};
 			vecPupilStimOn = sBlock.vecStimOnTime+median(vecPupilLatency);
 			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);
+			fprintf('Running %sB%d (rec %d/%d for %s) [%s]\n',strName,intBlock,intRecIdx,numel(vecRunRecs),strSubjectType,getTime);
 			
 			%split by ori
 			sTrialObjects = sBlock.sStimObject(sBlock.vecTrialStimTypes);

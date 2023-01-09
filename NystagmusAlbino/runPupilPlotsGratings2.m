@@ -22,12 +22,12 @@ for intSubType=1:2
 	if intSubType == 1
 		strSubjectType = 'BL6';
 		dblOffsetT=0;
-		dblAverageMouseHeadTiltInSetup = -30; %average tilt due to head-bar placement; procedures changed between BL6 and DBA experiments
+		dblAverageMouseHeadTiltInSetup = -15; %average tilt due to head-bar placement; procedures changed between BL6 and DBA experiments
 		boolInvertX = 1; %other eye was recorded, so temporonasal is nasotemporal
 	elseif intSubType == 2
 		strSubjectType = 'DBA';
 		dblOffsetT=0;
-		dblAverageMouseHeadTiltInSetup = 0;
+		dblAverageMouseHeadTiltInSetup = -15;
 		boolInvertX = 0;
 	end
 	indUseRecs = contains(cellSubjectType,strSubjectType);

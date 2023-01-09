@@ -12,8 +12,8 @@
 %cellSubjectGroups = {'BL6','DBA'};
 runHeaderNOT;
 
-%strAllenCCFPath = 'F:\Data\AllenCCF';
-strAllenCCFPath = 'E:\AllenCCF';
+strAllenCCFPath = 'F:\Data\AllenCCF';
+%strAllenCCFPath = 'E:\AllenCCF';
 [tv,av,st] = RP_LoadABA(strAllenCCFPath);
 if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDist')
 	sExpNew = [];

@@ -12,33 +12,43 @@
 %cellSubjectGroups = {'BL6','DBA'};
 runHeaderNOT;
 
-strAllenCCFPath = 'F:\Data\AllenCCF';
-%strAllenCCFPath = 'E:\AllenCCF';
-[tv,av,st] = RP_LoadABA(strAllenCCFPath);
-if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDist')
+%strAllenCCFPath = 'F:\Data\AllenCCF';
+strAllenCCFPath = 'E:\AllenCCF';
+sAtlas = AL_PrepABA(strAllenCCFPath);
+tv = sAtlas.tv;
+av = sAtlas.av;
+st = sAtlas.st;
+if 1%~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDist')
 	sExpNew = [];
-	try
-		load(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'));
-	catch
+	%try
+	%	load(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'));
+	%catch
 		for intFile=1:numel(sExp)
+			%%
 			sAP = sExp(intFile);
 			fprintf('Loading waveforms for %d/%d: %s [%s]\n',intFile,numel(sExp),sAP.Name,getTime);
 			if ~isfield(sAP,'sPupil')
 				sAP.sPupil = [];
 			end
-			%load clustering data
-			strSpikePath = sAP.sSources.sClustered.folder;
-			sSpikes = loadKSdir(strSpikePath);
-			strImPath = sLoad.sAP.sSources.sEphysAp.folder;
-			strImFile = sLoad.sAP.sSources.sEphysAp.name;
-			sMetaIM = DP_ReadMeta(strImFile,strImPath);
-			if ~exist('matClustWaveforms','var') || isempty(matClustWaveforms)
-				[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
+			strName=sAP.Name;
+			
+			%load metadata
+			sProbeCoords = sAP.sSources.sProbeCoords;
+			cellAreaOrig = sProbeCoords.sProbeAdjusted.probe_area_full_per_depth;
+			probe_n_coords=numel(cellAreaOrig);
+			
+			%check length
+			dblProbeLengthCalc = sqrt(sum((diff(sProbeCoords.sProbeAdjusted.probe_vector_cart,1,1).*sProbeCoords.VoxelSize).^2));
+			dblProbeLengthOrig = sProbeCoords.sProbeAdjusted.stereo_coordinates.ProbeLength;
+			if abs(dblProbeLengthCalc - dblProbeLengthOrig) > dblProbeLengthOrig/1e6
+				error([mfilename ':LengthMismatch'],sprintf('Probe lengths for %s do not agree, please check!\n',strName));
 			end
-			sAP.sSources.sMetaIM = sMetaIM;
 			
 			%calculate distance to area boundary
-			sLocCh = getBrainAreasPerChannel(sAP,tv,av,st,true);
+			vecFracDepth = linspace(0,1,probe_n_coords)';
+			vecDepth = vecFracDepth*dblProbeLengthCalc;%sSpikes.ycoords;
+			sLocCh = getBrainAreasPerChannel(sProbeCoords,sAtlas,false,vecDepth);
+			vecAreaAv = sLocCh.vecAreaPerChAv;
 			cellAreaPerCh = sLocCh.cellAreaPerCh;
 			cellParentAreaPerCh = sLocCh.cellParentAreaPerCh;
 			vecParentAreaPerCh_av = sLocCh.vecParentAreaPerCh_av;
@@ -48,28 +58,79 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDist
 			vecDistToBoundaryPerCh = sLocCh.vecDistToBoundaryPerCh;
 			matCoordsPerCh = sLocCh.matCoordsPerCh;
 			
-			%get cluster depths
-			if ~exist('vecAllSpikeDepth','var') || isempty(vecAllSpikeDepth)
-				[spikeAmps, vecAllSpikeDepth] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
+			%check #1: AP vs PF way
+			probe_area_ids = PH_GetProbeAreas(sProbeCoords.sProbeAdjusted.probe_vector_cart,sAtlas.av);
+			probe_area_full = sAtlas.st.name(probe_area_ids);
+			indSame = strcmp(probe_area_full(:),cellAreaOrig);
+			dblChOverlapPF = sum(indSame)/length(indSame);
+			if dblChOverlapPF~=1
+				error([mfilename ':AreaMismatch'],sprintf('UPF and Acquipix functions return different areas for %s, please check!\n',strName));
 			end
-			dblProbeLength = range(sSpikes.ycoords);
-			vecAllSpikeClust = sSpikes.clu;
+			
+			%check #2
+			indSame = strcmp(cellAreaPerCh(:),cellAreaOrig);
+			dblChOverlap1 = sum(indSame)/length(indSame);
+			if dblChOverlap1~=1
+				error([mfilename ':AreaMismatch'],sprintf('Original and atlas-retrieved areas for %s do not agree, please check!\n',strName));
+			end
+			
+			%get cluster depths
+			strSpikePath = sAP.sSources.sClustered.folder;
+			intClustNum = numel(sAP.sCluster);
+			vecDepthOnProbe = nan(1,intClustNum);
+			if isfolder(strSpikePath)
+				sSpikes = loadKSdir(strSpikePath);
+				if ~isfield(sAP.sCluster,'Waveform')
+					[vecClustIdx,matClustWaveforms] = getWaveformPerCluster(sSpikes);
+				end
+				[spikeAmps, vecAllSpikeDepth, templateDepths] = templatePositionsAmplitudes(sSpikes.temps, sSpikes.winv, sSpikes.ycoords, sSpikes.spikeTemplates, sSpikes.tempScalingAmps);
+				vecAllSpikeClust = sSpikes.clu;
+				dblProbeLengthChanMap = max(sSpikes.ycoords(:));
+				for intClust=1:intClustNum
+					intClustIdx = sAP.sCluster(intClust).IdxClust;
+					vecDepthOnProbe(intClust) = dblProbeLengthChanMap-round(median(vecAllSpikeDepth(vecAllSpikeClust==intClustIdx)));
+				end
+			else
+				dblProbeLengthChanMap = 3840;
+				for intClust=1:intClustNum
+					vecDepthOnProbe(intClust) = (sAP.sCluster(intClust).Depth/dblProbeLengthOrig)*dblProbeLengthChanMap;
+				end
+			end
 			
 			%assign cluster data
-			intClustNum = numel(sAP.sCluster);
+			vecOldDepth = nan(1,intClustNum);
+			vecNewDepth = nan(1,intClustNum);
+			indSameAreaPerClust = false(1,intClustNum);
 			for intClust=1:intClustNum
 				intClustIdx = sAP.sCluster(intClust).IdxClust;
-				intDepth = dblProbeLength-round(median(vecAllSpikeDepth(vecAllSpikeClust==intClustIdx)));
-				intDominantChannel = ceil(intDepth/10);
+				intNewDepthRaw = vecDepthOnProbe(intClust);
+				intNewDepth = intNewDepthRaw*(dblProbeLengthOrig/dblProbeLengthChanMap);
+				intDominantChannel = ceil(intNewDepth/10);
+				
+				vecOldDepth(intClust) = sAP.sCluster(intClust).Depth;
+				vecNewDepth(intClust) = intNewDepth;
+				%check cluster match
+				[vecClustAreaId,cellClustAreaLabel,cellClustAreaFull] = PF_GetAreaPerCluster(sProbeCoords,intNewDepthRaw);
+				strOldArea = sAP.sCluster(intClust).Area;
+				strNewArea = cellClustAreaFull{1};
+				indSameAreaPerClust(intClust) = strcmp(strOldArea,strNewArea);
 				
 				%assign
-				sAP.sCluster(intClust).Waveform = matClustWaveforms(sAP.sCluster(intClust).IdxClust == vecClustIdx,:);
+				if ~isfield(sAP.sCluster,'Waveform') || isempty(sAP.sCluster(intClust).Waveform)
+					sAP.sCluster(intClust).Waveform = matClustWaveforms(sAP.sCluster(intClust).IdxClust == vecClustIdx,:);
+				end
 				sAP.sCluster(intClust).BoundDist = vecDistToBoundaryPerCh(intDominantChannel);
 				sAP.sCluster(intClust).ParentArea = cellParentAreaPerCh{intDominantChannel};
 				sAP.sCluster(intClust).SelfArea = cellAreaPerCh{intDominantChannel};
-				sAP.sCluster(intClust).CoordsABA = matCoordsPerCh(:,intDominantChannel);
+				sAP.sCluster(intClust).CoordsABA = matCoordsPerCh(intDominantChannel,:);
 			end
-			
+			if any(abs(vecOldDepth - vecNewDepth) > dblProbeLengthOrig/1e6)
+				error([mfilename ':DepthMismatch'],sprintf('Original and recalculated depths for %s do not agree, please check!\n',strName));
+			end
+			dblClustOverlap = sum(indSameAreaPerClust)/length(indSameAreaPerClust);
+			if dblClustOverlap<0.99
+				error([mfilename ':AreaMismatch'],sprintf('Original and atlas-retrieved cluster areas for %s do not agree, please check!\n',strName));
+			end
 			
 			if isempty(sExpNew)
 				sExpNew = sAP;
@@ -83,7 +144,7 @@ if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDist
 		
 		save(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'),'-v7.3');
 		disp done
-	end
+	%end
 end
 
 
@@ -94,11 +155,12 @@ vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
 
 %% pre-allocate
-cellAggBoundDist = cell(2,2);
-cellAggSpikeDur = cell(2,2);
-cellAggSpikePTR = cell(2,2);
-cellAggSpikeHz = cell(2,2);
-cellAggSpikeRLR = cell(2,2);
+intUseAreaNum = 2;%numel(cellUseAreas);
+cellAggBoundDist = cell(intUseAreaNum,2);
+cellAggSpikeDur = cell(intUseAreaNum,2);
+cellAggSpikePTR = cell(intUseAreaNum,2);
+cellAggSpikeHz = cell(intUseAreaNum,2);
+cellAggSpikeRLR = cell(intUseAreaNum,2);
 
 % run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -251,6 +313,9 @@ for intSubType=1:2
 				dblTroughTime = intTrough/dblSampRateIM;
 				dblTroughToPeakTime = intTroughToPeak/dblSampRateIM;
 				dblPeakTime = intPeak/dblSampRateIM;
+				if isempty(dblTroughToPeakTime)
+					error
+				end
 				vecSpikeDur(intNeuron) = dblTroughToPeakTime;
 				vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
 			end
@@ -271,6 +336,9 @@ figure
 maxfig;
 for intSubType=1:2
 	for intArea=1:intUseAreaNum
+		if isempty(cellAggSpikeDur{intArea,intSubType})
+			continue;
+		end
 		subplot(2,3,intArea+(intSubType-1)*3)
 		colormap('redbluepurple')
 		hold on;
@@ -285,8 +353,8 @@ for intSubType=1:2
 		
 		strSubjectType = cellSubjectGroups{intSubType};
 		%scatter(1000*(cellAggSpikeDur{intArea,intSubType}+(rand(size(cellAggSpikeDur{intArea,intSubType}))-0.5)/dblSampRateIM),cellAggSpikePTR{intArea,intSubType},20+10*cellAggSpikeHz{intArea,intSubType},vecCol,'marker','.');
-		scatter(1000*(cellAggSpikeDur{intArea,intSubType}+(rand(size(cellAggSpikeDur{intArea,intSubType}))-0.5)/dblSampRateIM),cellAggSpikePTR{intArea,intSubType},...
-			50,log(1+cellAggSpikeHz{intArea,intSubType}),'marker','.');
+		scatter(1000*(cellAggSpikeDur{intArea,intSubType}+(rand(size(cellAggSpikeDur{intArea,intSubType}))-0.5)/dblSampRateIM)',cellAggSpikePTR{intArea,intSubType}',...
+			50,log(1+cellAggSpikeHz{intArea,intSubType})','marker','.');
 		h=colorbar;
 		clabel(h,'log(1+rate)');
 		hold off;
@@ -358,7 +426,7 @@ drawnow;
 export_fig([strTargetPath filesep sprintf('SpikeShapes2.tif')]);
 export_fig([strTargetPath filesep sprintf('SpikeShapes2.pdf')]);
 
-% plot 2
+%% plot 2
 %data
 %cellAggBoundDist{intArea,intSubType} = cat(2,cellAggBoundDist{intArea,intSubType},vecBoundDist(:)');
 %cellAggSpikeHz{intArea,intSubType} = cat(2,cellAggSpikeHz{intArea,intSubType},vecSpikeHz(:)');

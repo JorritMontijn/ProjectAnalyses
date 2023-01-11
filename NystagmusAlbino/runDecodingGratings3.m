@@ -27,9 +27,11 @@ dblChanceP = sum(matIsCorrect(:))/numel(matIsCorrect);
 vecCorrectRWt = [];
 vecPropOnDiagWt = [];
 matAggConfWt = zeros(intStimNr,intStimNr);
+matAggConf2Wt = zeros(intStimNr,intStimNr);
 vecCorrectRAlb = [];
 vecPropOnDiagAlb = [];
 matAggConfAlb = zeros(intStimNr,intStimNr);
+matAggConf2Alb = zeros(intStimNr,intStimNr);
 
 
 %% run
@@ -183,7 +185,7 @@ for intSubType=1:2
 			end
 			
 			%remove trials
-			indRemTrials = vecProbCorrectCtx == 0 | isnan(vecProbCorrectCtx) | vecProbCorrectNOT == 0 | isnan(vecProbCorrectNOT);
+			indRemTrials = false;%vecProbCorrectCtx == 0 | isnan(vecProbCorrectCtx) | vecProbCorrectNOT == 0 | isnan(vecProbCorrectNOT);
 			vecProbCorrectCtx(indRemTrials) = [];
 			vecProbCorrectNOT(indRemTrials) = [];
 			vecDecodedIndexCV_LR_Ctx(indRemTrials) = [];
@@ -196,7 +198,7 @@ for intSubType=1:2
 			subplot(2,3,1)
 			[r,p,ul,ll]=corrcoef(vecProbCorrectNOT(:),vecProbCorrectCtx(:));
 			scatter(vecProbCorrectNOT(:),vecProbCorrectCtx(:),'.')
-			title(sprintf('%s - Ctx/NOT coding correlation, r=%.3f, p=%.3f',strName,r(1,2),p(1,2)));
+			title(sprintf('%s - Ctx/NOT coding correlation, r=%.3f, p=%.3f',strName,r(1,2),p(1,2)),'interpreter','none');
 			xlabel('Cortex, Ori decoding P(correct)');
 			ylabel('NOT, Ori decoding P(correct)');
 			fixfig;
@@ -219,8 +221,8 @@ for intSubType=1:2
 			
 			axis xy;
 			title(sprintf('Orientation error similarity; n,NOT=%d,Ctx=%d',numel(vecSelectCellsNOT),numel(vecSelectCellsCtx)));
-			xlabel('Cortex, Ori decoding P(correct)');
-			ylabel('NOT, Ori decoding P(correct)');
+			xlabel('Cortex, decoded ori on error');
+			ylabel('NOT, decoded ori on error');
 			fixfig;grid off;
 			
 			subplot(2,3,3)
@@ -253,12 +255,76 @@ for intSubType=1:2
 			fixfig;grid off
 			maxfig;drawnow;
 			
+			%get error in NOT as function of error in Ctx
+			vecRealOri = vecUnique(vecTrialTypes);
+			vecCtxOri = vecUnique(vecDecodedIndexCV_LR_Ctx);
+			vecNotOri = vecUnique(vecDecodedIndexCV_LR_NOT);
+			
+			vecCtxError = roundi(rad2deg(circ_dist(deg2rad(vecRealOri),deg2rad(vecCtxOri))),6);
+			vecNotError = roundi(rad2deg(circ_dist(deg2rad(vecRealOri),deg2rad(vecNotOri))),6);
+			vecCtxError(vecCtxError==180)=-180;
+			vecNotError(vecNotError==180)=-180;
+			
+			vecErrorIdx = -180:median(diff(vecUnique)):179;
+			[a,vecCtxErrorIdx]=ismember(vecCtxError,vecErrorIdx);
+			[a,vecNotErrorIdx]=ismember(vecNotError,vecErrorIdx);
+			
+			%2nd comparison
+			matConfusion2WithCorrect = getFillGrid(zeros(numel(vecErrorIdx)),vecCtxErrorIdx,vecNotErrorIdx,ones(intTrials,1));
+			%remove trials where one is correct
+			matConfusion2 = matConfusion2WithCorrect;
+			matConfusion2(vecErrorIdx==0,:)=0;
+			matConfusion2(:,vecErrorIdx==0)=0;
+			matOriX2 = repmat(vecErrorIdx',[1 size(vecErrorIdx',1)])';
+			matOriY2 = matOriX2';
+			matOriDiff2 = abs(circ_dist(deg2rad(matOriX2),deg2rad(matOriY2)));
+			matUseDiag2 = matOriDiff2 < (0.5/intStimNr)*2*pi;
+			dblOnDiag;
+			dblChanceDiag;
+			dblOnDiag2 = sum(matConfusion2(matUseDiag2))/sum(matConfusion2(:));
+			dblChanceDiag2 = sum(matUseDiag2(:))/numel(matUseDiag2);
+			[phat2,pci2]=binofit(dblOnDiag2*sum(matConfusion2(:)),sum(matConfusion2(:)));
+			pBino2=myBinomTest(dblOnDiag2*sum(matConfusion2(:)),sum(matConfusion2(:)),dblChanceDiag2);
+			[dummy,vecErrorDegNot,vecErrorCountsNot] = val2idx(vecNotError);
+			[dummy,vecErrorDegCtx,vecErrorCountsCtx] = val2idx(vecCtxError);
+			
+			
+			subplot(2,3,5)
+			imagesc(vecErrorIdx,vecErrorIdx,matConfusion2WithCorrect);
+			axis xy
+			colorbar
+			ylabel('Ctx decoding error (degs)');
+			xlabel('Not decoding error (degs)');
+			set(gca,'xtick',vecErrorDegNot(1:6:end));
+			set(gca,'ytick',vecErrorDegNot(1:6:end));
+			fixfig;grid off
+			title(sprintf('method 2, P(Same error) vs chance; Bino-test p=%.3f',pBino2));
+			
+			subplot(2,3,6)
+			hold on
+			plot(vecErrorDegCtx,vecErrorCountsCtx,'b');
+			plot(vecErrorDegNot,vecErrorCountsNot,'r');
+			set(gca,'xtick',vecErrorDegNot(1:6:end));
+			hold off
+			fixfig;grid off;
+			legend({'Ctx','NOT'})
+			ylabel('Number of trials (count)');
+			xlabel('Decoding error (degs)');
+			
+			%save fig
+			drawnow;
+			export_fig([strTargetPath filesep 'single_recs' filesep sprintf('OriDecodingErrors%sB%d.tif',strName,intBlock)]);
+			saveas(gcf,[strTargetPath filesep 'single_recs' filesep sprintf('OriDecodingErrors%sB%d.pdf',strName,intBlock)]);
+			
+			%save data
 			if strcmp(strSubjectType,'BL6')
 				matAggConfWt = matAggConfWt + matConfusion;
+				matAggConf2Wt = matAggConfWt + matConfusion2WithCorrect;
 				vecCorrectRWt(end+1) = R(1,2);
 				vecPropOnDiagWt(end+1) = dblOnDiag;
 			else
 				matAggConfAlb = matAggConfAlb + matConfusion;
+				matAggConf2Alb = matAggConf2Alb + matConfusion2WithCorrect;
 				vecCorrectRAlb(end+1) = R(1,2);
 				vecPropOnDiagAlb(end+1) = dblOnDiag;
 			end
@@ -309,7 +375,7 @@ hold off
 fixfig;grid off
 maxfig;
 
-subplot(2,3,5)
+subplot(2,3,3)
 imagesc(vecUnique,vecUnique,matAggConfWt);
 axis xy;
 title('Error matrix BL6');
@@ -329,11 +395,39 @@ set(gca,'xtick',0:45:360);
 set(gca,'ytick',0:45:360);
 fixfig;grid off
 
+
+subplot(2,3,4)
+matAggConf2WtNoDiag = matAggConf2Wt;
+matAggConf2WtNoDiag(vecErrorIdx==0,:)=nan;
+matAggConf2WtNoDiag(:,vecErrorIdx==0)=nan;		
+imagesc(vecErrorIdx,vecErrorIdx,matAggConf2WtNoDiag);
+%nancolorbar(matAggConf2WtNoDiag,[min(matAggConf2WtNoDiag(:)) max(matAggConf2WtNoDiag(:))],'parula',[1 1 1]);
+axis xy;
+title('Error matrix BL6, v2');
+ylabel('Ctx decoding error (degs)');
+xlabel('Not decoding error (degs)');
+set(gca,'xtick',vecErrorDegNot(1:6:end));
+set(gca,'ytick',vecErrorDegNot(1:6:end));
+fixfig;grid off
+
+subplot(2,3,5)
+matAggConf2AlbNoDiag = matAggConf2Alb;
+matAggConf2AlbNoDiag(vecErrorIdx==0,:)=nan;
+matAggConf2AlbNoDiag(:,vecErrorIdx==0)=nan;
+imagesc(vecErrorIdx,vecErrorIdx,matAggConf2AlbNoDiag);
+%nancolorbar(matAggConf2AlbNoDiag,[min(matAggConf2AlbNoDiag(:)) max(matAggConf2AlbNoDiag(:))],'parula',[1 1 1]);
+axis xy;
+title('Error matrix DBA, v2');
+ylabel('Ctx decoding error (degs)');
+xlabel('Not decoding error (degs)');
+set(gca,'xtick',vecErrorDegNot(1:6:end));
+set(gca,'ytick',vecErrorDegNot(1:6:end));
+fixfig;grid off
+
 %
 %error add lines that envelop the diagonal?
 
 %save plot
 drawnow;
 export_fig([strTargetPath filesep sprintf('OriDecodingErrors.tif')]);
-export_fig([strTargetPath filesep sprintf('OriDecodingErrors.pdf')]);
-	
+saveas(gcf,[strTargetPath filesep sprintf('OriDecodingErrors.pdf')]);

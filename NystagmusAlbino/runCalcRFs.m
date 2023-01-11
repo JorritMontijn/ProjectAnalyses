@@ -41,7 +41,7 @@ for intSubType=1:2
 	matAggTE_Sync = [];
 	vecAggOriIdx = [];
 	vecAggCounts = zeros(24,1);
-	for intRecIdx=5:numel(vecRunRecs)
+	for intRecIdx=1:numel(vecRunRecs)
 		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		

@@ -14,13 +14,12 @@ runHeaderNOT;
 %% plot
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
 cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
-indRemoveNoEye = ~contains(strrep(cellExperiment,'-',''),cellUseForEyeTracking);
 cellRemove = {};%{'RecMA5_2021-03-01R01_g0_t0'};
 indRemRecs = contains(cellExperiment,cellRemove);
 indRemRecs2 = ~contains(cellNameAP,cellUseForEyeTracking);
 cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
 dblAverageMouseHeadTiltInSetup = -15;
-for intSubType=1:2
+for intSubType=2
 	if intSubType == 1
 		intBestRec = 17;
 		strSubjectType = 'BL6';
@@ -30,7 +29,7 @@ for intSubType=1:2
 		strSubjectType = 'DBA';
 		dblOffsetT=0;
 	end
-	indUseRecs = contains(cellSubjectType,strSubjectType) & ~indRemoveNoEye;
+	indUseRecs = contains(cellSubjectType,strSubjectType);
 	vecRunRecs = find(indUseRecs & ~(indRemRecs | indRemRecs2));
 	%vecRunRecs = intBestRec;
 	
@@ -104,26 +103,39 @@ for intSubType=1:2
 			
 			%% prep variables
 			intNeurons = numel(sRec.sCluster);
-			cellCellOnSpikeT = cellfill(cell(size(sStimObject(1).LinLoc)),[1 intNeurons]); %{N}{X,Y}{Rep} = [T_s1 T_s2 ... T_sN]
-			cellCellOffSpikeT = cellfill(cell(size(sStimObject(1).LinLoc)),[1 intNeurons]); %{N}{X,Y}{Rep} = [T_s1 T_s2 ... T_sN]
+			matLinLoc = sStimObject(1).LinLoc;
 			vecStimOn = sBlock.vecStimOnTime;
 			vecStimOff = sBlock.vecStimOffTime;
-			matLinLoc = sStimObject(1).LinLoc;
 			vecPatches = unique(matLinLoc(:));
+			if numel(vecPatches) == 252
+				matSuperLinLoc = matLinLoc;
+				matLinLoc = reshape(1:60,[6 10]);
+				vecPatches = unique(matLinLoc(:));
+				cellLinLoc2SuperLinLoc = cell(size(matLinLoc));
+				for intPatchIdx=1:numel(vecPatches)
+					vecPatchList = vecPatches(intPatchIdx);
+					[row,col]=find(matLinLoc==vecPatchList);
+					cellLinLoc2SuperLinLoc{row,col} = flat(matSuperLinLoc((row*2-1):(row*2),(col*2-1):(col*2)));
+				end
+			else
+				cellLinLoc2SuperLinLoc = num2cell(matLinLoc);
+			end
+			cellCellOnSpikeT = cellfill(cell(size(matLinLoc)),[1 intNeurons]); %{N}{X,Y}{Rep} = [T_s1 T_s2 ... T_sN]
+			cellCellOffSpikeT = cellfill(cell(size(matLinLoc)),[1 intNeurons]); %{N}{X,Y}{Rep} = [T_s1 T_s2 ... T_sN]
 			dblDur = median(vecStimOff - vecStimOn);
-			matZetaOn = nan([size(sStimObject(1).LinLoc) intNeurons]);
-			matZetaOff = nan([size(sStimObject(1).LinLoc) intNeurons]);
-			matMeanCountsOn = nan([size(sStimObject(1).LinLoc) intNeurons]);
-			matSdCountsOn = nan([size(sStimObject(1).LinLoc) intNeurons]);
-			matMeanCountsOff = nan([size(sStimObject(1).LinLoc) intNeurons]);
-			matSdCountsOff = nan([size(sStimObject(1).LinLoc) intNeurons]);
+			matZetaOn = nan([size(matLinLoc) intNeurons]);
+			matZetaOff = nan([size(matLinLoc) intNeurons]);
+			matMeanCountsOn = nan([size(matLinLoc) intNeurons]);
+			matSdCountsOn = nan([size(matLinLoc) intNeurons]);
+			matMeanCountsOff = nan([size(matLinLoc) intNeurons]);
+			matSdCountsOff = nan([size(matLinLoc) intNeurons]);
 			%% go through cells
 			boolSaveData = true;
 			for intNeuron=1:intNeurons
 				fprintf('Running %s (rec %d/%d), neuron %d/%d\n',strName,intRecIdx,numel(vecRunRecs),intNeuron,intNeurons);
 				vecSpikeT = sRec.sCluster(intNeuron).SpikeTimes;
-				matTempZetaOn = nan(size(sStimObject(1).LinLoc));
-				matTempZetaOff = nan(size(sStimObject(1).LinLoc));
+				matTempZetaOn = nan(size(matLinLoc));
+				matTempZetaOff = nan(size(matLinLoc));
 				%cull spikes
 				dblMinT = min(vecStimOn) - 10*dblDur;
 				dblMaxT = max(vecStimOn) + 10*dblDur;
@@ -133,9 +145,13 @@ for intSubType=1:2
 				for intPatchIdx=1:numel(vecPatches)
 					intPatch = vecPatches(intPatchIdx);
 					indAssign = matLinLoc==intPatch;
+					vecPatchList = cellLinLoc2SuperLinLoc{intPatch};
 					
 					%on
-					indOn = cellfun(@ismember,cellfill(intPatch,size({sStimObject.LinLocOn})),{sStimObject.LinLocOn});
+					indOn = false(size({sStimObject.LinLocOn}));
+					for intSubPatchIdx=1:numel(vecPatchList)
+						indOn = indOn | cellfun(@ismember,cellfill(vecPatchList(intSubPatchIdx),size({sStimObject.LinLocOn})),{sStimObject.LinLocOn});
+					end
 					vecPatchIsOn = find(vecBlinkFractionPerTrial(:) < 0.1 & indOn(:));
 					for intOnRepIdx=1:numel(vecPatchIsOn)
 						intTrial=vecPatchIsOn(intOnRepIdx);
@@ -144,7 +160,9 @@ for intSubType=1:2
 					end
 					
 					%off
-					indOff = cellfun(@ismember,cellfill(intPatch,size({sStimObject.LinLocOff})),{sStimObject.LinLocOff});
+					for intSubPatchIdx=1:numel(vecPatchList)
+						indOff = indOff | cellfun(@ismember,cellfill(vecPatchList(intSubPatchIdx),size({sStimObject.LinLocOff})),{sStimObject.LinLocOn});
+					end
 					vecPatchIsOff = find(vecBlinkFractionPerTrial(:) < 0.1 & indOff(:));
 					for intOffRepIdx=1:numel(vecPatchIsOff)
 						intTrial=vecPatchIsOff(intOffRepIdx);
@@ -260,16 +278,16 @@ for intSubType=1:2
 			end
 			%% go through stims
 			%{
-			matRespOn = repmat(nan(size(sStimObject(1).LinLoc)),[1 1 intStims]);
-			matRespOff = repmat(nan(size(sStimObject(1).LinLoc)),[1 1 intStims]); %#ok<*REPMAT>
+			matRespOn = repmat(nan(size(matLinLoc)),[1 1 intStims]);
+			matRespOff = repmat(nan(size(matLinLoc)),[1 1 intStims]); %#ok<*REPMAT>
 			
 			for intStim=1:intStims
 				%get spikes this stim
 				dblRate = [];
 				
 				%add to on matrix & off matrix
-				matThisOn = nan(size(sStimObject(1).LinLoc));
-				matThisOff = nan(size(sStimObject(1).LinLoc));
+				matThisOn = nan(size(matLinLoc));
+				matThisOff = nan(size(matLinLoc));
 				matThisOn(sStimObject.LinLocOn) = dblRate;
 				matThisOff(sStimObject.LinLocOff) = dblRate;
 				matRespOn(:,:,intStim) = matThisOn;

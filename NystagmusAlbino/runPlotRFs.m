@@ -260,7 +260,7 @@ for intXY=1:2
 	hold on
 	cellMarker = {'x','*'};
 	intAreaType = 2;
-	for intSubType=1%:2
+	for intSubType=2%1%:2
 		
 		matCenterRF = cellAggCenterRF{intAreaType,intSubType};
 		matCoords = cellAggCoords{intAreaType,intSubType};
@@ -277,6 +277,16 @@ for intXY=1:2
 		h2.SizeData=100;
 		%cellText = cellAggArea{intAreaType,intSubType};
 		%text(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),cellText);
+		
+		%find most predictive angle
+		fMinFunc = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',matCenterRF(intXY,:)');
+		[dblOptAngle,fval,exitflag,output] = fminbnd(fMinFunc,-2*pi,2*pi);
+		dblOptCorr = getCorrAtAngle(dblOptAngle,matCoords(1,:)',matCoords(2,:)',matCenterRF(intXY,:)');
+		
+		%compare with random (shuffled) rf locations
+		
+		%runRandIters = min(100,factorial(n))
+		
 	end
 	fixfig;grid off;
 	if intXY == 1

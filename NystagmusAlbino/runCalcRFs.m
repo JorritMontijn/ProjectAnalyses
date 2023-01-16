@@ -40,7 +40,7 @@ for intSubType=2
 	matAggTE_Sync = [];
 	vecAggOriIdx = [];
 	vecAggCounts = zeros(24,1);
-	for intRecIdx=1:numel(vecRunRecs)
+	for intRecIdx=2:numel(vecRunRecs)
 		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		
@@ -160,6 +160,7 @@ for intSubType=2
 					end
 					
 					%off
+					indOff = false(size({sStimObject.LinLocOn}));
 					for intSubPatchIdx=1:numel(vecPatchList)
 						indOff = indOff | cellfun(@ismember,cellfill(vecPatchList(intSubPatchIdx),size({sStimObject.LinLocOff})),{sStimObject.LinLocOn});
 					end

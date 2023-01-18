@@ -252,6 +252,11 @@ matNotPoly=mask2poly(matNot2D','outer','MINDIST')+[vecNot1(1) vecNot2(1)];
 
 %% plot
 figure;maxfig;
+intSubType = 1;
+intAreaType = 2;
+matCenterRF = cellAggCenterRF{intAreaType,intSubType};
+matCoords = cellAggCoords{intAreaType,intSubType};
+matCoords(1,matCoords(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCoords(1,matCoords(1,:)>vecBregma(1));
 for intXY=1:2
 	subplot(2,2,intXY)
 	h = plot(matNotPoly([1:(end-1) 1],1)', matNotPoly([1:(end-1) 1],2)', 'Color', [1 0 0 0.3]);
@@ -259,40 +264,106 @@ for intXY=1:2
 	%h.Annotation.LegendInformation.IconDisplayStyle = 'off';
 	hold on
 	cellMarker = {'x','*'};
-	intAreaType = 2;
-	for intSubType=2%1%:2
-		
-		matCenterRF = cellAggCenterRF{intAreaType,intSubType};
-		matCoords = cellAggCoords{intAreaType,intSubType};
-		matCoords(1,matCoords(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCoords(1,matCoords(1,:)>vecBregma(1));
-		
-		%line([matCUPF(1,:)' matCABA(1,:)']',[matCUPF(2,:)' matCABA(2,:)']',[matCUPF(3,:)' matCABA(3,:)']')
-		
-		
-		%h= scatter3(matCABA(1,:),matCABA(2,:),matCABA(3,:),[],vecRLR,'marker',cellMarker{1});
-		%cellText = cellAggSelfArea{intAreaType,intSubType};
-		%text(matCABA(1,:),matCABA(2,:),matCABA(3,:),cellText);
-		
-		h2= scatter(matCoords(1,:)',matCoords(2,:)',[],matCenterRF(intXY,:)','marker',cellMarker{intSubType});
-		h2.SizeData=100;
-		%cellText = cellAggArea{intAreaType,intSubType};
-		%text(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),cellText);
-		
-		%find most predictive angle
-		fMinFunc = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',matCenterRF(intXY,:)');
-		[dblOptAngle,fval,exitflag,output] = fminbnd(fMinFunc,-2*pi,2*pi);
-		dblOptCorr = getCorrAtAngle(dblOptAngle,matCoords(1,:)',matCoords(2,:)',matCenterRF(intXY,:)');
-		
-		%compare with random (shuffled) rf locations
-		
-		%runRandIters = min(100,factorial(n))
-		
-	end
+	
+	%line([matCUPF(1,:)' matCABA(1,:)']',[matCUPF(2,:)' matCABA(2,:)']',[matCUPF(3,:)' matCABA(3,:)']')
+	
+	
+	%h= scatter3(matCABA(1,:),matCABA(2,:),matCABA(3,:),[],vecRLR,'marker',cellMarker{1});
+	%cellText = cellAggSelfArea{intAreaType,intSubType};
+	%text(matCABA(1,:),matCABA(2,:),matCABA(3,:),cellText);
+	
+	h2= scatter(matCoords(1,:)',matCoords(2,:)',[],matCenterRF(intXY,:)','marker',cellMarker{intSubType});
+	h2.SizeData=100;
+	%cellText = cellAggArea{intAreaType,intSubType};
+	%text(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),cellText);
+	
 	fixfig;grid off;
 	if intXY == 1
+		intRange = 10;
 		title(sprintf('Horizontal RF location'));
 	elseif intXY == 2
+		intRange = 7;
 		title(sprintf('Vertical RF location'));
 		
 	end
 end
+
+%% test retinotopy with 90-deg constraint between x and y
+
+%find most predictive angle
+fMinFuncX = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',matCenterRF(1,:)');
+[dblRealOptAngleX,fval,exitflag,output] = fminbnd(fMinFuncX,-2*pi,2*pi);
+dblRealOptCorrX = getCorrAtAngle(dblRealOptAngleX,matCoords(1,:)',matCoords(2,:)',matCenterRF(1,:)');
+
+fMinFuncY = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',matCenterRF(2,:)');
+[dblRealOptAngleY,fval,exitflag,output] = fminbnd(fMinFuncY,-2*pi,2*pi);
+dblRealOptCorrY = getCorrAtAngle(dblRealOptAngleY,matCoords(1,:)',matCoords(2,:)',matCenterRF(2,:)');
+dblAngleDiff = rad2deg(circ_dist(dblRealOptAngleX,dblRealOptAngleY))
+
+%compare with random (shuffled) rf locations
+intP = numel(matCenterRF(intXY,:)');
+intRandIters = min(10000,factorial(intP));
+vecRandCorr = nan(1,intRandIters);
+vecRandAngle = nan(1,intRandIters);
+hTic=tic;
+for intIter=1:intRandIters
+	%randomize RF location
+	%vecRandRFs = matCenterRF(intXY,randperm(intP));
+	vecRandRFs = randi(intRange,[1 intP]);
+	
+	%find most predictive angle
+	fMinFunc = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',vecRandRFs');
+	[dblOptAngle,fval,exitflag,output] = fminbnd(fMinFunc,-2*pi,2*pi);
+	dblOptCorr = getCorrAtAngle(dblOptAngle,matCoords(1,:)',matCoords(2,:)',vecRandRFs');
+	
+	%save
+	vecRandCorr(intIter) = dblOptCorr;
+	vecRandAngle(intIter) = dblOptAngle;
+	
+	%msg
+	if toc(hTic) > 5
+		fprintf('%d/%d...\n',intIter,intRandIters);
+		hTic=tic;
+	end
+end
+
+%plot rand
+dblCorrP = sum(vecRandCorr>dblRealOptCorr)./intRandIters
+
+%% for single direction
+%{
+%find most predictive angle
+fMinFunc = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',matCenterRF(intXY,:)');
+[dblRealOptAngle,fval,exitflag,output] = fminbnd(fMinFunc,-2*pi,2*pi);
+dblRealOptCorr = getCorrAtAngle(dblRealOptAngle,matCoords(1,:)',matCoords(2,:)',matCenterRF(intXY,:)');
+
+%compare with random (shuffled) rf locations
+intP = numel(matCenterRF(intXY,:)');
+intRandIters = min(10000,factorial(intP));
+vecRandCorr = nan(1,intRandIters);
+vecRandAngle = nan(1,intRandIters);
+hTic=tic;
+for intIter=1:intRandIters
+	%randomize RF location
+	%vecRandRFs = matCenterRF(intXY,randperm(intP));
+	vecRandRFs = randi(intRange,[1 intP]);
+	
+	%find most predictive angle
+	fMinFunc = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',vecRandRFs');
+	[dblOptAngle,fval,exitflag,output] = fminbnd(fMinFunc,-2*pi,2*pi);
+	dblOptCorr = getCorrAtAngle(dblOptAngle,matCoords(1,:)',matCoords(2,:)',vecRandRFs');
+	
+	%save
+	vecRandCorr(intIter) = dblOptCorr;
+	vecRandAngle(intIter) = dblOptAngle;
+	
+	%msg
+	if toc(hTic) > 5
+		fprintf('%d/%d...\n',intIter,intRandIters);
+		hTic=tic;
+	end
+end
+
+%plot rand
+dblCorrP = sum(vecRandCorr>dblRealOptCorr)./intRandIters
+%}

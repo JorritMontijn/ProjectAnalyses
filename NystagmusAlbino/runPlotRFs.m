@@ -9,6 +9,7 @@
 %cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 %cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
 %cellSubjectGroups = {'BL6','DBA'};
+clear all;
 runHeaderNOT;
 
 sAtlas = AL_PrepABA(strAllenCCFPath);
@@ -196,6 +197,12 @@ for intSubType=[2 1]
 			colorbar
 			title('Mean On+Off','interpreter','none');
 			
+			%save plot
+			maxfig;drawnow;
+			export_fig([strTargetPath filesep 'single_recs' filesep sprintf('RF_maps_%s.tif',strRec)]);
+			export_fig([strTargetPath filesep 'single_recs' filesep sprintf('RF_maps_%s.pdf',strRec)]);
+			
+			
 			%% get probe locations
 			%get locations along probe
 			sProbeCoords = sRec.sSources.sProbeCoords;
@@ -236,7 +243,7 @@ vecRangeNot1 = find(sum(sum(avNot,2),3));
 vecRangeNot2 = find(sum(sum(avNot,1),3));
 vecRangeNot3 = find(sum(sum(avNot,1),2));
 vecNot1 = (vecRangeNot1(1)-1):(vecRangeNot1(end)+1);
-vecNot1(vecNot1>vecBregma(1))=[];
+vecNot1(vecNot1<vecBregma(1))=[];
 vecNot2 = (vecRangeNot2(1)-1):(vecRangeNot2(end)+1);
 vecNot3 = (vecRangeNot3(1)-1):(vecRangeNot3(end)+1);
 avNot = avNot(vecNot1,vecNot2,vecNot3);
@@ -250,71 +257,39 @@ intPoints = 15;
 matNot2D = sum(avEdge,3)>0;
 matNotPoly=mask2poly(matNot2D','outer','MINDIST')+[vecNot1(1) vecNot2(1)];
 
-%% plot
-figure;maxfig;
+%transform atlas to microns relative to bregma
 intSubType = 1;
 intAreaType = 2;
 matCenterRF = cellAggCenterRF{intAreaType,intSubType};
 matCoords = cellAggCoords{intAreaType,intSubType};
-matCoords(1,matCoords(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCoords(1,matCoords(1,:)>vecBregma(1));
-for intXY=1:2
-	subplot(2,2,intXY)
-	h = plot(matNotPoly([1:(end-1) 1],1)', matNotPoly([1:(end-1) 1],2)', 'Color', [1 0 0 0.3]);
-	axis equal;
-	%h.Annotation.LegendInformation.IconDisplayStyle = 'off';
-	hold on
-	cellMarker = {'x','*'};
-	
-	%line([matCUPF(1,:)' matCABA(1,:)']',[matCUPF(2,:)' matCABA(2,:)']',[matCUPF(3,:)' matCABA(3,:)']')
-	
-	
-	%h= scatter3(matCABA(1,:),matCABA(2,:),matCABA(3,:),[],vecRLR,'marker',cellMarker{1});
-	%cellText = cellAggSelfArea{intAreaType,intSubType};
-	%text(matCABA(1,:),matCABA(2,:),matCABA(3,:),cellText);
-	
-	h2= scatter(matCoords(1,:)',matCoords(2,:)',[],matCenterRF(intXY,:)','marker',cellMarker{intSubType});
-	h2.SizeData=100;
-	%cellText = cellAggArea{intAreaType,intSubType};
-	%text(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),cellText);
-	
-	fixfig;grid off;
-	if intXY == 1
-		intRange = 10;
-		title(sprintf('Horizontal RF location'));
-	elseif intXY == 2
-		intRange = 7;
-		title(sprintf('Vertical RF location'));
-		
-	end
-end
+matCoords(1,matCoords(1,:)<vecBregma(1)) = 2*vecBregma(1) - matCoords(1,matCoords(1,:)<vecBregma(1));
+matCoordsMu = sAtlas.VoxelSize'.*(matCoords - sAtlas.Bregma');
+matCoordsMu(1,:) = abs(matCoordsMu(1,:));
+matNotPolyMu= sAtlas.VoxelSize(1:2).*(matNotPoly - sAtlas.Bregma(1:2));
+matNotPolyMu(:,1) = abs(matNotPolyMu(:,1));
 
-%% test retinotopy with 90-deg constraint between x and y
-
+%% test retinotopy with 90-deg constraint between x and y; readout is mean corr of x & y
 %find most predictive angle
-fMinFuncX = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',matCenterRF(1,:)');
-[dblRealOptAngleX,fval,exitflag,output] = fminbnd(fMinFuncX,-2*pi,2*pi);
-dblRealOptCorrX = getCorrAtAngle(dblRealOptAngleX,matCoords(1,:)',matCoords(2,:)',matCenterRF(1,:)');
-
-fMinFuncY = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',matCenterRF(2,:)');
-[dblRealOptAngleY,fval,exitflag,output] = fminbnd(fMinFuncY,-2*pi,2*pi);
-dblRealOptCorrY = getCorrAtAngle(dblRealOptAngleY,matCoords(1,:)',matCoords(2,:)',matCenterRF(2,:)');
-dblAngleDiff = rad2deg(circ_dist(dblRealOptAngleX,dblRealOptAngleY))
+fMinFunc = @(x) -getMeanRFcorrWithAngleConstraint(x,matCoordsMu(1,:)',matCoordsMu(2,:)',matCenterRF(1,:)',matCenterRF(2,:)');
+[dblRealOptAngle,fval,exitflag,output] = fminbnd(fMinFunc,-2*pi,2*pi);
+[dblRealOptCorr,dblCorr1,vecProjectedLocation1,matProjectedPoints1,dblCorr2,vecProjectedLocation2,matProjectedPoints2] = getMeanRFcorrWithAngleConstraint(dblRealOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',matCenterRF(1,:)',matCenterRF(2,:)');
 
 %compare with random (shuffled) rf locations
+intRunNum = 100000;
 intP = numel(matCenterRF(intXY,:)');
-intRandIters = min(10000,factorial(intP));
+intRandIters = min(intRunNum,factorial(intP));
 vecRandCorr = nan(1,intRandIters);
 vecRandAngle = nan(1,intRandIters);
 hTic=tic;
 for intIter=1:intRandIters
 	%randomize RF location
-	%vecRandRFs = matCenterRF(intXY,randperm(intP));
-	vecRandRFs = randi(intRange,[1 intP]);
+	vecRandRFs1 = matCenterRF(1,randperm(intP));
+	vecRandRFs2 = matCenterRF(2,randperm(intP));
 	
 	%find most predictive angle
-	fMinFunc = @(x) -getCorrAtAngle(x,matCoords(1,:)',matCoords(2,:)',vecRandRFs');
+	fMinFunc = @(x) -getMeanRFcorrWithAngleConstraint(x,matCoordsMu(1,:)',matCoordsMu(2,:)',vecRandRFs1',vecRandRFs2');
 	[dblOptAngle,fval,exitflag,output] = fminbnd(fMinFunc,-2*pi,2*pi);
-	dblOptCorr = getCorrAtAngle(dblOptAngle,matCoords(1,:)',matCoords(2,:)',vecRandRFs');
+	dblOptCorr = getMeanRFcorrWithAngleConstraint(dblOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',vecRandRFs1',vecRandRFs2');
 	
 	%save
 	vecRandCorr(intIter) = dblOptCorr;
@@ -328,7 +303,162 @@ for intIter=1:intRandIters
 end
 
 %plot rand
-dblCorrP = sum(vecRandCorr>dblRealOptCorr)./intRandIters
+dblCorrP = sum(vecRandCorr>dblRealOptCorr)./intRandIters;
+
+%% plot
+%plot
+figure;maxfig;
+
+%transform RF block location to retinal degrees
+dblSubjectPosX_cm = 0; %left/right component to center of screen; negative is left of screen center
+dblSubjectPosY_cm = -2.5; %up/down component to center of screen; negative is lower than screen center
+dblScreenDistance_cm = 24; %forward component to center of screen
+dblScreenWidth_cm = 51;
+dblScreenHeight_cm = 29;
+
+%assume screen is a spherical patch
+dblScreenCenterX = -dblSubjectPosX_cm;
+dblScreenCenterZ = -dblSubjectPosY_cm;
+dblScreenCenterD = dblScreenDistance_cm;
+[azimuth,elevation,distance] = cart2sph(dblScreenCenterX,dblScreenCenterD,dblScreenCenterZ);
+azimuth = azimuth - 0.5*pi; %make forward azimuth=0
+dblScreenWidth_rad = pi - 2*atan2(distance,dblScreenWidth_cm/2);
+dblScreenHeight_rad = pi - 2*atan2(distance,dblScreenHeight_cm/2);
+az_Left = rad2deg(azimuth+dblScreenWidth_rad/2); %positive azimuth is left
+az_Right = rad2deg(azimuth-dblScreenWidth_rad/2); %negative azimuth is right
+el_Up = rad2deg(elevation+dblScreenHeight_rad/2); %positive elevation is up
+el_Down = rad2deg(elevation-dblScreenHeight_rad/2); %negative elevation is down
+az_Tot = az_Left-az_Right;
+el_Tot = el_Up-el_Down;
+az_Center = rad2deg(azimuth);
+el_Center = rad2deg(elevation);
+
+%get RF locations in degrees
+[intBlocksVert,intBlocksHorz] = size(matOnOffAvg);
+dblHorzBlockCenter = (intBlocksHorz+1)/2;
+dblVertBlockCenter = (intBlocksVert+1)/2;
+dblHorzDegsPerBlock = az_Tot/intBlocksHorz;
+dblVertDegsPerBlock = el_Tot/intBlocksVert;
+vecHorzRF_deg = az_Center+dblHorzDegsPerBlock*(matCenterRF(1,:)'-dblHorzBlockCenter);
+vecVertRF_deg = el_Center+dblVertDegsPerBlock*(dblVertBlockCenter-matCenterRF(2,:)'); %RF blocks are from top to bottom, not bottom to top
+
+%get mid point
+dblCenterX = mean(matCoordsMu(1,:));
+dblCenterY = mean(matCoordsMu(2,:));
+dblArrowLength = 10; %degrees
+
+%%
+%fit RFs to estimate retinotopic map
+%center x/y
+vecXY0=mean(matCoordsMu(1:2,:),2);
+matXY0=matCoordsMu(1:2,:)-vecXY0;
+[dblRealOptCorr,dblCorr1,vecProjectedLocation1,matProjectedPoints1,dblCorr2,vecProjectedLocation2,matProjectedPoints2] = getMeanRFcorrWithAngleConstraint(dblRealOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',vecHorzRF_deg,vecVertRF_deg);
+
+
+for intXY=1:2
+	%rotate reference vector
+	if intXY == 1
+		vecRF_deg = vecHorzRF_deg;
+		dblRot = deg2rad(0);
+		strAzEl = 'azimuth';
+		strHorzVert = 'Horizontal';
+	else
+		vecRF_deg = vecVertRF_deg;
+		dblRot = deg2rad(90);
+		strAzEl = 'elevation';
+		strHorzVert = 'Vertical';
+	end
+	matRot = [cos(dblRealOptAngle+dblRot) sin(dblRealOptAngle+dblRot);...
+		-sin(dblRealOptAngle+dblRot) cos(dblRealOptAngle+dblRot)];
+	vecRefVector=[1;0];
+	vecRotRef = matRot * vecRefVector;
+	
+	%calc corr
+	[vecProjectedLocation,matProjectedPoints] = getProjOnLine(matXY0,vecRotRef);
+	dblCorr1 = corr(vecProjectedLocation,vecRF_deg);
+	
+	%lin fit
+	p1 = polyfit(vecProjectedLocation,vecRF_deg,1);
+	vecRF0degs = vecRotRef*(-p1(2)/p1(1))+vecXY0;
+	vecRF10degs = vecRotRef*((10-p1(2))/p1(1))+vecXY0;
+	
+	%get min/max extent of RF degs in NOT
+	[vecProjectedLocationNot,matProjectedPoints] = getProjOnLine(matNotPolyMu'-vecXY0,vecRotRef);
+	dblMinRF_degs = min(vecProjectedLocationNot)*p1(1)+p1(2);
+	dblMaxRF_degs = max(vecProjectedLocationNot)*p1(1)+p1(2);
+	if dblMaxRF_degs < dblMinRF_degs
+		[dblMaxRF_degs,dblMinRF_degs] = swap(dblMinRF_degs,dblMaxRF_degs);
+	end
+	vecMinRF_loc = vecRotRef*((dblMinRF_degs-p1(2))/p1(1))+vecXY0;
+	vecMaxRF_loc = vecRotRef*((dblMaxRF_degs-p1(2))/p1(1))+vecXY0;
+	
+	%RF x
+	subplot(2,3,intXY)
+	h = plot(matNotPolyMu([1:(end-1) 1],1)', matNotPolyMu([1:(end-1) 1],2)', 'Color', [1 0 0 0.3]);
+	axis equal;
+	hold on
+	
+	h2= scatter(matCoordsMu(1,:)',matCoordsMu(2,:)',[],vecRF_deg,'filled');
+	h2.SizeData=100;
+	h2.MarkerEdgeColor = 'k';
+	
+	hold on
+	plot([0 vecRotRef(1)*100]+vecXY0(1),[0 vecRotRef(2)*100]+vecXY0(2))
+	scatter(vecRF0degs(1),vecRF0degs(2),'kx');
+	plot([vecRF0degs(1) vecRF10degs(1)],[vecRF0degs(2) vecRF10degs(2)],'k');
+	hold off
+	xlabel('Anatomical ML location (microns)');
+	ylabel('Anatomical AP location (microns)');
+	hC=colorbar;
+	ylabel(hC,sprintf('RF %s (degs)',strAzEl));
+	title(sprintf('%s RF center',strHorzVert));
+	fixfig;grid off;
+	
+	%2nd plot
+	subplot(2,3,intXY+3)
+	h = plot(matNotPolyMu([1:(end-1) 1],1)', matNotPolyMu([1:(end-1) 1],2)', 'Color', [1 0 0 0.3]);
+	axis equal;
+	hold on
+	set(gca,'clim',[dblMinRF_degs dblMaxRF_degs]);
+	plot([vecMinRF_loc(1) vecMaxRF_loc(1)],[vecMinRF_loc(2) vecMaxRF_loc(2)],'b');
+	
+	
+	h2= scatter(matCoordsMu(1,:)',matCoordsMu(2,:)',[],vecRF_deg,'filled');
+	h2.SizeData=100;
+	h2.MarkerEdgeColor = 'k';
+	
+	scatter(vecRF0degs(1),vecRF0degs(2),'kx');
+	xlabel('Anatomical ML location (microns)');
+	ylabel('Anatomical AP location (microns)');
+	hC=colorbar;
+	ylabel(hC,sprintf('RF %s (degs)',strAzEl));
+	title(sprintf('%s RF center, min = %.1f degs, max=%.1f degs',strHorzVert,dblMinRF_degs,dblMaxRF_degs));
+	fixfig;grid off;
+	
+end
+
+%significance
+subplot(2,3,3)
+
+vecBinsE = 0:0.02:1;
+vecBinsC = vecBinsE(2:end) - median(diff(vecBinsE))/2;
+vecCounts = histcounts(vecRandCorr,vecBinsE);
+plot(vecBinsC,vecCounts);
+hold on
+plot([dblRealOptCorr dblRealOptCorr],[0 0.9*max(get(gca,'ylim'))],'r--')
+%text(dblRealOptCorr,0.85*max(get(gca,'ylim')),'Real','color',[1 0 0],'VerticalAlignment','bottom','HorizontalAlignment','center','fontsize',14);
+hold off;
+xlabel('r(anatomical location,RF center)');
+ylabel('Number of shuffled RF centers (count)')
+legend({'Shuffled','Real'});
+title(sprintf('Retinotopy permutation test, p=%.4f',dblCorrP));
+fixfig;grid off;
+
+%save plot
+drawnow;
+export_fig([strTargetPath filesep sprintf('RetinotopyNOT.tif')]);
+export_fig([strTargetPath filesep sprintf('RetinotopyNOT.pdf')]);
+
 
 %% for single direction
 %{

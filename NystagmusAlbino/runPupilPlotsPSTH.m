@@ -285,8 +285,20 @@ export_fig(fullpath(strTargetPath,[strFigName '.pdf']));
 %% plot 2: rec-level
 matAvg=cell2mat(cellfun(@(x) reshape(zscore(mean(x)),[1 1 1 numel(vecSTA_edges)-1]),cellSTA(:,:,~indRemRec),'UniformOutput',false));
 intUseRecs = sum(~indRemRec);
-matMean = squeeze(mean(matAvg,3));
-matSd = squeeze(std(matAvg,[],3));
+
+%smooth
+matAvgSmooth = matAvg;
+dblSmoothWidth = 0.8;
+vecSmooth = normpdf(-10:10,0,dblSmoothWidth) ./ sum(normpdf(-10:10,0,dblSmoothWidth));
+for intMoveType=1:3
+	for intArea=1:intRunMaxArea
+		for intRec=1:intUseRecs
+			matAvgSmooth(intMoveType,intArea,intRec,:) = imfilt(squeeze(matAvg(intMoveType,intArea,intRec,:))',vecSmooth);
+		end
+	end
+end
+matMean = squeeze(mean(matAvgSmooth,3));
+matSd = squeeze(std(matAvgSmooth,[],3));
 vecSTAC = vecSTA_edges(2:end)-mean(diff(vecSTA_edges))/2;
 figure;maxfig;
 for intMoveType=1:3

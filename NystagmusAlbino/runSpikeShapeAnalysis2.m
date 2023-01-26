@@ -10,6 +10,7 @@
 %cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 %cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
 %cellSubjectGroups = {'BL6','DBA'};
+clear all;
 runHeaderNOT;
 
 %strAllenCCFPath = 'F:\Data\AllenCCF';
@@ -18,7 +19,7 @@ sAtlas = AL_PrepABA(strAllenCCFPath);
 tv = sAtlas.tv;
 av = sAtlas.av;
 st = sAtlas.st;
-if 1%~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDist')
+%if ~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDist')
 	sExpNew = [];
 	%try
 	%	load(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'));
@@ -119,6 +120,7 @@ if 1%~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDi
 				if ~isfield(sAP.sCluster,'Waveform') || isempty(sAP.sCluster(intClust).Waveform)
 					sAP.sCluster(intClust).Waveform = matClustWaveforms(sAP.sCluster(intClust).IdxClust == vecClustIdx,:);
 				end
+				if isempty(sAP.sCluster(intClust).Waveform),error;end
 				sAP.sCluster(intClust).BoundDist = vecDistToBoundaryPerCh(intDominantChannel);
 				sAP.sCluster(intClust).ParentArea = cellParentAreaPerCh{intDominantChannel};
 				sAP.sCluster(intClust).SelfArea = cellAreaPerCh{intDominantChannel};
@@ -145,7 +147,7 @@ if 1%~isfield(sExp(1).sCluster,'Waveform') || ~isfield(sExp(1).sCluster,'BoundDi
 		save(fullpath(strTargetPath,'ProbeLocationPreProWorkspace'),'-v7.3');
 		disp done
 	%end
-end
+%end
 
 
 %best rec BL6: 20191216B5 (rec 17)
@@ -319,6 +321,7 @@ for intSubType=1:2
 				vecSpikeDur(intNeuron) = dblTroughToPeakTime;
 				vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
 			end
+			if numel(vecSpikePTR) ~= numel(vecSpikeHz),error;end
 			cellAggBoundDist{intArea,intSubType} = cat(2,cellAggBoundDist{intArea,intSubType},vecBoundDist(:)');
 			cellAggSpikeDur{intArea,intSubType} = cat(2,cellAggSpikeDur{intArea,intSubType},vecSpikeDur);
 			cellAggSpikePTR{intArea,intSubType} = cat(2,cellAggSpikePTR{intArea,intSubType},vecSpikePTR);
@@ -328,7 +331,7 @@ for intSubType=1:2
 	end
 end
 
-% plot 1
+%% plot 1
 dblPTT = 0.5;
 dblSWT = 0.5/1000;
 cellMarker = {'x','o'};
@@ -446,14 +449,14 @@ for intSubType=1:2
 		strArea = cellAreaGroupsAbbr{intArea};
 		
 		strSubjectType = cellSubjectGroups{intSubType};
-		scatter(cellAggBoundDist{intArea,intSubType},cellAggSpikeRLR{intArea,intSubType},...
+		scatter(log(1+cellAggSpikeHz{intArea,intSubType}),cellAggSpikeRLR{intArea,intSubType},...
 			50,log(1+cellAggSpikeHz{intArea,intSubType}),'marker','.');
-		h=colorbar;
-		clabel(h,'log(1+Spike rate)');
+		%h=colorbar;
+		%clabel(h,'log(1+Spike rate)');
 		hold off;
 		ylim([0 1]);
 		ylabel('Right-to-left ratio');
-		xlabel('Distance to boundary');
+		xlabel('Spiking rate (log(1+Hz))');
 		title(sprintf('%s, %s;',strSubjectType,cellAreaGroupsAbbr{intArea}));
 		fixfig;
 		grid off

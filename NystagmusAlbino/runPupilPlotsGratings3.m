@@ -216,5 +216,5 @@ end
 
 %% save 2
 drawnow;maxfig;
-export_fig(fullpath(strTargetPath,['EyeMovementSTA.tif']));
-export_fig(fullpath(strTargetPath,['EyeMovementSTA.pdf']));
+export_fig(fullpath(strTargetPath,['EyeMovementGratingsSTA.tif']));
+export_fig(fullpath(strTargetPath,['EyeMovementGratingsSTA.pdf']));

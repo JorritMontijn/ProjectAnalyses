@@ -18,6 +18,14 @@ av = sAtlas.av;
 st = sAtlas.st;
 
 %% load RF data
+%set RF parameters
+dblDistMouseToScreenCenterX = 8.5;%8.5
+dblDistMouseToScreenCenterY = 24;%24
+dblDistMouseToScreenCenterZ = -4;%-4
+dblScreenWidth_cm = 51;
+dblScreenHeight_cm = 29;
+
+%data location
 strDataSource = 'D:\Data\Results\AlbinoProject\RF_data';
 sFiles = dir([strDataSource filesep '*.mat']);
 cellNames = {sExp.Name};
@@ -31,13 +39,14 @@ cellAggCoords = cell(intUseAreaNum,2);
 cellAggArea = cell(intUseAreaNum,2);
 cellAggSourceRec = cell(intUseAreaNum,2);
 
+
 % run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
 cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
 cellRemove = {};%{'RecMA5_2021-03-01R01_g0_t0'};
 indRemRecs = contains(cellExperiment,cellRemove);
 cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
-for intSubType=[2 1]
+for intSubType=1:2
 	intPopCounter = 0;
 	if intSubType == 1
 		intBestRec = 17;
@@ -133,7 +142,8 @@ for intSubType=[2 1]
 			if size(matOnOffAvg,1)==12
 				matOnOffAvg = (matOnOffAvg(1:2:12,1:2:20) + matOnOffAvg(2:2:12,2:2:20))/2;
 			end
-			[intMaxRow,intMaxCol]=find(matOnOffAvg==max(matOnOffAvg(:)));
+			vecMaxVals = findmax(matOnOffAvg(:),1);
+			[intMaxRow,intMaxCol]=find(matOnOffAvg==vecMaxVals(end));
 			
 			imagesc(matOnZAvg)
 			colorbar
@@ -261,6 +271,7 @@ matNotPoly=mask2poly(matNot2D','outer','MINDIST')+[vecNot1(1) vecNot2(1)];
 intSubType = 1;
 intAreaType = 2;
 matCenterRF = cellAggCenterRF{intAreaType,intSubType};
+matCenterAlbRF = cellAggCenterRF{intAreaType,2};
 matCoords = cellAggCoords{intAreaType,intSubType};
 matCoords(1,matCoords(1,:)<vecBregma(1)) = 2*vecBregma(1) - matCoords(1,matCoords(1,:)<vecBregma(1));
 matCoordsMu = sAtlas.VoxelSize'.*(matCoords - sAtlas.Bregma');
@@ -275,8 +286,8 @@ fMinFunc = @(x) -getMeanRFcorrWithAngleConstraint(x,matCoordsMu(1,:)',matCoordsM
 [dblRealOptCorr,dblCorr1,vecProjectedLocation1,matProjectedPoints1,dblCorr2,vecProjectedLocation2,matProjectedPoints2] = getMeanRFcorrWithAngleConstraint(dblRealOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',matCenterRF(1,:)',matCenterRF(2,:)');
 
 %compare with random (shuffled) rf locations
-intRunNum = 100000;
-intP = numel(matCenterRF(intXY,:)');
+intRunNum = 1000;
+intP = numel(matCenterRF(1,:)');
 intRandIters = min(intRunNum,factorial(intP));
 vecRandCorr = nan(1,intRandIters);
 vecRandAngle = nan(1,intRandIters);
@@ -310,11 +321,9 @@ dblCorrP = sum(vecRandCorr>dblRealOptCorr)./intRandIters;
 figure;maxfig;
 
 %transform RF block location to retinal degrees
-dblSubjectPosX_cm = 0; %left/right component to center of screen; negative is left of screen center
-dblSubjectPosY_cm = -2.5; %up/down component to center of screen; negative is lower than screen center
-dblScreenDistance_cm = 24; %forward component to center of screen
-dblScreenWidth_cm = 51;
-dblScreenHeight_cm = 29;
+dblSubjectPosX_cm = dblDistMouseToScreenCenterX; %left/right component to center of screen; negative is left of screen center
+dblSubjectPosY_cm = dblDistMouseToScreenCenterZ; %up/down component to center of screen; negative is lower than screen center
+dblScreenDistance_cm = dblDistMouseToScreenCenterY; %forward component to center of screen
 
 %assume screen is a spherical patch
 dblScreenCenterX = -dblSubjectPosX_cm;
@@ -342,28 +351,39 @@ dblVertDegsPerBlock = el_Tot/intBlocksVert;
 vecHorzRF_deg = az_Center+dblHorzDegsPerBlock*(matCenterRF(1,:)'-dblHorzBlockCenter);
 vecVertRF_deg = el_Center+dblVertDegsPerBlock*(dblVertBlockCenter-matCenterRF(2,:)'); %RF blocks are from top to bottom, not bottom to top
 
+vecHorzAlbRF_deg = az_Center+dblHorzDegsPerBlock*(matCenterAlbRF(1,:)'-dblHorzBlockCenter);
+vecVertAlbRF_deg = el_Center+dblVertDegsPerBlock*(dblVertBlockCenter-matCenterAlbRF(2,:)'); %RF blocks are from top to bottom, not bottom to top
+
+
 %get mid point
 dblCenterX = mean(matCoordsMu(1,:));
 dblCenterY = mean(matCoordsMu(2,:));
 dblArrowLength = 10; %degrees
 
-%%
 %fit RFs to estimate retinotopic map
 %center x/y
 vecXY0=mean(matCoordsMu(1:2,:),2);
 matXY0=matCoordsMu(1:2,:)-vecXY0;
-[dblRealOptCorr,dblCorr1,vecProjectedLocation1,matProjectedPoints1,dblCorr2,vecProjectedLocation2,matProjectedPoints2] = getMeanRFcorrWithAngleConstraint(dblRealOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',vecHorzRF_deg,vecVertRF_deg);
+[dblRealOptCorr,dblCorr1,vecProjectedLocation1,matProjectedPoints1,dblCorr2,vecProjectedLocation2,matProjectedPoints2] = ...
+	getMeanRFcorrWithAngleConstraint(dblRealOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',vecHorzRF_deg,vecVertRF_deg);
 
-
+%prep albinos
+matCoordsAlb = cellAggCoords{2,2};
+matCoordsAlb(1,matCoordsAlb(1,:)<vecBregma(1)) = 2*vecBregma(1) - matCoordsAlb(1,matCoordsAlb(1,:)<vecBregma(1));
+matCoordsMuAlb = sAtlas.VoxelSize'.*(matCoordsAlb - sAtlas.Bregma');
+matCoordsMuAlb(1,:) = abs(matCoordsMuAlb(1,:));
+intSubType = 1;
 for intXY=1:2
 	%rotate reference vector
 	if intXY == 1
 		vecRF_deg = vecHorzRF_deg;
+		vecAlbRF_deg = vecHorzAlbRF_deg;
 		dblRot = deg2rad(0);
 		strAzEl = 'azimuth';
 		strHorzVert = 'Horizontal';
 	else
 		vecRF_deg = vecVertRF_deg;
+		vecAlbRF_deg = vecVertAlbRF_deg;
 		dblRot = deg2rad(90);
 		strAzEl = 'elevation';
 		strHorzVert = 'Vertical';
@@ -398,7 +418,13 @@ for intXY=1:2
 	axis equal;
 	hold on
 	
+	%plot bl6
 	h2= scatter(matCoordsMu(1,:)',matCoordsMu(2,:)',[],vecRF_deg,'filled');
+	h2.SizeData=100;
+	h2.MarkerEdgeColor = 'k';
+	
+	%plot dba
+	h2= scatter(matCoordsMuAlb(1,:)',matCoordsMuAlb(2,:)',[],vecAlbRF_deg,'square','filled');
 	h2.SizeData=100;
 	h2.MarkerEdgeColor = 'k';
 	
@@ -422,10 +448,27 @@ for intXY=1:2
 	set(gca,'clim',[dblMinRF_degs dblMaxRF_degs]);
 	plot([vecMinRF_loc(1) vecMaxRF_loc(1)],[vecMinRF_loc(2) vecMaxRF_loc(2)],'b');
 	
-	
+	%plot bl6
 	h2= scatter(matCoordsMu(1,:)',matCoordsMu(2,:)',[],vecRF_deg,'filled');
 	h2.SizeData=100;
 	h2.MarkerEdgeColor = 'k';
+	
+	for intRec=1:numel(vecRF_deg)
+		intExp = cellAggSourceRec{intArea,1}(intRec);
+		strRec=[sExp(intExp).sJson.subject '_' sExp(intExp).sJson.date];
+		text(matCoordsMu(1,intRec)',matCoordsMu(2,intRec)',strRec,'interpreter','none');
+	end
+	
+	%plot dba
+	h2= scatter(matCoordsMuAlb(1,:)',matCoordsMuAlb(2,:)',[],vecAlbRF_deg,'square','filled');
+	h2.SizeData=100;
+	h2.MarkerEdgeColor = 'k';
+	
+	for intRec=1:numel(vecAlbRF_deg)
+		intExp = cellAggSourceRec{intArea,2}(intRec);
+		strRec=[sExp(intExp).sJson.subject '_' sExp(intExp).sJson.date];
+		text(matCoordsMuAlb(1,intRec)',matCoordsMuAlb(2,intRec)',strRec,'interpreter','none');
+	end
 	
 	scatter(vecRF0degs(1),vecRF0degs(2),'kx');
 	xlabel('Anatomical ML location (microns)');

@@ -15,7 +15,7 @@ vecColBl6 = lines(1);
 
 %% get data
 %pre-allocate
-vecPupilSTA_edges = [-2:0.1:2];
+vecPupilSTA_edges = [-0.5:0.025:0.5];
 cellAggX = {};
 cellAggY = {};
 cellAggSize = {};
@@ -30,7 +30,7 @@ cellRemove = {};%{'RecMA5_2021-03-01R01_g0_t0'};
 indRemRecs = contains(cellExperiment,cellRemove);
 indRemRecs2 = ~contains(cellNameAP,cellUseForEyeTracking);
 cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
-for intSubType=1:2
+for intSubType=1%:2
 	if intSubType == 1
 		strSubjectType = 'BL6';
 		dblOffsetT=0;

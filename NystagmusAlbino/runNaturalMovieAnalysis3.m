@@ -17,7 +17,7 @@ vecColAlb = [0.9 0 0];
 vecColBl6 = lines(1);
 
 %% pre-allocate
-intMinCells = 1;%NOT+interaction significant at (1-off diag): 7, 8, 9, 10; not sign. at 6; only diag: 6,7,8 (only interaction), 9,10 (both)
+intMinCells = 2;%NOT+interaction significant at (1-off diag): 7, 8, 9, 10; not sign. at 6; only diag: 6,7,8 (only interaction), 9,10 (both)
 intStimNr = 25;
 matDiag = diag(diag(true(intStimNr,intStimNr)));
 matIsCorrect = circshift(matDiag,-1) | matDiag | circshift(matDiag,1);
@@ -211,8 +211,8 @@ for intSubType=1:2
 			[r,p,ul,ll]=corrcoef(vecProbCorrectNOT(:),vecProbCorrectCtx(:));
 			scatter(vecProbCorrectNOT(:),vecProbCorrectCtx(:),'.')
 			title(sprintf('%s - Ctx/NOT coding correlation, r=%.3f, p=%.3f',strName,r(1,2),p(1,2)),'interpreter','none');
-			xlabel('Cortex, Ori decoding P(correct)');
-			ylabel('NOT, Ori decoding P(correct)');
+			xlabel('Cortex, NM decoding P(correct)');
+			ylabel('NOT, NM decoding P(correct)');
 			fixfig;
 			
 			%select only trials where both are wrong
@@ -232,9 +232,9 @@ for intSubType=1:2
 			pBino=myBinomTest(dblOnDiag*sum(matConfusion(:)),sum(matConfusion(:)),dblChanceDiag);
 			
 			axis xy;
-			title(sprintf('Orientation error similarity; n,NOT=%d,Ctx=%d',numel(vecSelectCellsNOT),numel(vecSelectCellsCtx)));
-			xlabel('Cortex, decoded ori on error');
-			ylabel('NOT, decoded ori on error');
+			title(sprintf('NM time error similarity; n,NOT=%d,Ctx=%d',numel(vecSelectCellsNOT),numel(vecSelectCellsCtx)));
+			xlabel('Cortex, decoded NM time on error');
+			ylabel('NOT, decoded NM time on error');
 			fixfig;grid off;
 			
 			subplot(2,3,3)
@@ -260,7 +260,7 @@ for intSubType=1:2
 			scatter(vecUniqueDiff,vecErrorFracPerOri)
 			hold off
 			ylabel('Norm. fraction of errors');
-			xlabel('Orientation difference Ctx/NOT (\Deltadeg)');
+			xlabel('NM time difference Ctx/NOT (\Deltadeg)');
 			set(gca,'xtick',vecUniqueDiff(1:2:end));
 			xlim([0 max(vecUniqueDiff)]);
 			title(sprintf('R=%.3f, p=%.3e',R(1,2),P(1,2)));
@@ -380,7 +380,7 @@ errorbar(1,mean(vecPropOnDiagWt),std(vecPropOnDiagWt)/sqrt(numel(vecPropOnDiagWt
 errorbar(2,mean(vecPropOnDiagAlb),std(vecPropOnDiagAlb)/sqrt(numel(vecPropOnDiagAlb)),'xr')
 plot([1 2],[1 1]*dblChanceDiag,'--','color',[0.5 0.5 0.5])
 set(gca,'xtick',[1 2],'xticklabel',{'BL6','DBA'});
-ylabel('Same-ori decoding error (Ctx,NOT)');
+ylabel('Same NM time decoding error (Ctx,NOT)');
 xlim([0 3]);
 title(sprintf('t-test vs 0; Wt,p=%.3f; Alb,p=%.3f',p_sameoriWt,p_sameoriAlb))
 hold off
@@ -391,8 +391,8 @@ subplot(2,3,3)
 imagesc(vecUnique,vecUnique,matAggConfWt);
 axis xy;
 title('Error matrix BL6');
-ylabel('Ori. decoded from cortex (degs)');
-xlabel('Ori. decoded from NOT (degs)');
+ylabel('NM time decoded from cortex (degs)');
+xlabel('NM time decoded from NOT (degs)');
 set(gca,'xtick',0:45:360);
 set(gca,'ytick',0:45:360);
 fixfig;grid off
@@ -401,8 +401,8 @@ subplot(2,3,6)
 imagesc(vecUnique,vecUnique,matAggConfAlb);
 axis xy;
 title('Error matrix DBA');
-ylabel('Ori. decoded from cortex (degs)');
-xlabel('Ori. decoded from NOT (degs)');
+ylabel('NM time decoded from cortex (degs)');
+xlabel('NM time decoded from NOT (degs)');
 set(gca,'xtick',0:45:360);
 set(gca,'ytick',0:45:360);
 fixfig;grid off

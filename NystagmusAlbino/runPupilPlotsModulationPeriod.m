@@ -18,7 +18,7 @@ vecColBl6 = lines(1);
 %% get data
 %pre-allocate
 dblMoveEventThreshold = 0.05;
-vecSTA_edges = [-2:0.1:2];
+vecSTA_edges = [-0.5:0.025:0.5];
 
 %run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -150,7 +150,6 @@ for intRecIdx=1:numel(vecRunRecs)
 		cellAreasPerCluster = {sRec.sCluster.Area};
 		for intArea=1:intRunMaxArea
 			% select cells
-			
 			strAreaGroup =  cellAreaGroupsAbbr{intArea};
 			vecSelectCells = find(indUseCells(:) & flat(contains(cellAreasPerCluster,cellUseAreas{intArea},'IgnoreCase',true)));
 			if isempty(vecSelectCells)

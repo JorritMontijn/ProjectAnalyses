@@ -18,7 +18,7 @@ vecColBl6 = lines(1);
 %% get data
 %pre-allocate
 dblMoveEventThreshold = 0.05;
-vecSTA_edges = [-0.5:0.025:0.5];
+vecSTA_edges = [-0.5:0.05:0.5];
 
 %run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -156,7 +156,17 @@ for intRecIdx=1:numel(vecRunRecs)
 				continue;
 			end
 			cellSpikes = {sRec.sCluster(vecSelectCells).SpikeTimes};
-			intCellNum = numel(vecSelectCells);
+			
+			%select only responsive cells
+			vecZetaP = ones(1,numel(cellSpikes));
+			intResampNum=100;
+			for intCell=1:numel(cellSpikes)
+				vecZetaP(intCell) = zetatest(cellSpikes{intCell},vecStartMoveT+vecSTA_edges(1),range(vecSTA_edges),intResampNum,0);
+			end
+			vecZetaP(vecZetaP>0.05)=[];
+			cellSpikes(vecZetaP>0.05)=[];
+			intCellNum = numel(cellSpikes);
+			if intCellNum==0,continue;end
 			vecSpikeT = sort(cell2vec(cellSpikes));
 			%reduce spikes to max 100k
 			intMaxSpikes = inf;
@@ -245,11 +255,6 @@ for intMoveType = 1:3
 		matMeansZ = squeeze(matNSTA(intMoveType,intArea,:,:));
 		matMeansZ(all(isnan(matMeansZ),2),:)=[];
 		
-			%smooth
-			dblSmoothWidth = 0.5;
-			vecSmooth = 1;%normpdf(-10:10,0,dblSmoothWidth) ./ sum(normpdf(-10:10,0,dblSmoothWidth));
-			matMeansZ = imfilt(matMeansZ,vecSmooth);
-			
 			
 			[h,p]=ttest(matMeansZ);
 		[h_corr,c,p_corr] = fdr_bh(p);

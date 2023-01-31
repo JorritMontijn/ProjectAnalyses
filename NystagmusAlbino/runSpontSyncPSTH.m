@@ -1,13 +1,6 @@
 %% load data and define groups
-%strDataPath
-%cellUseForEyeTracking
-%strTargetPath
-%cellUseAreas{1} = {'Primary visual','Posteromedial visual'};
-%cellUseAreas{2} = {'nucleus of the optic tract'};
-%cellUseAreas{3} = {'superior colliculus'};
-%cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
-%cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
-%cellSubjectGroups = {'BL6','DBA'};
+%does DBA show more synchronized activity than bl6?
+
 clear all;
 runHeaderNOT;
 intRunMaxArea = 2;

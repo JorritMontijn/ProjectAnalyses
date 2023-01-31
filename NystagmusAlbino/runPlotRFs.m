@@ -38,7 +38,7 @@ cellAggCenterRF = cell(intUseAreaNum,2);
 cellAggCoords = cell(intUseAreaNum,2);
 cellAggArea = cell(intUseAreaNum,2);
 cellAggSourceRec = cell(intUseAreaNum,2);
-
+cellAggCoordsAll = cell(1,2);
 
 % run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
@@ -62,6 +62,28 @@ for intSubType=1:2
 		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		strRec=[sRec.sJson.subject '_' sRec.sJson.date];
+		%% get probe locations
+		%get locations along probe
+		sProbeCoords = sRec.sSources.sProbeCoords;
+		[probe_area_ids,probe_area_boundaries,probe_area_centers,matLocCh] = PH_GetProbeAreas(sProbeCoords.sProbeAdjusted.probe_vector_cart,sAtlas.av);
+		
+		%get clusters
+		dblProbeLengthProbe = sRec.sSources.sProbeCoords.ProbeLengthMicrons;
+		dblProbeLengthSph = sRec.sSources.sProbeCoords.sProbeAdjusted.probe_vector_sph(6)*mean(sRec.sSources.sProbeCoords.VoxelSize);
+		
+		vecDepth = cell2vec({sRec.sCluster.Depth});
+		vecDepthOnProbe = (vecDepth/dblProbeLengthSph)*dblProbeLengthProbe;
+		
+		[vecClustAreaId,cellClustAreaLabel,cellClustAreaFull,vecVoxelDepth] = PF_GetAreaPerCluster(sProbeCoords,vecDepthOnProbe);
+		vecUsedDepth = (min(max(round(vecVoxelDepth),1),floor(sProbeCoords.sProbeAdjusted.probe_vector_sph(end)))/floor(sProbeCoords.sProbeAdjusted.probe_vector_sph(end)))*sProbeCoords.ProbeLengthMicrons;
+		vecUsedLocsPerCluster = min(max(round(vecVoxelDepth),1),floor(sProbeCoords.sProbeAdjusted.probe_vector_sph(end)));
+		matLocPerCluster = matLocCh(:,vecUsedLocsPerCluster);
+		
+		%get source rec
+		cellAreasPerCluster = {sRec.sCluster.Area};
+		vecSelectCells = contains(cellAreasPerCluster,cellUseAreas{2},'IgnoreCase',true);
+		matAllCUPF = matLocPerCluster(:,vecSelectCells);
+		cellAggCoordsAll{intSubType} = cat(2,cellAggCoordsAll{intSubType},matAllCUPF);
 		
 		%load RF file
 		intFileRF = find(contains(cellFilesRF,strRec));
@@ -80,7 +102,6 @@ for intSubType=1:2
 		
 		%build cell vectors
 		cellCellsPerArea = cell(1,numel(cellUseAreas));
-		cellAreasPerCluster = {sRec.sCluster.Area};
 		for intArea=2%numel(cellUseAreas)
 			cellCellsPerArea{intArea} = contains(cellAreasPerCluster,cellUseAreas{intArea},'IgnoreCase',true);
 			vecCellsNrPerArea = cellfun(@sum,cellCellsPerArea);
@@ -93,7 +114,7 @@ for intSubType=1:2
 			vecSelectCells = find(indSignificant(:) & ~indNanZeta(:) & indUseCells(:) & cellCellsPerArea{intArea}(:));
 			strArea = cellAreaGroupsAbbr{intArea};
 			
-			if isempty(vecSelectCells)
+			if 1%isempty(vecSelectCells)
 				fprintf('No (significant) cells in %s for %s: skipping...\n',strArea,strRec);
 				continue;
 			end
@@ -244,6 +265,117 @@ for intSubType=1:2
 	end
 end
 
+%{
+%% plot NOT 3D v2
+avNot=av==(st.index(contains(st.name,'nucleus of the optic tract','ignorecase',true))+1);
+avNot=avNot(1:size(avNot,1)/2,:,:);
+%switch dims 1&2 for isosurface/patch
+fv = isosurface(avNot);
+fv.vertices = fv.vertices(:,[2 1 3]);
+fv.faces = fv.faces(:,[2 1 3]);
+p = patch(fv);
+p.FaceColor = [0.2 0 0];
+p.EdgeColor = 'none';
+p.FaceAlpha = 0.2;
+daspect([1 1 1])
+view(3); 
+axis tight
+camlight 
+lighting gouraud
+%}
+%% plot 3D NOT
+%find bregma
+vecBregma = sAtlas.Bregma;
+
+avNot=av==(st.index(contains(st.name,'nucleus of the optic tract','ignorecase',true))+1);
+vecRangeNot1 = find(sum(sum(avNot,2),3));
+vecRangeNot2 = find(sum(sum(avNot,1),3));
+vecRangeNot3 = find(sum(sum(avNot,1),2));
+vecNot1 = (vecRangeNot1(1)-1):(vecRangeNot1(end)+1);
+vecNot1(vecNot1>vecBregma(1))=[];
+vecNot2 = (vecRangeNot2(1)-1):(vecRangeNot2(end)+1);
+vecNot3 = (vecRangeNot3(1)-1):(vecRangeNot3(end)+1);
+avNot = avNot(vecNot1,vecNot2,vecNot3);
+avCenter = imfill(avNot,'holes');
+SE = strel('sphere',1);
+avErode = imerode(avNot,SE);
+avEdge = avCenter - avErode;
+
+
+intPoints = 15;%15
+matLinesNot = getTrace3D(avEdge,intPoints,0);
+%add offset
+matLinesNot2=bsxfun(@plus,matLinesNot,([vecNot1(1) vecNot2(1) vecNot3(1)]));
+%transform to microns
+matLinesNot2 = sAtlas.VoxelSize.*(matLinesNot2 - sAtlas.Bregma);
+matLinesNot2(:,1) = abs(matLinesNot2(:,1));
+
+%indRem = matLinesNot2(:,3) < (size(av,3)/2);
+%matLinesNot2(indRem,:) = [];
+
+% plot all NOT cells at their respective locations
+figure;maxfig;
+hold on
+h = plot3(matLinesNot2(:,1), matLinesNot2(:,2), matLinesNot2(:,3), 'Color', [0.8 0 0 0.3]);
+h.Annotation.LegendInformation.IconDisplayStyle = 'off';
+
+%get flat
+matNot2D = sum(avEdge,3)>0;
+matNotPoly=mask2poly(matNot2D','outer','MINDIST')+[vecNot1(1) vecNot2(1)];
+%transform to microns
+matNotPoly = sAtlas.VoxelSize(1:2).*(matNotPoly - sAtlas.Bregma(1:2));
+matNotPoly(:,1) = abs(matNotPoly(:,1));
+dblBaseDB = -2900;
+
+% plot cells
+cellCol = {};
+cellCol{1} = lines(1);
+cellCol{2} = [1 0 0];
+cellMarker = {'x','o'};
+hold on
+for intSubType=1:2
+	
+	matCABA = cellAggCoordsAll{intSubType};
+	matCABA(1,matCABA(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCABA(1,matCABA(1,:)>vecBregma(1));
+	%transform to microns
+	matCABA = sAtlas.VoxelSize'.*(matCABA - sAtlas.Bregma');
+	matCABA(1,:) = abs(matCABA(1,:));
+	%line([matCUPF(1,:)' matCABA(1,:)']',[matCUPF(2,:)' matCABA(2,:)']',[matCUPF(3,:)' matCABA(3,:)']')
+	
+	
+	%h= scatter3(matCABA(1,:),matCABA(2,:),matCABA(3,:),[],vecRLR,'marker',cellMarker{1});
+	%cellText = cellAggSelfArea{intAreaType,intSubType};
+	%text(matCABA(1,:),matCABA(2,:),matCABA(3,:),cellText);
+	
+	h2= scatter3(matCABA(1,:),matCABA(2,:),matCABA(3,:),[],cellCol{intSubType},'filled');
+	h3= scatter3(matCABA(1,:),matCABA(2,:),dblBaseDB*ones(size(matCABA(3,:))),[],cellCol{intSubType},'filled');
+	%cellText = cellAggArea{intAreaType,intSubType};
+	%text(matCUPF(1,:),matCUPF(2,:),matCUPF(3,:),cellText);
+end
+%plot flat projection at DV=dblBaseDB
+h = plot3(matNotPoly([1:(end-1) 1],1)', matNotPoly([1:(end-1) 1],2)', dblBaseDB*ones(size(matNotPoly([1:(end-1) 1],1)')),'Color', [0.8 0 0 1]);
+	
+
+hold off
+xlabel('ML');
+ylabel('AP');
+zlabel('DV');
+axis equal;
+axis xy;
+fixfig;
+grid off;
+%campos([857 -1500 750])%1.4941    0.8571    0.7502%[1000 -50   100]
+%campos([848.0622 -182.0584  825.3987])
+campos([-4000    -9500   350]);
+title(sprintf('Recording locations in NOT'));
+
+%save plot
+drawnow;
+export_fig([strTargetPath filesep sprintf('RecLocsNOT3D.tif')]);
+export_fig([strTargetPath filesep sprintf('RecLocsNOT3D.pdf')]);
+
+
+return
 %% find NOT
 %find bregma
 vecBregma = sAtlas.Bregma;

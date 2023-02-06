@@ -182,7 +182,7 @@ for intSubType=1:2
 		vecPriorDistribution = vecCounts;
 		intStimNr = numel(vecUnique);
 		
-		for intArea = 1:2%numel(cellUseAreas)
+		for intArea = 2%1:2%numel(cellUseAreas)
 			%% select cells
 			strAreaGroup =  cellAreaGroupsAbbr{intArea};
 			vecSelectCells = find(indUseCells(:) & cellCellsPerArea{intArea}(:));
@@ -203,14 +203,14 @@ for intSubType=1:2
 			indTunedCells = vecTuningP_R2_corr<0.05;
 			
 			%get OPI
-			%matUseR = sOut.matMeanResp(indTunedCells,:);
-			matUseR = sOut.matFittedResp;
+			matUseR = sOut.matMeanResp;%(indTunedCells,:);
+			%matUseR = sOut.matFittedResp;
 			vecDir24 = sOut.vecUniqueDegs;
 			vecOri24 = mod(vecDir24,180);
 			
 			%collapse angles
-			vecOPI = getOPI(matUseR,vecOri24);
-			vecOSI = getOSI(matUseR,vecOri24);
+			vecOPI = getOPI(matUseR,deg2rad(vecOri24));
+			vecOSI = getOSI(matUseR,deg2rad(vecOri24));
 			
 			%get DSI
 			%intDirNum = numel(unique(vecDir24));
@@ -220,9 +220,10 @@ for intSubType=1:2
 			%vecDSI = (vecPrefR-vecAntiR)./(vecAntiR+vecPrefR);
 			
 			%get DSI horizontal
-			vecPrefR = matUseR(:,vecDir24==0);
-			vecAntiR = matUseR(:,vecDir24==180);
-			vecDSI = (vecPrefR-vecAntiR)./(vecAntiR+vecPrefR);
+			matUseRD = matUseR(indTunedCells,:);
+			vecLeftR = mean(matUseRD(:,vecDir24==0 | vecDir24==345 | vecDir24==15),2);
+			vecRightR = mean(matUseRD(:,vecDir24==165 | vecDir24==180 | vecDir24==195),2);
+			vecDSI = (vecLeftR-vecRightR)./(vecRightR+vecLeftR);
 			
 			%{
 				figure;
@@ -244,33 +245,57 @@ for intSubType=1:2
 			
 			if 1
 				%% plot tuning curve
-				[dummy,vecIdx]=sort(vecTuningP_R2_corr)
-				
+				[dummy,vecIdx]=sort(vecTuningP_R2_corr);
+				%get DSI horizontal
+				matUseRD = matUseR;
+				vecLeftR = mean(matUseRD(:,vecDir24==0 | vecDir24==345 | vecDir24==15),2);
+				vecRightR = mean(matUseRD(:,vecDir24==165 | vecDir24==180 | vecDir24==195),2);
+				vecDSI = (vecLeftR-vecRightR)./(vecRightR+vecLeftR);
+			
 				%% plot
 				for intCellIdx=1:numel(vecIdx)
 					%%
 					%intCellIdx=6
-					intCell=13;%vecIdx(intCellIdx);
-					figure
+					intCell=vecIdx(intCellIdx);
+					%intCell=13;
+					figure;maxfig;
 					vecDirs = vecAggUnique(:)';
 					vecMeanR = sOut.matMeanResp(intCell,:);
+					vecMeanSem = sOut.matSDResp(intCell,:)./sqrt(vecAggCounts');
+					vecFitR = sOut.matFittedResp(intCell,:);
+					intPlotPre = 12;
+					intPlotPost = -12;
+					vecPlotX = [(numel(vecDirs)-intPlotPre+1):numel(vecDirs) 1:(numel(vecDirs)+intPlotPost)];
+					vecDirs_Ext = vecDirs(vecPlotX);
+					vecDirs_Ext(1:intPlotPre) = vecDirs_Ext(1:intPlotPre)-360;
+					vecMeanR_Ext = vecMeanR(vecPlotX);
+					vecMeanSem_Ext = vecMeanSem(vecPlotX);
+					vecFitR_Ext = vecFitR(vecPlotX);
 					subplot(2,3,1)
 					polarplot(deg2rad(vecDirs),vecMeanR);
+					hold on
+					polarplot(deg2rad(vecDirs),vecFitR);
+					hold off
 					fixfig;
+					title(sprintf('OSI=%.3f, DSI=%.3f',vecOPI(intCell),vecDSI(intCell)));
 					
 					subplot(2,3,2)
-					errorbar(vecDirs,vecMeanR,sOut.matSDResp(intCell,:)./sqrt(vecAggCounts'));
+					errorbar(vecDirs_Ext,vecMeanR_Ext,vecMeanSem_Ext);
 					hold on
-					plot(vecDirs,sOut.matFittedResp(intCell,:))
+					plot(vecDirs_Ext,vecFitR_Ext)
 					hold off
+					xlabel('Stimulus direction (degs)');
+					ylabel('Spiking rate (Hz)');
 					title(sprintf('%d',intCell))
 					fixfig;grid off;
+					%xlim([0 360]);
+					ylim([0 max(get(gca,'ylim'))]);
 					
 					subplot(2,3,3)
 					[dummy,intPrefDir] = max(vecMeanR);
 					vecPrefT =  vecAggStimOnTime(cellAggSelect{intPrefDir});
 					dblOffset = -0.3;
-					dblTrialDur = 1.5;
+					dblTrialDur = 1.5-dblOffset;
 					dblBinSize = 0.05;
 					vecWindow = dblOffset:dblBinSize:(dblTrialDur+dblOffset);
 					vecLimX = [vecWindow(1) vecWindow(end)];
@@ -282,10 +307,12 @@ for intSubType=1:2
 					hold on
 					errorbar(vecWindowBinCenters,vecMean,vecSEM);
 					hold off
+					
 					xlabel('Time (s)');
-					ylabel('Instantaneous rate (Hz)');
+					ylabel('Spiking rate (Hz)');
 					title('pref dir')
 					fixfig;grid off;
+					xlim(vecLimX);
 					
 					subplot(2,3,6)
 					intDirNum = numel(cellAggSelect);
@@ -300,7 +327,13 @@ for intSubType=1:2
 					ylabel('Instantaneous rate (Hz)');
 					title('orth dir')
 					fixfig;grid off;
+					xlim(vecLimX);
 					
+					% save figure
+					drawnow;
+					strFigName = sprintf('ExampleTuningCurve%s_%s%d',strName,cellAreaGroupsAbbr{intArea},intCell);
+					export_fig(fullpath([strTargetPath filesep 'single_cells'],[strFigName '.tif']));
+					export_fig(fullpath([strTargetPath filesep 'single_cells'],[strFigName '.pdf']));
 					%%
 					pause
 				end
@@ -378,110 +411,99 @@ for intSubType=1:2
 end
 
 %% plot ori vs dir tuning in bl6 vs albino: is direction selectivity in DBA NOT specifically affected?
-%{
-cellTuningP_AlbCtx = {};
-cellOSI_AlbCtx = {};
-cellOPI_AlbCtx = {};
-cellDSI_AlbCtx = {};
-cellPrefOri_AlbCtx = {};
-
-cellTuningP_Bl6Ctx = {};
-cellOSI_Bl6Ctx = {};
-cellOPI_Bl6Ctx = {};
-cellDSI_Bl6Ctx = {};
-cellPrefOri_Bl6Ctx = {};
-	
-cellTuningP_Bl6NOT = {};
-cellOSI_Bl6NOT = {};
-cellOPI_Bl6NOT = {};
-cellDSI_Bl6NOT = {};
-cellPrefOri_Bl6NOT = {};
-
-cellTuningP_AlbNOT = {};
-cellOSI_AlbNOT = {};
-cellOPI_AlbNOT = {};
-cellDSI_AlbNOT = {};
-cellPrefOri_AlbNOT = {};
-%}
 figure;maxfig
-for intArea=1:2
-	if intArea == 1
+for intMetric=1:2
+	if intMetric == 1
+		%% OSI
+		strMetric = 'OSI (1-CV)';
+		vecBinsE = 0:0.1:1;
 		%ctx
-		vecB_Ori = cell2vec(cellOPI_Bl6Ctx);
-		vecB_Dir = cell2vec(cellDSI_Bl6Ctx);
-		vecA_Ori = cell2vec(cellOPI_AlbCtx);
-		vecA_Dir = cell2vec(cellDSI_AlbCtx);
+		vecBl6_Ctx = cell2vec(cellOPI_Bl6Ctx);
+		vecAlb_Ctx = cell2vec(cellOPI_AlbCtx);
 		
-		strArea = cellAreaGroupsAbbr{intArea};
-	else
 		%not
-		vecB_Ori = cell2vec(cellOPI_Bl6NOT);
-		vecB_Dir = cell2vec(cellDSI_Bl6NOT);
-		vecA_Ori = cell2vec(cellOPI_AlbNOT);
-		vecA_Dir = cell2vec(cellDSI_AlbNOT);
-		
-		strArea = cellAreaGroupsAbbr{intArea};
+		vecBl6_NOT = cell2vec(cellOPI_Bl6NOT);
+		vecAlb_NOT = cell2vec(cellOPI_AlbNOT);
+	else
+		%% DSI
+		vecBinsE = -1:0.2:1;
+		strMetric = 'L-R DSI';
+		vecBl6_Ctx = cell2vec(cellDSI_Bl6Ctx);
+		vecAlb_Ctx = cell2vec(cellDSI_AlbCtx);
+		vecBl6_NOT = cell2vec(cellDSI_Bl6NOT);
+		vecAlb_NOT = cell2vec(cellDSI_AlbNOT);
 	end
-	
+	vecBinsC = vecBinsE(2:end)-median(diff(vecBinsE))/2;
 	%rem nans
-	indRem = isnan(vecB_Ori) | isnan(vecB_Dir);
-	vecB_Ori(indRem)=[];
-	vecB_Dir(indRem)=[];
-	indRem = isnan(vecA_Ori) | isnan(vecA_Dir);
-	vecA_Ori(indRem)=[];
-	vecA_Dir(indRem)=[];
+	vecBl6_Ctx(isnan(vecBl6_Ctx))=[];
+	vecAlb_Ctx(isnan(vecAlb_Ctx))=[];
 	
-	subplot(2,3,1+(intArea-1)*3)
-	%bl6
-	scatter(vecB_Ori,vecB_Dir);
-	[h,pNOTBDir]=ttest(vecB_Dir);
-	[h,pNOTBOri]=ttest(vecB_Ori);
-	xlim([0 1]);
-	ylim([-1 1]);
-	title(sprintf('WT %s; t-test vs 0, DSI=%.3e,OSI=%.3e',strArea,pNOTBDir,pNOTBOri));
-	xlabel('OSI (1-CV)');
-	ylabel('L-R DSI');
-	fixfig;
-	grid off;
+	vecBl6_NOT(isnan(vecBl6_NOT))=[];
+	vecAlb_NOT(isnan(vecAlb_NOT))=[];
 	
-	subplot(2,3,2+(intArea-1)*3)
-	%alb
-	scatter(vecA_Ori,vecA_Dir,[],[1 0 0])
-	[h,pNOTADir]=ttest(vecA_Dir);
-	[h,pNOTAOri]=ttest(vecA_Ori);
-	xlim([0 1]);
-	ylim([-1 1]);
-	title(sprintf('Alb %s; t-test vs 0, DSI=%.3f,OSI=%.3e',strArea,pNOTADir,pNOTAOri));
-	xlabel('OSI (1-CV)');
-	ylabel('L-R DSI');
-	fixfig;
-	grid off;
 	
-	subplot(2,3,3+(intArea-1)*3)
-	%NOT bl6/alb
-	errorbar(1:2,[mean(vecB_Ori) mean(vecB_Dir)],[std(vecB_Ori)/sqrt(numel(vecB_Ori)) std(vecB_Dir)/sqrt(numel(vecB_Dir))],'color',lines(1));
+	subplot(2,3,1+(intMetric-1)*3)
+	%ctx
+	vecBl6_Ctx_C = histcounts(vecBl6_Ctx,vecBinsE);
+	vecAlb_Ctx_C = histcounts(vecAlb_Ctx,vecBinsE);
 	hold on
-	errorbar(1:2,[mean(vecA_Ori) mean(vecA_Dir)],[std(vecA_Ori)/sqrt(numel(vecA_Ori)) std(vecA_Dir)/sqrt(numel(vecA_Dir))],'color',[1 0 0]);
-	fixfig;grid off
-	ylabel(sprintf('Tuning strength %s',strArea));
-	set(gca,'xtick',[1 2],'xticklabel',{'OSI (1-CV)','L-R DSI'});
+	plot(vecBinsC,vecBl6_Ctx_C./sum(vecBl6_Ctx_C(:)),'color',lines(1));
+	plot(vecBinsC,vecAlb_Ctx_C./sum(vecAlb_Ctx_C(:)),'color',[1 0 0]);
+	hold off
+	xlabel(strMetric);
+	ylabel('Fraction of Ctx cells');
+	fixfig;
+	
+	subplot(2,3,2+(intMetric-1)*3)
+	%ctx
+	vecBl6_NOT_C = histcounts(vecBl6_NOT,vecBinsE);
+	vecAlb_NOT_C = histcounts(vecAlb_NOT,vecBinsE);
+	hold on
+	plot(vecBinsC,vecBl6_NOT_C./sum(vecBl6_NOT_C(:)),'color',lines(1));
+	plot(vecBinsC,vecAlb_NOT_C./sum(vecAlb_NOT_C(:)),'color',[1 0 0]);
+	hold off
+	xlabel(strMetric);
+	ylabel('Fraction of NOT cells');
+	fixfig;
+	
+	subplot(2,3,3+(intMetric-1)*3)
+	%WT
+	errorbar(1:2,[mean(vecBl6_Ctx) mean(vecBl6_NOT)],[std(vecBl6_Ctx)/sqrt(numel(vecBl6_Ctx)) std(vecBl6_NOT)/sqrt(numel(vecBl6_NOT))],'color',lines(1));
+	
+	hold on
+	%Alb
+	errorbar(1:2,[mean(vecAlb_Ctx) mean(vecAlb_NOT)],[std(vecAlb_Ctx)/sqrt(numel(vecAlb_Ctx)) std(vecAlb_NOT)/sqrt(numel(vecAlb_NOT))],'color',[1 0 0]);
+	%scatter(ones(size(vecBl6_Ctx))*0.8,vecBl6_Ctx,[],lines(1));
+	%scatter(ones(size(vecAlb_Ctx))*0.9,vecAlb_Ctx,[],[1 0 0]);
+	%scatter(ones(size(vecBl6_NOT))*2.1,vecBl6_NOT,[],lines(1));
+	%scatter(ones(size(vecAlb_NOT))*2.2,vecAlb_NOT,[],[1 0 0]);
+	
+	%fixfig;grid off
+	ylabel(strMetric);
+	set(gca,'xtick',[1 2],'xticklabel',{'Ctx','NOT'});
 	
 	%anova
-	vecB_Ori = vecB_Ori(:);
-	vecA_Ori = vecA_Ori(:);
-	vecB_Dir = vecB_Dir(:);
-	vecA_Dir = vecA_Dir(:);
-	y=cat(1,vecB_Ori,vecA_Ori,vecB_Dir,vecA_Dir);
-	cellAlbG = cat(1,cellfill('WT',size(vecB_Ori)),cellfill('Alb',size(vecA_Ori)),cellfill('WT',size(vecB_Dir)),cellfill('Alb',size(vecA_Dir)));
-	cellTuningG = cat(1,cellfill('Ori',size(vecB_Ori)),cellfill('Ori',size(vecA_Ori)),cellfill('Dir',size(vecB_Dir)),cellfill('Dir',size(vecA_Dir)));
-	g = {cellAlbG,cellTuningG};
+	vecBl6_Ctx = vecBl6_Ctx(:);
+	vecAlb_Ctx = vecAlb_Ctx(:);
+	vecBl6_NOT = vecBl6_NOT(:);
+	vecAlb_NOT = vecAlb_NOT(:);
+	y=cat(1,vecBl6_Ctx,vecAlb_Ctx,vecBl6_NOT,vecAlb_NOT);
+	cellMouseG = cat(1,cellfill('WT',size(vecBl6_Ctx)),cellfill('Alb',size(vecAlb_Ctx)),cellfill('WT',size(vecBl6_NOT)),cellfill('Alb',size(vecAlb_NOT)));
+	cellAreaG = cat(1,cellfill('Ctx',size(vecBl6_Ctx)),cellfill('Ctx',size(vecAlb_Ctx)),cellfill('NOT',size(vecBl6_NOT)),cellfill('NOT',size(vecAlb_NOT)));
+	g = {cellMouseG,cellAreaG};
 	[vecAnovaP,tbl,stats,terms]=anovan(y,g,'display','off','model','interaction');
-	[h,dDSI]=ttest2(vecA_Dir,vecB_Dir);
-	[h,dOSI]=ttest2(vecA_Ori,vecB_Ori);
+	[h,dCtx]=ttest2(vecBl6_Ctx,vecAlb_Ctx);
+	dCtxW=ranksum(vecBl6_Ctx,vecAlb_Ctx);
+	[h,dNOT]=ttest2(vecBl6_NOT,vecAlb_NOT);
+	dNOTW=ranksum(vecBl6_NOT,vecAlb_NOT);
+	
+	[h,x,p]=fdr_bh([dCtx dNOT]);
+	dCtxC=p(1);
+	dNOTC=p(2);
 	
 	plot([1 2],[0 0],'k--')
 	legend({'WT','Alb'},'location','best');
-	title(sprintf('Inter, p=%.3e, t-test Alb/WT, OSI=%.3f,DSI=%.3e',vecAnovaP(3),dOSI,dDSI));
+	title(sprintf('Inter, p=%.4f, t-test OSI, Ctx=%.4f,NOT=%.4f',vecAnovaP(3),dCtxC,dNOTC));
 	fixfig;
 	grid off;
 end

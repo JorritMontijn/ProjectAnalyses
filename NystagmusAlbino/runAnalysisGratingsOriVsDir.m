@@ -90,7 +90,7 @@ for intSubType=1:2
 		end
 		
 		%% concatenate blocks
-		vecAggOri = [];
+		vecAggDir = [];
 		vecAggStimOnTime = [];
 		vecAggStimOffTime = [];
 		for intBlockIdx=1:min(numel(vecBlocksDG),2)
@@ -141,14 +141,14 @@ for intSubType=1:2
 			vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);
 			vecStimOffTime = sBlock.vecStimOffTime(~indRemTrials);
 			
-			vecAggOri = cat(1,vecAggOri,vecOrientation);
+			vecAggDir = cat(1,vecAggDir,vecOrientation);
 			vecAggStimOnTime = cat(2,vecAggStimOnTime,vecStimOnTime);
 			vecAggStimOffTime = cat(2,vecAggStimOffTime,vecStimOffTime);
 		end
 		%get data matrix
 		cellSpikeT = {sRec.sCluster(:).SpikeTimes};
 		dblStimDur = median(vecAggStimOffTime-vecAggStimOnTime);
-		[vecOriIdx,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecAggOri);
+		[vecAggOriIdx,vecAggUnique,vecAggCounts,cellAggSelect,vecAggRepetition] = val2idx(vecAggDir);
 		if numel(vecUnique) ~= 24,continue,end
 		matData = getSpikeCounts(cellSpikeT,vecAggStimOnTime,dblStimDur);
 		
@@ -172,13 +172,13 @@ for intSubType=1:2
 		
 		%params
 		intTypeCV = 2; %leave repetition out
-		vecOriNoDir = mod(vecAggOri,180);
+		vecOriNoDir = mod(vecAggDir,180);
 		vecTrialTypesNoDir = deg2rad(vecOriNoDir)*2;
 		[vecOriIdx,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecTrialTypesNoDir);
 		dblLambda = 100;
 		
 		%[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOriNoDir);
-		[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecAggOri);
+		[vecTrialTypes,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecAggDir);
 		vecPriorDistribution = vecCounts;
 		intStimNr = numel(vecUnique);
 		
@@ -193,7 +193,8 @@ for intSubType=1:2
 			%% calc tuning curves & zeta
 			%calc tuning curve
 			matUseData = matData(vecSelectCells,:);
-			sOut = getTuningCurves(matUseData,vecAggOri);
+			cellSubSpikes = cellSpikeT(vecSelectCells);
+			sOut = getTuningCurves(matUseData,vecAggDir);
 			vecTuningP_A = sOut.vecOriAnova;
 			vecTuningP_R2 = sOut.vecFitP;
 			[h, crit_p, vecTuningP_R2_corr] = fdr_bh(vecTuningP_R2);
@@ -204,8 +205,8 @@ for intSubType=1:2
 			%get OPI
 			%matUseR = sOut.matMeanResp(indTunedCells,:);
 			matUseR = sOut.matFittedResp;
-			vecOri24 = mod(vecOri24,180);
 			vecDir24 = sOut.vecUniqueDegs;
+			vecOri24 = mod(vecDir24,180);
 			
 			%collapse angles
 			vecOPI = getOPI(matUseR,vecOri24);
@@ -241,7 +242,69 @@ for intSubType=1:2
 				ylabel('DSI')
 			%}
 			
-			if 0
+			if 1
+				%% plot tuning curve
+				[dummy,vecIdx]=sort(vecTuningP_R2_corr)
+				
+				%% plot
+				for intCellIdx=1:numel(vecIdx)
+					%%
+					%intCellIdx=6
+					intCell=13;%vecIdx(intCellIdx);
+					figure
+					vecDirs = vecAggUnique(:)';
+					vecMeanR = sOut.matMeanResp(intCell,:);
+					subplot(2,3,1)
+					polarplot(deg2rad(vecDirs),vecMeanR);
+					fixfig;
+					
+					subplot(2,3,2)
+					errorbar(vecDirs,vecMeanR,sOut.matSDResp(intCell,:)./sqrt(vecAggCounts'));
+					hold on
+					plot(vecDirs,sOut.matFittedResp(intCell,:))
+					hold off
+					title(sprintf('%d',intCell))
+					fixfig;grid off;
+					
+					subplot(2,3,3)
+					[dummy,intPrefDir] = max(vecMeanR);
+					vecPrefT =  vecAggStimOnTime(cellAggSelect{intPrefDir});
+					dblOffset = -0.3;
+					dblTrialDur = 1.5;
+					dblBinSize = 0.05;
+					vecWindow = dblOffset:dblBinSize:(dblTrialDur+dblOffset);
+					vecLimX = [vecWindow(1) vecWindow(end)];
+					vecSpikeT = cellSubSpikes{intCell};
+					intSmoothSd = 5;
+					%[vecTime,vecRate] = getIFR(vecSpikeT,vecPrefT+dblOffset,dblTrialDur,intSmoothSd);
+					[vecMean,vecSEM,vecWindowBinCenters,matPET] = doPEP(vecSpikeT,vecWindow,vecPrefT,-1);
+					%plot(vecTime+dblOffset,vecRate);
+					hold on
+					errorbar(vecWindowBinCenters,vecMean,vecSEM);
+					hold off
+					xlabel('Time (s)');
+					ylabel('Instantaneous rate (Hz)');
+					title('pref dir')
+					fixfig;grid off;
+					
+					subplot(2,3,6)
+					intDirNum = numel(cellAggSelect);
+					intOrthDir = modx(intPrefDir + intDirNum/4,intDirNum);
+					vecOrthT =  vecAggStimOnTime(cellAggSelect{intOrthDir});
+					[vecMean,vecSEM,vecWindowBinCenters,matPET] = doPEP(vecSpikeT,vecWindow,vecOrthT,-1);
+					%plot(vecTime,vecRate);
+					hold on
+					errorbar(vecWindowBinCenters,vecMean,vecSEM);
+					hold off
+					xlabel('Time (s)');
+					ylabel('Instantaneous rate (Hz)');
+					title('orth dir')
+					fixfig;grid off;
+					
+					%%
+					pause
+				end
+				
 				%% plot
 				for intCellIdx=1:numel(vecSelectCells)
 					intCell = vecSelectCells(intCellIdx);

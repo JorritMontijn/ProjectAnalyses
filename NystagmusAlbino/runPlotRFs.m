@@ -58,6 +58,7 @@ for intSubType=1:2
 	indUseRecs = contains(cellSubjectType,strSubjectType);
 	vecRunRecs = find(indUseRecs & ~(indRemRecs));
 	%vecRunRecs = intBestRec;
+	
 	for intRecIdx=1:numel(vecRunRecs)
 		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);

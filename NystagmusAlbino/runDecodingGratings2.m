@@ -291,6 +291,10 @@ export_fig([strTargetPath filesep sprintf('OriDecoding%dtuple.tif',intMinCells)]
 export_fig([strTargetPath filesep sprintf('OriDecoding%dtuple.pdf',intMinCells)]);
 	
 %% pseudo populations
+matDiag = diag(diag(true(intStimNr,intStimNr)));
+matIsCorrect = circshift(matDiag,-1) | matDiag | circshift(matDiag,1);
+dblChanceP = sum(matIsCorrect(:))/numel(matIsCorrect);
+
 figure;maxfig;
 intUseCells = 20;
 intUseReps = 14;
@@ -387,7 +391,7 @@ for intArea=1:2
 	end
 end
 
-%% plot means
+% plot means
 n = numel(vecPseudoOri);
 [p_CtxWt_vs_CtxAlb] = bino2test(round(matMeanPerf(1,1)*n),n,round(matMeanPerf(1,2)*n),n);
 [p_NotWt_vs_NotAlb] = bino2test(round(matMeanPerf(2,1)*n),n,round(matMeanPerf(2,2)*n),n,true);
@@ -415,7 +419,7 @@ ylabel(sprintf('Pseudo pop decoding accuracy (fraction)'));
 set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr(1:2));
 xlim([0.5 2.5]);
 legend(cellSubjectGroups,'Location','best');
-title(sprintf('C,p=%.3f,N,p=%.1e,Wt C-N,p=%.3f,A C-N,p=%.1e',p_CtxWt_vs_CtxAlb,p_NotWt_vs_NotAlb,p_CtxWt_vs_NotWt,p_CtxAlb_vs_NotAlb));
+title(sprintf('C,p=%.3f,N,p=%.1e,Wt C-N,p=%.1e,A C-N,p=%.1e',p_CtxWt_vs_CtxAlb,p_NotWt_vs_NotAlb,p_CtxWt_vs_NotWt,p_CtxAlb_vs_NotAlb));
 fixfig;grid off;
 
 subplot(2,3,6)

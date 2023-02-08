@@ -237,7 +237,7 @@ for intSubType=1:2
 	
 end
 %% plot
-
+[vecOriIdx,vecUnique] = val2idx(vecOrientation);
 vecPlotDegs1 = vecUnique;
 vecPlotDegs1(vecPlotDegs1>=180) = vecPlotDegs1(vecPlotDegs1>=180) - 360;
 [vecPlotDegs1,vecReorder1]=sort(vecPlotDegs1);
@@ -451,6 +451,7 @@ export_fig(fullpath(strTargetPath,['OriDecodingAndPreference.pdf']));
 %define horizontal and vertical
 figure;maxfig;
 dblSurroundDegs = 30;
+[vecOriIdx,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOrientation);
 indHorz = mod(vecUnique,180) <= 0+dblSurroundDegs | mod(vecUnique,180) >= 180-dblSurroundDegs;
 indVert = mod(vecUnique,180) >= 90-dblSurroundDegs & mod(vecUnique,180) <= 90+dblSurroundDegs;
 vecVertOris = vecUnique(indHorz);
@@ -552,20 +553,20 @@ fixfig;grid off
 drawnow;
 
 %% decoding performance of anti-direction vs chance for bl6 and albino
-boolMergeBlocks = true;
+boolMergeBlocks = false;
 matConfCtxWt = squeeze(matAggConfusionWt(:,1,:,:));
 indRemCtxWt = sum(sum(matConfCtxWt,2),3)==0;
-matConfCtxWt(indRemCtxWt,:,:)=[];
+%matConfCtxWt(indRemCtxWt,:,:)=[];
 matConfNotWt = squeeze(matAggConfusionWt(:,2,:,:));
 indRemNotWt = sum(sum(matConfNotWt,2),3)==0;
-matConfNotWt(indRemNotWt,:,:)=[];
+%matConfNotWt(indRemNotWt,:,:)=[];
 
 matConfCtxAlb = squeeze(matAggConfusionAlb(:,1,:,:));
 indRemCtxAlb = sum(sum(matConfCtxAlb,2),3)==0;
-matConfCtxAlb(indRemCtxAlb,:,:)=[];
+%matConfCtxAlb(indRemCtxAlb,:,:)=[];
 matConfNotAlb = squeeze(matAggConfusionAlb(:,2,:,:));
 indRemNotAlb = sum(sum(matConfNotAlb,2),3)==0;
-matConfNotAlb(indRemNotAlb,:,:)=[];
+%matConfNotAlb(indRemNotAlb,:,:)=[];
 
 %merge
 matProDir = diag(diag(true(intStimNr,intStimNr)));
@@ -573,39 +574,71 @@ matAntiDir = circshift(matProDir,intStimNr/2,1);
 
 %CtxWt
 intRecCtxWt = size(matConfCtxWt,1);
-vecAntiDirP_CtxWt = nan(1,intRecCtxWt);
+vecAntiDirP_CtxWtBlock = nan(1,intRecCtxWt);
 for intRec=1:intRecCtxWt
 	matThisC = squeeze(matConfCtxWt(intRec,:,:));
 	intAllTrials = sum(matThisC(:));
 	if intAllTrials==0,continue;end
-	vecAntiDirP_CtxWt(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
+	vecAntiDirP_CtxWtBlock(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
 end
 %NotWt
 intRecNotWt = size(matConfNotWt,1);
-vecAntiDirP_NotWt = nan(1,intRecNotWt);
+vecAntiDirP_NotWtBlock = nan(1,intRecNotWt);
 for intRec=1:intRecNotWt
 	matThisC = squeeze(matConfNotWt(intRec,:,:));
 	intAllTrials = sum(matThisC(:));
 	if intAllTrials==0,continue;end
-	vecAntiDirP_NotWt(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
+	vecAntiDirP_NotWtBlock(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
 end
 %CtxAlb
 intRecCtxAlb = size(matConfCtxAlb,1);
-vecAntiDirP_CtxAlb = nan(1,intRecCtxAlb);
+vecAntiDirP_CtxAlbBlock = nan(1,intRecCtxAlb);
 for intRec=1:intRecCtxAlb
 	matThisC = squeeze(matConfCtxAlb(intRec,:,:));
 	intAllTrials = sum(matThisC(:));
 	if intAllTrials==0,continue;end
-	vecAntiDirP_CtxAlb(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
+	vecAntiDirP_CtxAlbBlock(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
 end
 %NotAlb
 intRecNotAlb = size(matConfNotAlb,1);
-vecAntiDirP_NotAlb = nan(1,intRecNotAlb);
+vecAntiDirP_NotAlbBlock = nan(1,intRecNotAlb);
 for intRec=1:intRecNotAlb
 	matThisC = squeeze(matConfNotAlb(intRec,:,:));
 	intAllTrials = sum(matThisC(:));
 	if intAllTrials==0,continue;end
-	vecAntiDirP_NotAlb(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
+	vecAntiDirP_NotAlbBlock(intRec) = sum(matThisC(matAntiDir))/(intAllTrials-sum(matThisC(matProDir)));
+end
+
+if boolMergeBlocks
+%average over blocks for each recording
+indRemCtxWt = isnan(vecAntiDirP_CtxWtBlock);
+vecSourceRecCtxWt = vecSourceRecWt(~indRemCtxWt)';
+vecAntiDirP_CtxWtBlock = vecAntiDirP_CtxWtBlock(~indRemCtxWt)';
+[vecSourceRecCtxWt2,vecUnique,vecCounts_CtxWt] = val2idx(vecSourceRecCtxWt);
+vecAntiDirP_CtxWt  = accumarray(vecSourceRecCtxWt2,vecAntiDirP_CtxWtBlock)./vecCounts_CtxWt;
+
+indRemNotWt = isnan(vecAntiDirP_NotWtBlock);
+vecSourceRecNotWt = vecSourceRecWt(~indRemNotWt)';
+vecAntiDirP_NotWtBlock = vecAntiDirP_NotWtBlock(~indRemNotWt)';
+[vecSourceRecNotWt2,vecUnique,vecCounts_NotWt] = val2idx(vecSourceRecNotWt);
+vecAntiDirP_NotWt  = accumarray(vecSourceRecNotWt2,vecAntiDirP_NotWtBlock)./vecCounts_NotWt;
+
+indRemCtxAlb = isnan(vecAntiDirP_CtxAlbBlock);
+vecSourceRecCtxAlb = vecSourceRecAlb(~indRemCtxAlb)';
+vecAntiDirP_CtxAlbBlock = vecAntiDirP_CtxAlbBlock(~indRemCtxAlb)';
+[vecSourceRecCtxAlb2,vecUnique,vecCounts_CtxAlb] = val2idx(vecSourceRecCtxAlb);
+vecAntiDirP_CtxAlb  = accumarray(vecSourceRecCtxAlb2,vecAntiDirP_CtxAlbBlock)./vecCounts_CtxAlb;
+
+indRemNotAlb = isnan(vecAntiDirP_NotAlbBlock);
+vecSourceRecNotAlb = vecSourceRecAlb(~indRemNotAlb)';
+vecAntiDirP_NotAlbBlock = vecAntiDirP_NotAlbBlock(~indRemNotAlb)';
+[vecSourceRecNotAlb2,vecUnique,vecCounts_NotAlb] = val2idx(vecSourceRecNotAlb);
+vecAntiDirP_NotAlb  = accumarray(vecSourceRecNotAlb2,vecAntiDirP_NotAlbBlock)./vecCounts_NotAlb;
+else
+	vecAntiDirP_CtxWt = vecAntiDirP_CtxWtBlock;
+	vecAntiDirP_CtxAlb = vecAntiDirP_CtxAlbBlock;
+	vecAntiDirP_NotWt = vecAntiDirP_NotWtBlock;
+	vecAntiDirP_NotAlb = vecAntiDirP_NotAlbBlock;
 end
 
 %tests
@@ -617,8 +650,11 @@ dblChanceP = 1/intStimNr;
 [h,pAD2W]=ttest2(vecAntiDirP_CtxWt,vecAntiDirP_NotWt);
 [h,pAD2A]=ttest2(vecAntiDirP_CtxAlb,vecAntiDirP_NotAlb);
 
-[pAD2W_ranksum] = ranksum(vecAntiDirP_CtxWt,vecAntiDirP_NotWt,'method','exact');
-[pAD2A_ranksum] = ranksum(vecAntiDirP_CtxAlb,vecAntiDirP_NotAlb,'method','exact');
+%[pAD2W_ranksum] = ranksum(vecAntiDirP_CtxWt,vecAntiDirP_NotWt,'method','exact');
+%[pAD2A_ranksum] = ranksum(vecAntiDirP_CtxAlb,vecAntiDirP_NotAlb,'method','exact');
+
+[h,pAD2C]=ttest2(vecAntiDirP_CtxWt,vecAntiDirP_CtxAlb);
+[h,pAD2N]=ttest2(vecAntiDirP_NotWt,vecAntiDirP_NotAlb);
 
 % plot
 %Ctx
@@ -636,7 +672,7 @@ xlim([0.5 2.5]);
 ylim([0 0.16]);
 ylabel('P(Anti-direction|Error)');
 set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr);
-title(sprintf('%s: t v rand;Ctx,p=%.3f; NOT,p=%.3f; 2t,p=%.3f','BL6',pADCW,pADNW,pAD2W));
+title(sprintf('%s: t v rand;Ctx,p=%.3e; NOT,p=%.3f; 2t,p=%.3e','BL6',pADCW,pADNW,pAD2W));
 fixfig;grid off
 drawnow;
 
@@ -655,7 +691,7 @@ xlim([0.5 2.5]);
 ylim([0 0.16]);
 ylabel('P(Anti-direction|Error)');
 set(gca,'xtick',[1 2],'xticklabel',cellAreaGroupsAbbr);
-title(sprintf('%s: t v rand;Ctx,p=%.3f; NOT,p=%.3f; 2t,p=%.3f','DBA',pADCA,pADNA,pAD2A));
+title(sprintf('%s: t v rand;Ctx,p=%.3e; NOT,p=%.3f; 2t,p=%.3f','DBA',pADCA,pADNA,pAD2A));
 fixfig;grid off
 drawnow;
 

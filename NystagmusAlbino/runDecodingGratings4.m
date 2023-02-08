@@ -316,6 +316,35 @@ ylabel('Count (bootstrap sample)');
 title(sprintf('Pseudo-pop NOT, L vs R decoding, z-test,p=%.1e',p_NOT));
 fixfig;
 
+
+subplot(2,3,3)
+vecCtxWt = squeeze(matPermPerf(1,1,:));
+vecCtxDBA = squeeze(matPermPerf(1,2,:));
+vecNotWt = squeeze(matPermPerf(2,1,:));
+vecNotDBA = squeeze(matPermPerf(2,2,:));
+bplot(vecCtxWt,0.5);
+hold on
+bplot(vecCtxDBA,1.5);
+bplot(vecNotWt,2.5);
+bplot(vecNotDBA,3.5);
+hold off
+xlim([0 4]);
+ylim([0 1]);
+ylabel('L vs R decoding accuracy');
+set(gca,'xtick',0.5:1:3.5,'xticklabel',{'Ctx Wt','Ctx Alb','NOT Wt','NOT Alb'});
+fixfig;
+
+d=abs(getCohensD(vecCtxWt,vecNotWt));
+p_Wt=1-(normcdf(d,0,1)-normcdf(-d,0,1));
+
+d=abs(getCohensD(vecCtxDBA,vecNotDBA));
+p_Alb=1-(normcdf(d,0,1)-normcdf(-d,0,1));
+
+%errorbar([1 2],[mean(vecCtxWt) mean(vecNotWt)],[std(vecCtxWt) std(vecNotWt)],'color',lines(1));
+%hold on
+%errorbar([1 2],[mean(vecCtxDBA) mean(vecNotDBA)],[std(vecCtxDBA) std(vecNotDBA)],'color',[1 0 0]);
+%hold off
+
 %save plot
 drawnow;
 export_fig([strTargetPath filesep sprintf('OriDecodingLeftRight%dperms.tif',intChoosePerms)]);

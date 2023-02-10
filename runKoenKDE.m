@@ -5,6 +5,7 @@ boolRemRun0 = false; %instead of normalizing for running density, you can also r
 boolStandardizeAxes = true; %if true, you can sum all KDE maps over neurons, otherwise each neuron gets its own axis
 boolPlotPerNeuron = true; %make plot for every neuron?
 
+%% prep data
 %standardize axes?
 matAllData = signals;
 

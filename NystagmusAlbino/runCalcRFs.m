@@ -30,7 +30,7 @@ for intSubType=2
 		dblOffsetT=0;
 	end
 	indUseRecs = contains(cellSubjectType,strSubjectType);
-	vecRunRecs = find(indUseRecs & ~(indRemRecs | indRemRecs2));
+	vecRunRecs = find(indUseRecs & ~indRemRecs);
 	%vecRunRecs = intBestRec;
 	
 	

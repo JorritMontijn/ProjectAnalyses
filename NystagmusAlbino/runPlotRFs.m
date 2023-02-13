@@ -115,7 +115,7 @@ for intSubType=1:2
 			vecSelectCells = find(indSignificant(:) & ~indNanZeta(:) & indUseCells(:) & cellCellsPerArea{intArea}(:));
 			strArea = cellAreaGroupsAbbr{intArea};
 			
-			if 1%isempty(vecSelectCells)
+			if isempty(vecSelectCells)
 				fprintf('No (significant) cells in %s for %s: skipping...\n',strArea,strRec);
 				continue;
 			end
@@ -140,8 +140,6 @@ for intSubType=1:2
 			% 	end
 			
 			%overall
-			figure
-			subplot(2,3,1)
 			dblLowerBound = 0;
 			matOnZ = -norminv(matZetaOn(:,:,vecSelectCells)/2);
 			%matOnZ = matZetaOn(:,:,vecSelectCells)<dblCritVal;
@@ -167,6 +165,17 @@ for intSubType=1:2
 			vecMaxVals = findmax(matOnOffAvg(:),1);
 			[intMaxRow,intMaxCol]=find(matOnOffAvg==vecMaxVals(end));
 			
+			%mean counts
+			matMeanOn = sLoad.matMeanCountsOn(:,:,vecSelectCells);
+			matMeanOff = sLoad.matMeanCountsOff(:,:,vecSelectCells);
+			matOnMAvg=mean(matMeanOn,3);
+			matOffMAvg=mean(matMeanOff,3);
+			matOnMAvg = imfilt(matOnMAvg,matFilt);
+			matOffMAvg = imfilt(matOffMAvg,matFilt);
+			
+			if 0
+			figure
+			subplot(2,3,1)
 			imagesc(matOnZAvg)
 			colorbar
 			title(sprintf('%s %s\nZETA On',strRec,strArea),'interpreter','none');
@@ -184,9 +193,6 @@ for intSubType=1:2
 			colorbar
 			title('ZETA On+Off','interpreter','none');
 			
-			%mean counts
-			matMeanOn = sLoad.matMeanCountsOn(:,:,vecSelectCells);
-			matMeanOff = sLoad.matMeanCountsOff(:,:,vecSelectCells);
 			%
 			% 	for intCell=1:size(matZetaOn,3)
 			% 		figure
@@ -210,11 +216,6 @@ for intSubType=1:2
 			%overall
 			subplot(2,3,4)
 			
-			matOnMAvg=mean(matMeanOn,3);
-			matOffMAvg=mean(matMeanOff,3);
-			matOnMAvg = imfilt(matOnMAvg,matFilt);
-			matOffMAvg = imfilt(matOffMAvg,matFilt);
-			
 			imagesc(matOnMAvg)
 			colorbar
 			title('Mean On','interpreter','none');
@@ -233,7 +234,7 @@ for intSubType=1:2
 			maxfig;drawnow;
 			export_fig([strTargetPath filesep 'single_recs' filesep sprintf('RF_maps_%s.tif',strRec)]);
 			export_fig([strTargetPath filesep 'single_recs' filesep sprintf('RF_maps_%s.pdf',strRec)]);
-			
+			end
 			
 			%% get probe locations
 			%get locations along probe
@@ -419,7 +420,7 @@ fMinFunc = @(x) -getMeanRFcorrWithAngleConstraint(x,matCoordsMu(1,:)',matCoordsM
 [dblRealOptCorr,dblCorr1,vecProjectedLocation1,matProjectedPoints1,dblCorr2,vecProjectedLocation2,matProjectedPoints2] = getMeanRFcorrWithAngleConstraint(dblRealOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',matCenterRF(1,:)',matCenterRF(2,:)');
 
 %compare with random (shuffled) rf locations
-intRunNum = 1000;
+intRunNum = 100000;
 intP = numel(matCenterRF(1,:)');
 intRandIters = min(intRunNum,factorial(intP));
 vecRandCorr = nan(1,intRandIters);

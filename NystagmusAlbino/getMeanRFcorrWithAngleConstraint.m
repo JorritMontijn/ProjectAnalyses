@@ -32,4 +32,3 @@ function [dblCorr,dblCorr1,vecProjectedLocation,matProjectedPoints,dblCorr2,vecP
 	%tot corr
 	dblCorr = (dblCorr1 + sign(dblCorr1)*abs(dblCorr2))/2;
 end
-

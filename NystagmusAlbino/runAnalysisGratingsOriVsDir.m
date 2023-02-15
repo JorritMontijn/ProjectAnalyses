@@ -71,7 +71,7 @@ for intSubType=1:2
 		dblOffsetT=0;
 	end
 	indUseRecs = contains(cellSubjectType,strSubjectType);
-	vecRunRecs = find(indUseRecs & ~(indRemRecs | indRemRecs2));
+	vecRunRecs = find(indUseRecs & ~(indRemRecs));% | indRemRecs2));
 	%vecRunRecs = intBestRec;
 	for intRecIdx=1:numel(vecRunRecs)
 		intRec=vecRunRecs(intRecIdx);
@@ -103,39 +103,43 @@ for intSubType=1:2
 			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);
 			
 			%% get pupil data
-			dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);
-			dblFirstSamp = str2double(sRec.sSources.sMeta.firstSample);
-			vecPupilTime = sRec.sPupil.vecTime;
-			vecPupilLocX = sRec.sPupil.vecCenterX;
-			vecPupilLocY = sRec.sPupil.vecCenterY;
-			vecPupilSize = sRec.sPupil.vecRadius;
-			vecPupilSync = sRec.sPupil.vecSyncLum;
-			if isfield(sRec.sPupil,'vecBlinks') && ~all(sRec.sPupil.vecBlinks==0)
-				vecBlinks = sRec.sPupil.vecBlinks;
+			if isfield(sRec,'sPupil') && ~isempty(sRec.sPupil)
+				dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);
+				dblFirstSamp = str2double(sRec.sSources.sMeta.firstSample);
+				vecPupilTime = sRec.sPupil.vecTime;
+				vecPupilLocX = sRec.sPupil.vecCenterX;
+				vecPupilLocY = sRec.sPupil.vecCenterY;
+				vecPupilSize = sRec.sPupil.vecRadius;
+				vecPupilSync = sRec.sPupil.vecSyncLum;
+				if isfield(sRec.sPupil,'vecBlinks') && ~all(sRec.sPupil.vecBlinks==0)
+					vecBlinks = sRec.sPupil.vecBlinks;
+				else
+					%filter absvidlum
+					dblLowPass = 0.01/(1/median(diff(vecPupilTime)));
+					[fb,fa] = butter(2,dblLowPass,'high');
+					vecAbsVidLum = zscore(filtfilt(fb,fa, sRec.sPupil.sRaw.vecPupilAbsVidLum));
+					vecBlinks = vecAbsVidLum > 5;
+				end
+				dblFs = 1/median(diff(vecPupilTime));
+				
+				% get blinking
+				vecBinEdges = [-inf vecPupilStimOn vecPupilStimOn(end)+median(diff(vecPupilStimOn)) inf];
+				[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecPupilTime,double(vecBlinks),vecBinEdges);
+				vecBlinkFractionPerTrial = vecMeans(2:(end-1));
+				
+				%remove trials with blinking
+				indRemTrials = vecBlinkFractionPerTrial > 0.1;
 			else
-				%filter absvidlum
-				dblLowPass = 0.01/(1/median(diff(vecPupilTime)));
-				[fb,fa] = butter(2,dblLowPass,'high');
-				vecAbsVidLum = zscore(filtfilt(fb,fa, sRec.sPupil.sRaw.vecPupilAbsVidLum));
-				vecBlinks = vecAbsVidLum > 5;
+				%remove trials with blinking
+				indRemTrials = false(size(vecPupilStimOn));
 			end
-			dblFs = 1/median(diff(vecPupilTime));
-			
-			% get blinking
-			vecBinEdges = [-inf vecPupilStimOn vecPupilStimOn(end)+median(diff(vecPupilStimOn)) inf];
-			[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecPupilTime,double(vecBlinks),vecBinEdges);
-			vecBlinkFractionPerTrial = vecMeans(2:(end-1));
-			
-			%remove trials with blinking
-			indRemTrials = vecBlinkFractionPerTrial > 0.1;
-			
 			%% prep data
 			%split by ori
 			sTrialObjects = sBlock.sStimObject(sBlock.vecTrialStimTypes);
 			vecOrientation = cell2vec({sTrialObjects.Orientation});
 			vecOrientation(indRemTrials) = [];
 			[vecOriIdx,vecUnique,vecCounts,cellSelect,vecRepetition] = val2idx(vecOrientation);
-			if numel(vecUnique) ~= 24,continue,end
+			if numel(vecUnique) ~= 24 || numel( sBlock.vecStimOnTime) ~= numel(sTrialObjects),continue,end
 			
 			%get data matrix
 			vecStimOnTime = sBlock.vecStimOnTime(~indRemTrials);
@@ -182,7 +186,7 @@ for intSubType=1:2
 		vecPriorDistribution = vecCounts;
 		intStimNr = numel(vecUnique);
 		
-		for intArea = 2%1:2%numel(cellUseAreas)
+		for intArea = 1:2%numel(cellUseAreas)
 			%% select cells
 			strAreaGroup =  cellAreaGroupsAbbr{intArea};
 			vecSelectCells = find(indUseCells(:) & cellCellsPerArea{intArea}(:));
@@ -243,7 +247,7 @@ for intSubType=1:2
 				ylabel('DSI')
 			%}
 			
-			if 1
+			if 0
 				%% plot tuning curve
 				[dummy,vecIdx]=sort(vecTuningP_R2_corr);
 				%get DSI horizontal
@@ -251,7 +255,7 @@ for intSubType=1:2
 				vecLeftR = mean(matUseRD(:,vecDir24==0 | vecDir24==345 | vecDir24==15),2);
 				vecRightR = mean(matUseRD(:,vecDir24==165 | vecDir24==180 | vecDir24==195),2);
 				vecDSI = (vecLeftR-vecRightR)./(vecRightR+vecLeftR);
-			
+				
 				%% plot
 				for intCellIdx=1:numel(vecIdx)
 					%%

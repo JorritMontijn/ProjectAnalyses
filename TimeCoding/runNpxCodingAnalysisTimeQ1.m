@@ -52,7 +52,7 @@ mat_xR_All = nan(intAreas,intAreas,numel(sAggStim),2);
 
 %% go through recordings
 tic
-for intRec=19%1:numel(sAggStim)
+for intRec=1:numel(sAggStim) %19
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
@@ -60,7 +60,7 @@ for intRec=19%1:numel(sAggStim)
 	%remove stimulus sets that are not 24 stim types
 	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
 	% concatenate stimulus structures
-	structStim = catstim(sThisRec.cellBlock(1:2));
+	structStim = catstim(sThisRec.cellBlock(1:end));
 	vecStimOnTime = structStim.vecStimOnTime;
 	vecStimOffTime = structStim.vecStimOffTime;
 	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';

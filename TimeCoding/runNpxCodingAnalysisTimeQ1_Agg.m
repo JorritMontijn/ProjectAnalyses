@@ -127,10 +127,11 @@ for intRec=1:numel(sAggStim) %19
 		intOriNum = numel(vecUnique);
 		intRepNum = min(vecPriorDistribution);
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
-		dblBinWidth = 1/32;
-		dblPreTime = 10*dblBinWidth;
-		dblPostTime = 10*dblBinWidth;
-		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
+		dblBinWidth = 5/1000;%/32
+		dblPreTime = 0*10*dblBinWidth;
+		dblPostTime = 30*dblBinWidth;
+		%dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
+		dblMaxDur = dblPreTime+dblPostTime;
 		vecBinEdges = 0:dblBinWidth:dblMaxDur;
 		vecStimTime = vecBinEdges(2:end)-dblBinWidth/2 - dblPreTime;
 		indStimBins = vecStimTime > 0 & vecStimTime < dblStimDur;
@@ -253,6 +254,7 @@ for intRec=1:numel(sAggStim) %19
 				matAcrossTimeDecoder(intBinIdx,intTestBinIdx) = dblPerformanceX;
 			end
 		end
+		
 		%%
 		%matDecPerf = matDecConf;
 		vecDecPerf = vecDecConf;%vecDecCorr
@@ -478,7 +480,7 @@ for intRec=1:numel(sAggStim) %19
 		%%
 		export_fig(fullpath(strFigurePath,sprintf('A2_ExampleNeuralCodes_%s.tif',strRec)));
 		export_fig(fullpath(strFigurePath,sprintf('A2_ExampleNeuralCodes_%s.pdf',strRec)));
-		
+		return
 	end
 end
 toc

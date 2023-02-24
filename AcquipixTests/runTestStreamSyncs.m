@@ -54,11 +54,13 @@ for intRecNI=1:numel(sMetaFilesNI)
 	%pre-allocate
 	vecT0_new = nan(1,2);
 	vecCorrFactor_new = nan(1,2);
+	cellStreamStr = {'NI','ImAp'};
+	strT0 = '    ';
 	for intSource=1:2
 		%% get source data
+		strStream = cellStreamStr{intSource};
 		if intSource == 1
 			%NI
-			strStream = 'NI';
 			
 			%reported rates
 			intFirstSample = str2double(sMetaNI.firstSample);
@@ -72,7 +74,6 @@ for intRecNI=1:numel(sMetaFilesNI)
 			
 		elseif intSource == 2
 			%ImAp
-			strStream = 'ImAp';
 			
 			%reported rates
 			intFirstSample = str2double(sMetaImAp.firstSample);
@@ -98,19 +99,27 @@ for intRecNI=1:numel(sMetaFilesNI)
 		
 		%max deviation
 		dblMaxFault = dblRecLength*dblRateError;
-		fprintf('%s stream; %.4f%% error gives max fault of %.0f ms; calibrated rate is %.6f Hz, actual pulse-based rate is %.6f Hz\n',...
+		fprintf('%s stream; %.4f%% error gives max fault of %.0f ms; reported rate is %.6f Hz, real rate is %.6f Hz\n',...
 			strStream,dblRateErrorPercentage,dblMaxFault*1000,dblRateFromMetaData,dblSampRate);
 		
 		%corrected
 		dblT0_new = intFirstSample/dblSampRate; %the true onset
 		dblCorrectionfactor = dblRateFromMetaData/dblSampRate;
+		strT0 = [strT0 sprintf('T0 %s = %.3f s; ',strStream,dblT0_new)];
 		
 		%% save data
 		vecT0_new(intSource) = dblT0_new;
 		vecCorrFactor_new(intSource) = dblCorrectionfactor;
 	end
-	
+		
 	%% calc diff
 	vecDiffsT0_Corr(intRecNI) = diff(vecT0_new);
-	
+	strT0 = [strT0 sprintf('delta-T0 = %.1f ms',1000*vecDiffsT0_Corr(intRecNI))];
+	disp(strT0);
 end
+
+%% make plot
+histogram(vecDiffsT0_Corr*1000);
+xlim(max(abs(get(gca,'xlim')))*[-1 1]);
+xlabel('NI - ImAp \DeltaT0 (ms)');
+ylabel('# of recordings');

@@ -128,10 +128,10 @@ for intRec=1:numel(sAggStim) %19
 		intRepNum = min(vecPriorDistribution);
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		dblBinWidth = 5/1000;%/32
-		dblPreTime = 0*10*dblBinWidth;
+		dblPreTime = 10*dblBinWidth;
 		dblPostTime = 30*dblBinWidth;
-		%dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
-		dblMaxDur = dblPreTime+dblPostTime;
+		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
+		%dblMaxDur = dblPreTime+dblPostTime;
 		vecBinEdges = 0:dblBinWidth:dblMaxDur;
 		vecStimTime = vecBinEdges(2:end)-dblBinWidth/2 - dblPreTime;
 		indStimBins = vecStimTime > 0 & vecStimTime < dblStimDur;
@@ -314,8 +314,8 @@ for intRec=1:numel(sAggStim) %19
 		%matDecConfPerTrial(intBinIdx,:)=vecConf;
 		
 		%%
-		export_fig(fullpath(strFigurePath,sprintf('A1_PopActDynamics_%s.tif',strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('A1_PopActDynamics_%s.pdf',strRec)));
+		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A1_PopActDynamics_%s.tif',strRec)));
+		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A1_PopActDynamics_%s.pdf',strRec)));
 		
 		%% make example figure; decode & make quantiles
 		% plot example single-neuron response to drifting gratings
@@ -478,9 +478,19 @@ for intRec=1:numel(sAggStim) %19
 		fixfig;grid off;
 		
 		%%
-		export_fig(fullpath(strFigurePath,sprintf('A2_ExampleNeuralCodes_%s.tif',strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('A2_ExampleNeuralCodes_%s.pdf',strRec)));
-		return
+		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A2_ExampleNeuralCodes_%s.tif',strRec)));
+		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A2_ExampleNeuralCodes_%s.pdf',strRec)));
+	vecBinEdges
+		%% save data
+		save(fullpath([strFigurePath filesep 'data'],sprintf('Q1Data_%s',strRec)),...
+			'vecBinEdges',...
+			'vecOri180',...
+			'matAcrossTimeDecoder',...
+			'vecSpikesPerBin',...
+			'dblBinWidth',...
+			'vecDecPerf',...
+			'vecStimTime');
 	end
+	close all;
 end
 toc

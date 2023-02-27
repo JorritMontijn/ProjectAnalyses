@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePath = 'F:\Data\Results\PopTimeCoding';
@@ -196,7 +196,7 @@ for intRec=1:numel(sAggStim) %19
 			%% apply on all bins
 			for intTestBinIdx=1:intBinNum
 				if intTestBinIdx == intBinIdx
-					matAcrossTimeDecoder(intBinIdx,intTestBinIdx) = dblPerformanceCV;
+					matAcrossTimeDecoder(intBinIdx,intTestBinIdx) =  mean(vecConf);
 					continue;
 				end
 				%get performance

@@ -16,8 +16,8 @@ clear all;
 boolSaveFigs = true;
 boolHome = true;
 if boolHome
-	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
-	strTargetDataPath = 'F:\Data\Results\PopTimeCoding\data\';
+	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
 	strFigurePath = 'D:\Data\Results\PopTimeCoding\figures\';
 	strTargetDataPath = 'D:\Data\Results\PopTimeCoding\data\';

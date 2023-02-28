@@ -29,6 +29,7 @@ cellUseAreas = {...
 	};
 boolHome = true;
 if boolHome
+	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
 	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';

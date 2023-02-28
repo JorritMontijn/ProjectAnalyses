@@ -30,7 +30,9 @@ cellUseAreas = {...
 boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
-	strFigurePath = 'F:\Data\Results\PopTimeCoding';
+	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
 	strDataPath = 'E:\DataPreProcessed\';
 	strFigurePath = 'D:\Data\Results\PopTimeCoding';
@@ -482,7 +484,7 @@ for intRec=1:numel(sAggStim) %19
 		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A2_ExampleNeuralCodes_%s.pdf',strRec)));
 	vecBinEdges
 		%% save data
-		save(fullpath([strFigurePath filesep 'data'],sprintf('Q1Data_%s',strRec)),...
+		save(fullpath(strTargetDataPath,sprintf('Q1Data_%s',strRec)),...
 			'vecBinEdges',...
 			'vecOri180',...
 			'matAcrossTimeDecoder',...

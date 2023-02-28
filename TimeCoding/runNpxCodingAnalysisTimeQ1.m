@@ -30,7 +30,9 @@ cellUseAreas = {...
 boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
-	strFigurePath = 'F:\Data\Results\PopTimeCoding';
+	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
 	strDataPath = 'E:\DataPreProcessed\';
 	strFigurePath = 'D:\Data\Results\PopTimeCoding';

@@ -38,10 +38,47 @@ else
 	strTargetDataPath = 'D:\Data\Results\PopTimeCoding\data\';
 end
 
+%% define parameters
+%ISI distro
+dblBinSizeISI = 1/1000;
+vecBinEdgesISI = 0:dblBinSizeISI:0.05;
+vecBinCentersISI = vecBinEdgesISI(2:end)-dblBinSizeISI/2;
+
+%temp corr
+dblMaxT = 1000*0.05;
+dblStep = 1000*0.002;
+vecBinD = 0:dblStep:dblMaxT;
+vecBinD_c = vecBinD(2:end)-dblStep/2;
+
+%quantiles
+intNumQ = 19;
+vecQuantiles = linspace(0,1,intNumQ+2);
+vecQuantiles([1 end]) = [];
+
+%mean/sd/cv
+dblActBinW = 50;
+vecActBins = 0:dblActBinW:500;
+vecActBinsC = vecActBins(2:end)-dblActBinW/2;
+
 %% load data
 sFiles = dir ([strTargetDataPath 'Q2Data*.mat']);
 strArea = 'V1';
 intRecNum = numel(sFiles);
+
+%% pre-allocate
+matISINormCounts = nan(numel(vecBinCentersISI),intRecNum);
+matISIExpPdf = nan(numel(vecBinCentersISI),intRecNum);
+matISICounts = nan(numel(vecBinCentersISI),intRecNum);
+matISICorrs = nan(numel(vecBinD_c),3,intRecNum);
+matISICorrCounts = nan(numel(vecBinD_c),3,intRecNum);
+matRatioQ = nan(intNumQ,intRecNum);
+matRealQ = nan(intNumQ,intRecNum);
+matExpQ = nan(intNumQ,intRecNum);
+
+matCountsCV = nan(numel(vecActBinsC),intRecNum);
+matMeansSd = nan(numel(vecActBinsC),intRecNum);
+matMeansCV = nan(numel(vecActBinsC),intRecNum);
+%% run
 for intFile=1:intRecNum
 	%% load
 	load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
@@ -53,13 +90,16 @@ for intFile=1:intRecNum
 	vecAllISI = cell2vec(cellISI_perTrial);
 	cellIFR_Reduced = cellfun(@(x) x(2:(end-2)),cellIFR_perTrial,'UniformOutput',false);
 	vecAllIFR = cell2vec(cellIFR_Reduced);
-	
-	%% save data
+	dblMaxDur = 1-dblStartT;
+	%{
 	dblStartT
 	strRec
 	cellIFR_perTrial
 	cellTimeIFR_perTrial
 	cellISI_perTrial
+	cellIFR_perTrial_S
+	cellIFR_perTrial_SN
+	cellIFR_perTrial_SS
 	vecRperTrial
 	vecSperTrial
 	vecHperTrial
@@ -79,19 +119,16 @@ for intFile=1:intRecNum
 	vecHperTrial_SS
 	vecLperTrial_SS
 	vecMperTrial_SS
-	
+	%}
 	
 	%% single plot 1
-	figure
+	figure;maxfig;
 	subplot(2,3,1)
-	dblBinSizeISI = 1/1000;
-	vecBinEdgesISI = 0:dblBinSizeISI:0.05;
-	vecBinCentersISI = vecBinEdgesISI(2:end)-dblBinSizeISI/2;
 	dblLambda = 1./mean(vecAllISI);
 	vecExpPdf = dblLambda.*exp(-dblLambda.*vecBinCentersISI);
-	vecCounts = histcounts(vecAllISI,vecBinEdgesISI);
+	vecCountsISI = histcounts(vecAllISI,vecBinEdgesISI);
 	hold on
-	plot(vecBinCentersISI*1000,vecCounts./sum(vecCounts(:)))
+	plot(vecBinCentersISI*1000,vecCountsISI./sum(vecCountsISI(:)))
 	plot(vecBinCentersISI*1000,vecExpPdf./sum(vecExpPdf(:)))
 	hold off
 	set(gca,'yscale','log');
@@ -103,17 +140,12 @@ for intFile=1:intRecNum
 	
 	
 	subplot(2,3,2)
-	%vars
-	dblMaxT = 1000*0.05;
-	dblStep = 1000*0.002;
-	vecBinD = 0:dblStep:dblMaxT;
-	vecBinD_c = vecBinD(2:end)-dblStep/2;
 	
 	%real
 	vecD1 = 1000*vecAllISI(1:(end-1));
 	vecD2 = 1000*vecAllISI(2:end);
 	[r,p]=corr(vecD1,vecD2);
-	[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecD1,vecD2,vecBinD);
+	[vecCounts_D,vecMeans_D,vecSDs_D,cellVals_D,cellIDs_D] = makeBins(vecD1,vecD2,vecBinD);
 	
 	%renewal process
 	vecAllISI_R = exprnd(1/dblLambda,size(vecAllISI));
@@ -130,21 +162,299 @@ for intFile=1:intRecNum
 	[vecCounts_S,vecMeans_S,vecSDs_S,cellVals_S,cellIDs_S] = makeBins(vecD1_S,vecD2_S,vecBinD);
 	
 	%plot
-	errorbar(vecBinD_c,vecMeans,vecSDs./sqrt(vecCounts));
+	errorbar(vecBinD_c,vecMeans_D,vecSDs_D./sqrt(vecCounts_D));
 	hold on
 	errorbar(vecBinD_c,vecMeans_R-0.02,vecSDs_R./sqrt(vecCounts_R));
 	errorbar(vecBinD_c,vecMeans_S+0.02,vecSDs_S./sqrt(vecCounts_S));
 	
 	xlabel('ISI spikes i,i+1 (ms)');
 	ylabel('ISI spikes i+1,i+2 (ms)');
-	title(sprintf('ISI correlation r(d(i,j),d(i+1,j+1)), r=%.3f, p=%.3f',r,p));
+	title(sprintf('ISI temporal correlation, r=%.3f, p=%.3f',r,p));
 	fixfig;
 	
 	legend({'Observed','Theory (Exponential)','Shuffled'},'location','best');
 	
-	%% single plot 2
+	% single plot 2
+	%plot distribution of firing rates vs shuffled
 	
+	intTrials = numel(cellISI_perTrial);
+	matISIQ_Real = nan(intNumQ,intTrials);
+	matISIQ_Exp = nan(intNumQ,intTrials);
+	%get quantiles for each trial
+	cellGenISI = cell(1,intTrials);
+	for i=1:intTrials
+		vecRealISI = cellISI_perTrial{i};
+		if numel(vecRealISI) < round(numel(vecQuantiles)+1)
+			continue;
+		end
+		
+		dblLambda = numel(vecRealISI)/dblMaxDur;
+		
+		vecGenISI = exprnd(1/dblLambda,[1 round(dblMaxDur*dblLambda*2)]);
+		vecT = cumsum(vecGenISI);
+		while max(vecT) < dblMaxDur
+			vecGenISI = cat(2,vecGenISI,exprnd(1/dblLambda,[1 round(dblMaxDur*dblLambda)]));
+			vecT = cumsum(vecGenISI);
+		end
+		vecGenISI = vecGenISI(vecT<dblMaxDur);
+		cellGenISI{i} = vecGenISI;
+		
+		%sort ISIs
+		vecSortRealISI = sort(vecRealISI);
+		vecSortGenISI = sort(vecGenISI);
+		if numel(vecSortGenISI) < round(numel(vecQuantiles)+1)
+			continue;
+		end
+		
+		matISIQ_Real(:,i) = vecSortRealISI(round(vecQuantiles*numel(vecSortRealISI)));
+		matISIQ_Exp(:,i) = vecSortGenISI(round(vecQuantiles*numel(vecSortGenISI)));
+		
+	end
+	vecAllGenISI = cell2vec(cellGenISI);
+	
+	%take lowest and highest 5%
+	vecMeanQ_Real = nanmean(matISIQ_Real,2);
+	vecMeanQ_Exp = nanmean(matISIQ_Exp,2);
+	
+	subplot(2,3,3)
+	plot(vecQuantiles,vecMeanQ_Real./vecMeanQ_Exp);
+	hold on
+	plot(vecQuantiles([1 end]),[1 1],'--','color',[0.5 0.5 0.5]);
+	hold off
+	ylabel('ISI Ratio Real/Exponential');
+	xlabel('Quantile of ISIs');
+	title('Real dynamics show highly variable rates (avg over trials)');
+	legend({'Real ISI distribution','Exponential process'},'location','best');
+	fixfig;
+	
+	subplot(2,3,4)
+	plot(vecQuantiles,1000*vecMeanQ_Real);
+	hold on
+	plot(vecQuantiles,1000*vecMeanQ_Exp);
+	hold off
+	ylabel('ISI (ms)');
+	xlabel('Quantile of ISIs');
+	title('Source distros');
+	legend({'Real ISI distribution','Exponential process'},'location','best');
+	fixfig;
+	
+	%mean and sd over time (IFR)
+	subplot(2,3,5)
+	[vecCountsSd,vecMeansSd,vecSDsSd] = makeBins(vecMperTrial,vecSperTrial,vecActBins);
+	indPlotBins = vecCountsSd>10;
+	
+	[vecCountsSd_S,vecMeansSd_S,vecSDsSd_S] = makeBins(vecMperTrial_S,vecSperTrial_S,vecActBins);
+	indPlotBins_S = vecCountsSd_S>10;
+	
+	hold on
+	scatter(vecMperTrial,vecSperTrial(:),[],[0.5 0.5 0.5],'.');
+	errorbar(vecActBinsC(indPlotBins),vecMeansSd_S(indPlotBins_S),vecSDsSd_S(indPlotBins_S)./sqrt(vecCountsSd_S(indPlotBins_S)),'color',[0.5 0.5 0.5])
+	scatter(vecMperTrial,vecSperTrial(:),[],[0.5 0.5 1],'.');
+	errorbar(vecActBinsC(indPlotBins),vecMeansSd(indPlotBins),vecSDsSd(indPlotBins)./sqrt(vecCountsSd(indPlotBins)),'color',[0 0 1])
+	xlabel('Mean population activity (Hz)')
+	ylabel('Sd of population activity (Hz)')
+	fixfig;
+	
+	
+	subplot(2,3,6)
+	vecCVperTrial = vecSperTrial./vecMperTrial;
+	[vecCountsCV,vecMeansCV,vecSDsCV] = makeBins(vecMperTrial,vecCVperTrial,vecActBins);
+	hold on
+	scatter(vecMperTrial,vecCVperTrial(:),[],[0.5 0.5 1],'.');
+	errorbar(vecActBinsC(indPlotBins),vecMeansCV(indPlotBins),vecSDsCV(indPlotBins)./sqrt(vecCountsCV(indPlotBins)),'color',[0 0 1])
+	xlabel('Mean population activity (Hz)')
+	ylabel('CV of population activity (Hz)')
+	fixfig;
+	
+	% 	%sparseness vs mean rate
+	% 	r1=corr(vecLperTrial(:),vecPopSparseness(:));
+	% 	r2=corr(vecMperTrial(:),vecPopSparseness(:));
+	% 	[rSpH,pSpH]=nancorr(vecMperTrial(:),vecPopSparseness(:));
+	% 	dblActBinW = 50;
+	% 	vecActBinsH = 0:dblActBinW:1700;
+	% 	vecActBinsHC = vecActBinsH(2:end)-dblActBinW/2;
+	% 	[vecCounts2,vecMeans2,vecSDs2] = makeBins(vecMperTrial,vecPopSparseness,vecActBinsH);
+	% 	indPlotBins2 = vecCounts2>10;
+	% 	mdl = fitlm(vecMperTrial,vecPopSparseness);
+	% 	ci = coefCI(mdl);
+	% 	[ypred,yci] = predict(mdl,vecActBinsHC(indPlotBins2)');
+	% 	subplot(2,3,5)
+	% 	hold on;
+	% 	scatter(vecMperTrial,vecPopSparseness,[],1-(1-lines(1))*(2/3),'.');
+	% 	%errorbar(vecActBinsHC(indPlotBins2),vecMeans2(indPlotBins2),vecSDs2(indPlotBins2)./sqrt(vecCounts2(indPlotBins2)),'color',lines(1));
+	% 	plot(vecActBinsHC(indPlotBins2),yci(:,1),'--','color',lines(1));
+	% 	plot(vecActBinsHC(indPlotBins2),ypred,'color',lines(1));
+	% 	plot(vecActBinsHC(indPlotBins2),yci(:,2),'--','color',lines(1));
+	%
+	%
+	% 	r1=corr(vecLperTrial_SN(:),vecPopSparsenessS(:));
+	% 	r2=corr(vecMperTrial_SN(:),vecPopSparsenessS(:));
+	% 	[rSpHS,pSpHS]=nancorr(vecMperTrial_SN(:),vecPopSparsenessS(:));
+	% 	vecActBinsH = 0:dblActBinW:1700;
+	% 	vecActBinsHC = vecActBinsH(2:end)-dblActBinW/2;
+	% 	[vecCounts2,vecMeans2,vecSDs2] = makeBins(vecMperTrial_SN,vecPopSparsenessS,vecActBinsH);
+	% 	indPlotBins2 = vecCounts2>10;
+	% 	mdl = fitlm(vecMperTrial_SN,vecPopSparsenessS);
+	% 	ci = coefCI(mdl);
+	% 	[ypred,yci] = predict(mdl,vecActBinsHC(indPlotBins2)');
+	%
+	% 	hold on;
+	% 	scatter(vecMperTrial_SN,vecPopSparsenessS,[],[0.7 0.7 0.7],'.');
+	% 	%errorbar(vecActBinsHC(indPlotBins2),vecMeans2(indPlotBins2),vecSDs2(indPlotBins2)./sqrt(vecCounts2(indPlotBins2)),'color',lines(1));
+	% 	plot(vecActBinsHC(indPlotBins2),yci(:,1),'--','color',[0.5 0.5 0.5]);
+	% 	plot(vecActBinsHC(indPlotBins2),ypred,'color',[0.5 0.5 0.5]);
+	% 	plot(vecActBinsHC(indPlotBins2),yci(:,2),'--','color',[0.5 0.5 0.5]);
+	%
+	% 	hold off;
+	% 	ylabel('Population sparseness per trial');
+	% 	xlabel('Mean pop. firing rate per trial (Hz) ');
+	% 	title(sprintf('Corr(sparse, rate); r=%.3f, p=%.1e; shuff:r=%.3f, p=%.1e',rSpH,pSpH,rSpHS,pSpHS));
+	% 	fixfig;
+	
+	
+	%hold on
+	%plot(vecQuantiles,vecMeanQ_Exp);
+	%hold off
+	% 	%transform to quantiles
+	% 	vecSortRealISI = sort(vecAllISI);
+	% 	vecSortGenISI = sort(vecAllGenISI);
+	% 	vecIdxRealQ = round(linspace(1,numel(vecSortRealISI),intNumQ+2));
+	% 	vecIdxGenQ = round(linspace(1,numel(vecSortGenISI),intNumQ+2));
+	% 	vecIdxRealQ([1 end]) = [];
+	% 	vecIdxGenQ([1 end]) = [];
+	% 	vecRealQ = vecSortRealISI(vecIdxRealQ);
+	% 	vecGenQ = vecSortGenISI(vecIdxGenQ);
+	% 	%%{
+	% 	subplot(2,3,3)
+	% 	scatter(vecGenQ,vecRealQ)
+	% 	set(gca,'xscale','log','yscale','log');
+	% 	vecLimX = get(gca,'xlim');
+	% 	vecLimY = get(gca,'ylim');
+	% 	vecLim = [min([vecLimX vecLimY]) max([vecLimX vecLimY])];
+	% 	%vecLim = [3.3*1e-5 max([vecLimX vecLimY])];
+	% 	hold on
+	% 	plot(vecLim,vecLim,'k');
+	% 	hold off
+	% 	xlim(vecLim);
+	% 	ylim(vecLim);
+	% 	xlabel('Exponential ISIs (s)');
+	% 	ylabel('Real ISIs (s)');
+	% 	fixfig;
+	% 	%%}
+	
+	%% save data
+	vecLogExpPdf = log10(vecExpPdf./sum(vecExpPdf(:)));
+	vecLogCounts = log10(vecCountsISI./sum(vecCountsISI(:)));
+	vecNormCounts = (vecLogCounts - min(vecLogExpPdf))./range(vecLogExpPdf);
+	
+	%subplot(2,3,4)
+	%plot(vecBinCentersISI*1000,vecNormCounts);
+	%hold on
+	%plot(vecBinCentersISI*1000,linspace(1,0,numel(vecBinCentersISI*1000)));
+	%hold off;
+	
+	matISINormCounts(:,intFile) = vecNormCounts;
+	matISIExpPdf(:,intFile) = vecExpPdf;
+	matISICounts(:,intFile) = vecCountsISI;
+	matISICorrs(:,:,intFile) = cat(2,vecMeans_D,vecMeans_R,vecMeans_S);
+	matISICorrCounts(:,:,intFile) = cat(2,vecCounts_D,vecCounts_R,vecCounts_S);
+	matRatioQ(:,intFile) = vecMeanQ_Real./vecMeanQ_Exp;
+	matRealQ(:,intFile) = vecMeanQ_Real;
+	matExpQ(:,intFile) = vecMeanQ_Exp;
+	%vecCorrSparseness(intFile) = rSpH;
+	%vecCorrSparsenessS(intFile) = rSpHS;
+	
+	matCountsCV(:,intFile) = vecCountsSd;
+	matMeansSd(:,intFile) = vecMeansSd;
+	matMeansCV(:,intFile) = vecMeansCV;
 	
 end
 
 %% plot mean over recordings
+%{
+subplot(2,3,4)
+matC = lines(2);
+%plot(vecBinCentersISI*1000,bsxfun(@rdivide,matISINormCounts,mean(matISINormCounts)),'color',matC(1,:));
+plot(vecBinCentersISI*1000,matISINormCounts,'color',matC(1,:));
+hold on
+plot(vecBinCentersISI([1 end])*1000,[1 0],'color',matC(2,:));
+hold off
+%}
+figure;maxfig;
+subplot(2,3,1)
+matMeanISIcorrs = mean(matISICorrs,3);
+matSdISIcorrs = std(matISICorrs,[],3);
+hold on
+for intVar=1:3
+	errorbar(vecBinD_c,matMeanISIcorrs(:,intVar),matSdISIcorrs(:,intVar)./sqrt(intRecNum));
+end
+hold off
+xlabel('ISI spikes i,i+1 (ms)');
+ylabel('ISI spikes i+1,i+2 (ms)');
+title(sprintf('Mean +/- SEM over recs'));
+fixfig;
+
+legend({'Observed','Theory (Exponential)','Shuffled'},'location','best');
+
+fixfig;
+
+subplot(2,3,2)
+errorbar(vecQuantiles,mean(matRealQ*1000,2),std(matRealQ*1000,[],2)./sqrt(intRecNum));
+hold on
+errorbar(vecQuantiles,mean(matExpQ*1000,2),std(matExpQ*1000,[],2)./sqrt(intRecNum));
+hold off
+ylabel('ISI (ms)');
+xlabel('Quantile of ISIs');
+title('Mean +/- SEM over recs');
+legend({'Real ISI distribution','Exponential process'},'location','best');
+fixfig;
+
+subplot(2,3,3)
+errorbar(vecQuantiles,mean(matRatioQ,2),std(matRatioQ,[],2)./sqrt(intRecNum));
+hold on
+plot(vecQuantiles([1 end]),[1 1],'--','color',[0.5 0.5 0.5]);
+hold off
+ylabel('ISI Ratio Real/Exponential');
+xlabel('Quantile of ISIs');
+title('Mean +/- SEM over recs');
+legend({'Real ISI distribution','Exponential process'},'location','best');
+fixfig;
+%
+% subplot(2,3,4);
+% vecBins = -1:0.1:1;
+% vecSparseCounts = histcounts(vecCorrSparseness,vecBins);
+% vecSparseCountsS = histcounts(vecCorrSparsenessS,vecBins);
+% vecPlotBins = vecBins(2:end) - median(diff(vecBins))/2;
+% plot(vecPlotBins,vecSparseCounts);
+% hold on
+% plot(vecPlotBins,vecSparseCountsS,'color',[0.5 0.5 0.5]);
+% hold off
+% fixfig;
+
+%mean and sd scale together: CV is constant
+subplot(2,3,4)
+
+matMeansSdRem = matMeansSd;
+matMeansSdRem(matCountsCV<10)=nan;
+matMeansCVRem = matMeansCV;
+matMeansCVRem(matCountsCV<10)=nan;
+dblSlope = nanmean(matMeansCVRem(:));
+errorbar(vecActBinsC,nanmean(matMeansSdRem,2),nanstd(matMeansSdRem,[],2)./sqrt(intRecNum));
+hold on
+plot(vecActBinsC,dblSlope*vecActBinsC,'k--');
+hold off
+xlabel('Mean of spiking rate (Hz)');
+ylabel('Sd of spiking rate (Hz)');
+title(sprintf('Constant coefficient of variation (CV) = %.3f',dblSlope));
+fixfig;
+
+subplot(2,3,5)
+errorbar(vecActBinsC,nanmean(matMeansCVRem,2),nanstd(matMeansCVRem,[],2)./sqrt(intRecNum));
+hold on
+plot(vecActBinsC,dblSlope*ones(size(vecActBinsC)),'k--');
+hold off
+ylim([0 1]);
+xlabel('Mean of spiking rate (Hz)');
+ylabel('CV of spiking rate (Hz)');
+title(sprintf('Constant coefficient of variation (CV) = %.3f',dblSlope));
+fixfig;

@@ -35,7 +35,9 @@ if boolHome
 	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
 	strDataPath = 'E:\DataPreProcessed\';
-	strFigurePath = 'D:\Data\Results\PopTimeCoding';
+	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
 
 

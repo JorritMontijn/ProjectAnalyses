@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -35,7 +35,9 @@ if boolHome
 	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
 	strDataPath = 'E:\DataPreProcessed\';
-	strFigurePath = 'D:\Data\Results\PopTimeCoding';
+	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
 
 %% select all neurons in LP and drifting grating stimuli
@@ -54,7 +56,7 @@ mat_xR_All = nan(intAreas,intAreas,numel(sAggStim),2);
 
 %% go through recordings
 tic
-for intRec=1:numel(sAggStim) %19
+for intRec=1:numel(sAggStim) %19 || weird: 11
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));

@@ -1,12 +1,14 @@
 %% retrieve files
-cellRem = {[mfilename '.m'],'runHeaderNOT.m','runCalcRFs.m','runCrossCorrelogram.m'};
-[strPath,strFile,strExt] = fileparts(mfilename('fullpath'));
+cellFiles = {...
+    'runAnalysisGratings.m'             ,...
+    'runAnalysisGratingsOriVsDir.m'     ,...
+    'runDecodingGratings.m'             ,...
+    'runDecodingGratings2.m'            ,...
+    'runDecodingGratings4.m'            ,...
+    'runSpikeShapeAnalysis.m'           ,...
+    'runSpikeShapeAnalysis2.m'};
 
-sDir=dir(fullpath(strPath,filesep,'*.m'));
-cellFiles = {sDir.name};
-cellFiles(ismember(cellFiles,cellRem))=[];
 cellFailed = {};
-
 %% run all files
 for intFile=1:numel(cellFiles)
 	drawnow;
@@ -23,3 +25,4 @@ for intFile=1:numel(cellFiles)
 		cellFailed(end+1) = {strFile};
 	end
 end
+cellFailed'

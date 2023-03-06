@@ -61,45 +61,50 @@ for intSubType=2
 			sBlock = sRec.cellBlock{intBlock};
 			strName=['RF_' sRec.sJson.subject '_' sRec.sJson.date 'B' num2str(intBlock)];
 			
+			%% get rf resps
+			%Rfs
+			sStimObject = sBlock.sStimObject;
+			intStims = numel(sStimObject);
 			vecPupilStimOn = sBlock.vecStimOnTime+median(vecPupilLatency);
 			vecPupilStimOff = sBlock.vecStimOffTime+median(vecPupilLatency);
 			
 			%% get pupil data
-			dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);
-			dblFirstSamp = str2double(sRec.sSources.sMeta.firstSample);
-			vecPupilTime = sRec.sPupil.vecTime;
-			vecPupilLocX = sRec.sPupil.vecCenterX;
-			vecPupilLocY = sRec.sPupil.vecCenterY;
-			vecPupilSize = sRec.sPupil.vecRadius;
-			vecPupilSync = sRec.sPupil.vecSyncLum;
-			if isfield(sRec.sPupil,'vecBlinks') && ~all(sRec.sPupil.vecBlinks==0)
-				vecBlinks = sRec.sPupil.vecBlinks;
-			else
-				%filter absvidlum
-				dblLowPass = 0.01/(1/median(diff(vecPupilTime)));
-				[fb,fa] = butter(2,dblLowPass,'high');
-				vecAbsVidLum = zscore(filtfilt(fb,fa, sRec.sPupil.sRaw.vecPupilAbsVidLum));
-				vecBlinks = vecAbsVidLum > 5;
-			end
-			dblFs = 1/median(diff(vecPupilTime));
-			
-			%% get rf resps
-			%{
+			if ~isempty(sRec.sPupil) && isfield(sRec.sPupil,'vecBlinks')
+				dblSampNi = str2double(sRec.sSources.sMeta.niSampRate);
+				dblFirstSamp = str2double(sRec.sSources.sMeta.firstSample);
+				vecPupilTime = sRec.sPupil.vecTime;
+				vecPupilLocX = sRec.sPupil.vecCenterX;
+				vecPupilLocY = sRec.sPupil.vecCenterY;
+				vecPupilSize = sRec.sPupil.vecRadius;
+				vecPupilSync = sRec.sPupil.vecSyncLum;
+				if isfield(sRec.sPupil,'vecBlinks') && ~all(sRec.sPupil.vecBlinks==0)
+					vecBlinks = sRec.sPupil.vecBlinks;
+				else
+					%filter absvidlum
+					dblLowPass = 0.01/(1/median(diff(vecPupilTime)));
+					[fb,fa] = butter(2,dblLowPass,'high');
+					vecAbsVidLum = zscore(filtfilt(fb,fa, sRec.sPupil.sRaw.vecPupilAbsVidLum));
+					vecBlinks = vecAbsVidLum > 5;
+				end
+				dblFs = 1/median(diff(vecPupilTime));
+				
+				%{
 			indNOT = contains({sRec.sCluster.Area},'Nucleus of the optic tract','IgnoreCase',true);
 			sNeuronsNOT = sRec.sCluster(indNOT);
 			
 			intNeuron = 1;
 			vecSpikes = sNeuronsNOT(intNeuron).SpikeTimes;
-			%}
-			%Rfs
-			sStimObject = sBlock.sStimObject;
-			intStims = numel(sStimObject);
-			
-			%test
-			vecBinEdges = [-inf vecPupilStimOn vecPupilStimOn(end)+median(diff(vecPupilStimOn)) inf];
-			[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecPupilTime,double(vecBlinks),vecBinEdges);
-			vecBlinkFractionPerTrial = vecMeans(2:(end-1));
-			vecBlinkFractionPerTrial(isnan(vecBlinkFractionPerTrial))=0;
+				%}
+				
+				%blinks
+				vecBinEdges = [-inf vecPupilStimOn vecPupilStimOn(end)+median(diff(vecPupilStimOn)) inf];
+				[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecPupilTime,double(vecBlinks),vecBinEdges);
+				vecBlinkFractionPerTrial = vecMeans(2:(end-1));
+				vecBlinkFractionPerTrial(isnan(vecBlinkFractionPerTrial))=0;
+				indKeepBlinkTrial = vecBlinkFractionPerTrial(:) < 0.1;
+			else
+				indKeepBlinkTrial = size(vecPupilStimOn);
+			end
 			
 			%% prep variables
 			intNeurons = numel(sRec.sCluster);
@@ -152,7 +157,7 @@ for intSubType=2
 					for intSubPatchIdx=1:numel(vecPatchList)
 						indOn = indOn | cellfun(@ismember,cellfill(vecPatchList(intSubPatchIdx),size({sStimObject.LinLocOn})),{sStimObject.LinLocOn});
 					end
-					vecPatchIsOn = find(vecBlinkFractionPerTrial(:) < 0.1 & indOn(:));
+					vecPatchIsOn = find(indKeepBlinkTrial & indOn(:));
 					for intOnRepIdx=1:numel(vecPatchIsOn)
 						intTrial=vecPatchIsOn(intOnRepIdx);
 						indTrialSpikes = vecTrialPerSpike==intTrial;
@@ -164,7 +169,7 @@ for intSubType=2
 					for intSubPatchIdx=1:numel(vecPatchList)
 						indOff = indOff | cellfun(@ismember,cellfill(vecPatchList(intSubPatchIdx),size({sStimObject.LinLocOff})),{sStimObject.LinLocOn});
 					end
-					vecPatchIsOff = find(vecBlinkFractionPerTrial(:) < 0.1 & indOff(:));
+					vecPatchIsOff = find(indKeepBlinkTrial < 0.1 & indOff(:));
 					for intOffRepIdx=1:numel(vecPatchIsOff)
 						intTrial=vecPatchIsOff(intOffRepIdx);
 						indTrialSpikes = vecTrialPerSpike==intTrial;

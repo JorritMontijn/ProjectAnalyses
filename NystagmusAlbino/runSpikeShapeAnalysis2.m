@@ -10,7 +10,7 @@
 %cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 %cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
 %cellSubjectGroups = {'BL6','DBA'};
-clear all;
+%clear all;
 runHeaderNOT;
 
 %strAllenCCFPath = 'F:\Data\AllenCCF';
@@ -430,6 +430,7 @@ export_fig([strTargetPath filesep sprintf('SpikeShapes2.tif')]);
 export_fig([strTargetPath filesep sprintf('SpikeShapes2.pdf')]);
 
 %% plot 2
+try
 %data
 %cellAggBoundDist{intArea,intSubType} = cat(2,cellAggBoundDist{intArea,intSubType},vecBoundDist(:)');
 %cellAggSpikeHz{intArea,intSubType} = cat(2,cellAggSpikeHz{intArea,intSubType},vecSpikeHz(:)');
@@ -481,3 +482,5 @@ fixfig;grid off;drawnow;
 drawnow;
 export_fig([strTargetPath filesep sprintf('SpikeShapes3.tif')]);
 export_fig([strTargetPath filesep sprintf('SpikeShapes3.pdf')]);
+catch
+end

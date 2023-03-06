@@ -19,7 +19,7 @@ indRemRecs = contains(cellExperiment,cellRemove);
 indRemRecs2 = ~contains(cellNameAP,cellUseForEyeTracking);
 cellSubjectType = arrayfun(@(x) x.sJson.subjecttype,sExp,'uniformoutput',false);
 dblAverageMouseHeadTiltInSetup = -15;
-for intSubType=2
+for intSubType=1:2
 	if intSubType == 1
 		intBestRec = 17;
 		strSubjectType = 'BL6';
@@ -40,7 +40,7 @@ for intSubType=2
 	matAggTE_Sync = [];
 	vecAggOriIdx = [];
 	vecAggCounts = zeros(24,1);
-	for intRecIdx=2:numel(vecRunRecs)
+	for intRecIdx=1:numel(vecRunRecs)
 		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		
@@ -103,7 +103,7 @@ for intSubType=2
 				vecBlinkFractionPerTrial(isnan(vecBlinkFractionPerTrial))=0;
 				indKeepBlinkTrial = vecBlinkFractionPerTrial(:) < 0.1;
 			else
-				indKeepBlinkTrial = size(vecPupilStimOn);
+				indKeepBlinkTrial = flat(true(size(vecPupilStimOn)));
 			end
 			
 			%% prep variables
@@ -165,11 +165,11 @@ for intSubType=2
 					end
 					
 					%off
-					indOff = false(size({sStimObject.LinLocOn}));
+					indOff = false(size({sStimObject.LinLocOff}));
 					for intSubPatchIdx=1:numel(vecPatchList)
-						indOff = indOff | cellfun(@ismember,cellfill(vecPatchList(intSubPatchIdx),size({sStimObject.LinLocOff})),{sStimObject.LinLocOn});
+						indOff = indOff | cellfun(@ismember,cellfill(vecPatchList(intSubPatchIdx),size({sStimObject.LinLocOff})),{sStimObject.LinLocOff});
 					end
-					vecPatchIsOff = find(indKeepBlinkTrial < 0.1 & indOff(:));
+					vecPatchIsOff = find(indKeepBlinkTrial & indOff(:));
 					for intOffRepIdx=1:numel(vecPatchIsOff)
 						intTrial=vecPatchIsOff(intOffRepIdx);
 						indTrialSpikes = vecTrialPerSpike==intTrial;

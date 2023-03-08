@@ -9,13 +9,15 @@
 %cellAreaGroups = {'Vis. ctx','NOT','Hippocampus'};
 %cellAreaGroupsAbbr = {'Ctx','NOT','Hip'};
 %cellSubjectGroups = {'BL6','DBA'};
-clear all;
-runHeaderNOT;
-
-sAtlas = AL_PrepABA(strAllenCCFPath);
-tv = sAtlas.tv;
-av = sAtlas.av;
-st = sAtlas.st;
+if ~exist('sExp','var') || ~exist('sAtlas','var')
+	clear all;
+	runHeaderNOT;
+	
+	sAtlas = AL_PrepABA(strAllenCCFPath);
+	tv = sAtlas.tv;
+	av = sAtlas.av;
+	st = sAtlas.st;
+end
 
 %% load RF data
 %set RF parameters
@@ -26,10 +28,12 @@ dblScreenWidth_cm = 51;
 dblScreenHeight_cm = 29;
 
 %data location
-strDataSource = 'D:\Data\Results\AlbinoProject\RF_data';
+%strDataSource = 'D:\Data\Results\AlbinoProject\RF_data_new';
+strDataSource = 'F:\Drive\VisMotorNOT\RF_data_new';
 sFiles = dir([strDataSource filesep '*.mat']);
 cellNames = {sExp.Name};
 cellFilesRF = {sFiles.name};
+boolSaveFigs = false;
 
 %pre-allocate
 intUseAreaNum = 2;
@@ -63,7 +67,7 @@ for intSubType=1:2
 		intRec=vecRunRecs(intRecIdx);
 		sRec = sExp(intRec);
 		strRec=[sRec.sJson.subject '_' sRec.sJson.date];
-		%% get probe locations
+		% get probe locations
 		%get locations along probe
 		sProbeCoords = sRec.sSources.sProbeCoords;
 		[probe_area_ids,probe_area_boundaries,probe_area_centers,matLocCh] = PH_GetProbeAreas(sProbeCoords.sProbeAdjusted.probe_vector_cart,sAtlas.av);
@@ -111,12 +115,12 @@ for intSubType=1:2
 			matZetaOn = sLoad.matZetaOn;
 			matZetaOff = sLoad.matZetaOff;
 			%dblCritVal = 0.01;%/(2*prod(size(sLoad.matZetaOn,[1 2])));
-			dblCritVal = 0.01/(2*prod(size(sLoad.matZetaOn,[1 2])));
+			dblCritVal = 0.01;%/(2*prod(size(sLoad.matZetaOn,[1 2])));
 			indSignificant = squeeze(any(any(matZetaOn<dblCritVal | matZetaOff<dblCritVal,1),2));
 			vecSelectCells = find(indSignificant(:) & ~indNanZeta(:) & indUseCells(:) & cellCellsPerArea{intArea}(:));
 			strArea = cellAreaGroupsAbbr{intArea};
 			
-			if isempty(vecSelectCells)
+			if numel(vecSelectCells) < 1
 				fprintf('No (significant) cells in %s for %s: skipping...\n',strArea,strRec);
 				continue;
 			end
@@ -155,11 +159,12 @@ for intSubType=1:2
 			matOffZAvg=mean(matOffZ+dblLowerBound,3);
 			
 			%filter
-			matFilt = normpdf(-2:2,0,0.5)'*normpdf(-2:2,0,0.5);
+			dblS = 0.5;
+			matFilt = normpdf(-4:4,0,dblS)'*normpdf(-4:4,0,dblS);
 			matFilt = matFilt./sum(matFilt(:));
 			matOnZAvg = imfilt(matOnZAvg,matFilt);
 			matOffZAvg = imfilt(matOffZAvg,matFilt);
-			matOnOffAvg = (matOnZAvg+matOffZAvg)./2;
+			matOnOffAvg = (matOnZAvg.*matOffZAvg)./2;
 			if size(matOnOffAvg,1)==12
 				matOnOffAvg = (matOnOffAvg(1:2:12,1:2:20) + matOnOffAvg(2:2:12,2:2:20))/2;
 			end
@@ -169,11 +174,13 @@ for intSubType=1:2
 			%mean counts
 			matMeanOn = sLoad.matMeanCountsOn(:,:,vecSelectCells);
 			matMeanOff = sLoad.matMeanCountsOff(:,:,vecSelectCells);
+			%matMeanOn = sLoad.matMeanCountsOn(:,:,vecSelectCells)./sLoad.matSdCountsOn(:,:,vecSelectCells);
+			%matMeanOff = sLoad.matMeanCountsOff(:,:,vecSelectCells)./sLoad.matSdCountsOff(:,:,vecSelectCells);
 			matOnMAvg=mean(matMeanOn,3);
 			matOffMAvg=mean(matMeanOff,3);
 			matOnMAvg = imfilt(matOnMAvg,matFilt);
 			matOffMAvg = imfilt(matOffMAvg,matFilt);
-			matOnOffMAvg = abs(matOnMAvg-matOffMAvg);
+			matOnOffMAvg = matOffMAvg+matOnMAvg;
 			vecMaxVals = findmax(matOnOffMAvg(:),1);
 			%[intMaxRow,intMaxCol]=find(matOnOffMAvg==vecMaxVals(end));
 			
@@ -230,14 +237,16 @@ for intSubType=1:2
 			title('Mean Off','interpreter','none');
 			
 			subplot(2,3,6)
-			imagesc(matOnMAvg+matOffMAvg)
+			imagesc(matOnOffMAvg)
 			colorbar
 			title('Mean On+Off','interpreter','none');
 			
 			%save plot
 			maxfig;drawnow;
+			if boolSaveFigs
 			export_fig([strTargetPath filesep 'single_recs' filesep sprintf('RF_maps_%s.tif',strRec)]);
 			export_fig([strTargetPath filesep 'single_recs' filesep sprintf('RF_maps_%s.pdf',strRec)]);
+			end
 			end
 			
 			%% get probe locations
@@ -377,8 +386,10 @@ title(sprintf('Recording locations in NOT'));
 
 %save plot
 drawnow;
+if boolSaveFigs
 export_fig([strTargetPath filesep sprintf('RecLocsNOT3D.tif')]);
 export_fig([strTargetPath filesep sprintf('RecLocsNOT3D.pdf')]);
+end
 
 %% find NOT
 %find bregma
@@ -404,11 +415,12 @@ matNot2D = sum(avEdge,3)>0;
 matNotPoly=mask2poly(matNot2D','outer','MINDIST')+[vecNot1(1) vecNot2(1)];
 
 %transform atlas to microns relative to bregma
-intSubType = 1;
 intAreaType = 2;
-matCenterRF = cellAggCenterRF{intAreaType,intSubType};
+matCenterRF = cellAggCenterRF{intAreaType,1};
+%matCenterRF = cat(2,matCenterRF,cellAggCenterRF{intAreaType,2});
 matCenterAlbRF = cellAggCenterRF{intAreaType,2};
-matCoords = cellAggCoords{intAreaType,intSubType};
+matCoords = cellAggCoords{intAreaType,1};
+%matCoords = cat(2,matCoords,cellAggCoords{intAreaType,2});
 matCoords(1,matCoords(1,:)<vecBregma(1)) = 2*vecBregma(1) - matCoords(1,matCoords(1,:)<vecBregma(1));
 matCoordsMu = sAtlas.VoxelSize'.*(matCoords - sAtlas.Bregma');
 matCoordsMu(1,:) = abs(matCoordsMu(1,:));
@@ -487,8 +499,20 @@ dblVertDegsPerBlock = el_Tot/intBlocksVert;
 vecHorzRF_deg = az_Center+dblHorzDegsPerBlock*(matCenterRF(1,:)'-dblHorzBlockCenter);
 vecVertRF_deg = el_Center+dblVertDegsPerBlock*(dblVertBlockCenter-matCenterRF(2,:)'); %RF blocks are from top to bottom, not bottom to top
 
-vecHorzAlbRF_deg = az_Center+dblHorzDegsPerBlock*(matCenterAlbRF(1,:)'-dblHorzBlockCenter);
-vecVertAlbRF_deg = el_Center+dblVertDegsPerBlock*(dblVertBlockCenter-matCenterAlbRF(2,:)'); %RF blocks are from top to bottom, not bottom to top
+if isempty(matCenterAlbRF)
+	vecHorzAlbRF_deg = [];
+	vecVertAlbRF_deg = [];
+	matCoordsAlb = [];
+	matCoordsMuAlb = [];
+else
+	%prep albinos
+	vecHorzAlbRF_deg = az_Center+dblHorzDegsPerBlock*(matCenterAlbRF(1,:)'-dblHorzBlockCenter);
+	vecVertAlbRF_deg = el_Center+dblVertDegsPerBlock*(dblVertBlockCenter-matCenterAlbRF(2,:)'); %RF blocks are from top to bottom, not bottom to top
+matCoordsAlb = cellAggCoords{2,2};
+matCoordsAlb(1,matCoordsAlb(1,:)<vecBregma(1)) = 2*vecBregma(1) - matCoordsAlb(1,matCoordsAlb(1,:)<vecBregma(1));
+matCoordsMuAlb = sAtlas.VoxelSize'.*(matCoordsAlb - sAtlas.Bregma');
+matCoordsMuAlb(1,:) = abs(matCoordsMuAlb(1,:));
+end
 
 
 %get mid point
@@ -504,11 +528,6 @@ matXY0=matCoordsMu(1:2,:)-vecXY0;
 	getMeanRFcorrWithAngleConstraint(dblRealOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',vecHorzRF_deg,vecVertRF_deg);
 
 %prep albinos
-matCoordsAlb = cellAggCoords{2,2};
-matCoordsAlb(1,matCoordsAlb(1,:)<vecBregma(1)) = 2*vecBregma(1) - matCoordsAlb(1,matCoordsAlb(1,:)<vecBregma(1));
-matCoordsMuAlb = sAtlas.VoxelSize'.*(matCoordsAlb - sAtlas.Bregma');
-matCoordsMuAlb(1,:) = abs(matCoordsMuAlb(1,:));
-intSubType = 1;
 for intXY=1:2
 	%rotate reference vector
 	if intXY == 1
@@ -560,9 +579,11 @@ for intXY=1:2
 	h2.MarkerEdgeColor = 'k';
 	
 	%plot dba
-	h2= scatter(matCoordsMuAlb(1,:)',matCoordsMuAlb(2,:)',[],vecAlbRF_deg,'square','filled');
-	h2.SizeData=100;
-	h2.MarkerEdgeColor = 'k';
+	if ~isempty(matCoordsMuAlb)
+		h2= scatter(matCoordsMuAlb(1,:)',matCoordsMuAlb(2,:)',[],vecAlbRF_deg,'square','filled');
+		h2.SizeData=100;
+		h2.MarkerEdgeColor = 'k';
+	end
 	
 	hold on
 	plot([0 vecRotRef(1)*100]+vecXY0(1),[0 vecRotRef(2)*100]+vecXY0(2))
@@ -596,9 +617,11 @@ for intXY=1:2
 	end
 	
 	%plot dba
-	h2= scatter(matCoordsMuAlb(1,:)',matCoordsMuAlb(2,:)',[],vecAlbRF_deg,'square','filled');
-	h2.SizeData=100;
-	h2.MarkerEdgeColor = 'k';
+	if ~isempty(matCoordsMuAlb)
+		h2= scatter(matCoordsMuAlb(1,:)',matCoordsMuAlb(2,:)',[],vecAlbRF_deg,'square','filled');
+		h2.SizeData=100;
+		h2.MarkerEdgeColor = 'k';
+	end
 	
 	for intRec=1:numel(vecAlbRF_deg)
 		intExp = cellAggSourceRec{intArea,2}(intRec);
@@ -635,9 +658,10 @@ fixfig;grid off;
 
 %save plot
 drawnow;
+if boolSaveFigs
 export_fig([strTargetPath filesep sprintf('RetinotopyNOT.tif')]);
 export_fig([strTargetPath filesep sprintf('RetinotopyNOT.pdf')]);
-
+end
 
 %% for single direction
 %{

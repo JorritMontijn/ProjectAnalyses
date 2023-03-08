@@ -109,8 +109,8 @@ for intSubType=1:2
 			%% prep variables
 			intNeurons = numel(sRec.sCluster);
 			matLinLoc = sStimObject(1).LinLoc;
-			vecStimOn = sBlock.vecStimOnTime;
-			vecStimOff = sBlock.vecStimOffTime;
+			vecStimOnset = sBlock.vecStimOnTime;
+			vecStimOffset = sBlock.vecStimOffTime;
 			vecPatches = unique(matLinLoc(:));
 			if numel(vecPatches) == 252
 				matSuperLinLoc = matLinLoc;
@@ -127,7 +127,8 @@ for intSubType=1:2
 			end
 			cellCellOnSpikeT = cellfill(cell(size(matLinLoc)),[1 intNeurons]); %{N}{X,Y}{Rep} = [T_s1 T_s2 ... T_sN]
 			cellCellOffSpikeT = cellfill(cell(size(matLinLoc)),[1 intNeurons]); %{N}{X,Y}{Rep} = [T_s1 T_s2 ... T_sN]
-			dblDur = median(vecStimOff - vecStimOn);
+			dblBaseDur = median(vecStimOnset(2:end) - vecStimOffset(1:(end-1)));
+			dblDur = median(vecStimOffset - vecStimOnset);
 			matZetaOn = nan([size(matLinLoc) intNeurons]);
 			matZetaOff = nan([size(matLinLoc) intNeurons]);
 			matMeanCountsOn = nan([size(matLinLoc) intNeurons]);
@@ -142,10 +143,10 @@ for intSubType=1:2
 				matTempZetaOn = nan(size(matLinLoc));
 				matTempZetaOff = nan(size(matLinLoc));
 				%cull spikes
-				dblMinT = min(vecStimOn) - 10*dblDur;
-				dblMaxT = max(vecStimOn) + 10*dblDur;
+				dblMinT = min(vecStimOnset) - 10*dblDur;
+				dblMaxT = max(vecStimOffset) + 10*dblDur;
 				vecSpikeT((vecSpikeT < dblMinT) | (vecSpikeT > dblMaxT)) = [];
-				[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecSpikeT,vecStimOn,dblDur);
+				[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecSpikeT,vecStimOnset,dblDur);
 				%go through patches and concatenate repetitions
 				for intPatchIdx=1:numel(vecPatches)
 					intPatch = vecPatches(intPatchIdx);
@@ -178,17 +179,17 @@ for intSubType=1:2
 					
 					%% calculate zeta per patch
 					%on
-					vecDur = vecStimOff - vecStimOn;
-					dblBaselineDur = dblDur;
-					dblTotDur = dblDur + dblBaselineDur;
-					vecUseStimOn = vecStimOn(vecPatchIsOn)-dblBaselineDur/2;
-					intResampNum = 100;
+					vecDur = vecStimOffset - vecStimOnset;
+					dblBaselineDur = dblBaseDur;
+					dblTotDur = dblDur;
+					vecUseStimOn = vecStimOnset(vecPatchIsOn)-dblBaselineDur/2;
+					intResampNum = 250;
 					dblZetaP_on = zetatest(vecSpikeT,vecUseStimOn,dblTotDur,intResampNum);
 					matTempZetaOn(indAssign) = dblZetaP_on;
 					
 					%off
-					vecUseStimOff = vecStimOn(vecPatchIsOff)-dblBaselineDur/2;
-					intResampNum = 100;
+					vecUseStimOff = vecStimOnset(vecPatchIsOff)-dblBaselineDur/2;
+					intResampNum = 250;
 					dblZetaP_off = zetatest(vecSpikeT,vecUseStimOff,dblTotDur,intResampNum);
 					matTempZetaOff(indAssign) = dblZetaP_off;
 					

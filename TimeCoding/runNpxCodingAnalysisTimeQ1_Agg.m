@@ -29,23 +29,25 @@ cellUseAreas = {...
 	};
 boolHome = false;
 if boolHome
-	strDataPath = 'F:\Data\Processed\Neuropixels\';
+	strDataPath = 'F:\Data\Processed\Neuropixels';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
-	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
-	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
+	strFigurePath = 'F:\Drive\PopTimeCoding\figures';
+	strTargetDataPath = 'F:\Drive\PopTimeCoding\data';
 else
-	strDataPath = 'E:\DataPreProcessed\';
+	strDataPath = 'E:\DataPreProcessed';
 	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
-	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
-	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data';
 end
 
 %% select all neurons in LP and drifting grating stimuli
-if ~exist('sAggStim','var') || isempty(sAggStim)
+if ~exist('sAggStim','var') || isempty(sAggStim) || isempty(sAggNeuron)
 	[sAggStim,sAggNeuron]=loadDataNpx('','driftinggrating',strDataPath);
 end
-sAggNeuron(strcmpi({sAggNeuron.SubjectType},'DBA')) = [];
-
+indRemDBA = strcmpi({sAggNeuron.SubjectType},'DBA');
+fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),sum(~indRemDBA),getTime);
+sAggNeuron(indRemDBA) = [];
+	
 %% pre-allocate matrices
 intAreas = numel(cellUseAreas);
 matR_PP_All = nan(intAreas,intAreas,numel(sAggStim),2);

@@ -110,7 +110,8 @@ for intSubType=1:2
 			indNanZeta = squeeze(any(any(isnan(sLoad.matZetaOn) |  isnan(sLoad.matZetaOff),1),2));
 			matZetaOn = sLoad.matZetaOn;
 			matZetaOff = sLoad.matZetaOff;
-			dblCritVal = 0.01;%/(2*prod(size(sLoad.matZetaOn,[1 2])));
+			%dblCritVal = 0.01;%/(2*prod(size(sLoad.matZetaOn,[1 2])));
+			dblCritVal = 0.01/(2*prod(size(sLoad.matZetaOn,[1 2])));
 			indSignificant = squeeze(any(any(matZetaOn<dblCritVal | matZetaOff<dblCritVal,1),2));
 			vecSelectCells = find(indSignificant(:) & ~indNanZeta(:) & indUseCells(:) & cellCellsPerArea{intArea}(:));
 			strArea = cellAreaGroupsAbbr{intArea};
@@ -172,6 +173,9 @@ for intSubType=1:2
 			matOffMAvg=mean(matMeanOff,3);
 			matOnMAvg = imfilt(matOnMAvg,matFilt);
 			matOffMAvg = imfilt(matOffMAvg,matFilt);
+			matOnOffMAvg = abs(matOnMAvg-matOffMAvg);
+			vecMaxVals = findmax(matOnOffMAvg(:),1);
+			%[intMaxRow,intMaxCol]=find(matOnOffMAvg==vecMaxVals(end));
 			
 			if 0
 			figure
@@ -376,8 +380,6 @@ drawnow;
 export_fig([strTargetPath filesep sprintf('RecLocsNOT3D.tif')]);
 export_fig([strTargetPath filesep sprintf('RecLocsNOT3D.pdf')]);
 
-
-return
 %% find NOT
 %find bregma
 vecBregma = sAtlas.Bregma;

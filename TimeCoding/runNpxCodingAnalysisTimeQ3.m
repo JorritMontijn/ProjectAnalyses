@@ -38,7 +38,7 @@ dblStartT = 0.1;
 
 %% go through recordings
 tic
-for intRec=19%1:numel(sAggStim)
+for intRec=16%1:numel(sAggStim)
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
@@ -47,7 +47,7 @@ for intRec=19%1:numel(sAggStim)
 	%remove stimulus sets that are not 24 stim types
 	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
 	% concatenate stimulus structures
-	structStim = catstim(sThisRec.cellBlock(1:2));
+	structStim = catstim(sThisRec.cellBlock(1:(min(2,numel(sThisRec.cellBlock)))));
 	vecStimOnTime = structStim.vecStimOnTime;
 	vecStimOffTime = structStim.vecStimOffTime;
 	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';
@@ -195,6 +195,7 @@ for intRec=19%1:numel(sAggStim)
 			vecAllSpikes(vecISI0==0)=vecAllSpikes(vecISI0==0)-(10^-5)*rand();
 			vecAllSpikes = uniquetol(vecAllSpikes,1e-7);
 			intSpikes = numel(vecAllSpikes);
+			if numel(intSpikes) < 10,continue;end
 			vecD = diff(vecAllSpikes);
 			vecD1 = vecD(1:(end-1));
 			vecD2 = vecD(2:end);
@@ -252,7 +253,7 @@ for intRec=19%1:numel(sAggStim)
 				plot(vecTimeIFR+dblStartT,vecIFR)
 				xlabel('Time after onset (s)');
 				ylabel('Instant. firing rate (Hz)');
-				title(sprintf('Population spiking rate, trial %d',intTrial));
+				title(sprintf('%s; Population rate, trial %d',strRec,intTrial));
 				fixfig;
 				
 				subplot(2,3,2)
@@ -373,6 +374,7 @@ for intRec=19%1:numel(sAggStim)
 				
 				
 				%% divide quantiles
+				if numel(vecTrialIFR) < 10,continue;end
 				[vecIFR_sorted,vecReorder] = sort(vecTrialIFR);
 				vecTimeIFR_sorted = vecTrialTimeIFR(vecReorder);
 				intSamples = numel(vecIFR_sorted);
@@ -417,7 +419,8 @@ for intRec=19%1:numel(sAggStim)
 				%% assign epochs
 				for intNeuron=1:intTunedN
 					vecSpikes = cellSpikes{intNeuron};
-					
+					vecSpikes = uniquetol(vecSpikes,1e-7);
+			
 					%do stuff here
 					vecSpikeQ = zeros(size(vecSpikes));
 					vecCountsPerType = zeros(1,3);
@@ -510,6 +513,7 @@ for intRec=19%1:numel(sAggStim)
 		hold off
 		xlabel('dMean tuning R2 low q');
 		ylabel('dMean tuning R2 high q');
+		title(sprintf('%s',strRec));
 		fixfig;
 		
 		
@@ -581,6 +585,7 @@ for intRec=19%1:numel(sAggStim)
 		hold on
 		scatter(vecEffectLow_CP,vecEffectHigh_CP,[],lines(1),'.')
 		hold off
+		title(sprintf('%s',strRec));
 		xlabel('dMean circ prec low q');
 		ylabel('dMean circ prec high q');
 		fixfig;

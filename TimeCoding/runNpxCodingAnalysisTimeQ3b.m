@@ -38,7 +38,7 @@ dblStartT = 0.1;
 
 %% go through recordings
 tic
-for intRec=19%1:numel(sAggStim)
+for intRec=16%1:numel(sAggStim)
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
@@ -80,7 +80,11 @@ for intRec=19%1:numel(sAggStim)
 	
 	%% is cell an interneuron (fast/narrow spiking) or pyramid (regular/broad spiking)?
 	%load waveform
-	[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
+	if ~isfield(sUseNeuron,'Waveform')
+		[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
+	else
+		sThisRec.sample_rate = str2double(sAggSources(intRec).sMetaAP.imSampRate);
+	end
 	
 	%calculate waveform properties
 	dblSampRateIM = sThisRec.sample_rate;

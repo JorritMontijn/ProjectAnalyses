@@ -57,7 +57,7 @@ vecQuantiles([1 end]) = [];
 
 %mean/sd/cv
 dblActBinW = 50;
-vecActBins = 0:dblActBinW:500;
+vecActBins = 0:dblActBinW:750;
 vecActBinsC = vecActBins(2:end)-dblActBinW/2;
 
 %% load data
@@ -75,10 +75,16 @@ matRatioQ = nan(intNumQ,intRecNum);
 matRealQ = nan(intNumQ,intRecNum);
 matExpQ = nan(intNumQ,intRecNum);
 
+cellAllMperTrial = cell(1,intRecNum);
+cellAllSperTrial = cell(1,intRecNum);
+cellAllMperTrial_S = cell(1,intRecNum);
+cellAllSperTrial_S = cell(1,intRecNum);
 matCountsCV = nan(numel(vecActBinsC),intRecNum);
 matMeansSd = nan(numel(vecActBinsC),intRecNum);
 matMeansCV = nan(numel(vecActBinsC),intRecNum);
-%% run
+matCountsCV_S = nan(numel(vecActBinsC),intRecNum);
+matMeansSd_S = nan(numel(vecActBinsC),intRecNum);
+matMeansCV_S = nan(numel(vecActBinsC),intRecNum);
 for intFile=1:intRecNum
 	%% load
 	load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
@@ -240,15 +246,15 @@ for intFile=1:intRecNum
 	
 	%mean and sd over time (IFR)
 	subplot(2,3,5)
-	[vecCountsSd,vecMeansSd,vecSDsSd] = makeBins(vecMperTrial,vecSperTrial,vecActBins);
+	[vecCountsSd,vecMeansSd,vecSDsSd] = makeBins(vecMperTrial(:)',vecSperTrial(:)',vecActBins);
 	indPlotBins = vecCountsSd>10;
 	
 	[vecCountsSd_S,vecMeansSd_S,vecSDsSd_S] = makeBins(vecMperTrial_S,vecSperTrial_S,vecActBins);
 	indPlotBins_S = vecCountsSd_S>10;
 	
 	hold on
-	scatter(vecMperTrial,vecSperTrial(:),[],[0.5 0.5 0.5],'.');
-	errorbar(vecActBinsC(indPlotBins),vecMeansSd_S(indPlotBins_S),vecSDsSd_S(indPlotBins_S)./sqrt(vecCountsSd_S(indPlotBins_S)),'color',[0.5 0.5 0.5])
+	scatter(vecMperTrial_S,vecSperTrial_S(:),[],[0.5 0.5 0.5],'.');
+	errorbar(vecActBinsC(indPlotBins_S),vecMeansSd_S(indPlotBins_S),vecSDsSd_S(indPlotBins_S)./sqrt(vecCountsSd_S(indPlotBins_S)),'color',[0.5 0.5 0.5])
 	scatter(vecMperTrial,vecSperTrial(:),[],[0.5 0.5 1],'.');
 	errorbar(vecActBinsC(indPlotBins),vecMeansSd(indPlotBins),vecSDsSd(indPlotBins)./sqrt(vecCountsSd(indPlotBins)),'color',[0 0 1])
 	xlabel('Mean population activity (Hz)')
@@ -259,7 +265,11 @@ for intFile=1:intRecNum
 	subplot(2,3,6)
 	vecCVperTrial = vecSperTrial./vecMperTrial;
 	[vecCountsCV,vecMeansCV,vecSDsCV] = makeBins(vecMperTrial,vecCVperTrial,vecActBins);
+	vecCVperTrial_S = vecSperTrial./vecMperTrial;
+	[vecCountsCV_S,vecMeansCV_S,vecSDsCV_S] = makeBins(vecMperTrial_S,vecCVperTrial_S,vecActBins);
 	hold on
+	scatter(vecMperTrial_S,vecCVperTrial_S(:),[],[0.5 0.5 0.5],'.');
+	errorbar(vecActBinsC(indPlotBins_S),vecMeansCV_S(indPlotBins_S),vecSDsCV_S(indPlotBins_S)./sqrt(vecCountsCV_S(indPlotBins_S)),'color',[0.5 0.5 0.5])
 	scatter(vecMperTrial,vecCVperTrial(:),[],[0.5 0.5 1],'.');
 	errorbar(vecActBinsC(indPlotBins),vecMeansCV(indPlotBins),vecSDsCV(indPlotBins)./sqrt(vecCountsCV(indPlotBins)),'color',[0 0 1])
 	xlabel('Mean population activity (Hz)')
@@ -367,7 +377,14 @@ for intFile=1:intRecNum
 	matCountsCV(:,intFile) = vecCountsSd;
 	matMeansSd(:,intFile) = vecMeansSd;
 	matMeansCV(:,intFile) = vecMeansCV;
+	matCountsCV_S(:,intFile) = vecCountsSd_S;
+	matMeansSd_S(:,intFile) = vecMeansSd_S;
+	matMeansCV_S(:,intFile) = vecMeansCV_S;
 	
+	cellAllMperTrial{intFile} = vecMperTrial;
+	cellAllSperTrial{intFile} = vecSperTrial;
+	cellAllMperTrial_S{intFile} = vecMperTrial_S;
+	cellAllSperTrial_S{intFile} = vecSperTrial_S;
 end
 
 %% plot mean over recordings
@@ -431,30 +448,106 @@ fixfig;
 % hold off
 % fixfig;
 
-%mean and sd scale together: CV is constant
-subplot(2,3,4)
+%generate data for exponential processes
+dblLambda = 1;
+dblDuration = 1;
+vecPopSizes = 50:50:max(vecActBins);
+intPopNum = numel(vecPopSizes);
+intTrials = numel(vecRperTrial);
+matMperTrial_G = nan(intTrials,intPopNum);
+matSperTrial_G = nan(intTrials,intPopNum);
+for intPopSizeIdx = 1:intPopNum
+	intPopSize = vecPopSizes(intPopSizeIdx)
+	
+	matSpikeCounts = nan(intPopSize,intTrials);
+	for intTrial=1:intTrials
+		cellSpikeT = cell(1,intPopSize);
+		for intNeuron=1:intPopSize
+		
+			vecISI = exprnd(dblLambda,[1 100]);
+			vecSpikeT = cumsum(vecISI(2:end))-vecISI(1);
+			cellSpikeT{intNeuron} = vecSpikeT(vecSpikeT>0 & vecSpikeT<dblDuration);
+		end
+		
+		%combine spikes from whole population & calc IFR
+		vecSpikeT = sort(cell2vec(cellSpikeT));
+		[vecTimeIFRG,vecIFRG] = getIFR(vecSpikeT,0,dblDuration,[],[],[],0);
+		matMperTrial_G(intTrial,intPopSizeIdx) = mean(vecIFRG);
+		matSperTrial_G(intTrial,intPopSizeIdx) = std(vecIFRG);
+	end
+end
 
+
+%% mean and sd scale together: CV is constant
+subplot(2,3,4);cla;
+%theory
+vecMperTrial_G = matMperTrial_G(:);
+vecSperTrial_G = matSperTrial_G(:);
+vecBeta_G = polyfit(vecMperTrial_G,vecSperTrial_G,1);
+dblSlope_G = ((vecMperTrial_G' * vecMperTrial_G) \ vecMperTrial_G') * vecSperTrial_G;
+vecCVperTrial_G = vecSperTrial_G./vecMperTrial_G;
+[vecCountsCV_G,vecMeansCV_G,vecSDsCV_G] = makeBins(vecMperTrial_G,vecCVperTrial_G,vecActBins);
+[vecCountsSd_G,vecMeansSd_G,vecSDsSd_G] = makeBins(vecMperTrial_G,vecSperTrial_G,vecActBins);
+indPlotBins_G = vecCountsSd_G>10;
+
+%shuffled
+matMeansSdRem_S = matMeansSd_S;
+matMeansSdRem_S(matCountsCV_S<10)=nan;
+matMeansCVRem_S = matMeansCV_S;
+matMeansCVRem_S(matCountsCV_S<10)=nan;
+vecX_S = cell2vec(cellAllMperTrial_S);
+vecY_S = cell2vec(cellAllSperTrial_S);
+dblSlope_S = ((vecX_S' * vecX_S) \ vecX_S') * vecY_S;
+
+matC = lines(3);
+%real
 matMeansSdRem = matMeansSd;
 matMeansSdRem(matCountsCV<10)=nan;
 matMeansCVRem = matMeansCV;
 matMeansCVRem(matCountsCV<10)=nan;
-dblSlope = nanmean(matMeansCVRem(:));
-errorbar(vecActBinsC,nanmean(matMeansSdRem,2),nanstd(matMeansSdRem,[],2)./sqrt(intRecNum));
+vecX = cell2vec(cellAllMperTrial);
+vecY = cell2vec(cellAllSperTrial);
+dblSlope = ((vecX' * vecX) \ vecX') * vecY;
+
+
 hold on
-plot(vecActBinsC,dblSlope*vecActBinsC,'k--');
+plot(vecActBinsC,dblSlope*vecActBinsC,'--','color',matC(1,:));
+plot(vecActBinsC,dblSlope_S*vecActBinsC,'--','color',matC(3,:));
+plot(vecActBinsC,dblSlope_G*vecActBinsC,'--','color',matC(2,:));
+errorbar(vecActBinsC,nanmean(matMeansSdRem,2),nanstd(matMeansSdRem,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(1,:));
+errorbar(vecActBinsC,nanmean(matMeansSdRem_S,2),nanstd(matMeansSdRem_S,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(3,:));
+errorbar(vecActBinsC,nanmean(vecMeansSd_G,2),nanstd(vecSDsSd_G,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(2,:));
 hold off
+legend({'Neural data','Shuffled','Theory (Exponential Process)'},'location','best')
 xlabel('Mean of spiking rate (Hz)');
 ylabel('Sd of spiking rate (Hz)');
 title(sprintf('Constant coefficient of variation (CV) = %.3f',dblSlope));
 fixfig;
 
-subplot(2,3,5)
-errorbar(vecActBinsC,nanmean(matMeansCVRem,2),nanstd(matMeansCVRem,[],2)./sqrt(intRecNum));
+h=subplot(2,3,5);delete(h);subplot(2,3,5);
+vecDeviationM = (nanmean(matMeansCVRem,2) ./ dblSlope)-1;
+vecDeviationSEM = nanstd(matMeansCVRem,[],2) ./ dblSlope;
+vecDeviationM_S = (nanmean(matMeansCVRem_S,2) ./ dblSlope_S)-1;
+vecDeviationSEM_S = nanstd(matMeansCVRem_S,[],2) ./ dblSlope_S;
+vecDeviationM_G = (nanmean(vecMeansCV_G,2) ./ dblSlope_G)-1;
+vecDeviationSEM_G = nanstd(matMeansCVRem,[],2) ./ dblSlope_G;
+
+
 hold on
-plot(vecActBinsC,dblSlope*ones(size(vecActBinsC)),'k--');
+plot(vecActBinsC,100*vecDeviationM,'color',matC(1,:));
+plot(vecActBinsC,100*vecDeviationM_S,'color',matC(3,:));
+plot(vecActBinsC,100*vecDeviationM_G,'color',matC(2,:));
 hold off
-ylim([0 1]);
+%ylim([0 1]);
 xlabel('Mean of spiking rate (Hz)');
-ylabel('CV of spiking rate (Hz)');
-title(sprintf('Constant coefficient of variation (CV) = %.3f',dblSlope));
+ylabel('Deviation from constant CV (%)');
+title(sprintf('How best to plot this?'));
 fixfig;
+
+%% plot mean vs euclidian
+
+
+drawnow;
+export_fig(fullpath(strFigurePath,sprintf('Q2_ConstantCV.tif')));
+export_fig(fullpath(strFigurePath,sprintf('Q2_ConstantCV.pdf')));
+	

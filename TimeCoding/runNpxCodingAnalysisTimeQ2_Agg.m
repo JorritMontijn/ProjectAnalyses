@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -40,12 +40,13 @@ else
 	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
 
-
 %% select all neurons in LP and drifting grating stimuli
-if ~exist('sAggStim','var') || isempty(sAggStim)
+if ~exist('sAggStim','var') || isempty(sAggStim) || isempty(sAggNeuron)
 	[sAggStim,sAggNeuron]=loadDataNpx('','driftinggrating',strDataPath);
 end
-sAggNeuron(strcmpi({sAggNeuron.SubjectType},'DBA')) = [];
+indRemDBA = strcmpi({sAggNeuron.SubjectType},'DBA');
+fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),sum(~indRemDBA),getTime);
+sAggNeuron(indRemDBA) = [];
 
 %% pre-allocate matrices
 intAreas = numel(cellUseAreas);
@@ -244,7 +245,7 @@ for intRec=1:numel(sAggStim)
 		vecLperTrial_S = zeros(intTrialNum,1);
 		vecMperTrial_S = zeros(intTrialNum,1);
 		
-		%shuffl
+		%shuffle
 		vecSperTrial_SN = zeros(intTrialNum,1);
 		vecHperTrial_SN = zeros(intTrialNum,1);
 		vecLperTrial_SN = zeros(intTrialNum,1);

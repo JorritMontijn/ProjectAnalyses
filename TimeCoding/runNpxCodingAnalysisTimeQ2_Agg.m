@@ -256,6 +256,7 @@ for intRec=1:numel(sAggStim)
 		vecHperTrial_SS = zeros(intTrialNum,1);
 		vecLperTrial_SS = zeros(intTrialNum,1);
 		vecMperTrial_SS = zeros(intTrialNum,1);
+		intQuantiles = 20;
 		
 		for intTrial=1:intTrialNum
 			
@@ -276,8 +277,8 @@ for intRec=1:numel(sAggStim)
 			vecISI = cellISI_perTrial{intTrial};
 			
 			vecR_sorted = sort(vecIFR);
-			intHighQ = max(1,round(numel(vecR_sorted)/20));
-			intLowQ = max(1,round(numel(vecR_sorted)/20));
+			intHighQ = max(1,round(numel(vecR_sorted)/intQuantiles));
+			intLowQ = max(1,round(numel(vecR_sorted)/intQuantiles));
 			vecHperTrial(intTrial) = nanmean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
 			vecLperTrial(intTrial) = nanmean(vecR_sorted((1+0*intLowQ):(1*intLowQ)));
 			vecMperTrial(intTrial) = nanmean(vecR_sorted);
@@ -292,7 +293,7 @@ for intRec=1:numel(sAggStim)
 			%shuffled single-neuron ISIs
 			vecIFRS = cellIFR_perTrial_S{intTrial};
 			vecR_sorted = sort(vecIFRS);
-			intHighQ = round(numel(vecR_sorted)/20);
+			intHighQ = round(numel(vecR_sorted)/intQuantiles);
 			vecHperTrial_S(intTrial) = mean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
 			vecLperTrial_S(intTrial) = mean(vecR_sorted((1+0*intHighQ):(1*intHighQ)));
 			vecMperTrial_S(intTrial) = mean(vecR_sorted);
@@ -301,7 +302,7 @@ for intRec=1:numel(sAggStim)
 			%shuffled overall ISIs
 			vecIFRS = cellIFR_perTrial_SN{intTrial};
 			vecR_sorted = sort(vecIFRS);
-			intHighQ = round(numel(vecR_sorted)/20);
+			intHighQ = round(numel(vecR_sorted)/intQuantiles);
 			vecHperTrial_SN(intTrial) = mean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
 			vecLperTrial_SN(intTrial) = mean(vecR_sorted((1+0*intHighQ):(1*intHighQ)));
 			vecMperTrial_SN(intTrial) = mean(vecR_sorted);
@@ -310,7 +311,7 @@ for intRec=1:numel(sAggStim)
 			%shuffled overall ISIs, single-neuron ISIs
 			vecIFRS = cellIFR_perTrial_SS{intTrial};
 			vecR_sorted = sort(vecIFRS);
-			intHighQ = round(numel(vecR_sorted)/20);
+			intHighQ = round(numel(vecR_sorted)/intQuantiles);
 			vecHperTrial_SS(intTrial) = mean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
 			vecLperTrial_SS(intTrial) = mean(vecR_sorted((1+0*intHighQ):(1*intHighQ)));
 			vecMperTrial_SS(intTrial) = mean(vecR_sorted);
@@ -607,7 +608,8 @@ for intRec=1:numel(sAggStim)
 		fixfig;
 		xlabel('Mean firing rate during trial (Hz)');
 		ylabel('Firing rate during upper/lower 5% (Hz)');
-		legend({'Shuffled pop+neuron ISIs','Lowest 5%','Highest 5%'},'location','best');
+		dblPercQ = (1/intQuantiles)*100;
+		legend({'Shuffled pop+neuron ISIs',sprintf('Lowest %d%%',dblPercQ),sprintf('Highest %d%%',dblPercQ)},'location','best');
 		title('Overall population-level ISI shuffle control');
 		fixfig;
 		
@@ -622,7 +624,7 @@ for intRec=1:numel(sAggStim)
 		plot(vecBinC*100,vecCountsHigh,'color',[1 0 0]);
 		hold off
 		xlabel('% change in firing rate over shuffled pop ISIs');
-		legend({'Lowest 5%','Highest 5%'});
+		legend({sprintf('Lowest %d%%',dblPercQ),sprintf('Highest %d%%',dblPercQ)});
 		ylabel('Number of trials (count)');
 		vecL = (vecLperTrial_SN-vecLperTrial_SS)./vecLperTrial_SS;
 		vecH = (vecHperTrial_SN-vecHperTrial_SS)./vecHperTrial_SS;

@@ -16,20 +16,26 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
-	strFigurePath = 'F:\Data\Results\PopTimeCoding';
+	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
 	strDataPath = 'E:\DataPreProcessed\';
-	strFigurePath = 'D:\Data\Results\PopTimeCoding';
+	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
 
 %% select all neurons in LP and drifting grating stimuli
 if ~exist('sAggStim','var') || isempty(sAggStim)
 	[sAggStim,sAggNeuron,sAggSources]=loadDataNpx('','driftinggrating',strDataPath);
 end
-sAggNeuron(strcmpi({sAggNeuron.SubjectType},'DBA')) = [];
+indRemDBA = strcmpi({sAggNeuron.SubjectType},'DBA');
+fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),sum(~indRemDBA),getTime);
+sAggNeuron(indRemDBA) = [];
 
 %% pre-allocate matrices
 intAreas = numel(cellUseAreas);
@@ -47,7 +53,7 @@ for intRec=16%1:numel(sAggStim)
 	%remove stimulus sets that are not 24 stim types
 	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
 	% concatenate stimulus structures
-	structStim = catstim(sThisRec.cellBlock(1:(min(2,numel(sThisRec.cellBlock)))));
+	structStim = catstim(sThisRec.cellBlock(1:2));
 	vecStimOnTime = structStim.vecStimOnTime;
 	vecStimOffTime = structStim.vecStimOffTime;
 	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';
@@ -78,6 +84,42 @@ for intRec=16%1:numel(sAggStim)
 	indUseNeurons = indQualifyingNeurons(:) & indConsiderNeurons(:) & indGoodNeurons(:);
 	sUseNeuron = sAggNeuron(indUseNeurons);
 	
+	%% is cell an interneuron (fast/narrow spiking) or pyramid (regular/broad spiking)?
+	%load waveform
+	if ~isfield(sUseNeuron,'Waveform')
+		[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
+	else
+		sThisRec.sample_rate = str2double(sAggSources(intRec).sMetaAP.imSampRate);
+	end
+	
+	%calculate waveform properties
+	dblSampRateIM = sThisRec.sample_rate;
+	dblRecDur = max(cellfun(@max,{sUseNeuron.SpikeTimes})) - min(cellfun(@min,{sUseNeuron.SpikeTimes}));
+	vecSpikeRate = cellfun(@numel,{sUseNeuron.SpikeTimes})/dblRecDur;
+	matAreaWaveforms = cell2mat({sUseNeuron.Waveform}'); %[cell x sample]
+	intNeurons=size(matAreaWaveforms,1);
+	vecSpikeDur = nan(1,intNeurons);
+	vecSpikePTR = nan(1,intNeurons);
+	for intNeuron=1:intNeurons
+		%find trough
+		[dblTroughVal,intTrough]=min(matAreaWaveforms(intNeuron,:));
+		[dblPeakVal,intTroughToPeak]=max(matAreaWaveforms(intNeuron,intTrough:end));
+		intPeak = intTrough + intTroughToPeak - 1;
+		
+		dblTroughTime = intTrough/dblSampRateIM;
+		dblTroughToPeakTime = intTroughToPeak/dblSampRateIM;
+		dblPeakTime = intPeak/dblSampRateIM;
+		vecSpikeDur(intNeuron) = dblTroughToPeakTime;
+		vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
+	end
+	dblPTT = 0.5;
+	dblSWT = 0.5/1000;
+	vecNarrow = vecSpikeDur < dblSWT & vecSpikePTR > dblPTT; %Ctx BL6
+	vecBroad = vecSpikeDur > dblSWT & vecSpikePTR < dblPTT; %Ctx BL6
+	vecOther = ~vecNarrow & ~vecBroad;
+	vecCol = vecNarrow + vecBroad*2 + vecOther*3;
+	%scatter(vecSpikeDur,vecSpikePTR,[],vecCol)
+	
 	%% select area 1
 	for intArea=1:intAreas
 		strArea = cellUseAreas{intArea};
@@ -95,16 +137,20 @@ for intRec=16%1:numel(sAggStim)
 		%remove untuned cells
 		vecOri180 = mod(vecOrientation,180)*2;
 		sOut = getTuningCurves(matData,vecOri180,0);
-		%indTuned = sOut.vecOriAnova<0.05;
+		vecFitR2 = sOut.vecFitR2;
 		dblMinRate = 0.1;
-		indResp = cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
+		indResp = (vecBroad | vecOther) & cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
+		indTuned = sOut.vecOriAnova<0.05;
 		
 		%prep
 		vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
 		vecPrefRad = sOut.matFittedParams(indResp,1);
-		intTunedN = sum(indResp);
-		intNumN = intTunedN;
 		cellSpikeTimes(~indResp)=[];
+		indTuned(~indResp)=[];
+		vecFitR2(~indResp)=[];
+		
+		intTunedN = sum(indTuned);
+		intNumN = sum(indResp);
 		
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		dblPreTime = -dblStartT;%0.3;
@@ -189,13 +235,13 @@ for intRec=16%1:numel(sAggStim)
 		vecMperTrial_S = nan(intTrialNum,1);
 		
 		for intTrial=1:intTrialNum
+			
 			%real
 			vecAllSpikes = sort(cell2vec(cellSpikeTimesPerCellPerTrial(:,intTrial)));
 			vecISI0 = [vecAllSpikes(2:end) - vecAllSpikes(1:(end-1)); inf];
 			vecAllSpikes(vecISI0==0)=vecAllSpikes(vecISI0==0)-(10^-5)*rand();
 			vecAllSpikes = uniquetol(vecAllSpikes,1e-7);
 			intSpikes = numel(vecAllSpikes);
-			if numel(intSpikes) < 10,continue;end
 			vecD = diff(vecAllSpikes);
 			vecD1 = vecD(1:(end-1));
 			vecD2 = vecD(2:end);
@@ -253,7 +299,7 @@ for intRec=16%1:numel(sAggStim)
 				plot(vecTimeIFR+dblStartT,vecIFR)
 				xlabel('Time after onset (s)');
 				ylabel('Instant. firing rate (Hz)');
-				title(sprintf('%s; Population rate, trial %d',strRec,intTrial));
+				title(sprintf('Only broad spikers; population rate, trial %d',intTrial));
 				fixfig;
 				
 				subplot(2,3,2)
@@ -336,8 +382,8 @@ for intRec=16%1:numel(sAggStim)
 				title(sprintf('ISI correlation r(d(i,j),d(i+1,j+1)), r=%.3f, p=%.3f',r,p));
 				fixfig;
 				
-				export_fig(fullpath(strFigurePath,sprintf('C1_ExampleActivityT%s_%sTrial%d.tif',num2str(dblStartT),strRec,intTrial)));
-				export_fig(fullpath(strFigurePath,sprintf('C1_ExampleActivityT%s_%sTrial%d.pdf',num2str(dblStartT),strRec,intTrial)));
+				export_fig(fullpath(strFigurePath,sprintf('E1_ExampleActivityT%s_%sTrial%d.tif',num2str(dblStartT),strRec,intTrial)));
+				export_fig(fullpath(strFigurePath,sprintf('E1_ExampleActivityT%s_%sTrial%d.pdf',num2str(dblStartT),strRec,intTrial)));
 				boolPlot = false;
 			end
 		end
@@ -347,7 +393,7 @@ for intRec=16%1:numel(sAggStim)
 		
 		%pre-alloc
 		intQuantileNum = 5; %5=20%
-		vecTuning = sOut.vecFitR2(indResp);
+		vecTuning = vecFitR2(indTuned);
 		
 		%run
 		for intShuff=[0 1]
@@ -374,7 +420,6 @@ for intRec=16%1:numel(sAggStim)
 				
 				
 				%% divide quantiles
-				if numel(vecTrialIFR) < 10,continue;end
 				[vecIFR_sorted,vecReorder] = sort(vecTrialIFR);
 				vecTimeIFR_sorted = vecTrialTimeIFR(vecReorder);
 				intSamples = numel(vecIFR_sorted);
@@ -419,8 +464,7 @@ for intRec=16%1:numel(sAggStim)
 				%% assign epochs
 				for intNeuron=1:intTunedN
 					vecSpikes = cellSpikes{intNeuron};
-					vecSpikes = uniquetol(vecSpikes,1e-7);
-			
+					
 					%do stuff here
 					vecSpikeQ = zeros(size(vecSpikes));
 					vecCountsPerType = zeros(1,3);
@@ -454,7 +498,12 @@ for intRec=16%1:numel(sAggStim)
 				vecCircPrecLow_temp(intTrial) = 1-dblCircVarLow;
 				vecCircPrecHigh_temp(intTrial) = 1-dblCircVarHigh;
 			end
-			
+			%rem nans
+			vecTuningR2Low_temp(isnan(vecTuningR2Low_temp)) = nanmean(vecTuningR2Low_temp);
+			vecTuningR2High_temp(isnan(vecTuningR2High_temp)) = nanmean(vecTuningR2High_temp);
+			vecCircPrecLow_temp(isnan(vecCircPrecLow_temp)) = nanmean(vecCircPrecLow_temp);
+			vecCircPrecHigh_temp(isnan(vecCircPrecHigh_temp)) = nanmean(vecCircPrecHigh_temp);
+				
 			%% save
 			if intShuff == 0
 				%get IFRs
@@ -489,7 +538,7 @@ for intRec=16%1:numel(sAggStim)
 		hold on
 		scatter(vecTuningR2Low_shuff,vecTuningR2Low,[],lines(1),'.')
 		hold off
-		title(sprintf('Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecTuningR2Low),mean(vecTuningR2Low_shuff)))
+		title(sprintf('Only broad spikers; Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecTuningR2Low),mean(vecTuningR2Low_shuff)))
 		ylabel('Real mean tuning R2)');
 		xlabel('Shuffled mean tuning R2');
 		fixfig;
@@ -513,7 +562,6 @@ for intRec=16%1:numel(sAggStim)
 		hold off
 		xlabel('dMean tuning R2 low q');
 		ylabel('dMean tuning R2 high q');
-		title(sprintf('%s',strRec));
 		fixfig;
 		
 		
@@ -545,14 +593,15 @@ for intRec=16%1:numel(sAggStim)
 		errorbar(vecLocX(2),mean(vecEffectHigh_R2),std(vecEffectHigh_R2)./sqrt(intTrialNum),'x','color',vecColH);
 		hold off
 		xlim([0.3 0.7]);
-		[h,pDiff]=ttest(vecEffectLow_R2,vecEffectHigh_R2);
-		title(sprintf('Diff, t-test, p=%.2e',pDiff));
 		set(gca,'xtick',vecLocX,'xticklabel',{'Low Q','High Q'});
+		[h,pDiff]=ttest(vecEffectLow_R2,vecEffectHigh_R2);
+		title(sprintf('Diff, t-test, p=%.3f',pDiff));
 		ylabel('R^2 increase over shuffled')
 		fixfig;
 		
-		export_fig(fullpath(strFigurePath,sprintf('C2_QuantileR2T%s_%s.tif',num2str(dblStartT),strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('C2_QuantileR2T%s_%s.pdf',num2str(dblStartT),strRec)));
+		
+		export_fig(fullpath(strFigurePath,sprintf('E2_QuantileR2T%s_%s.tif',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('E2_QuantileR2T%s_%s.pdf',num2str(dblStartT),strRec)));
 		
 		%% circ var
 		dblQuantileSize = round(100/intQuantileNum);
@@ -563,7 +612,7 @@ for intRec=16%1:numel(sAggStim)
 		hold on
 		scatter(vecCircPrecLow_shuff,vecCircPrecLow,[],lines(1),'.')
 		hold off
-		title(sprintf('Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecCircPrecLow),mean(vecCircPrecLow_shuff)))
+		title(sprintf('Only broad spikers; Lowest %d%%, real=%.3f, shuff=%.3f',dblQuantileSize,mean(vecCircPrecLow),mean(vecCircPrecLow_shuff)))
 		ylabel('Real circ prec');
 		xlabel('Shuffled circ prec');
 		fixfig;
@@ -585,7 +634,6 @@ for intRec=16%1:numel(sAggStim)
 		hold on
 		scatter(vecEffectLow_CP,vecEffectHigh_CP,[],lines(1),'.')
 		hold off
-		title(sprintf('%s',strRec));
 		xlabel('dMean circ prec low q');
 		ylabel('dMean circ prec high q');
 		fixfig;
@@ -618,15 +666,15 @@ for intRec=16%1:numel(sAggStim)
 		hold on
 		errorbar(vecLocX(2),mean(vecEffectHigh_CP),std(vecEffectHigh_CP)./sqrt(intTrialNum),'x','color',vecColH);
 		hold off
-		[h,pDiff]=ttest(vecEffectLow_CP,vecEffectHigh_CP);
-		title(sprintf('Diff, t-test, p=%.2e',pDiff));
 		xlim([0.3 0.7]);
+		[h,pDiff]=ttest(vecEffectLow_CP,vecEffectHigh_CP);
+		title(sprintf('Diff, t-test, p=%.3f',pDiff));
 		set(gca,'xtick',vecLocX,'xticklabel',{'Low Q','High Q'});
 		ylabel('Precision increase over shuffled')
 		fixfig;
 		
-		export_fig(fullpath(strFigurePath,sprintf('C3_QuantileCircPrecT%s_%s.tif',num2str(dblStartT),strRec)));
-		export_fig(fullpath(strFigurePath,sprintf('C3_QuantileCircPrecT%s_%s.pdf',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('E3_QuantileCircPrecT%s_%s.tif',num2str(dblStartT),strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('E3_QuantileCircPrecT%s_%s.pdf',num2str(dblStartT),strRec)));
 		
 	end
 end

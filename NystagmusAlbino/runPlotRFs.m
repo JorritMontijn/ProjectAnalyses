@@ -29,11 +29,11 @@ dblScreenHeight_cm = 29;
 
 %data location
 %strDataSource = 'D:\Data\Results\AlbinoProject\RF_data_new';
-strDataSource = 'F:\Drive\VisMotorNOT\RF_data_new';
+strDataSource = 'C:\Drive\VisMotorNOT\RF_data_new';
 sFiles = dir([strDataSource filesep '*.mat']);
 cellNames = {sExp.Name};
 cellFilesRF = {sFiles.name};
-boolSaveFigs = false;
+boolSaveFigs = true;
 
 %pre-allocate
 intUseAreaNum = 2;
@@ -103,7 +103,7 @@ for intSubType=1:2
 		
 		%select cells
 		sRec = sExp(intRec);
-		indUseCells = true;%arrayfun(@(x) x.Violations1ms < 0.25 & abs(x.NonStationarity) < 0.25,sRec.sCluster(:));
+		indUseCells = arrayfun(@(x) x.Violations1ms < 0.25 & abs(x.NonStationarity) < 0.25,sRec.sCluster(:));
 		
 		%build cell vectors
 		cellCellsPerArea = cell(1,numel(cellUseAreas));
@@ -114,8 +114,8 @@ for intSubType=1:2
 			indNanZeta = squeeze(any(any(isnan(sLoad.matZetaOn) |  isnan(sLoad.matZetaOff),1),2));
 			matZetaOn = sLoad.matZetaOn;
 			matZetaOff = sLoad.matZetaOff;
-			%dblCritVal = 0.01;%/(2*prod(size(sLoad.matZetaOn,[1 2])));
-			dblCritVal = 0.01;%/(2*prod(size(sLoad.matZetaOn,[1 2])));
+			%dblCritVal = 0.05/(2*prod(size(sLoad.matZetaOn,[1 2])));
+			dblCritVal = 0.01;
 			indSignificant = squeeze(any(any(matZetaOn<dblCritVal | matZetaOff<dblCritVal,1),2));
 			vecSelectCells = find(indSignificant(:) & ~indNanZeta(:) & indUseCells(:) & cellCellsPerArea{intArea}(:));
 			strArea = cellAreaGroupsAbbr{intArea};
@@ -184,7 +184,7 @@ for intSubType=1:2
 			vecMaxVals = findmax(matOnOffMAvg(:),1);
 			%[intMaxRow,intMaxCol]=find(matOnOffMAvg==vecMaxVals(end));
 			
-			if 0
+			if 1
 			figure
 			subplot(2,3,1)
 			imagesc(matOnZAvg)
@@ -436,7 +436,7 @@ fMinFunc = @(x) -getMeanRFcorrWithAngleConstraint(x,matCoordsMu(1,:)',matCoordsM
 %compare with random (shuffled) rf locations
 intRunNum = 100000;
 intP = numel(matCenterRF(1,:)');
-intRandIters = min(intRunNum,factorial(intP));
+intRandIters = intRunNum;%min(intRunNum,factorial(intP));
 vecRandCorr = nan(1,intRandIters);
 vecRandAngle = nan(1,intRandIters);
 hTic=tic;

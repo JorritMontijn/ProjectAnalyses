@@ -104,7 +104,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		if sum(indArea1Neurons) == 0, continue;end
 		%% get orientation responses & single-trial population noise
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
-		intRec
+		
 		%% remove untuned cells
 		%get data matrix
 		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
@@ -181,7 +181,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		matAcrossTimeDecoder = nan(intBinNum,intBinNum);
 		[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
 		for intBinIdx=1:intBinNum
-			intBinIdx
+			fprintf('%s (%d/%d): Now at bin %d/%d [%s]\n',strRec,intRec,numel(sAggStim),intBinIdx,intBinNum,getTime);
+			
 			[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
 				doCrossValidatedDecodingLR(squeeze(matBNT(intBinIdx,:,:)),vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
 			vecDecErr(intBinIdx) = dblMeanErrorDegs;
@@ -414,7 +415,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		ylabel(sprintf('Ratio stim=%d/(most likely other stim)',dblObliqueDegs));
 		fixfig;grid off
 		
-		%
+		%{
 		[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
 			doCrossValidatedDecodingLR(matResp,vecOri180,intTypeCV,[],0);
 		vecConfidence = nan(size(vecDecodedIndexCV));
@@ -482,7 +483,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		xlabel('Pop. act. quantile');
 		ylabel('Decoding accuracy');
 		fixfig;grid off;
-		
+		%}
 		%%
 		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A2_ExampleNeuralCodes_%s.tif',strRec)));
 		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A2_ExampleNeuralCodes_%s.pdf',strRec)));

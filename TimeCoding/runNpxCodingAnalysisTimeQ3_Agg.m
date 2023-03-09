@@ -134,15 +134,21 @@ for intRec=1:numel(sAggStim)
 		matMeanRemNSR = bsxfun(@minus,matRespNSR,matMeanPopSignal);
 		matMeanRemSd = std(matMeanRemNSR,[],3);
 		
+		vecRelVarMean = nan(1,intTypeNum);
+		vecRelVarNorm = nan(1,intTypeNum);
 		for intStimType=1:intTypeNum
-			vecMeanR = squeeze(matMeanPopSignal(1,1,:));
+			vecMeanR = squeeze(matMeanPopSignal(1,intStimType,:));
 			vecDistR = nan(size(vecMeanR));
 			matR = squeeze(matRespNSR(:,intStimType,:));
 			for intRep=1:size(matR,2)
 				vecDistR(intRep) = norm(matR(:,intRep));
 			end
+			vecRelVarMean(intStimType) = std(vecMeanR)/mean(vecMeanR);
+			vecRelVarNorm(intStimType) = std(vecDistR)/mean(vecDistR);
 		end
-		
+		vecPercDiff = 100*((vecRelVarNorm./vecRelVarMean)-1);
+		histx(vecPercDiff);
+		xlabel('dVariability of Euclidian vs mean (%)');
 		
 		%% does population activity live on a hyperplane or a hypersphere?
 		error how to do?

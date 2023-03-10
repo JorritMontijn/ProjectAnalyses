@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -127,36 +127,108 @@ for intRec=1:numel(sAggStim)
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		
 		%% is pop activity more stable over trials as euclidian distance to origin or as mean?
+		%mean is L1 norm divided by # of neurons, so scaling by mean magnitude makes them
+		%equaivalent. If population activity showed a constant mean over trials, it would live on a
+		%hyperplane orthogonal to the diagonal. If, instead, the population activity shows a
+		%constant Euclidian distance to the origin, this means it lives on a hypersphere. L1 and L2
+		%norms have intrinsically different magnitudes, however: L1 norms are larger than L2 norms
+		%(except in the case where all neurons but one are silent), so a fair comparison requires
+		%comparing the variability of L1 and L2 norms after normalizing for the average magnitude.
+		
 		%split data into reps per stim type
+		[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 		[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matData,vecOrientation);
 		intTypeNum = numel(vecUnique);
-		matMeanPopSignal = mean(matRespNSR,1);
-		matMeanRemNSR = bsxfun(@minus,matRespNSR,matMeanPopSignal);
-		matMeanRemSd = std(matMeanRemNSR,[],3);
+		matSumPopSignal = sum(matRespNSR,1);
+		matDistR_L1 = nan(mean(vecRepNum),intTypeNum);
+		matDistR_L2 = nan(mean(vecRepNum),intTypeNum);
 		
+		%per stim type
 		vecRelVarMean = nan(1,intTypeNum);
 		vecRelVarNorm = nan(1,intTypeNum);
 		for intStimType=1:intTypeNum
-			vecMeanR = squeeze(matMeanPopSignal(1,intStimType,:));
-			vecDistR = nan(size(vecMeanR));
+			vecDistR_L1 = squeeze(matSumPopSignal(1,intStimType,:)); %hyperplane: mean distance
+			vecDistR_L2 = nan(size(vecDistR_L1)); %hypersphere: euclidian distance
 			matR = squeeze(matRespNSR(:,intStimType,:));
 			for intRep=1:size(matR,2)
-				vecDistR(intRep) = norm(matR(:,intRep));
+				vecDistR_L2(intRep) = norm(matR(:,intRep));
 			end
-			vecRelVarMean(intStimType) = std(vecMeanR)/mean(vecMeanR);
-			vecRelVarNorm(intStimType) = std(vecDistR)/mean(vecDistR);
-		end
-		vecPercDiff = 100*((vecRelVarNorm./vecRelVarMean)-1);
-		histx(vecPercDiff);
-		xlabel('dVariability of Euclidian vs mean (%)');
+			matDistR_L1(:,intStimType) = vecDistR_L1;
+			matDistR_L2(:,intStimType) = vecDistR_L2;
 		
-		%% does population activity live on a hyperplane or a hypersphere?
-		error how to do?
+			vecRelVarMean(intStimType) = std(vecDistR_L1)/mean(vecDistR_L1);
+			vecRelVarNorm(intStimType) = std(vecDistR_L2)/mean(vecDistR_L2);
+		end
+		
+		vecPercDiff = 100*((vecRelVarNorm./vecRelVarMean)-1);
+		vecBins = -20:2.5:20;
+		vecBinsC = vecBins(2:end)-median(diff(vecBins))/2;
+		vecCounts =histcounts(vecPercDiff,vecBins);
+		
+		%plot
+		figure;maxfig;
+		subplot(2,3,1)
+		bar(vecBinsC,vecCounts,'hist');
+		xlabel('Variability of pop act. as Euclidian vs mean distance ((L2/L1) - 1) (%)');
+		title('Trial-to-trial variability of pop act per stim type');
+		ylabel('Number of stimulus types');
+		fixfig;
+		
+		%overall
+		subplot(2,3,2)
+		%xlim([0 25]);
+		hold on
+		for intStimType=1:intTypeNum
+			h=scatter(vecUniqueOris(intStimType)*ones(size(matDistR_L1(:,intStimType))),matDistR_L1(:,intStimType));
+		end
+		ylim([0 max(get(gca,'ylim'))]);
+		xlabel('Stimulus type (direction in degrees)');
+		title('L1 norm per trial');
+		ylabel('L1 distance of population activity (Hz)');
+		fixfig;
+		
+		subplot(2,3,3)
+		hold on
+		for intStimType=1:intTypeNum
+			h=scatter(vecUniqueOris(intStimType)*ones(size(matDistR_L1(:,intStimType))),matDistR_L2(:,intStimType));
+		end
+		ylim([0 max(get(gca,'ylim'))]);
+		xlabel('Stimulus type (direction in degrees)');
+		title('L2 norm per trial');
+		ylabel('L2 distance of population activity (Hz)');
+		fixfig;
+		vecRelVarMean = std(matDistR_L1(:))/mean(matDistR_L1(:));
+		vecRelVarNorm = std(matDistR_L2(:))/mean(matDistR_L2(:));
+		
+		matDistR_L1_Norm = matDistR_L1 ./ mean(matDistR_L1(:));
+		matDistR_L2_Norm = matDistR_L2 ./ mean(matDistR_L2(:));
+		subplot(2,3,4)
+		scatter(matDistR_L1_Norm(:),matDistR_L2_Norm(:));
+		hold on
+		plot([0 max(get(gca,'xlim'))],[0 max(get(gca,'ylim'))],'k--');
+		title('Normalized by averaged magnitude');
+		xlabel('L1-norm of trial pop act');
+		ylabel('L2-norm of trial pop act');
+		fixfig;
+		
+		subplot(2,3,5)
+		vecDiffNorm = 100*((matDistR_L2_Norm(:)./matDistR_L1_Norm(:))-1);
+		vecBins = -50:2:50;
+		vecBinsC = vecBins(2:end)-median(diff(vecBins))/2;
+		vecCounts =histcounts(vecDiffNorm,vecBins);
+		hold on
+		bar(vecBinsC,vecCounts,'hist');
+		xlabel('Variability of pop act. as Euclidian vs mean distance ((L2/L1) - 1) (%)');
+		title('Trial-to-trial variability of pop act per trial');
+		ylabel('Number of trials');
+		fixfig;
 		
 		%% save data
 		save(fullpath(strTargetDataPath,sprintf('Q3Data_%s',strRec)),...
 			'dblStartT',...
-			'strRec'...
+			'strRec',...
+			'vecRelVarMean',...
+			'vecRelVarNorm'...
 			);
 	end
 end

@@ -36,6 +36,7 @@ cellFilesRF = {sFiles.name};
 boolSaveFigs = true;
 
 %pre-allocate
+intUseOnOrOff = 3;%1=on, 2=off, other=both
 intUseAreaNum = 2;
 cellAggMapRF = cell(intUseAreaNum,2);
 cellAggCenterRF = cell(intUseAreaNum,2);
@@ -164,7 +165,14 @@ for intSubType=1:2
 			matFilt = matFilt./sum(matFilt(:));
 			matOnZAvg = imfilt(matOnZAvg,matFilt);
 			matOffZAvg = imfilt(matOffZAvg,matFilt);
-			matOnOffAvg = (matOnZAvg.*matOffZAvg)./2;
+			if intUseOnOrOff == 1
+			matOnOffAvg = matOnZAvg;
+			elseif intUseOnOrOff == 2
+				matOnOffAvg = matOffZAvg;
+			else
+				matOnOffAvg = (matOnZAvg.*matOffZAvg)./2;;
+			end
+			
 			if size(matOnOffAvg,1)==12
 				matOnOffAvg = (matOnOffAvg(1:2:12,1:2:20) + matOnOffAvg(2:2:12,2:2:20))/2;
 			end
@@ -348,7 +356,7 @@ cellCol{1} = lines(1);
 cellCol{2} = [1 0 0];
 cellMarker = {'x','o'};
 hold on
-for intSubType=1:2
+for intSubType=1%1:2
 	
 	matCABA = cellAggCoordsAll{intSubType};
 	matCABA(1,matCABA(1,:)>vecBregma(1)) = 2*vecBregma(1) - matCABA(1,matCABA(1,:)>vecBregma(1));
@@ -434,7 +442,7 @@ fMinFunc = @(x) -getMeanRFcorrWithAngleConstraint(x,matCoordsMu(1,:)',matCoordsM
 [dblRealOptCorr,dblCorr1,vecProjectedLocation1,matProjectedPoints1,dblCorr2,vecProjectedLocation2,matProjectedPoints2] = getMeanRFcorrWithAngleConstraint(dblRealOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',matCenterRF(1,:)',matCenterRF(2,:)');
 
 %compare with random (shuffled) rf locations
-intRunNum = 100000;
+intRunNum = 1000;
 intP = numel(matCenterRF(1,:)');
 intRandIters = intRunNum;%min(intRunNum,factorial(intP));
 vecRandCorr = nan(1,intRandIters);
@@ -526,6 +534,14 @@ vecXY0=mean(matCoordsMu(1:2,:),2);
 matXY0=matCoordsMu(1:2,:)-vecXY0;
 [dblRealOptCorr,dblCorr1,vecProjectedLocation1,matProjectedPoints1,dblCorr2,vecProjectedLocation2,matProjectedPoints2] = ...
 	getMeanRFcorrWithAngleConstraint(dblRealOptAngle,matCoordsMu(1,:)',matCoordsMu(2,:)',vecHorzRF_deg,vecVertRF_deg);
+
+if intUseOnOrOff == 1
+	strOnOff = 'On';
+elseif intUseOnOrOff == 2
+	strOnOff = 'Off';
+else
+	strOnOff = 'OnOff';
+end
 
 %prep albinos
 for intXY=1:2
@@ -634,7 +650,7 @@ for intXY=1:2
 	ylabel('Anatomical AP location (microns)');
 	hC=colorbar;
 	ylabel(hC,sprintf('RF %s (degs)',strAzEl));
-	title(sprintf('%s RF center, min = %.1f degs, max=%.1f degs',strHorzVert,dblMinRF_degs,dblMaxRF_degs));
+	title(sprintf('%s %s RF center, min = %.1f degs, max=%.1f degs',strHorzVert,strOnOff,dblMinRF_degs,dblMaxRF_degs));
 	fixfig;grid off;
 	
 end
@@ -659,8 +675,8 @@ fixfig;grid off;
 %save plot
 drawnow;
 if boolSaveFigs
-export_fig([strTargetPath filesep sprintf('RetinotopyNOT.tif')]);
-export_fig([strTargetPath filesep sprintf('RetinotopyNOT.pdf')]);
+export_fig([strTargetPath filesep sprintf('%sRetinotopyNOT.tif',strOnOff)]);
+export_fig([strTargetPath filesep sprintf('%sRetinotopyNOT.pdf',strOnOff)]);
 end
 
 %% for single direction

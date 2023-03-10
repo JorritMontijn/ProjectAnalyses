@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -211,6 +211,7 @@ for intRec=1:numel(sAggStim)
 		ylabel('L2-norm of trial pop act');
 		fixfig;
 		
+		%{
 		subplot(2,3,5)
 		vecDiffNorm = 100*((matDistR_L2_Norm(:)./matDistR_L1_Norm(:))-1);
 		vecBins = -50:2:50;
@@ -222,6 +223,14 @@ for intRec=1:numel(sAggStim)
 		title('Trial-to-trial variability of pop act per trial');
 		ylabel('Number of trials');
 		fixfig;
+		%}
+		
+		subplot(2,3,5)
+		title(strRec,'interpreter','none');
+		
+		% save fig
+		export_fig(fullpath(strFigurePathSR,sprintf('C1_VarofL1vsL2_%s.tif',strRec)));
+		export_fig(fullpath(strFigurePathSR,sprintf('C1_VarofL1vsL2_%s.pdf',strRec)));
 		
 		%% save data
 		save(fullpath(strTargetDataPath,sprintf('Q3Data_%s',strRec)),...

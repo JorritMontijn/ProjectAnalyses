@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -63,79 +63,38 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
 	
-	%remove stimulus sets that are not 24 stim types
-	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
-	% concatenate stimulus structures
-	structStim = catstim(sThisRec.cellBlock(1:end));
-	vecStimOnTime = structStim.vecStimOnTime;
-	vecStimOffTime = structStim.vecStimOffTime;
-	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';
-	vecTempFreq = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).TemporalFrequency})';
-	vecPhase = structStim.Phase;
-	vecDelayTimeBy = vecPhase./vecTempFreq;
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
-	indRem=vecTrialRepetition>min(vecRepNum);
-	vecOrientation(indRem) = [];
-	vecDelayTimeBy(indRem) = [];
-	vecStimOnTime(indRem) = [];
-	vecStimOffTime(indRem) = [];
+	%prep grating data
+	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
 	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 	intTrialNum = numel(vecStimOnTime);
 	intStimNum = numel(unique(vecOrientation));
 	intRepNum = intTrialNum/intStimNum;
-	
-	%remove neurons from other recs
-	indQualifyingNeurons = contains({sAggNeuron.Exp},strRec);
-	
-	%remove neurons in incorrect areas
-	indConsiderNeurons = contains({sAggNeuron.Area},cellUseAreas,'IgnoreCase',true);
-	
-	%remove bad clusters
-	indGoodNeurons = (cell2vec({sAggNeuron.KilosortGood}) == 1) | (cell2vec({sAggNeuron.Contamination}) < 0.1);
-	
-	%subselect from total
-	indUseNeurons = indQualifyingNeurons(:) & indConsiderNeurons(:) & indGoodNeurons(:);
-	sUseNeuron = sAggNeuron(indUseNeurons);
+	numel(sUseNeuron)
 	
 	%% select area 1
 	for intArea=1:intAreas
 		strArea = cellUseAreas{intArea};
 		indArea1Neurons = contains({sUseNeuron.Area},strArea,'IgnoreCase',true);
 		if sum(indArea1Neurons) == 0, continue;end
+		
 		%% get orientation responses & single-trial population noise
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
 		
 		%% remove untuned cells
 		%get data matrix
 		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-		dblDur = median(vecStimOffTime-vecStimOnTime);
-		matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur)./dblDur;
+		[matData,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
+		intNumN = size(matData,1);
 		
-		%remove untuned cells
-		vecOri180 = mod(vecOrientation,180)*2;
-		sOut = getTuningCurves(matData,vecOri180,0);
-		dblMinRate = 0.1;
-		indTuned = sOut.vecOriAnova<0.05;
-		indResp = cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
-		
-		%prep
-		vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
-		vecPrefRad = sOut.matFittedParams(indResp,1);
-		cellSpikeTimes(~indResp)=[];
-		indTuned(~indResp)=[];
-		
-		intTunedN = sum(indTuned);
-		intNumN = sum(indResp);
-		matResp = matData(indResp,:);
-		
+		%get ori vars
 		vecOri180 = mod(vecOrientation,180)*2;
 		[vecOriIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
 		intOriNum = numel(vecUnique);
 		intRepNum = min(vecPriorDistribution);
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		dblBinWidth = 5/1000;%/32
-		dblPreTime = 10*dblBinWidth;
-		dblPostTime = 30*dblBinWidth;
+		dblPreTime = 0.3;%10*dblBinWidth;
+		dblPostTime = 0.2;%30*dblBinWidth;
 		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
 		%dblMaxDur = dblPreTime+dblPostTime;
 		vecBinEdges = 0:dblBinWidth:dblMaxDur;
@@ -146,6 +105,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		matBNT = nan(intBinNum,intNumN,intTrialNum);
 		%matBNT_shifted = nan(intBinNum,intNumN,intTrialNum);
 		
+		matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblStimDur);
 		for intN=1:intNumN
 			vecRepCounter = zeros(1,intOriNum);
 			[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime-dblPreTime,dblMaxDur);
@@ -163,6 +123,29 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 				%matBNT_shifted(:,intN,intTrial) = vecSpikeC;
 				%matBNT_shifted(indStimBins,intN,intTrial) = circshift(matBNT_shifted(indStimBins,intN,intTrial),-round(intBinNum*vecDelayTimeBy(intTrial)));
 			end
+			
+			%plot
+			if 0
+			clf;
+			subplot(4,1,2:4)
+			matR = squeeze(matBNT(:,intN,:))'./dblBinWidth;
+			imagesc(vecStimTime,1:intTrialNum,matR);
+			xlabel('Time (s)');
+			ylabel('Trial #');
+			title(sprintf('%s - N%d',strRec,intN),'interpreter','none');
+			%colormap(redwhite)
+			
+			subplot(4,1,1)
+			plot(vecStimTime,mean(matR,1));
+			xlabel('Time (s)');
+			ylabel('Mean rate (spike count)');
+			vecRate1 = matData(intN,:);
+			vecRate2 = mean(matR(:,indStimBins),2);
+			title(sprintf('%s - N%d; mean rate: %.3f - %.3f',strRec,intN,mean(vecRate1),mean(vecRate2)),'interpreter','none');
+			pause
+			end
+			
+			%close;
 		end
 		
 		%% time progression
@@ -329,7 +312,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecOriP = sOut.vecOriAnova(indResp);
 		[a,intIdx]=min(vecOriP);
 		matNeuronR = bsxfun(@rdivide,squeeze(matBNSR(:,intIdx,:,:)),diff(vecBinEdges(:)));
-		vecNeuronTrialR = matResp(intIdx,:);
+		vecNeuronTrialR = matData(intIdx,:);
 		matMeanResp = sOut.matMeanResp(indResp,:);
 		matSdResp = sOut.matSDResp(indResp,:);
 		vecMeanR = matMeanResp(intIdx,:);

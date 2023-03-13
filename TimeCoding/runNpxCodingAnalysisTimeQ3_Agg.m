@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -62,39 +62,13 @@ for intRec=1:numel(sAggStim)
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
 	
-	%remove stimulus sets that are not 24 stim types
-	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
-	% concatenate stimulus structures
-	structStim = catstim(sThisRec.cellBlock(1:end));
-	vecStimOnTime = structStim.vecStimOnTime;
-	vecStimOffTime = structStim.vecStimOffTime;
-	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';
-	vecTempFreq = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).TemporalFrequency})';
-	vecPhase = structStim.Phase;
-	vecDelayTimeBy = vecPhase./vecTempFreq;
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
-	indRem=vecTrialRepetition>min(vecRepNum);
-	vecOrientation(indRem) = [];
-	vecDelayTimeBy(indRem) = [];
-	vecStimOnTime(indRem) = [];
-	vecStimOffTime(indRem) = [];
+	%prep grating data
+	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
 	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 	intTrialNum = numel(vecStimOnTime);
-	intOriNum = numel(unique(vecOrientation));
-	intRepNum = intTrialNum/intOriNum;
-	
-	%remove neurons from other recs
-	indQualifyingNeurons = contains({sAggNeuron.Exp},strRec);
-	
-	%remove neurons in incorrect areas
-	indConsiderNeurons = contains({sAggNeuron.Area},cellUseAreas,'IgnoreCase',true);
-	
-	%remove bad clusters
-	indGoodNeurons = (cell2vec({sAggNeuron.KilosortGood}) == 1) | (cell2vec({sAggNeuron.Contamination}) < 0.1);
-	
-	%subselect from total
-	indUseNeurons = indQualifyingNeurons(:) & indConsiderNeurons(:) & indGoodNeurons(:);
-	sUseNeuron = sAggNeuron(indUseNeurons);
+	intStimNum = numel(unique(vecOrientation));
+	intRepNum = intTrialNum/intStimNum;
+	numel(sUseNeuron)
 	
 	%% select area 1
 	for intArea=1:intAreas
@@ -107,24 +81,8 @@ for intRec=1:numel(sAggStim)
 		%% remove untuned cells
 		%get data matrix
 		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-		dblDur = median(vecStimOffTime-vecStimOnTime);
-		matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur);
-		
-		%remove untuned cells
-		vecOri180 = mod(vecOrientation,180)*2;
-		sOut = getTuningCurves(matData,vecOri180,0);
-		%indTuned = sOut.vecOriAnova<0.05;
-		dblMinRate = 0.1;
-		indResp = cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
-		
-		%prep
-		vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
-		vecPrefRad = sOut.matFittedParams(indResp,1);
-		intTunedN = sum(indResp);
-		intNumN = intTunedN;
-		cellSpikeTimes(~indResp)=[];
-		matData(~indResp,:)=[];
-		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
+		[matData,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
+		intNumN = size(matData,1);
 		
 		%% is pop activity more stable over trials as euclidian distance to origin or as mean?
 		%mean is L1 norm divided by # of neurons, so scaling by mean magnitude makes them
@@ -155,7 +113,7 @@ for intRec=1:numel(sAggStim)
 			end
 			matDistR_L1(:,intStimType) = vecDistR_L1;
 			matDistR_L2(:,intStimType) = vecDistR_L2;
-		
+			
 			vecRelVarMean(intStimType) = std(vecDistR_L1)/mean(vecDistR_L1);
 			vecRelVarNorm(intStimType) = std(vecDistR_L2)/mean(vecDistR_L2);
 		end
@@ -165,53 +123,56 @@ for intRec=1:numel(sAggStim)
 		vecBinsC = vecBins(2:end)-median(diff(vecBins))/2;
 		vecCounts =histcounts(vecPercDiff,vecBins);
 		
-		%plot
-		figure;maxfig;
-		subplot(2,3,1)
-		bar(vecBinsC,vecCounts,'hist');
-		xlabel('Variability of pop act. as Euclidian vs mean distance ((L2/L1) - 1) (%)');
-		title('Trial-to-trial variability of pop act per stim type');
-		ylabel('Number of stimulus types');
-		fixfig;
-		
-		%overall
-		subplot(2,3,2)
-		%xlim([0 25]);
-		hold on
-		for intStimType=1:intTypeNum
-			h=scatter(vecUniqueOris(intStimType)*ones(size(matDistR_L1(:,intStimType))),matDistR_L1(:,intStimType));
-		end
-		ylim([0 max(get(gca,'ylim'))]);
-		xlabel('Stimulus type (direction in degrees)');
-		title('L1 norm per trial');
-		ylabel('L1 distance of population activity (Hz)');
-		fixfig;
-		
-		subplot(2,3,3)
-		hold on
-		for intStimType=1:intTypeNum
-			h=scatter(vecUniqueOris(intStimType)*ones(size(matDistR_L1(:,intStimType))),matDistR_L2(:,intStimType));
-		end
-		ylim([0 max(get(gca,'ylim'))]);
-		xlabel('Stimulus type (direction in degrees)');
-		title('L2 norm per trial');
-		ylabel('L2 distance of population activity (Hz)');
-		fixfig;
-		vecRelVarMean = std(matDistR_L1(:))/mean(matDistR_L1(:));
-		vecRelVarNorm = std(matDistR_L2(:))/mean(matDistR_L2(:));
+		dblRelVarMean = std(matDistR_L1(:))/mean(matDistR_L1(:));
+		dblRelVarNorm = std(matDistR_L2(:))/mean(matDistR_L2(:));
 		
 		matDistR_L1_Norm = matDistR_L1 ./ mean(matDistR_L1(:));
 		matDistR_L2_Norm = matDistR_L2 ./ mean(matDistR_L2(:));
-		subplot(2,3,4)
-		scatter(matDistR_L1_Norm(:),matDistR_L2_Norm(:));
-		hold on
-		plot([0 max(get(gca,'xlim'))],[0 max(get(gca,'ylim'))],'k--');
-		title('Normalized by averaged magnitude');
-		xlabel('L1-norm of trial pop act');
-		ylabel('L2-norm of trial pop act');
-		fixfig;
 		
-		%{
+		if 0
+			%plot
+			figure;maxfig;
+			subplot(2,3,1)
+			bar(vecBinsC,vecCounts,'hist');
+			xlabel('Variability of pop act. as Euclidian vs mean distance ((L2/L1) - 1) (%)');
+			title('Trial-to-trial variability of pop act per stim type');
+			ylabel('Number of stimulus types');
+			fixfig;
+			
+			%overall
+			subplot(2,3,2)
+			%xlim([0 25]);
+			hold on
+			for intStimType=1:intTypeNum
+				h=scatter(vecUniqueOris(intStimType)*ones(size(matDistR_L1(:,intStimType))),matDistR_L1(:,intStimType));
+			end
+			ylim([0 max(get(gca,'ylim'))]);
+			xlabel('Stimulus type (direction in degrees)');
+			title('L1 norm per trial');
+			ylabel('L1 distance of population activity (Hz)');
+			fixfig;
+			
+			subplot(2,3,3)
+			hold on
+			for intStimType=1:intTypeNum
+				h=scatter(vecUniqueOris(intStimType)*ones(size(matDistR_L1(:,intStimType))),matDistR_L2(:,intStimType));
+			end
+			ylim([0 max(get(gca,'ylim'))]);
+			xlabel('Stimulus type (direction in degrees)');
+			title('L2 norm per trial');
+			ylabel('L2 distance of population activity (Hz)');
+			fixfig;
+			
+			subplot(2,3,4)
+			scatter(matDistR_L1_Norm(:),matDistR_L2_Norm(:));
+			hold on
+			plot([0 max(get(gca,'xlim'))],[0 max(get(gca,'ylim'))],'k--');
+			title('Normalized by averaged magnitude');
+			xlabel('L1-norm of trial pop act');
+			ylabel('L2-norm of trial pop act');
+			fixfig;
+			
+			%{
 		subplot(2,3,5)
 		vecDiffNorm = 100*((matDistR_L2_Norm(:)./matDistR_L1_Norm(:))-1);
 		vecBins = -50:2:50;
@@ -223,21 +184,23 @@ for intRec=1:numel(sAggStim)
 		title('Trial-to-trial variability of pop act per trial');
 		ylabel('Number of trials');
 		fixfig;
-		%}
-		
-		subplot(2,3,5)
-		title(strRec,'interpreter','none');
-		
-		% save fig
-		export_fig(fullpath(strFigurePathSR,sprintf('C1_VarofL1vsL2_%s.tif',strRec)));
-		export_fig(fullpath(strFigurePathSR,sprintf('C1_VarofL1vsL2_%s.pdf',strRec)));
-		
+			%}
+			
+			subplot(2,3,5)
+			title(strRec,'interpreter','none');
+			
+			% save fig
+			export_fig(fullpath(strFigurePathSR,sprintf('C1_VarofL1vsL2_%s.tif',strRec)));
+			export_fig(fullpath(strFigurePathSR,sprintf('C1_VarofL1vsL2_%s.pdf',strRec)));
+		end
 		%% save data
 		save(fullpath(strTargetDataPath,sprintf('Q3Data_%s',strRec)),...
 			'dblStartT',...
 			'strRec',...
 			'vecRelVarMean',...
-			'vecRelVarNorm'...
+			'vecRelVarNorm',...
+			'dblRelVarMean',...
+			'dblRelVarNorm'...
 			);
 	end
 end

@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
+boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -62,39 +62,13 @@ for intRec=1:numel(sAggStim)
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
 	
-	%remove stimulus sets that are not 24 stim types
-	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
-	% concatenate stimulus structures
-	structStim = catstim(sThisRec.cellBlock(1:end));
-	vecStimOnTime = structStim.vecStimOnTime;
-	vecStimOffTime = structStim.vecStimOffTime;
-	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';
-	vecTempFreq = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).TemporalFrequency})';
-	vecPhase = structStim.Phase;
-	vecDelayTimeBy = vecPhase./vecTempFreq;
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
-	indRem=vecTrialRepetition>min(vecRepNum);
-	vecOrientation(indRem) = [];
-	vecDelayTimeBy(indRem) = [];
-	vecStimOnTime(indRem) = [];
-	vecStimOffTime(indRem) = [];
+	%prep grating data
+	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
 	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 	intTrialNum = numel(vecStimOnTime);
-	intOriNum = numel(unique(vecOrientation));
-	intRepNum = intTrialNum/intOriNum;
-	
-	%remove neurons from other recs
-	indQualifyingNeurons = contains({sAggNeuron.Exp},strRec);
-	
-	%remove neurons in incorrect areas
-	indConsiderNeurons = contains({sAggNeuron.Area},cellUseAreas,'IgnoreCase',true);
-	
-	%remove bad clusters
-	indGoodNeurons = (cell2vec({sAggNeuron.KilosortGood}) == 1) | (cell2vec({sAggNeuron.Contamination}) < 0.1);
-	
-	%subselect from total
-	indUseNeurons = indQualifyingNeurons(:) & indConsiderNeurons(:) & indGoodNeurons(:);
-	sUseNeuron = sAggNeuron(indUseNeurons);
+	intStimNum = numel(unique(vecOrientation));
+	intRepNum = intTrialNum/intStimNum;
+	numel(sUseNeuron)
 	
 	%% select area 1
 	for intArea=1:intAreas
@@ -104,40 +78,19 @@ for intRec=1:numel(sAggStim)
 		%% get orientation responses & single-trial population noise
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
 		intRec
+		
 		%% remove untuned cells
 		%get data matrix
 		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-		dblDur = median(vecStimOffTime-vecStimOnTime);
-		matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur);
+		[matResp,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
+		intNumN = size(matResp,1);
 		
-		%remove untuned cells
-		vecOri180 = mod(vecOrientation,180)*2;
-		sOut = getTuningCurves(matData,vecOri180,0);
-		%indTuned = sOut.vecOriAnova<0.05;
-		dblMinRate = 0.1;
-		indResp = cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
-		
-		%prep
-		vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
-		vecPrefRad = sOut.matFittedParams(indResp,1);
-		intTunedN = sum(indResp);
-		intNumN = intTunedN;
-		cellSpikeTimes(~indResp)=[];
-		
+		%% get stim timing
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		dblPreTime = -dblStartT;%0.3;
 		dblPostTime = 0;%0.3;
 		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
-		dblBinWidth = 0.05;
-		vecBinEdges = 0:dblBinWidth:dblMaxDur;
-		vecStimTime = vecBinEdges(2:end)-dblBinWidth/2 - dblPreTime;
-		indStimBins = vecStimTime > 0 & vecStimTime < dblStimDur;
-		intBinNum = numel(vecBinEdges)-1;
-		matBNSR = nan(intBinNum,intNumN,intOriNum,intRepNum);
-		matBNT = nan(intBinNum,intNumN,intTrialNum);
-		%matBNT_shifted = nan(intBinNum,intNumN,intTrialNum);
 		
-		vecRepCounter = zeros(1,intOriNum);
 		%get spikes per trial per neuron
 		cellSpikeTimesStitched = cell(intNumN,intTrialNum);
 		cellSpikeTimesPerCellPerTrial = cell(intNumN,intTrialNum);

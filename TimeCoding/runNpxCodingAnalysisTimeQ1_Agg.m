@@ -309,12 +309,12 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		%% make example figure; decode & make quantiles
 		% plot example single-neuron response to drifting gratings
-		vecOriP = sOut.vecOriAnova(indResp);
+		vecOriP = sOut.vecOriAnova;
 		[a,intIdx]=min(vecOriP);
 		matNeuronR = bsxfun(@rdivide,squeeze(matBNSR(:,intIdx,:,:)),diff(vecBinEdges(:)));
 		vecNeuronTrialR = matData(intIdx,:);
-		matMeanResp = sOut.matMeanResp(indResp,:);
-		matSdResp = sOut.matSDResp(indResp,:);
+		matMeanResp = sOut.matMeanResp;
+		matSdResp = sOut.matSDResp;
 		vecMeanR = matMeanResp(intIdx,:);
 		vecSemR = matSdResp(intIdx,:)/sqrt(intRepNum);
 		[a,intPrefIdx]=max(vecMeanR);
@@ -470,7 +470,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%%
 		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A2_ExampleNeuralCodes_%s.tif',strRec)));
 		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A2_ExampleNeuralCodes_%s.pdf',strRec)));
-	vecBinEdges
+	
 		%% save data
 		save(fullpath(strTargetDataPath,sprintf('Q1Data_%s',strRec)),...
 			'vecBinEdges',...

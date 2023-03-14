@@ -71,8 +71,6 @@ for intRandomize=1:3
 		%	structStim = catstim(sThisRec.cellBlock(1));
 		%	intMaxRep = 40;
 		intMaxRep = inf;
-		vecPupilStimOn = structStim.vecPupilStimOn;
-		vecPupilStimOff = structStim.vecPupilStimOff;
 		
 		%% get orientation responses & single-trial population noise
 		%get stim vars
@@ -82,16 +80,25 @@ for intRandomize=1:3
 		vecOri180 = mod(vecOrientation,180)*2;
 		[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOri180);
 		indRem=vecTrialRepetition>intMaxRep;
+		vecOrientation(indRem) = [];
 		vecOri180(indRem) = [];
 		vecDelayTimeBy(indRem) = [];
 		vecStimOnTime(indRem) = [];
 		vecStimOffTime(indRem) = [];
-		vecPupilStimOn(indRem) = [];
-		vecPupilStimOff(indRem) = [];
 		[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOri180);
 		intTrialNum = numel(vecStimOnTime);
 		intOriNum = numel(unique(vecOri180));
 		intRepNum = intTrialNum/intOriNum;
+		
+		if isfield(structStim,'vecPupilStimOn')
+			vecPupilStimOn = structStim.vecPupilStimOn;
+			vecPupilStimOff = structStim.vecPupilStimOff;
+			vecPupilStimOn(indRem) = [];
+			vecPupilStimOff(indRem) = [];
+		else
+			vecPupilStimOn =  [];
+			vecPupilStimOff = [];
+		end
 		
 		%change name
 		if intRandomize == 1
@@ -309,7 +316,7 @@ for intRandomize=1:3
 			colorbar;
 			ylabel('Neuron');
 			xlabel('Trial');
-			title(sprintf('%s; Recorded spiking',strType));
+			title(sprintf('%s; Recorded spiking',strRec));
 			h=colorbar;
 			ylabel(h,'Spiking rate (Hz)');
 			fixfig;grid off;
@@ -549,7 +556,7 @@ for intRandomize=1:3
 			set(gca,'xtick',vecLoc,'xticklabel',{'Pop mean','Pop gain','Stim-Orth'});
 			xlabel('Projection axis');
 			ylabel('Range of spiking rates (\sigmaHz)');
-			title(sprintf('%s; MG,p=%.2e; MO,p=%.3f; GO,p=%.2e',strType,pMeanGain,pMeanOrth,pGainOrth));
+			title(sprintf('%s; MG,p=%.2e; MO,p=%.3f; GO,p=%.2e',strRec,pMeanGain,pMeanOrth,pGainOrth));
 			fixfig;
 			ylim(gca,[0 max(get(gca,'ylim'))]);
 			xlim([vecLoc(1)-0.2 vecLoc(end)+0.2]);
@@ -711,7 +718,7 @@ for intRandomize=1:3
 			vecTrialGain = [];
 			vecTrialGain_hat = [];
 			
-			if isfield(sThisRec,'Pupil')
+			if isfield(sThisRec,'Pupil') && numel(vecPupilStimOn) == intTrialNum
 				sPupil = sThisRec.Pupil;
 				vecTime = sPupil.vecTime;
 				vecVals = sPupil.vecRadius;
@@ -739,7 +746,7 @@ for intRandomize=1:3
 				scatter(zscore(vecTrialGain(indUseTrials)),vecTrialGain_hat,'b.');
 				xlabel('Z-scored trial gain');
 				ylabel('CV predicted norm trial gain');
-				title('Gain prediction from pupil size');
+				title(sprintf('%s; Gain prediction from pupil size',strRec));
 				fixfig;
 				
 				subplot(2,3,2);
@@ -768,9 +775,59 @@ for intRandomize=1:3
 			
 			%% save data
 			if boolSaveData
+				%save data
+				%% predictions
+				sPrediction = struct;
+				sPrediction.matMeanRate = matMeanRate;
+				sPrediction.matTunePredCV = matTunePredCV;
+				sPrediction.matMeanPredCV = matMeanPredCV;
+				sPrediction.matGainPredCV = matGainPredCV;
+				%sPrediction.matGain1PredCV = matGain1PredCV;
+				
+				sPrediction.dblR2_Tune = dblR2_Tune;
+				sPrediction.dblR2_Mean = dblR2_Mean;
+				sPrediction.dblR2_Gain = dblR2_Gain;
+				%sPrediction.dblR2_Gain1 = dblR2_Gain1;
+				
+				sPrediction.vecR2_Tune = vecR2_Tune;
+				sPrediction.vecR2_Mean = vecR2_Mean;
+				sPrediction.vecR2_Gain = vecR2_Gain;
+				%sPrediction.vecR2_Gain1 = vecR2_Gain1;
+				
+				sPrediction.dblPredPerNeuronTune = dblPredPerNeuronTune;
+				sPrediction.dblPredPerNeuronMean = dblPredPerNeuronMean;
+				sPrediction.dblPredPerNeuronGain = dblPredPerNeuronGain;
+				%sPrediction.dblPredPerNeuronGain1 = dblPredPerNeuronGain1;
+				
+				
+				%% projections
+				sProjection = struct;
+				sProjection.vecReflDistMuOrth = vecReflDistMuOrth;
+				sProjection.vecReflDistMuAdja = vecReflDistMuAdja;
+				sProjection.vecReflDistGainOrth = vecReflDistGainOrth;
+				sProjection.vecReflDistGainAdja = vecReflDistGainAdja;
+				
+				sProjection.vecGainSymmetry = vecGainSymmetry;
+				sProjection.vecMeanSymmetry = vecMeanSymmetry;
+				
+				sProjection.vecAngleMeanAndGain = vecAngleMeanAndGain;
+				sProjection.vecAngleMeanAndGainRand = vecAngleMeanAndGainRand;
+				
+				sProjection.vecSdProjMean = vecSdProjMean;
+				%sProjection.vecSdProjGain1 = vecSdProjGain1;
+				sProjection.vecSdProjGain = vecSdProjGain;
+				sProjection.vecSdProjRand = vecSdProjRand;
+				sProjection.vecSdProjOrth = vecSdProjOrth;
+				sProjection.vecSdProjAdja = vecSdProjAdja;
+				
+				sProjection.vecDistFromOrigin = vecDistFromOrigin;
+				sProjection.vecDistFromOrthOri = vecDistFromOrthOri;
+				sProjection.vecDistFromAdjaOri = vecDistFromAdjaOri;
+				
+				%% save
 				save([strTargetDataPath 'TimeCodingAggQC1' strRec '.mat'],...
-					'matMeanRate','matTunePredCV','matMeanPredCV','matGainPredCV',...
-					'vecGainSymmetry','vecMeanSymmetry',...
+					'sPrediction',...
+					'sProjection',...
 					'strRec','strArea','vecPupilSize','vecTrialMean','vecTrialMean_hat','vecTrialGain','vecTrialGain_hat');
 			end
 		end

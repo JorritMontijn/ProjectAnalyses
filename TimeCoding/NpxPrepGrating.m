@@ -1,6 +1,6 @@
-function [sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas)
+function [sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation,structStim] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas)
 	%NpxPrepGrating Summary of this function goes here
-	%   [sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
+	%   [sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation,structStim] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
 	
 	%remove stimulus sets that are not 24 stim types
 	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];

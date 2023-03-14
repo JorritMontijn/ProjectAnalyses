@@ -21,11 +21,16 @@ boolSaveFigs = true;
 boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
-	strFigurePath = 'F:\Data\Results\PopTimeCoding';
+	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
 	strDataPath = 'E:\DataPreProcessed\';
-	strFigurePath = 'D:\Data\Results\PopTimeCoding';
+	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
+
 
 %% select all neurons in LP and drifting grating stimuli
 if ~exist('sAggStim','var') || isempty(sAggStim)
@@ -40,52 +45,30 @@ dblStartT = 0;
 
 %% go through recordings
 tic
-for intRec=19%1:numel(sAggStim)
+for intRec=1:numel(sAggStim)
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
 	sThisSource = sAggSources(strcmpi(strRec,{sAggSources(:).Exp}));
 	
-	%remove stimulus sets that are not 24 stim types
-	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
-	% concatenate stimulus structures
-	structStim = catstim(sThisRec.cellBlock(1:2));
-	vecStimOnTime = structStim.vecStimOnTime;
-	vecStimOffTime = structStim.vecStimOffTime;
-	vecOrientation = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).Orientation})';
-	vecTempFreq = cell2vec({structStim.sStimObject(structStim.vecTrialStimTypes).TemporalFrequency})';
-	vecPhase = structStim.Phase;
-	vecDelayTimeBy = vecPhase./vecTempFreq;
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
-	indRem=vecTrialRepetition>min(vecRepNum);
-	vecOrientation(indRem) = [];
-	vecDelayTimeBy(indRem) = [];
-	vecStimOnTime(indRem) = [];
-	vecStimOffTime(indRem) = [];
+	%prep grating data
+	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
 	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 	intTrialNum = numel(vecStimOnTime);
 	intOriNum = numel(unique(vecOrientation));
 	intRepNum = intTrialNum/intOriNum;
-	
-	%remove neurons from other recs
-	indQualifyingNeurons = contains({sAggNeuron.Exp},strRec);
-	
-	%remove neurons in incorrect areas
-	indConsiderNeurons = contains({sAggNeuron.Area},cellUseAreas,'IgnoreCase',true);
-	
-	%remove bad clusters
-	indGoodNeurons = (cell2vec({sAggNeuron.KilosortGood}) == 1) | (cell2vec({sAggNeuron.Contamination}) < 0.1);
-	
-	%subselect from total
-	indUseNeurons = indQualifyingNeurons(:) & indConsiderNeurons(:) & indGoodNeurons(:);
-	sUseNeuron = sAggNeuron(indUseNeurons);
+	if numel(sUseNeuron) == 0, continue;end
 	
 	%% is cell an interneuron (fast/narrow spiking) or pyramid (regular/broad spiking)?
 	%load waveform
-	[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
+	if isfield(sUseNeuron,'Waveform') && ~isempty(sUseNeuron(1).Waveform)
+		dblSampRateIM = str2double(sThisSource.sMetaAP.imSampRate);
+	else
+		[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
+		dblSampRateIM = sThisRec.sample_rate;
+	end
 	
 	%calculate waveform properties
-	dblSampRateIM = sThisRec.sample_rate;
 	dblRecDur = max(cellfun(@max,{sUseNeuron.SpikeTimes})) - min(cellfun(@min,{sUseNeuron.SpikeTimes}));
 	vecSpikeRate = cellfun(@numel,{sUseNeuron.SpikeTimes})/dblRecDur;
 	matAreaWaveforms = cell2mat({sUseNeuron.Waveform}'); %[cell x sample]
@@ -117,28 +100,12 @@ for intRec=19%1:numel(sAggStim)
 		strArea = cellUseAreas{intArea};
 		indArea1Neurons = contains({sUseNeuron.Area},strArea,'IgnoreCase',true);
 		if sum(indArea1Neurons) == 0, continue;end
+		
 		%% get orientation responses & single-trial population noise
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
-		intRec
-		%% remove untuned cells
-		%get data matrix
 		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-		dblDur = median(vecStimOffTime-vecStimOnTime);
-		matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur);
-		
-		%remove untuned cells
+		[matData,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
 		vecOri180 = mod(vecOrientation,180)*2;
-		sOut = getTuningCurves(matData,vecOri180,0);
-		dblMinRate = 0.1;
-		indTuned = sOut.vecOriAnova<0.05;
-		indResp = (vecNarrow | vecBroad | vecOther) & cellfun(@min,{sArea1Neurons.ZetaP}) < 0.05 & sum(matData,2)'>(size(matData,2)/dblDur)*dblMinRate;
-		
-		%prep
-		vecPrefOri = rad2deg(sOut.matFittedParams(indResp,1))/2;
-		vecPrefRad = sOut.matFittedParams(indResp,1);
-		cellSpikeTimes(~indResp)=[];
-		indTuned(~indResp)=[];
-		
 		intTunedN = sum(indTuned);
 		intNumN = sum(indResp);
 		

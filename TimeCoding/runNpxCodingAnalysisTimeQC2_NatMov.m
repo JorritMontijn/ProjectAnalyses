@@ -24,16 +24,19 @@ strRunArea = 'posteromedial visual area';%'posteromedial visual area' 'Primary v
 cellUseAreas = {strRunArea};
 
 intRandomize = 1; %1=real data, 2=shuffled, 3=generated
+boolSaveData = true;
 boolSaveFigs = true;
 boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
-	strFigurePath = 'F:\Data\Results\PopTimeCoding\figures\';
-	strTargetDataPath = 'F:\Data\Results\PopTimeCoding\data\';
+	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
 	strDataPath = 'E:\DataPreProcessed\';
-	strFigurePath = 'D:\Data\Results\PopTimeCoding\figures\';
-	strTargetDataPath = 'D:\Data\Results\PopTimeCoding\data\';
+	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
 
 %% select all neurons in LP and drifting grating stimuli

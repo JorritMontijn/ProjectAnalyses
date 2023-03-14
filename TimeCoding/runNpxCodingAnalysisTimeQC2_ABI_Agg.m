@@ -954,7 +954,8 @@ for intRec=1:numel(vecUseRec)
 				sProjection.vecDistFromOrthOri = vecDistFromOrthOri;
 				sProjection.vecDistFromAdjaOri = vecDistFromAdjaOri;
 				
-				save([strTargetDataPath 'TimeCodingAggQC3ABI_' strRunStim strRec '_' strRunArea '.mat'],'strRec','strRunArea','sPrediction','sProjection','dblBC','dblMaxDevFrac');
+				save([strTargetDataPath 'TimeCodingAggQC3ABI_' strRunStim strRec '_' strRunArea '.mat'],...
+					'strRec','strRunArea','sPrediction','sProjection','dblBC','dblMaxDevFrac');
 			end
 		end
 	end

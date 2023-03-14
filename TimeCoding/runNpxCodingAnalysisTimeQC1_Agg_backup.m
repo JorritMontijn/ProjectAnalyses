@@ -16,8 +16,11 @@ cellUseAreas = {...
 	...'posteromedial visual area',...
 	};
 
-intRandomize = 1; %1=real data, 2=shuffled, 3=generated
+intRandomize = 2; %1=real data, 2=shuffled, 3=generated
+boolMakeFigs = true;
 boolSaveFigs = true;
+boolSaveData = true;
+intIterNum = 100;
 boolHome = true;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
@@ -46,42 +49,60 @@ dblStartT = 0;
 %% go through recordings
 tic
 for intRec=1:numel(sAggStim)
-	% get matching recording data
-	strRec = sAggStim(intRec).Exp;
-	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
-	sThisSource = sAggSources(strcmpi(strRec,{sAggSources(:).Exp}));
-	
-	%prep grating data
-	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
-	intTrialNum = numel(vecStimOnTime);
-	intOriNum = numel(unique(vecOrientation));
-	intRepNum = intTrialNum/intOriNum;
-	if numel(sUseNeuron) == 0, continue;end
-	
-	%change name
-	if intRandomize == 1
-		strRec = ['Real_' strRec];
-	elseif intRandomize == 2
-		strRec = ['Shuff_' strRec];
-	elseif intRandomize == 3
-		strRec = ['Poiss_' strRec];
-	end
-	
-	%% select area 1
-	for intArea=1:intAreas
-		strArea = cellUseAreas{intArea};
-		indArea1Neurons = contains({sUseNeuron.Area},strArea,'IgnoreCase',true);
-		if sum(indArea1Neurons) == 0, continue;end
-		%% get orientation responses & single-trial population noise
-		sArea1Neurons = sUseNeuron(indArea1Neurons);
-		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-		[matData,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
+	for intRandomize=1:3%1:numel(sAggStim)
+		% get matching recording data
+		strRec = sAggStim(intRec).Exp;
+		sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
+		sThisSource = sAggSources(strcmpi(strRec,{sAggSources(:).Exp}));
+		
+		%prep grating data
+		[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
 		vecOri180 = mod(vecOrientation,180)*2;
+		[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOri180);
+		intTrialNum = numel(vecStimOnTime);
+		intOriNum = numel(unique(vecOri180));
+		intRepNum = intTrialNum/intOriNum;
+		if numel(sUseNeuron) == 0, continue;end
+		
+		%change name
+		if intRandomize == 1
+			strRec = ['Real_' strRec];
+		elseif intRandomize == 2
+			strRec = ['Shuff_' strRec];
+		elseif intRandomize == 3
+			strRec = ['Poiss_' strRec];
+		end
+		
+		%% pre-allocate
+		[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOri180);
+		intStimNum = numel(unique(vecUniqueOris));
+		intTotReps = max(vecTrialRepetition);
+		
+		intQuantiles = 5;
+		cellAggRate = cell(1,intIterNum);
+		matQuantilePerf = nan(intQuantiles,intIterNum);
+		matSplitQuantilePerf = nan(intQuantiles,intIterNum);
+		cellAggLRActPerQ = cell(intQuantiles,intStimNum,2,intIterNum);
+		
+		%% get orientation responses & single-trial population noise
+		intIter = 1;
+		%for intIter=1:intIterNum
+		%msg
+		%	fprintf('Running iter %d/%d [%s]\n',intIter,intIterNum,getTime);
+		
+		%% get orientation responses & single-trial population noise
+		cellSpikeTimes = {sUseNeuron.SpikeTimes};
+		[matData,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
 		intTunedN = sum(indTuned);
 		intRespN = sum(indResp);
 		
-		%% stim timings
+		%subselect from total
+		strArea = cellUseAreas{1};
+		
+		indArea1Neurons = contains({sUseNeuron.Area},strArea,'IgnoreCase',true);
+		if sum(indArea1Neurons) == 0, continue;end
+		
+		%% stim time
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 		dblPreTime = -dblStartT;%0.3;
 		dblPostTime = 0;%0.3;
@@ -91,11 +112,11 @@ for intRec=1:numel(sAggStim)
 		vecStimTime = vecBinEdges(2:end)-dblBinWidth/2 - dblPreTime;
 		indStimBins = vecStimTime > 0 & vecStimTime < dblStimDur;
 		intBinNum = numel(vecBinEdges)-1;
-		matBNSR = nan(intBinNum,intRespN,intOriNum,intRepNum);
+		matBNSR = nan(intBinNum,intRespN,intStimNum,intRepNum);
 		matBNT = nan(intBinNum,intRespN,intTrialNum);
 		%matBNT_shifted = nan(intBinNum,intRespN,intTrialNum);
 		
-		vecRepCounter = zeros(1,intOriNum);
+		vecRepCounter = zeros(1,intStimNum);
 		%get spikes per trial per neuron
 		cellSpikeTimesPerCellPerTrial = cell(intRespN,intTrialNum);
 		for intN=1:intRespN
@@ -114,7 +135,7 @@ for intRec=1:numel(sAggStim)
 		%% define quantiles and remove zero-variance neurons
 		%constants
 		[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
-		intStimNr = numel(vecUnique);
+		intStimNum = numel(vecUnique);
 		dblLambda = 1;%1
 		intTypeCV = 2;
 		dblUseStartT = 0;
@@ -127,14 +148,13 @@ for intRec=1:numel(sAggStim)
 		matMeanRate_pre = matSpikeCounts_pre./dblUseMaxDur;
 		vecPopRate_pre = sum(matMeanRate_pre,1);
 		
-		intQuantiles = 5;
 		vecStartTrials = round(intReps*linspace(1/intReps,(1+1/intReps),intQuantiles+1));
 		vecStartTrials(end)=[];
 		intSplitTrialsPerOri = min(floor(cellfun(@sum,cellSelect)/intQuantiles));
 		indZeroVarNeurons = false(intRespN,1);
 		for intQ=1:intQuantiles
 			vecUseTrialsTemp = vecStartTrials(intQ):(vecStartTrials(intQ)+intSplitTrialsPerOri-1);
-			for intOri=1:intStimNr
+			for intOri=1:intStimNum
 				vecThisOri = find(cellSelect{intOri});
 				[vecSorted,vecReorder]=sort(vecPopRate_pre(vecThisOri));
 				vecQualifyingTrials = vecThisOri(vecReorder(vecUseTrialsTemp));
@@ -145,7 +165,6 @@ for intRec=1:numel(sAggStim)
 		vecUseNeurons = find(~indZeroVarNeurons);
 		vecRemNeurons = find(indZeroVarNeurons);
 		cellSpikeTimesPerCellPerTrial(vecRemNeurons,:) = [];
-		intRespN = numel(vecUseNeurons);
 		
 		%simple "rate code"
 		matSpikeCounts = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
@@ -153,7 +172,7 @@ for intRec=1:numel(sAggStim)
 		
 		%randomize per orientation
 		if intRandomize > 1
-			for intStim=1:intStimNr
+			for intStim=1:intStimNum
 				vecUseT = find(vecTrialTypeIdx==intStim);
 				for intN=1:intRespN
 					if intRandomize == 2
@@ -164,17 +183,14 @@ for intRec=1:numel(sAggStim)
 						dblMean = mean(cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial(intN,vecUseT)));
 						vecRates = poissrnd(dblMean,size(vecUseT));
 						matMeanRate(intN,vecUseT) = vecRates;
-					else error
-						
+					else
+						error
 					end
 				end
 			end
 		end
-		%matMeanRate = log(1+matMeanRate);
 		
 		%% plot population mean + sd over neurons, compare with neuron mean+sd over trials
-		intTrials = size(matMeanRate,2);
-		
 		%real pop mean+sd
 		vecPopMean = mean(matMeanRate,1);
 		vecPopSd = std(matMeanRate,[],1);
@@ -208,7 +224,7 @@ for intRec=1:numel(sAggStim)
 		[vecNeuronPredCI,vecNeuronPredY] = predint(fitobjectNeuron,vecNeuronFitX);
 		
 		%pop mean+sd, generated according to poisson cells
-		matGenRate = poissrnd(repmat(vecNeuronMean,[1 intTrials]));
+		matGenRate = poissrnd(repmat(vecNeuronMean,[1 intTrialNum]));
 		vecGenPopMean = mean(matGenRate,1);
 		vecGenPopSd = std(matGenRate,[],1);
 		vecGenPopCv = vecGenPopSd./vecGenPopMean;
@@ -240,153 +256,151 @@ for intRec=1:numel(sAggStim)
 		dblGenNeuronAdjR2 = gofGenNeuron.adjrsquare;
 		[vecGenNeuronPredCI,vecGenNeuronPredY] = predint(fitobjectGenNeuron,vecGenNeuronFitX);
 		
-		figure;maxfig
-		subplot(3,4,1)
-		hold on
-		scatter(vecPopMean,vecPopSd,[],lines(1),'.');
-		plot(vecFitX,vecPredY,'k--');
-		%plot(vecFitX,vecPredCI(:,1),'--','color',[0.5 0.5 0.5]);
-		%plot(vecFitX,vecPredCI(:,2),'--','color',[0.5 0.5 0.5]);;
-		hold off
-		title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblAdjR2,dblSlope,mean(abs(vecSlopeCI-dblSlope))));
-		xlabel('Population mean rate (Hz)');
-		ylabel('Pop sd (Hz)');fixfig;
-		
-		subplot(3,4,5)
-		scatter(vecPopMean,vecPopCv,'.')
-		xlabel('Population mean rate (Hz)');
-		ylabel('Pop cv');fixfig;
-		
-		subplot(3,4,9)
-		scatter(vecPopMean,vecPopFano,'.')
-		xlabel('Population mean rate (Hz)');
-		ylabel('Pop Fano factor');fixfig;
-		
-		subplot(3,4,2)
-		hold on
-		scatter(vecNeuronMean,vecNeuronSd,[],lines(1),'.');
-		plot(vecNeuronFitX,vecNeuronPredY,'k--');
-		hold off
-		title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblNeuronAdjR2,dblNeuronSlope,mean(abs(vecNeuronSlopeCI-dblNeuronSlope))));
-		xlabel('Neuron mean rate (Hz)');
-		ylabel('Neuron sd (Hz)');fixfig;
-		
-		subplot(3,4,6)
-		scatter(vecNeuronMean,vecNeuronCv,'.')
-		xlabel('Neuron mean rate (Hz)');
-		ylabel('Neuron cv');fixfig;
-		
-		subplot(3,4,10)
-		scatter(vecNeuronMean,vecNeuronFano,'.')
-		xlabel('Neuron mean rate (Hz)');
-		ylabel('Neuron Fano factor');fixfig;
-		
-		subplot(3,4,3)
-		hold on
-		scatter(vecGenPopMean,vecGenPopSd,'.')
-		plot(vecGenFitX,vecGenPredY,'k--');
-		hold off
-		title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblGenAdjR2,dblGenSlope,mean(abs(vecGenSlopeCI-dblGenSlope))));
-		xlabel('Gen Population mean rate (Hz)');
-		ylabel('Gen Pop sd (Hz)');fixfig;
-		
-		subplot(3,4,7)
-		scatter(vecGenPopMean,vecGenPopCv,'.')
-		xlabel('Gen Population mean rate (Hz)');
-		ylabel('Gen Pop cv');fixfig;
-		
-		subplot(3,4,11)
-		scatter(vecGenPopMean,vecGenPopFano,'.')
-		xlabel('Gen Population mean rate (Hz)');
-		ylabel('Gen Pop Fano factor');fixfig;
-		
-		subplot(3,4,4)
-		hold on
-		scatter(vecGenNeuronMean,vecGenNeuronSd,[],lines(1),'.');
-		plot(vecGenNeuronFitX,vecGenNeuronPredY,'k--');
-		hold off
-		title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblGenNeuronAdjR2,dblGenNeuronSlope,mean(abs(vecGenNeuronSlopeCI-dblGenNeuronSlope))));
-		xlabel('Gen Neuron mean rate (Hz)');
-		ylabel('Gen Neuron sd (Hz)');fixfig;
-		
-		subplot(3,4,8)
-		scatter(vecGenNeuronMean,vecGenNeuronCv,'.')
-		xlabel('Gen Neuron mean rate (Hz)');
-		ylabel('Gen Neuron cv');fixfig;
-		
-		subplot(3,4,12)
-		scatter(vecGenNeuronMean,vecGenNeuronFano,'.')
-		xlabel('Gen Neuron mean rate (Hz)');
-		ylabel('Gen Neuron Fano factor');fixfig;
-		
-		if boolSaveFigs
-			%% save fig
-			export_fig(fullpath(strFigurePath,sprintf('2C1_PopSpikeStatistics_%s.tif',strRec)));
-			export_fig(fullpath(strFigurePath,sprintf('2C1_PopSpikeStatistics_%s.pdf',strRec)));
+		if boolMakeFigs
+			figure;maxfig
+			subplot(3,4,1)
+			hold on
+			scatter(vecPopMean,vecPopSd,[],lines(1),'.');
+			plot(vecFitX,vecPredY,'k--');
+			%plot(vecFitX,vecPredCI(:,1),'--','color',[0.5 0.5 0.5]);
+			%plot(vecFitX,vecPredCI(:,2),'--','color',[0.5 0.5 0.5]);;
+			hold off
+			title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblAdjR2,dblSlope,mean(abs(vecSlopeCI-dblSlope))));
+			xlabel('Population mean rate (Hz)');
+			ylabel('Pop sd (Hz)');fixfig;
+			
+			subplot(3,4,5)
+			scatter(vecPopMean,vecPopCv,'.')
+			xlabel('Population mean rate (Hz)');
+			ylabel('Pop cv');fixfig;
+			
+			subplot(3,4,9)
+			scatter(vecPopMean,vecPopFano,'.')
+			xlabel('Population mean rate (Hz)');
+			ylabel('Pop Fano factor');fixfig;
+			
+			subplot(3,4,2)
+			hold on
+			scatter(vecNeuronMean,vecNeuronSd,[],lines(1),'.');
+			plot(vecNeuronFitX,vecNeuronPredY,'k--');
+			hold off
+			title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblNeuronAdjR2,dblNeuronSlope,mean(abs(vecNeuronSlopeCI-dblNeuronSlope))));
+			xlabel('Neuron mean rate (Hz)');
+			ylabel('Neuron sd (Hz)');fixfig;
+			
+			subplot(3,4,6)
+			scatter(vecNeuronMean,vecNeuronCv,'.')
+			xlabel('Neuron mean rate (Hz)');
+			ylabel('Neuron cv');fixfig;
+			
+			subplot(3,4,10)
+			scatter(vecNeuronMean,vecNeuronFano,'.')
+			xlabel('Neuron mean rate (Hz)');
+			ylabel('Neuron Fano factor');fixfig;
+			
+			subplot(3,4,3)
+			hold on
+			scatter(vecGenPopMean,vecGenPopSd,'.')
+			plot(vecGenFitX,vecGenPredY,'k--');
+			hold off
+			title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblGenAdjR2,dblGenSlope,mean(abs(vecGenSlopeCI-dblGenSlope))));
+			xlabel('Gen Population mean rate (Hz)');
+			ylabel('Gen Pop sd (Hz)');fixfig;
+			
+			subplot(3,4,7)
+			scatter(vecGenPopMean,vecGenPopCv,'.')
+			xlabel('Gen Population mean rate (Hz)');
+			ylabel('Gen Pop cv');fixfig;
+			
+			subplot(3,4,11)
+			scatter(vecGenPopMean,vecGenPopFano,'.')
+			xlabel('Gen Population mean rate (Hz)');
+			ylabel('Gen Pop Fano factor');fixfig;
+			
+			subplot(3,4,4)
+			hold on
+			scatter(vecGenNeuronMean,vecGenNeuronSd,[],lines(1),'.');
+			plot(vecGenNeuronFitX,vecGenNeuronPredY,'k--');
+			hold off
+			title(sprintf('R^2-adj=%.3f,slope=%.3f +/- %.3f',dblGenNeuronAdjR2,dblGenNeuronSlope,mean(abs(vecGenNeuronSlopeCI-dblGenNeuronSlope))));
+			xlabel('Gen Neuron mean rate (Hz)');
+			ylabel('Gen Neuron sd (Hz)');fixfig;
+			
+			subplot(3,4,8)
+			scatter(vecGenNeuronMean,vecGenNeuronCv,'.')
+			xlabel('Gen Neuron mean rate (Hz)');
+			ylabel('Gen Neuron cv');fixfig;
+			
+			subplot(3,4,12)
+			scatter(vecGenNeuronMean,vecGenNeuronFano,'.')
+			xlabel('Gen Neuron mean rate (Hz)');
+			ylabel('Gen Neuron Fano factor');fixfig;
+			
+			if boolSaveFigs
+				%% save fig
+				export_fig(fullpath(strFigurePath,sprintf('2C1_PopSpikeStatistics_%s.tif',strRec)));
+				export_fig(fullpath(strFigurePath,sprintf('2C1_PopSpikeStatistics_%s.pdf',strRec)));
+			end
 		end
-		
 		%% run decoding
 		%run samples with balanced trials
-		intTrialsPerQ = intSplitTrialsPerOri*intStimNr;
+		intTrialsPerQ = intSplitTrialsPerOri*intStimNum;
+		intTrialsPerBalancedQ = intTrialNum/(intQuantiles^2);
+		
+		%select balanced trials
+		vecPopRate = sum(matMeanRate,1);
 		intSplitTrialsPerOri = min(floor(cellfun(@sum,cellSelect)/intQuantiles));
-		intIters = 100;
-		matSplitPerf = nan(intQuantiles,intIters);
-		for intIter=1:intIters
-			intIter
-			%select balanced trials
-			vecPopRate = sum(matMeanRate,1);
-			vecUseBalancedTrials = nan(1,intSplitTrialsPerOri*intStimNr*intQuantiles);
-			vecBalancedQ = nan(1,intSplitTrialsPerOri*intStimNr*intQuantiles);
-			intCounterBT = 1;
-			vecPriorDistributionSplit = ones(size(vecPriorDistribution))*intSplitTrialsPerOri;
-			vecStartTrials = round(intReps*linspace(1/intReps,(1+1/intReps),intQuantiles+1));
-			vecStartTrials(end)=[];
-			matUseTrials = nan(intStimNr,intSplitTrialsPerOri,intQuantiles);
-			for intQ=1:intQuantiles
-				vecUseTrialsTemp = vecStartTrials(intQ):(vecStartTrials(intQ)+intSplitTrialsPerOri-1);
-				for intOri=1:intStimNr
-					vecThisOri = find(cellSelect{intOri});
-					[vecSorted,vecReorder]=sort(vecPopRate(vecThisOri));
-					vecQualifyingTrials = vecThisOri(vecReorder(vecUseTrialsTemp));
-					matUseTrials(intOri,:,intQ) = vecQualifyingTrials;
-					
-					vecUseBalancedTrials(intCounterBT:(intCounterBT+intSplitTrialsPerOri-1)) = vecQualifyingTrials(randperm(intSplitTrialsPerOri,intSplitTrialsPerOri));
-					vecBalancedQ(intCounterBT:(intCounterBT+intSplitTrialsPerOri-1)) = intQ;
-					intCounterBT = intCounterBT + intSplitTrialsPerOri;
-				end
+		intPickPerOriPerQ = intSplitTrialsPerOri/intQuantiles;
+		vecUseBalancedTrials = nan(1,intPickPerOriPerQ*intStimNum*intQuantiles);
+		vecBalancedQ = nan(1,intPickPerOriPerQ*intStimNum*intQuantiles);
+		intCounterBT = 1;
+		vecPriorDistributionSplit = ones(size(vecPriorDistribution))*intSplitTrialsPerOri;
+		vecStartTrials = round(intReps*linspace(1/intReps,(1+1/intReps),intQuantiles+1));
+		vecStartTrials(end)=[];
+		matUseTrials = nan(intStimNum,intSplitTrialsPerOri,intQuantiles);
+		for intQ=1:intQuantiles
+			vecUseTrialsTemp = vecStartTrials(intQ):(vecStartTrials(intQ)+intSplitTrialsPerOri-1);
+			for intOri=1:intStimNum
+				vecThisOri = find(cellSelect{intOri});
+				[vecSorted,vecReorder]=sort(vecPopRate(vecThisOri));
+				vecQualifyingTrials = vecThisOri(vecReorder(vecUseTrialsTemp));
+				matUseTrials(intOri,:,intQ) = vecQualifyingTrials;
+				
+				vecUseBalancedTrials(intCounterBT:(intCounterBT+intPickPerOriPerQ-1)) = vecQualifyingTrials(randperm(intSplitTrialsPerOri,intPickPerOriPerQ));
+				vecBalancedQ(intCounterBT:(intCounterBT+intPickPerOriPerQ-1)) = intQ;
+				intCounterBT = intCounterBT + intPickPerOriPerQ;
 			end
-			
-			%perform overall decoding
-			[vecBalancedTrialTypeIdx,vecBalancedUnique,vecBalancedPriorDistribution,cellBalancedSelect,vecBalancedRepetition] = val2idx(vecOri180(vecUseBalancedTrials));
-			[dblPerf,vecDecodedIndexCV,matPosteriorProbability] = ...
-				doCrossValidatedDecodingLR(matMeanRate(:,vecUseBalancedTrials),vecOri180(vecUseBalancedTrials),intTypeCV,[],dblLambda);
-			vecConfidence = nan(size(vecDecodedIndexCV));
-			for intTrial=1:numel(vecBalancedTrialTypeIdx)
-				vecConfidence(intTrial) = matPosteriorProbability(vecBalancedTrialTypeIdx(intTrial),intTrial);
-			end
-			
-			%assign per quantile
-			matCorrPerQ = nan(intTrialsPerQ,intQuantiles);
-			vecCorr = vecDecodedIndexCV(:) == vecBalancedTrialTypeIdx(:);
-			for intQ=1:intQuantiles
-				matCorrPerQ(:,intQ) = vecCorr(vecBalancedQ==intQ);
-			end
-			
-			%save data
-			matSplitPerf(:,intIter) = sum(matCorrPerQ,1)/intTrialsPerQ;
 		end
 		
+		%perform overall decoding
+		[vecBalancedTrialTypeIdx,vecBalancedUnique,vecBalancedPriorDistribution,cellBalancedSelect,vecBalancedRepetition] = val2idx(vecOri180(vecUseBalancedTrials));
+		[dblPerf,vecDecodedIndexCV,matPosteriorProbability] = ...
+			doCrossValidatedDecodingLR(matMeanRate(:,vecUseBalancedTrials),vecOri180(vecUseBalancedTrials),intTypeCV,[],dblLambda);
+		vecConfidence = nan(size(vecDecodedIndexCV));
+		for intTrial=1:numel(vecBalancedTrialTypeIdx)
+			vecConfidence(intTrial) = matPosteriorProbability(vecBalancedTrialTypeIdx(intTrial),intTrial);
+		end
+		
+		%assign per quantile
+		matCorrPerQ = nan(intTrialsPerBalancedQ,intQuantiles);
+		vecCorr = vecDecodedIndexCV(:) == vecBalancedTrialTypeIdx(:);
+		for intQ=1:intQuantiles
+			matCorrPerQ(:,intQ) = vecCorr(vecBalancedQ==intQ);
+		end
+		
+		
 		%calc mean and sem
-		vecSplitPerfMu = mean(matSplitPerf,2)';
-		vecSplitPerfSem = std(matSplitPerf,[],2)';
+		vecSplitPerf = sum(matCorrPerQ,1)/intTrialsPerBalancedQ;
 		
 		%perform decoding per quantile
 		vecQuantilePerf = nan(1,intQuantiles);
-		matQuantileConfusion = nan(intStimNr,intStimNr,intQuantiles);
+		matQuantileConfusion = nan(intStimNum,intStimNum,intQuantiles);
 		%split trials into quantiles
-		figure;maxfig;
+		if boolMakeFigs
+			figure;maxfig;
+		end
 		vecPlotQ = [];%[1 ceil(intQuantiles/2) intQuantiles];
-		vecTrialQuantile = zeros(1,intTrials);
+		vecTrialQuantile = zeros(1,intTrialNum);
 		for intQ=1:intQuantiles
 			%divide into quantiles
 			vecUseTrials = sort(flat(matUseTrials(:,:,intQ)));
@@ -402,7 +416,7 @@ for intRec=1:numel(sAggStim)
 			vecQuantilePerf(intQ) = dblPerfQ;
 			matQuantileConfusion(:,:,intQ) = matConfusion;
 			intPlot = find(vecPlotQ==intQ);
-			if ~isempty(intPlot)
+			if boolMakeFigs && ~isempty(intPlot)
 				subplot(2,3,intPlot)
 				imagesc(matConfusion)
 				xlabel('Real Orientation')
@@ -413,47 +427,48 @@ for intRec=1:numel(sAggStim)
 		end
 		
 		% overall train, output split
-		clf;
-		subplot(2,3,4)
-		hold on
-		plot([1 numel(vecQuantilePerf)],(1/intStimNr)*[1 1],'--','color',[0.5 0.5 0.5]);
-		errorbar(1:intQuantiles,vecSplitPerfMu,vecSplitPerfSem,'color',lines(1));
-		xlabel('Pop. activity quantile');
-		ylabel('CV decoding accuracy');
-		title('Train once on all, test per quantile');
-		fixfig;
-		
-		%split train, output split
-		dblAlphaEquivOfSd = normcdf(1)-normcdf(-1);
-		[phat2,pci2] = binofit(vecQuantilePerf*intTrialsPerQ,intTrialsPerQ,dblAlphaEquivOfSd);
-		subplot(2,3,5)
-		hold on
-		plot([1 numel(vecQuantilePerf)],(1/intStimNr)*[1 1],'--','color',[0.5 0.5 0.5]);
-		errorbar(1:intQuantiles,phat2,phat2'-pci2(:,1),phat2'-pci2(:,2),'color',lines(1));
-		xlabel('Pop. activity quantile');
-		ylabel('CV decoding accuracy');
-		title('Train+test per quantile');
-		fixfig;
-		normaxes;
-		
-		%difference
-		%[phat3,pci3] = binofit((phat-vecQuantilePerf)*intTrialsPerQ,intTrialsPerQ,dblAlphaEquivOfSd);
-		
-		subplot(2,3,6)
-		hold on
-		%plot([1 numel(vecQuantilePerf)],(1/intStimNr)*[1 1],'--','color',[0.5 0.5 0.5]);
-		plot(1:intQuantiles,(vecSplitPerfMu-vecQuantilePerf));
-		xlabel('Pop. activity quantile');
-		ylabel('Generalization penalty (\Deltaaccuracy)');
-		title('Accuracy difference');
-		fixfig;
-		
-		if boolSaveFigs
-			%% save fig
-			export_fig(fullpath(strFigurePath,sprintf('2C2_QuantileDecoding_%s.tif',strRec)));
-			export_fig(fullpath(strFigurePath,sprintf('2C2_QuantileDecoding_%s.pdf',strRec)));
+		if boolMakeFigs
+			clf;
+			subplot(2,3,4)
+			hold on
+			plot([1 numel(vecQuantilePerf)],(1/intStimNum)*[1 1],'--','color',[0.5 0.5 0.5]);
+			plot(1:intQuantiles,vecSplitPerf,'color',lines(1));
+			xlabel('Pop. activity quantile');
+			ylabel('CV decoding accuracy');
+			title('Train once on all, test per quantile');
+			fixfig;
+			
+			%split train, output split
+			dblAlphaEquivOfSd = normcdf(1)-normcdf(-1);
+			[phat2,pci2] = binofit(vecQuantilePerf*intTrialsPerQ,intTrialsPerQ,dblAlphaEquivOfSd);
+			subplot(2,3,5)
+			hold on
+			plot([1 numel(vecQuantilePerf)],(1/intStimNum)*[1 1],'--','color',[0.5 0.5 0.5]);
+			errorbar(1:intQuantiles,phat2,phat2'-pci2(:,1),phat2'-pci2(:,2),'color',lines(1));
+			xlabel('Pop. activity quantile');
+			ylabel('CV decoding accuracy');
+			title('Train+test per quantile');
+			fixfig;
+			normaxes;
+			
+			%difference
+			%[phat3,pci3] = binofit((phat-vecQuantilePerf)*intTrialsPerQ,intTrialsPerQ,dblAlphaEquivOfSd);
+			
+			subplot(2,3,6)
+			hold on
+			%plot([1 numel(vecQuantilePerf)],(1/intStimNr)*[1 1],'--','color',[0.5 0.5 0.5]);
+			plot(1:intQuantiles,(vecSplitPerf-vecQuantilePerf));
+			xlabel('Pop. activity quantile');
+			ylabel('Generalization penalty (\Deltaaccuracy)');
+			title('Accuracy difference');
+			fixfig;
+			
+			if boolSaveFigs
+				%% save fig
+				export_fig(fullpath(strFigurePath,sprintf('2C2_QuantileDecoding_%s.tif',strRec)));
+				export_fig(fullpath(strFigurePath,sprintf('2C2_QuantileDecoding_%s.pdf',strRec)));
+			end
 		end
-		
 		%% plot PCA
 		vecStim1 = find(vecOri180==0);
 		vecStim2 = find(vecOri180==90);
@@ -480,31 +495,34 @@ for intRec=1:numel(sAggStim)
 		%}
 		
 		%% plot PCA
-		matColMap = redbluepurple(intQuantiles);
-		matColor = matColMap(vecTQR,:);
-		%matColor(vecOriR==0,2) = 0.5;
-		indOri1 = vecOriR==0;
-		indOri2 = vecOriR==90;
-		
-		figure;maxfig;
-		subplot(2,3,1);
-		colormap(redbluepurple(intQuantiles));
-		hold on
-		scatter(score(indOri1,1),score(indOri1,2),[],matColor(indOri1,:),'d');
-		scatter(score(indOri2,1),score(indOri2,2),[],matColor(indOri2,:),'*');
-		hold off
-		xlabel('PC1');
-		ylabel('PC2');
-		legend({'0 degs','90 degs'},'location','best');
-		title('point=trial, color=pop activity quantile');
-		fixfig;
-		
-		%make plots of distributions of activation per quantile
-		subplot(2,3,3)
+		if boolMakeFigs
+			
+			matColMap = redbluepurple(intQuantiles);
+			matColor = matColMap(vecTQR,:);
+			%matColor(vecOriR==0,2) = 0.5;
+			indOri1 = vecOriR==0;
+			indOri2 = vecOriR==90;
+			
+			figure;maxfig;
+			subplot(2,3,1);
+			colormap(redbluepurple(intQuantiles));
+			hold on
+			scatter(score(indOri1,1),score(indOri1,2),[],matColor(indOri1,:),'d');
+			scatter(score(indOri2,1),score(indOri2,2),[],matColor(indOri2,:),'*');
+			hold off
+			xlabel('PC1');
+			ylabel('PC2');
+			legend({'0 degs','90 degs'},'location','best');
+			title('point=trial, color=pop activity quantile');
+			fixfig;
+			
+			%make plots of distributions of activation per quantile
+			subplot(2,3,3)
+			hold on;
+		end
 		dblStep = 0.25;
 		vecBinE = -1.5:dblStep:1.5;
 		vecBinC = vecBinE(2:end)-dblStep/2;
-		hold on;
 		vecAllAct = nan(1,numel(vecTQR));
 		vecAbsW = nan(1,intQuantiles);
 		vecBinaryPerf = nan(1,intQuantiles);
@@ -525,29 +543,32 @@ for intRec=1:numel(sAggStim)
 			vecAct = matActivation(1,1:sum(vecUseTrialsQ))/vecAbsW(intQ);
 			vecCounts1 = histcounts(vecAct(vecUseOri==1),vecBinE);
 			vecCounts2 = histcounts(vecAct(vecUseOri==2),vecBinE);
-			plot(vecBinC,0.8*(vecCounts1/max(vecCounts1))+intQ,'Color',[1 0 0]);
-			plot(vecBinC,0.8*(vecCounts2/max(vecCounts2))+intQ,'Color',[0 0 1]);
+			if boolMakeFigs
+				plot(vecBinC,0.8*(vecCounts1/max(vecCounts1))+intQ,'Color',[1 0 0]);
+				plot(vecBinC,0.8*(vecCounts2/max(vecCounts2))+intQ,'Color',[0 0 1]);
+			end
 			cellLRActPerQ{1,intQ} = vecAct(vecUseOri==1);
 			cellLRActPerQ{2,intQ} = vecAct(vecUseOri==2);
 		end
-		hold off;
-		set(gca,'ytick',0.5 + (1:intQuantiles),'yticklabel',1:5);
-		ylabel('Quantile; y=trials per quantile');
-		xlabel('LR activation');
-		title('0 vs 90 degrees');
-		fixfig;grid off
-		
-		%plot mean & decision axis
-		subplot(2,3,2)
-		hold on;
-		scatter(vecPMR(indOri1),vecAllAct(indOri1),[],matColor(indOri1,:),'d');
-		scatter(vecPMR(indOri2),vecAllAct(indOri2),[],matColor(indOri2,:),'*');
-		hold off
-		xlabel('Mean pop activity');
-		ylabel('LR activation');
-		title('point=trial, color=pop activity quantile');
-		fixfig;
-		
+		if boolMakeFigs
+			hold off;
+			set(gca,'ytick',0.5 + (1:intQuantiles),'yticklabel',1:5);
+			ylabel('Quantile; y=trials per quantile');
+			xlabel('LR activation');
+			title('0 vs 90 degrees');
+			fixfig;grid off
+			
+			%plot mean & decision axis
+			subplot(2,3,2)
+			hold on;
+			scatter(vecPMR(indOri1),vecAllAct(indOri1),[],matColor(indOri1,:),'d');
+			scatter(vecPMR(indOri2),vecAllAct(indOri2),[],matColor(indOri2,:),'*');
+			hold off
+			xlabel('Mean pop activity');
+			ylabel('LR activation');
+			title('point=trial, color=pop activity quantile');
+			fixfig;
+		end
 		%% average over all orthogonal (or adjacent?) stimuli
 		intOris = numel(vecUnique);
 		matBinaryPerf = nan(intQuantiles,intOris);
@@ -557,8 +578,10 @@ for intRec=1:numel(sAggStim)
 		dblStep = 0.25;
 		vecBinE = -2:dblStep:2;
 		vecBinC = vecBinE(2:end)-dblStep/2;
-		subplot(2,3,4);
-		hold on
+		if boolMakeFigs
+			subplot(2,3,4);
+			hold on
+		end
 		for intQ=1:intQuantiles
 			for intOriIdx1 = 1:intOris
 				intOriIdx2 = intOriIdx1+floor(intOris/2)-1;
@@ -589,17 +612,20 @@ for intRec=1:numel(sAggStim)
 			vecAct2 = cell2vec(cellLRActPerQ(intQ,:,2));
 			vecCounts1 = histcounts(vecAct1,vecBinE);
 			vecCounts2 = histcounts(vecAct2,vecBinE);
-			plot(vecBinC,0.8*(vecCounts1/max(vecCounts1))+intQ,'Color',[1 0 0]);
-			plot(vecBinC,0.8*(vecCounts2/max(vecCounts2))+intQ,'Color',[0 0 1]);
+			if boolMakeFigs
+				plot(vecBinC,0.8*(vecCounts1/max(vecCounts1))+intQ,'Color',[1 0 0]);
+				plot(vecBinC,0.8*(vecCounts2/max(vecCounts2))+intQ,'Color',[0 0 1]);
+			end
 		end
-		%finish plot
-		hold off;
-		set(gca,'ytick',0.5 + (1:intQuantiles),'yticklabel',1:5);
-		ylabel('Quantile; y=trials per quantile');
-		xlabel('LR activation');
-		title('Mean over ~orth stim pairs');
-		fixfig;grid off
-		
+		if boolMakeFigs
+			%finish plot
+			hold off;
+			set(gca,'ytick',0.5 + (1:intQuantiles),'yticklabel',1:5);
+			ylabel('Quantile; y=trials per quantile');
+			xlabel('LR activation');
+			title('Mean over ~orth stim pairs');
+			fixfig;grid off
+		end
 		%plot d', variance and distance in mean
 		matDprime = nan(intQuantiles,intOris);
 		matPooledSd = nan(intQuantiles,intOris);
@@ -632,51 +658,59 @@ for intRec=1:numel(sAggStim)
 		title('Point = stim+quantile combination');
 		fixfig;
 		%}
-		
-		h=subplot(2,3,5);
-		colormap(h,matColMap);
-		%scatter(mean(matPooledSd,2),mean(matMeanD,2),[],matColMap)
-		%calc mean+sem per q
-		vecMeanDprime = mean(matDprime,2);
-		vecSemDprime = std(matDprime,[],2)./sqrt(intOris);
-		vecMeanSd = mean(matPooledSd,2);
-		vecSemSd = std(matPooledSd,[],2)./sqrt(intOris);
-		vecMeanMu = mean(matMeanD,2);
-		vecSemMu = std(matMeanD,[],2)./sqrt(intOris);
-		hold on
-		cline(h,vecMeanSd,vecMeanMu,[],1:5);
-		for intQ=1:intQuantiles
-			errorbar(vecMeanSd(intQ),vecMeanMu(intQ),vecSemSd(intQ)/2,vecSemSd(intQ)/2,vecSemMu(intQ)/2,vecSemMu(intQ)/2,'x','color',matColMap(intQ,:));
-		end
-		hold off
-		xlabel('Sd over trials');
-		ylabel('Mean over trials');
-		title('Point = stim+quantile mu+/-sem');
-		fixfig;
-		
-		h=subplot(2,3,6);
-		colormap(h,matColMap);
-		hold on
-		cline(h,vecMeanSd,vecMeanDprime,[],1:5);
-		for intQ=1:intQuantiles
-			errorbar(vecMeanSd(intQ),vecMeanDprime(intQ),vecSemSd(intQ)/2,vecSemSd(intQ)/2,vecSemDprime(intQ)/2,vecSemDprime(intQ)/2,'x','color',matColMap(intQ,:));
-		end
-		hold off
-		xlabel('Sd over trials');
-		ylabel('d''');
-		title('Point = stim+quantile mu+/-sem');
-		fixfig;
-		
-		if boolSaveFigs
-			%% save fig
-			export_fig(fullpath(strFigurePath,sprintf('2C3_DynamicCoding_%s.tif',strRec)));
-			export_fig(fullpath(strFigurePath,sprintf('2C3_DynamicCoding_%s.pdf',strRec)));
+		if boolMakeFigs
+			
+			h=subplot(2,3,5);
+			colormap(h,matColMap);
+			%scatter(mean(matPooledSd,2),mean(matMeanD,2),[],matColMap)
+			%calc mean+sem per q
+			vecMeanDprime = mean(matDprime,2);
+			vecSemDprime = std(matDprime,[],2)./sqrt(intOris);
+			vecMeanSd = mean(matPooledSd,2);
+			vecSemSd = std(matPooledSd,[],2)./sqrt(intOris);
+			vecMeanMu = mean(matMeanD,2);
+			vecSemMu = std(matMeanD,[],2)./sqrt(intOris);
+			hold on
+			cline(h,vecMeanSd,vecMeanMu,[],1:5);
+			for intQ=1:intQuantiles
+				errorbar(vecMeanSd(intQ),vecMeanMu(intQ),vecSemSd(intQ)/2,vecSemSd(intQ)/2,vecSemMu(intQ)/2,vecSemMu(intQ)/2,'x','color',matColMap(intQ,:));
+			end
+			hold off
+			xlabel('Sd over trials');
+			ylabel('Mean over trials');
+			title('Point = stim+quantile mu+/-sem');
+			fixfig;
+			
+			h=subplot(2,3,6);
+			colormap(h,matColMap);
+			hold on
+			cline(h,vecMeanSd,vecMeanDprime,[],1:5);
+			for intQ=1:intQuantiles
+				errorbar(vecMeanSd(intQ),vecMeanDprime(intQ),vecSemSd(intQ)/2,vecSemSd(intQ)/2,vecSemDprime(intQ)/2,vecSemDprime(intQ)/2,'x','color',matColMap(intQ,:));
+			end
+			hold off
+			xlabel('Sd over trials');
+			ylabel('d''');
+			title('Point = stim+quantile mu+/-sem');
+			fixfig;
+			
+			if boolSaveFigs
+				%% save fig
+				export_fig(fullpath(strFigurePath,sprintf('2C3_DynamicCoding_%s.tif',strRec)));
+				export_fig(fullpath(strFigurePath,sprintf('2C3_DynamicCoding_%s.pdf',strRec)));
+			end
 		end
 		
 		%% save data
+		cellAggRate{intIter} = matMeanRate;
+		matQuantilePerf(:,intIter) = vecQuantilePerf;
+		matSplitQuantilePerf(:,intIter) = vecSplitPerf;
+		cellAggLRActPerQ(:,:,:,intIter) = cellLRActPerQ;
+		%end
+		
+		%% save data
 		if boolSaveData
-			save([strTargetDataPath 'TimeCodingAggQC1' strRec '.mat'],...
-				'strRec','matMeanRate','vecQuantilePerf','vecSplitPerf','cellLRActPerQ');
+			save([strTargetDataPath 'TimeCodingAggQC1' strRec '.mat'],'strRec','cellAggRate','matQuantilePerf','matSplitQuantilePerf','cellAggLRActPerQ');
 		end
 	end
 end

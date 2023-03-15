@@ -676,7 +676,7 @@ for intRandomize=1:3
 			
 			%% save data
 			if boolSaveData
-				save([strTargetDataPath 'TimeCodingAggQC1' strRec '.mat'],...
+				save([strTargetDataPath 'QC1Data' strRec '.mat'],...
 					'strRec','strArea','matMeanRate','matBinaryPerf','vecQuantilePerf','matSplitPerf','cellLRActPerQ');
 			end
 		end

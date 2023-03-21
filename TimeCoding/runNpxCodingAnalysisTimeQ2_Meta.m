@@ -27,15 +27,17 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
 	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
-	strFigurePath = 'D:\Data\Results\PopTimeCoding\figures\';
-	strTargetDataPath = 'D:\Data\Results\PopTimeCoding\data\';
+	strDataPath = 'E:\DataPreProcessed\';
+	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
 
 %% define parameters
@@ -479,6 +481,8 @@ end
 
 
 %% mean and sd scale together: CV is constant
+error do analysis where you shuffle trials independently for each neuron to test if blue curve is population effect
+
 subplot(2,3,4);cla;
 %theory
 vecMperTrial_G = matMperTrial_G(:);
@@ -511,9 +515,9 @@ dblSlope = ((vecX' * vecX) \ vecX') * vecY;
 
 
 hold on
-plot(vecActBinsC,dblSlope*vecActBinsC,'--','color',matC(1,:));
-plot(vecActBinsC,dblSlope_S*vecActBinsC,'--','color',matC(3,:));
-plot(vecActBinsC,dblSlope_G*vecActBinsC,'--','color',matC(2,:));
+%plot(vecActBinsC,dblSlope*vecActBinsC,'--','color',matC(1,:));
+%plot(vecActBinsC,dblSlope_S*vecActBinsC,'--','color',matC(3,:));
+%plot(vecActBinsC,dblSlope_G*vecActBinsC,'--','color',matC(2,:));
 errorbar(vecActBinsC,nanmean(matMeansSdRem,2),nanstd(matMeansSdRem,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(1,:));
 errorbar(vecActBinsC,nanmean(matMeansSdRem_S,2),nanstd(matMeansSdRem_S,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(3,:));
 errorbar(vecActBinsC,nanmean(vecMeansSd_G,2),nanstd(vecSDsSd_G,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(2,:));

@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -79,11 +79,13 @@ for intRec=1:numel(sAggStim)
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
 		intRec
 		
-		%% remove untuned cells
+		%% prep data
 		%get data matrix
-		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-		[matResp,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
-		intNumN = size(matResp,1);
+		cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
+		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,vecStimOnStitched,vecNonStat,dblBC,dblMaxDevFrac] = ...
+			NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
+		intTunedN = sum(indTuned);
+		intNumN = size(matData,1);
 		
 		%% get stim timing
 		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
@@ -709,6 +711,11 @@ for intRec=1:numel(sAggStim)
 		% mean per trial per quantile
 		matLowR = squeeze(matAggR(2,:,:));
 		matHighR = squeeze(matAggR(3,:,:));
+		if numel(vecUniqueOris) == 24
+			vecOri180 = mod(vecOrientation,180)*2;
+		else
+			vecOri180 = vecOrientation;
+		end
 		vecOriLow = vecOri180;
 		vecOriHigh = vecOri180;
 		

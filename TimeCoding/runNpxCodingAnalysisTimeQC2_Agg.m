@@ -26,7 +26,7 @@ cellUseAreas = {strRunArea};
 boolMakeFigs = true;
 boolSaveFigs = true;
 boolSaveData = true;
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -56,6 +56,7 @@ for intRandomize=1:3
 	for intRec=1:numel(sAggStim)
 		close all;
 		% get matching recording data
+		close all;
 		strRec = sAggStim(intRec).Exp;
 		sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
 		sThisSource = sAggSources(strcmpi(strRec,{sAggSources(:).Exp}));
@@ -131,40 +132,11 @@ for intRandomize=1:3
 			
 			%% get orientation responses & single-trial population noise
 			sArea1Neurons = sUseNeuron(indArea1Neurons);
-			cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-			[matData,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
+			cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
+			[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,vecStimOnStitched,vecNonStat,dblBC,dblMaxDevFrac] = ...
+				NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 			intTunedN = sum(indTuned);
-			intRespN = sum(indResp);
-			
-			
-			dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
-			dblPreTime = -dblStartT;%0.3;
-			dblPostTime = 0;%0.3;
-			dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
-			dblBinWidth = 0.05;
-			vecBinEdges = 0:dblBinWidth:dblMaxDur;
-			vecStimTime = vecBinEdges(2:end)-dblBinWidth/2 - dblPreTime;
-			indStimBins = vecStimTime > 0 & vecStimTime < dblStimDur;
-			intBinNum = numel(vecBinEdges)-1;
-			matBNSR = nan(intBinNum,intRespN,intStimNum,intRepNum);
-			matBNT = nan(intBinNum,intRespN,intTrialNum);
-			%matBNT_shifted = nan(intBinNum,intRespN,intTrialNum);
-			
-			vecRepCounter = zeros(1,intStimNum);
-			%get spikes per trial per neuron
-			cellSpikeTimesPerCellPerTrial = cell(intRespN,intTrialNum);
-			for intN=1:intRespN
-				% build pseudo data, stitching stimulus periods
-				[vecPseudoSpikeTimes,vecPseudoEventT] = getPseudoSpikeVectors(cellSpikeTimes{intN},vecStimOnTime-dblPreTime,dblMaxDur);
-				
-				%real
-				[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecPseudoSpikeTimes,vecPseudoEventT,dblMaxDur);
-				for intTrial=1:intTrialNum
-					vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
-					cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
-				end
-			end
-			vecStimOnStitched = vecPseudoEventT;
+			intRespN = size(matData,1);
 			
 			%% define quantiles and remove zero-variance neurons
 			%constants

@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -80,10 +80,12 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%% get orientation responses & single-trial population noise
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
 		
-		%% remove untuned cells
+		%% prep data
 		%get data matrix
-		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-		[matData,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
+		cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
+		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,vecStimOnStitched,vecNonStat,dblBC,dblMaxDevFrac] = ...
+			NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
+		intTunedN = sum(indTuned);
 		intNumN = size(matData,1);
 		
 		%get ori vars

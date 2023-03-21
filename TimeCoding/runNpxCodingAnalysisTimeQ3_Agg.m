@@ -27,7 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
+boolHome = false;
 if boolHome
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -78,10 +78,13 @@ for intRec=1:numel(sAggStim)
 		%% get orientation responses & single-trial population noise
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
 		intRec
-		%% remove untuned cells
+		
+		%% prep data
 		%get data matrix
-		cellSpikeTimes = {sArea1Neurons.SpikeTimes};
-		[matData,indTuned,indResp,cellSpikeTimes,sOut] = NpxPrepData(cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOrientation);
+		cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
+		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,vecStimOnStitched,vecNonStat,dblBC,dblMaxDevFrac] = ...
+			NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
+		intTunedN = sum(indTuned);
 		intNumN = size(matData,1);
 		
 		%% is pop activity more stable over trials as euclidian distance to origin or as mean?

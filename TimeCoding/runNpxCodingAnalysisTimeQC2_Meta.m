@@ -26,7 +26,7 @@ cellUseAreas = {strRunArea};
 
 boolSaveFigs = true;
 boolHome = true;
-if boolHome
+if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
@@ -39,7 +39,7 @@ else
 end
 
 %% find data
-strStim = 'DG';%DG/NM
+strStim = 'NM';%DG/NM
 dblBimoThreshold = inf;%0.5;%0.4
 dblDevThreshold = 0.7;%0.7;%0.7
 

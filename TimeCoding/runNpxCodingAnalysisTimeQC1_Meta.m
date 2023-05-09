@@ -14,8 +14,8 @@ or end? does this ordering differ between orientations?
 %close all;
 clear all;
 boolSaveFigs = true;
-boolHome = false;
-if boolHome
+boolHome = true;
+if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
@@ -37,7 +37,7 @@ else
 end
 
 %% find data
-strStim = 'NM';%DG/NM
+strStim = 'DG';%DG/NM
 %cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating','TuneFixed'};
 cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating','VarScaling','SdLinear','VarLinear','VarQuad'};
 sDir = dir([strTargetDataPath 'QC1Data*.mat']); %or ABA if old
@@ -51,10 +51,10 @@ for intFile=1:numel(sDir)
 	%% load data
 	strFolder = sDir(intFile).folder;
 	strFile = sDir(intFile).name;
-	strType = strrep(strrep(getFlankedBy(strFile,'QC1Data','_','first'),'ABI',''),['_' strStim],'');
+	strType = strrep(strrep(getFlankedBy(strFile,'QC1Data','Rec','first'),'ABI',''),[strStim '_'],'');
 	intType = find(ismember(cellTypes,strType));
 	sData = load(fullpath(strFolder,strFile));
-	if size(sData.cellLRActPerQ,2) < 8 || any(flat(cellfun(@(x) any(isnan(x(:))),sData.cellLRActPerQ)))
+	if ~strcmp(sData.strRunStim,strStim) || size(sData.cellLRActPerQ,2) < 8 || any(flat(cellfun(@(x) any(isnan(x(:))),sData.cellLRActPerQ)))
 		continue;
 	end
 	
@@ -65,14 +65,14 @@ for intFile=1:numel(sDir)
 	
 	%% aggregate data
 	cellAggLRActPerQ(:,:,:,intType,vecCounter(intType)) = sData.cellLRActPerQ;
-	%cellAggPopMuPerQ(:,:,:,intType,vecCounter(intType)) = sData.cellPopMuPerQ;
+	cellAggPopMuPerQ(:,:,:,intType,vecCounter(intType)) = sData.cellPopMuPerQ;
 end
 
 %% plot
 %pre-allocate
 %intUseRec = 1:31;
 cellUseLRActPerQ = cellAggLRActPerQ;%(:,:,:,:,intUseRec);
-%cellUsePopMuPerQ = cellAggPopMuPerQ;
+cellUsePopMuPerQ = cellAggPopMuPerQ;
 intRecs = size(cellUseLRActPerQ,5);
 matR_Discr=nan(3,intRecs);
 matR_MuVar=nan(3,intRecs);

@@ -28,7 +28,7 @@ cellUseAreas = {...
 	...'posteromedial visual area',...
 	};
 boolHome = false;
-if boolHome
+if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
@@ -44,7 +44,7 @@ end
 sFiles = dir ([strTargetDataPath 'Q1Data*.mat']);
 strArea = 'V1';
 intRecNum = numel(sFiles);
-intBinNum = 240;
+intBinNum = 300;
 vecDecP = nan(1,intRecNum);
 matDecPerf = nan(intBinNum,intRecNum);
 matRate = nan(intBinNum,intRecNum);

@@ -28,17 +28,18 @@ cellUseAreas = {...
 	...'posteromedial visual area',...
 	};
 boolHome = false;
-if boolHome
-	strDataPath = 'F:\Data\Processed\Neuropixels';
+if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
+	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
-	strFigurePath = 'F:\Drive\PopTimeCoding\figures';
-	strTargetDataPath = 'F:\Drive\PopTimeCoding\data';
+	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
-	strDataPath = 'E:\DataPreProcessed';
+	strDataPath = 'E:\DataPreProcessed\';
 	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
-	strFigurePath = 'C:\Drive\PopTimeCoding\figures';
-	strTargetDataPath = 'C:\Drive\PopTimeCoding\data';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
+
 
 %% select all neurons in LP and drifting grating stimuli
 if ~exist('sAggStim','var') || isempty(sAggStim) || isempty(sAggNeuron)
@@ -162,15 +163,28 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecOri180 = mod(vecOrientation,180)*2;
 		vecRepNum180 = vecRepNum(1:12)*2;
 		matDecConfusion = nan(intOriNum,intOriNum,intBinNum);
-		vecSpikesPerBin = mean(sum(matBNT,2),3)';
+		
+		% the first bin of vecSpikesPerBin is not equal to last bin, primarily because of
+		% concatenating two sets of 480 trials; the post-period of trial #480 and pre-period of trial
+		% #481 are therefore completely different. Secondly, the ITI has jitter; it is closer to
+		% 1.55s than 1.50s - therefore inducing a 0.05s shift if setting the window duration to 1.5s
+		vecSpikesPerBin = mean(sum(matBNT,2),3)'; 
 		matAcrossTimeDecoder = nan(intBinNum,intBinNum);
+		
 		[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
 		for intBinIdx=1:intBinNum
 			fprintf('%s (%d/%d): Now at bin %d/%d [%s]\n',strRec,intRec,numel(sAggStim),intBinIdx,intBinNum,getTime);
+			%% rewrite this to use across-bin decoding
+			matTrainData = squeeze(matBNT(intBinIdx,:,:));
 			
+			%mvn doesn't work because it cannot handle zero-variance predictors
+			%[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion] = ...
+			%	doCrossValidatedDecoding(matTrainData,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
+			
+			%do old logistic regression
 			[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
-				doCrossValidatedDecodingLR(squeeze(matBNT(intBinIdx,:,:)),vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
-			vecDecErr(intBinIdx) = dblMeanErrorDegs;
+				doCrossValidatedDecodingLR(matTrainData,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
+			
 			vecDecCorr(intBinIdx) = dblPerformanceCV;
 			vecConf = nan(size(vecDecodedIndexCV));
 			for intTrial=1:numel(vecTrialTypeIdx)
@@ -191,56 +205,26 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 					matAcrossTimeDecoder(intBinIdx,intTestBinIdx) =  mean(vecConf);
 					continue;
 				end
-				%get performance
 				matTestData = squeeze(matBNT(intTestBinIdx,:,:));
+				
+				% %do cross-bin decoding without sample splitting, as CV is automatic
+				% matTestData = squeeze(matBNT(intTestBinIdx,:,:));
+				% matCrossPosterior = doMvnDec(matTrainData,vecTrialTypeIdx,matTestData,dblLambda);
+				% vecPriorCopy = vecPriorDistribution;
+				
+				%do cross-bin decoding without sample splitting, as CV is automatic
 				matDataPlusLin = [matTestData; ones(1,size(matTestData,2))];
 				matActivation = matWeights'*matDataPlusLin;
-				matPosteriorProbability = exp(bsxfun(@minus,matActivation,logsumexp(matActivation,1))); %softmax
-				intTrials = size(matTestData,2);
-				vecPriorCopy = vecPriorDistribution;
+				matCrossPosterior = exp(bsxfun(@minus,matActivation,logsumexp(matActivation,1))); %softmax
+				%matCrossPosterior = doMvnDec(matTrainData,vecTrialTypeIdx,matTestData,dblLambda);
+				
 				% normal decoding or with prior distro?
+				vecPriorCopy = vecPriorDistribution;
 				if isempty(vecPriorCopy)
 					%calculate output
-					[dummy, vecDecodedIndexCV] = max(matPosteriorProbability,[],1);
+					[dummy, vecDecodedIndexCV] = max(matCrossPosterior,[],1);
 				else
-					%% loop through trials and assign next most certain trial
-					vecDecodedIndexCV = nan(intTrials,1);
-					indAssignedTrials = false(intTrials,1);
-					matTempProbs = matPosteriorProbability;
-					for intTrial=1:intTrials
-						%check if we're done
-						if sum(vecPriorCopy==0)==(numel(vecPriorCopy)-1)
-							vecDecodedIndexCV(~indAssignedTrials) = find(vecPriorCopy>0);
-							break;
-						end
-						
-						%remove trials of type that has been chosen max number
-						matTempProbs(vecPriorCopy==0,:) = nan;
-						matTempProbs(:,indAssignedTrials) = nan;
-						
-						%calculate probability of remaining trials and types
-						[vecTempProbs,vecTempDecodedIndexCV]=max(matTempProbs,[],1);
-						%get 2nd most likely stim per trial
-						matDist2 = matTempProbs;
-						for intT2=1:intTrials
-							matDist2(vecTempDecodedIndexCV(intT2),intT2) = nan;
-						end
-						[vecTempProbs2,vecTempDecodedIndexCV2]=max(matDist2,[],1);
-						
-						%use trial with largest difference between most likely and 2nd most likely stimulus
-						vecMaxDiff = abs(vecTempProbs2 - vecTempProbs);
-						%assign trial
-						[dummy,intAssignTrial]=max(vecMaxDiff);
-						intAssignType = vecTempDecodedIndexCV(intAssignTrial);
-						if vecPriorCopy(intAssignType) == 0
-							intAssignType = vecTempDecodedIndexCV2(intAssignTrial);
-						end
-						vecDecodedIndexCV(intAssignTrial) = intAssignType;
-						indAssignedTrials(intAssignTrial) = true;
-						vecPriorCopy(intAssignType) = vecPriorCopy(intAssignType) - 1;
-						%fprintf('assigned %d to %d; %s\n',intAssignType,intAssignTrial,sprintf('%d ',vecPriorCopy))
-						%pause
-					end
+					vecDecodedIndexCV = doDecClassify(matCrossPosterior,vecPriorCopy);
 				end
 				dblPerformanceX=sum(vecDecodedIndexCV(:) == vecTrialTypeIdx(:))/length(vecDecodedIndexCV);
 				matAcrossTimeDecoder(intBinIdx,intTestBinIdx) = dblPerformanceX;
@@ -480,7 +464,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			'matAcrossTimeDecoder',...
 			'vecSpikesPerBin',...
 			'dblBinWidth',...
-			'vecDecPerf',...
+			'vecDecConf',...
+			'vecDecCorr',...
 			'vecStimTime');
 	end
 	close all;

@@ -27,8 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
-if boolHome
+if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
@@ -41,6 +40,9 @@ else
 end
 
 %% define parameters
+%single rec plots
+boolSingleRecPlots = false;
+
 %ISI distro
 dblBinSizeISI = 1/1000;
 vecBinEdgesISI = 0:dblBinSizeISI:0.05;
@@ -71,8 +73,8 @@ intRecNum = numel(sFiles);
 matISINormCounts = nan(numel(vecBinCentersISI),intRecNum);
 matISIExpPdf = nan(numel(vecBinCentersISI),intRecNum);
 matISICounts = nan(numel(vecBinCentersISI),intRecNum);
-matISICorrs = nan(numel(vecBinD_c),3,intRecNum);
-matISICorrCounts = nan(numel(vecBinD_c),3,intRecNum);
+matISICorrs = nan(numel(vecBinD_c),4,intRecNum);
+matISICorrCounts = nan(numel(vecBinD_c),4,intRecNum);
 matRatioQ = nan(intNumQ,intRecNum);
 matRealQ = nan(intNumQ,intRecNum);
 matExpQ = nan(intNumQ,intRecNum);
@@ -81,12 +83,17 @@ cellAllMperTrial = cell(1,intRecNum);
 cellAllSperTrial = cell(1,intRecNum);
 cellAllMperTrial_S = cell(1,intRecNum);
 cellAllSperTrial_S = cell(1,intRecNum);
+cellAllMperTrial_TS = cell(1,intRecNum);
+cellAllSperTrial_TS = cell(1,intRecNum);
 matCountsCV = nan(numel(vecActBinsC),intRecNum);
 matMeansSd = nan(numel(vecActBinsC),intRecNum);
 matMeansCV = nan(numel(vecActBinsC),intRecNum);
 matCountsCV_S = nan(numel(vecActBinsC),intRecNum);
 matMeansSd_S = nan(numel(vecActBinsC),intRecNum);
 matMeansCV_S = nan(numel(vecActBinsC),intRecNum);
+matCountsCV_TS = nan(numel(vecActBinsC),intRecNum);
+matMeansSd_TS = nan(numel(vecActBinsC),intRecNum);
+matMeansCV_TS = nan(numel(vecActBinsC),intRecNum);
 for intFile=1:intRecNum
 	%% load
 	load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
@@ -96,6 +103,7 @@ for intFile=1:intRecNum
 	%% create derived variables
 	%get data
 	vecAllISI = cell2vec(cellISI_perTrial);
+	vecAllISI_TS = cell2vec(cellISI_perTrial_TS);
 	cellIFR_Reduced = cellfun(@(x) x(2:(end-2)),cellIFR_perTrial,'UniformOutput',false);
 	vecAllIFR = cell2vec(cellIFR_Reduced);
 	dblMaxDur = 1-dblStartT;
@@ -129,25 +137,11 @@ for intFile=1:intRecNum
 	vecMperTrial_SS
 	%}
 	
-	%% single plot 1
-	figure;maxfig;
-	subplot(2,3,1)
+	%% run calculations
 	dblLambda = 1./mean(vecAllISI);
 	vecExpPdf = dblLambda.*exp(-dblLambda.*vecBinCentersISI);
 	vecCountsISI = histcounts(vecAllISI,vecBinEdgesISI);
-	hold on
-	plot(vecBinCentersISI*1000,vecCountsISI./sum(vecCountsISI(:)))
-	plot(vecBinCentersISI*1000,vecExpPdf./sum(vecExpPdf(:)))
-	hold off
-	set(gca,'yscale','log');
-	xlabel('Inter-spike interval (ms)');
-	ylabel('Normalized count (n)');
-	legend({'Observed','Theory (Exponential)'});
-	title('Population spiking dynamics');
-	fixfig;
-	
-	
-	subplot(2,3,2)
+	vecCountsISI_TS = histcounts(vecAllISI_TS,vecBinEdgesISI);
 	
 	%real
 	vecD1 = 1000*vecAllISI(1:(end-1));
@@ -162,28 +156,18 @@ for intFile=1:intRecNum
 	[r,p]=corr(vecD1,vecD2);
 	[vecCounts_R,vecMeans_R,vecSDs_R,cellVals_R,cellIDs_R] = makeBins(vecD1_R,vecD2_R,vecBinD);
 	
-	%shuffled
+	%trial-shuffled
+	vecD1_TS = 1000*vecAllISI_TS(1:(end-1));
+	vecD2_TS = 1000*vecAllISI_TS(2:end);
+	[rTS,pTS]=corr(vecD1_TS,vecD2_TS);
+	[vecCounts_TS,vecMeans_TS,vecSDs_TS,cellVals_TS,cellIDs_TS] = makeBins(vecD1_TS,vecD2_TS,vecBinD);
+	
+	%ISI-shuffled
 	vecAllISI_S = vecAllISI(randperm(numel(vecAllISI)));
 	vecD1_S = 1000*vecAllISI_S(1:(end-1));
 	vecD2_S = 1000*vecAllISI_S(2:end);
 	[rS,pS]=corr(vecD1,vecD2);
 	[vecCounts_S,vecMeans_S,vecSDs_S,cellVals_S,cellIDs_S] = makeBins(vecD1_S,vecD2_S,vecBinD);
-	
-	%plot
-	errorbar(vecBinD_c,vecMeans_D,vecSDs_D./sqrt(vecCounts_D));
-	hold on
-	errorbar(vecBinD_c,vecMeans_R-0.02,vecSDs_R./sqrt(vecCounts_R));
-	errorbar(vecBinD_c,vecMeans_S+0.02,vecSDs_S./sqrt(vecCounts_S));
-	
-	xlabel('ISI spikes i,i+1 (ms)');
-	ylabel('ISI spikes i+1,i+2 (ms)');
-	title(sprintf('ISI temporal correlation, r=%.3f, p=%.3f',r,p));
-	fixfig;
-	
-	legend({'Observed','Theory (Exponential)','Shuffled'},'location','best');
-	
-	% single plot 2
-	%plot distribution of firing rates vs shuffled
 	
 	intTrials = numel(cellISI_perTrial);
 	matISIQ_Real = nan(intNumQ,intTrials);
@@ -224,6 +208,59 @@ for intFile=1:intRecNum
 	vecMeanQ_Real = nanmean(matISIQ_Real,2);
 	vecMeanQ_Exp = nanmean(matISIQ_Exp,2);
 	
+	%make bins
+	[vecCountsSd,vecMeansSd,vecSDsSd] = makeBins(vecMperTrial(:)',vecSperTrial(:)',vecActBins);
+	indPlotBins = vecCountsSd>10;
+	
+	[vecCountsSd_S,vecMeansSd_S,vecSDsSd_S] = makeBins(vecMperTrial_S,vecSperTrial_S,vecActBins);
+	indPlotBins_S = vecCountsSd_S>10;
+	
+	[vecCountsSd_TS,vecMeansSd_TS,vecSDsSd_TS] = makeBins(vecMperTrial_TS,vecSperTrial_TS,vecActBins);
+	indPlotBins_TS = vecCountsSd_TS>10;
+	
+	%CVs
+	vecCVperTrial = vecSperTrial./vecMperTrial;
+	[vecCountsCV,vecMeansCV,vecSDsCV] = makeBins(vecMperTrial,vecCVperTrial,vecActBins);
+	vecCVperTrial_S = vecSperTrial_S./vecMperTrial_S;
+	[vecCountsCV_S,vecMeansCV_S,vecSDsCV_S] = makeBins(vecMperTrial_S,vecCVperTrial_S,vecActBins);
+	vecCVperTrial_TS = vecSperTrial_TS./vecMperTrial_TS;
+	[vecCountsCV_TS,vecMeansCV_TS,vecSDsCV_TS] = makeBins(vecMperTrial_TS,vecCVperTrial_TS,vecActBins);
+	
+	%% single plot 1
+	if boolSingleRecPlots
+	figure;maxfig;
+	subplot(2,3,1)
+	hold on
+	plot(vecBinCentersISI*1000,vecCountsISI./sum(vecCountsISI(:)))
+	plot(vecBinCentersISI*1000,vecExpPdf./sum(vecExpPdf(:)))
+	plot(vecBinCentersISI*1000,vecCountsISI_TS./sum(vecCountsISI_TS(:)))
+	hold off
+	set(gca,'yscale','log');
+	xlabel('Inter-spike interval (ms)');
+	ylabel('Normalized count (n)');
+	legend({'Observed','Theory (Exponential)','Trial-shuffled'});
+	title('Population spiking dynamics');
+	fixfig;
+	
+	
+	subplot(2,3,2)
+	%plot
+	errorbar(vecBinD_c,vecMeans_D,vecSDs_D./sqrt(vecCounts_D));
+	hold on
+	errorbar(vecBinD_c,vecMeans_R-0.02,vecSDs_R./sqrt(vecCounts_R));
+	errorbar(vecBinD_c,vecMeans_TS+0.02,vecSDs_TS./sqrt(vecCounts_TS));
+	errorbar(vecBinD_c,vecMeans_S+0.02,vecSDs_S./sqrt(vecCounts_S));
+	
+	xlabel('ISI spikes i,i+1 (ms)');
+	ylabel('ISI spikes i+1,i+2 (ms)');
+	title(sprintf('ISI temporal correlation, r=%.3f, p=%.3f',r,p));
+	fixfig;
+	
+	legend({'Observed','Theory (Exponential)','T-Shuffled','ISI-Shuffled'},'location','best');
+	
+	% single plot 2
+	%plot distribution of firing rates vs shuffled
+	
 	subplot(2,3,3)
 	plot(vecQuantiles,vecMeanQ_Real./vecMeanQ_Exp);
 	hold on
@@ -248,11 +285,6 @@ for intFile=1:intRecNum
 	
 	%mean and sd over time (IFR)
 	subplot(2,3,5)
-	[vecCountsSd,vecMeansSd,vecSDsSd] = makeBins(vecMperTrial(:)',vecSperTrial(:)',vecActBins);
-	indPlotBins = vecCountsSd>10;
-	
-	[vecCountsSd_S,vecMeansSd_S,vecSDsSd_S] = makeBins(vecMperTrial_S,vecSperTrial_S,vecActBins);
-	indPlotBins_S = vecCountsSd_S>10;
 	
 	hold on
 	scatter(vecMperTrial_S,vecSperTrial_S(:),[],[0.5 0.5 0.5],'.');
@@ -265,10 +297,6 @@ for intFile=1:intRecNum
 	
 	
 	subplot(2,3,6)
-	vecCVperTrial = vecSperTrial./vecMperTrial;
-	[vecCountsCV,vecMeansCV,vecSDsCV] = makeBins(vecMperTrial,vecCVperTrial,vecActBins);
-	vecCVperTrial_S = vecSperTrial./vecMperTrial;
-	[vecCountsCV_S,vecMeansCV_S,vecSDsCV_S] = makeBins(vecMperTrial_S,vecCVperTrial_S,vecActBins);
 	hold on
 	scatter(vecMperTrial_S,vecCVperTrial_S(:),[],[0.5 0.5 0.5],'.');
 	errorbar(vecActBinsC(indPlotBins_S),vecMeansCV_S(indPlotBins_S),vecSDsCV_S(indPlotBins_S)./sqrt(vecCountsCV_S(indPlotBins_S)),'color',[0.5 0.5 0.5])
@@ -353,7 +381,7 @@ for intFile=1:intRecNum
 	% 	ylabel('Real ISIs (s)');
 	% 	fixfig;
 	% 	%%}
-	
+	end
 	%% save data
 	vecLogExpPdf = log10(vecExpPdf./sum(vecExpPdf(:)));
 	vecLogCounts = log10(vecCountsISI./sum(vecCountsISI(:)));
@@ -368,8 +396,8 @@ for intFile=1:intRecNum
 	matISINormCounts(:,intFile) = vecNormCounts;
 	matISIExpPdf(:,intFile) = vecExpPdf;
 	matISICounts(:,intFile) = vecCountsISI;
-	matISICorrs(:,:,intFile) = cat(2,vecMeans_D,vecMeans_R,vecMeans_S);
-	matISICorrCounts(:,:,intFile) = cat(2,vecCounts_D,vecCounts_R,vecCounts_S);
+	matISICorrs(:,:,intFile) = cat(2,vecMeans_D,vecMeans_R,vecMeans_TS,vecMeans_S);
+	matISICorrCounts(:,:,intFile) = cat(2,vecCounts_D,vecCounts_R,vecCounts_TS,vecCounts_S);
 	matRatioQ(:,intFile) = vecMeanQ_Real./vecMeanQ_Exp;
 	matRealQ(:,intFile) = vecMeanQ_Real;
 	matExpQ(:,intFile) = vecMeanQ_Exp;
@@ -383,10 +411,16 @@ for intFile=1:intRecNum
 	matMeansSd_S(:,intFile) = vecMeansSd_S;
 	matMeansCV_S(:,intFile) = vecMeansCV_S;
 	
+	matCountsCV_TS(:,intFile) = vecCountsSd_TS;
+	matMeansSd_TS(:,intFile) = vecMeansSd_TS;
+	matMeansCV_TS(:,intFile) = vecMeansCV_TS;
+	
 	cellAllMperTrial{intFile} = vecMperTrial;
 	cellAllSperTrial{intFile} = vecSperTrial;
 	cellAllMperTrial_S{intFile} = vecMperTrial_S;
 	cellAllSperTrial_S{intFile} = vecSperTrial_S;
+	cellAllMperTrial_TS{intFile} = vecMperTrial_TS;
+	cellAllSperTrial_TS{intFile} = vecSperTrial_TS;
 end
 
 %% plot mean over recordings
@@ -404,7 +438,7 @@ subplot(2,3,1)
 matMeanISIcorrs = mean(matISICorrs,3);
 matSdISIcorrs = std(matISICorrs,[],3);
 hold on
-for intVar=1:3
+for intVar=1:4
 	errorbar(vecBinD_c,matMeanISIcorrs(:,intVar),matSdISIcorrs(:,intVar)./sqrt(intRecNum));
 end
 hold off
@@ -413,7 +447,7 @@ ylabel('ISI spikes i+1,i+2 (ms)');
 title(sprintf('Mean +/- SEM over recs'));
 fixfig;
 
-legend({'Observed','Theory (Exponential)','Shuffled'},'location','best');
+legend({'Observed','Theory (Exponential)','Trial-ID-shuffled','Neuron-wise ISI-shuffle'},'location','best');
 
 fixfig;
 
@@ -481,20 +515,24 @@ end
 
 
 %% mean and sd scale together: CV is constant
-error do analysis where you shuffle trials independently for each neuron to test if blue curve is population effect
-
+%error do analysis where you shuffle trials independently for each neuron to test if blue curve is population effect
+error calculate fit on binned points
+intK = 1;
 subplot(2,3,4);cla;
 %theory
-vecMperTrial_G = matMperTrial_G(:);
-vecSperTrial_G = matSperTrial_G(:);
-vecBeta_G = polyfit(vecMperTrial_G,vecSperTrial_G,1);
-dblSlope_G = ((vecMperTrial_G' * vecMperTrial_G) \ vecMperTrial_G') * vecSperTrial_G;
-vecCVperTrial_G = vecSperTrial_G./vecMperTrial_G;
-[vecCountsCV_G,vecMeansCV_G,vecSDsCV_G] = makeBins(vecMperTrial_G,vecCVperTrial_G,vecActBins);
-[vecCountsSd_G,vecMeansSd_G,vecSDsSd_G] = makeBins(vecMperTrial_G,vecSperTrial_G,vecActBins);
+vecX_G = matMperTrial_G(:);
+vecY_G = matSperTrial_G(:);
+vecBeta_G = polyfit(vecX_G,vecY_G,1);
+dblSlope_G = ((vecX_G' * vecX_G) \ vecX_G') * vecY_G;
+vecCVperTrial_G = vecY_G./vecX_G;
+[vecCountsCV_G,vecMeansCV_G,vecSDsCV_G] = makeBins(vecX_G,vecCVperTrial_G,vecActBins);
+[vecCountsSd_G,vecMeansSd_G,vecSDsSd_G] = makeBins(vecX_G,vecY_G,vecActBins);
 indPlotBins_G = vecCountsSd_G>10;
 
-%shuffled
+vecFitY_G = vecX_G*dblSlope_G;
+[dblR2_G,dblSS_tot,dblSS_res,dblT,dblP_G,dblR2_adjusted_G,dblR2_GE_G] = getR2(vecY_G,vecFitY_G,intK);
+
+%neuron-wise ISI-shuffled
 matMeansSdRem_S = matMeansSd_S;
 matMeansSdRem_S(matCountsCV_S<10)=nan;
 matMeansCVRem_S = matMeansCV_S;
@@ -502,8 +540,21 @@ matMeansCVRem_S(matCountsCV_S<10)=nan;
 vecX_S = cell2vec(cellAllMperTrial_S);
 vecY_S = cell2vec(cellAllSperTrial_S);
 dblSlope_S = ((vecX_S' * vecX_S) \ vecX_S') * vecY_S;
+vecFitY_S = vecX_S*dblSlope_S;
+[dblR2_S,dblSS_tot,dblSS_res,dblT,dblP_S,dblR2_adjusted_S,dblR2_SE_S] = getR2(vecY_S,vecFitY_S,intK);
 
-matC = lines(3);
+%trial-shuffled
+matMeansSdRem_TS = matMeansSd_TS;
+matMeansSdRem_TS(matCountsCV_TS<10)=nan;
+matMeansCVRem_TS = matMeansCV_TS;
+matMeansCVRem_TS(matCountsCV_TS<10)=nan;
+vecX_TS = cell2vec(cellAllMperTrial_TS);
+vecY_TS = cell2vec(cellAllSperTrial_TS);
+dblSlope_TS = ((vecX_TS' * vecX_TS) \ vecX_TS') * vecY_TS;
+vecFitY_TS = vecX_TS*dblSlope_TS;
+[dblR2_TS,dblSS_tot,dblSS_res,dblT,dblP_TS,dblR2_adjusted_TS,dblR2_SE_TS] = getR2(vecY_TS,vecFitY_TS,intK);
+
+matC = lines(4);
 %real
 matMeansSdRem = matMeansSd;
 matMeansSdRem(matCountsCV<10)=nan;
@@ -512,23 +563,26 @@ matMeansCVRem(matCountsCV<10)=nan;
 vecX = cell2vec(cellAllMperTrial);
 vecY = cell2vec(cellAllSperTrial);
 dblSlope = ((vecX' * vecX) \ vecX') * vecY;
-
+vecFitY = vecX*dblSlope;
+[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
 
 hold on
 %plot(vecActBinsC,dblSlope*vecActBinsC,'--','color',matC(1,:));
 %plot(vecActBinsC,dblSlope_S*vecActBinsC,'--','color',matC(3,:));
 %plot(vecActBinsC,dblSlope_G*vecActBinsC,'--','color',matC(2,:));
 errorbar(vecActBinsC,nanmean(matMeansSdRem,2),nanstd(matMeansSdRem,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(1,:));
-errorbar(vecActBinsC,nanmean(matMeansSdRem_S,2),nanstd(matMeansSdRem_S,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(3,:));
 errorbar(vecActBinsC,nanmean(vecMeansSd_G,2),nanstd(vecSDsSd_G,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(2,:));
+errorbar(vecActBinsC,nanmean(matMeansSdRem_TS,2),nanstd(matMeansSdRem_TS,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(3,:));
+errorbar(vecActBinsC,nanmean(matMeansSdRem_S,2),nanstd(matMeansSdRem_S,[],2)./sqrt(intRecNum),'linestyle','none','color',matC(4,:));
 hold off
-legend({'Neural data','Shuffled','Theory (Exponential Process)'},'location','best')
+legend({'Neural data','Theory (Exponential Process)','Trial-ID-shuffle','Neuron-wise ISI-shuffle'},'location','best')
 xlabel('Mean of spiking rate (Hz)');
 ylabel('Sd of spiking rate (Hz)');
 title(sprintf('Constant coefficient of variation (CV) = %.3f',dblSlope));
 fixfig;
 
 h=subplot(2,3,5);delete(h);subplot(2,3,5);
+error plot linearness of fit (R^2?)
 vecDeviationM = (nanmean(matMeansCVRem,2) ./ dblSlope)-1;
 vecDeviationSEM = nanstd(matMeansCVRem,[],2) ./ dblSlope;
 vecDeviationM_S = (nanmean(matMeansCVRem_S,2) ./ dblSlope_S)-1;
@@ -549,7 +603,7 @@ title(sprintf('How best to plot this?'));
 fixfig;
 
 %% plot mean vs euclidian
-
+error to do
 
 drawnow;
 export_fig(fullpath(strFigurePath,sprintf('Q2_ConstantCV.tif')));

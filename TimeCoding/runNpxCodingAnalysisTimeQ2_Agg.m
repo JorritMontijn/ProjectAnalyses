@@ -27,8 +27,7 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
-if boolHome
+if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
@@ -93,9 +92,13 @@ for intRec=1:numel(sAggStim)
 		dblPostTime = 0;%0.3;
 		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
 		
+		%build trial-shuffle matrix
+		matShuffleIdx = cell2mat(arrayfun(@(x) randperm(intTrialNum),(1:intNumN)','UniformOutput',false));
+		
 		%get spikes per trial per neuron
 		cellSpikeTimesStitched = cell(intNumN,intTrialNum);
 		cellSpikeTimesPerCellPerTrial = cell(intNumN,intTrialNum);
+		cellSpikeTimesPerCellPerTrial_TS = cell(intNumN,intTrialNum); %shuffle trials independently for each neuron to test if blue curve is population effect
 		cellSpikeTimesPerCellPerTrial_S = cell(intNumN,intTrialNum); %single-neuron ISIs, shuffled per trial
 		cellSpikeTimesPerCellPerTrial_SN = cell(intNumN,intTrialNum); %shuffled ISIs per neuron over all trials
 		cellSpikeTimesPerCellPerTrial_SS = cell(intNumN,intTrialNum); %shuffled ISIs per neuron over all trials,single-neuron ISIs, shuffled per trial
@@ -123,6 +126,11 @@ for intRec=1:numel(sAggStim)
 				cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
 				cellSpikeTimesPerCellPerTrial_S{intN,intTrial} = vecGenSpikesS;
 				
+				%trial-shuffle
+				intAssignTrial = matShuffleIdx(intN,intTrial);
+				cellSpikeTimesPerCellPerTrial_TS{intN,intAssignTrial} = vecSpikeT;
+				
+				
 				%overall shuffle
 				vecSpikeT_S = sort(vecTimePerSpikeS(vecTrialPerSpikeS==intTrial));
 				vecISI_S = diff(vecSpikeT_S);
@@ -142,6 +150,11 @@ for intRec=1:numel(sAggStim)
 		cellIFR_perTrial = cell(intTrialNum,1);
 		cellTimeIFR_perTrial = cell(intTrialNum,1);
 		cellISI_perTrial = cell(intTrialNum,1);
+		
+		cellIFR_perTrial_TS = cell(intTrialNum,1);
+		cellTimeIFR_perTrial_TS = cell(intTrialNum,1);
+		cellISI_perTrial_TS = cell(intTrialNum,1);
+			
 		cellIFR_perTrial_S = cell(intTrialNum,1);
 		cellTimeIFR_perTrial_S = cell(intTrialNum,1);
 		cellIFR_perTrial_SN = cell(intTrialNum,1);
@@ -158,6 +171,17 @@ for intRec=1:numel(sAggStim)
 			cellIFR_perTrial{intTrial} = vecIFR;
 			cellTimeIFR_perTrial{intTrial} = vecTimeIFR;
 			cellISI_perTrial{intTrial} = diff(vecAllSpikes);
+			
+			%trial-shuffle
+			vecAllSpikes = sort(cell2vec(cellSpikeTimesPerCellPerTrial_TS(:,intTrial)));
+			vecISI0 = [vecAllSpikes(2:end) - vecAllSpikes(1:(end-1)); inf];
+			vecAllSpikes(vecISI0==0)=vecAllSpikes(vecISI0==0)-(10^-5)*rand();
+			vecAllSpikes = uniquetol(vecAllSpikes,1e-7);
+			[vecTimeIFR,vecIFR] = getIFR(vecAllSpikes,0,dblMaxDur,[],[],[],0);
+			cellIFR_perTrial_TS{intTrial} = vecIFR;
+			cellTimeIFR_perTrial_TS{intTrial} = vecTimeIFR;
+			cellISI_perTrial_TS{intTrial} = diff(vecAllSpikes);
+			
 			
 			%shuffled single-trial, single-neuron ISIs
 			vecAllSpikesShuff = sort(cell2vec(cellSpikeTimesPerCellPerTrial_S(:,intTrial)));
@@ -194,6 +218,12 @@ for intRec=1:numel(sAggStim)
 		vecLperTrial = zeros(intTrialNum,1);
 		vecMperTrial = zeros(intTrialNum,1);
 			
+		%shuffle trials independently for each neuron to test if blue curve is population effect
+		vecSperTrial_TS = zeros(intTrialNum,1);
+		vecHperTrial_TS = zeros(intTrialNum,1);
+		vecLperTrial_TS = zeros(intTrialNum,1);
+		vecMperTrial_TS = zeros(intTrialNum,1);
+		
 		%shuffling ISIs within one trial for each neuron: spike count is identical at trial level
 		vecSperTrial_S = zeros(intTrialNum,1);
 		vecHperTrial_S = zeros(intTrialNum,1);
@@ -245,8 +275,19 @@ for intRec=1:numel(sAggStim)
 			%vecISI = vecISI1(1:(end-1));%min([vecISI1 vecISI2],[],2);
 			vecNSI = min([vecISI1 vecISI2],[],2); %nearest spike interval
 			
+			%trial-shuffled ISIs
+			vecIFRTS = cellIFR_perTrial_TS{intTrial};
+			vecTimeIFRTS = cellTimeIFR_perTrial_TS{intTrial};
+			vecR_sorted = sort(vecIFRTS);
+			intHighQ = round(numel(vecR_sorted)/intQuantiles);
+			vecHperTrial_TS(intTrial) = mean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
+			vecLperTrial_TS(intTrial) = mean(vecR_sorted((1+0*intHighQ):(1*intHighQ)));
+			vecMperTrial_TS(intTrial) = mean(vecR_sorted);
+			vecSperTrial_TS(intTrial) = std(vecR_sorted);
+			
 			%shuffled single-neuron ISIs
 			vecIFRS = cellIFR_perTrial_S{intTrial};
+			vecTimeIFRS = cellTimeIFR_perTrial_S{intTrial};
 			vecR_sorted = sort(vecIFRS);
 			intHighQ = round(numel(vecR_sorted)/intQuantiles);
 			vecHperTrial_S(intTrial) = mean(vecR_sorted((1+end-1*intHighQ):(end-0*intHighQ)));
@@ -295,6 +336,11 @@ for intRec=1:numel(sAggStim)
 				figure;maxfig;
 				subplot(2,3,1)
 				plot(vecTimeIFR+dblStartT,vecIFR)
+				hold on
+				plot(vecTimeIFRS+dblStartT,vecIFRS)
+				plot(vecTimeIFRTS+dblStartT,vecIFRTS)
+				hold off
+				legend({'Real','ISI-shuff','Trial-shuff'});
 				xlabel('Time after onset (s)');
 				ylabel('Instant. firing rate (Hz)');
 				title(sprintf('Population spiking rate, trial %d',intTrial));
@@ -441,7 +487,7 @@ for intRec=1:numel(sAggStim)
 		[rMH,pMH]=corr(vecMperTrial,vecHperTrial(:));
 		[rHL,pHL]=corr(vecLperTrial(:),vecHperTrial(:));
 		
-		subplot(2,3,1)
+		subplot(3,3,1)
 		[vecCounts,vecMeansL,vecSDsL] = makeBins(vecMperTrial,vecLperTrial,vecActBins);
 		[vecCounts,vecMeansH,vecSDsH] = makeBins(vecMperTrial,vecHperTrial,vecActBins);
 		[vecCounts_S,vecMeansL_S,vecSDsL_S] = makeBins(vecMperTrial_S,vecLperTrial_S,vecActBins);
@@ -459,14 +505,13 @@ for intRec=1:numel(sAggStim)
 		hold off
 		fixfig;
 		xlabel('Mean firing rate during trial (Hz)');
-		ylabel('Firing rate during upper/lower 5% (Hz)');
-		legend({'Shuffled neuron ISIs','Lowest 5%','Highest 5%'},'location','best');
-		title('Real rate fluctuations vs neuron-ISI shuffled')
+		ylabel('FR in upper/lower 5% (Hz)');
+		title('Real rate fluctuations vs within-trial-ISI shuffled')
 		fixfig;
 		
-		subplot(2,3,2)
+		subplot(3,3,2)
 		dblStep = 0.05;
-		vecBinE = -0.5:dblStep:1.5;
+		vecBinE = -1:dblStep:1.5;
 		vecBinC = vecBinE(2:end)-dblStep/2;
 		vecCountsLow = histcounts((vecLperTrial-vecLperTrial_S)./vecLperTrial_S,vecBinE);
 		vecCountsHigh = histcounts((vecHperTrial-vecHperTrial_S)./vecHperTrial_S,vecBinE);
@@ -474,7 +519,7 @@ for intRec=1:numel(sAggStim)
 		hold on
 		plot(vecBinC*100,vecCountsHigh,'color',[1 0 0]);
 		hold off
-		xlabel('% change in firing rate over shuffled pop ISIs');
+		xlabel('% change in FR over within-trial-ISI shuffled');
 		legend({'Lowest 5%','Highest 5%'});
 		ylabel('Number of trials (count)');
 		vecL = (vecLperTrial-vecLperTrial_S)./vecLperTrial_S;
@@ -485,7 +530,7 @@ for intRec=1:numel(sAggStim)
 		fixfig;
 		
 		vecHperTrial;
-		subplot(2,3,3)
+		subplot(3,3,3)
 		r1=corr(vecLperTrial(:),vecPopSparseness(:));
 		r2=corr(vecMperTrial(:),vecPopSparseness(:));
 		[rSpH,pSpH]=corr(vecMperTrial(:),vecPopSparseness(:));
@@ -504,7 +549,7 @@ for intRec=1:numel(sAggStim)
 		plot(vecActBinsHC(indPlotBins2),ypred,'color',lines(1));
 		plot(vecActBinsHC(indPlotBins2),yci(:,2),'--','color',lines(1));
 		hold off;
-		ylabel('Population sparseness per trial');
+		ylabel('Pop. sparseness per trial');
 		xlabel('Mean pop. firing rate per trial (Hz) ');
 		title(sprintf('Corr(sparse, max rate); r=%.3f, p=%.1e',rSpH,pSpH));
 		fixfig;
@@ -525,34 +570,98 @@ for intRec=1:numel(sAggStim)
 		[vecHsorted,vecReorder]=sort(vecHperTrial);
 		
 		
-		%subplot(2,3,4);
-		%cellSpikeTimesPerCellPerTrial_Shuffled{intN,intTrial} = vecTimePerSpikeS(vecTrialPerSpikeS==intTrial)-dblPreTime;
-		%scatter(vecHsorted,mean(matResp(:,vecReorder)));
+		% trial-shuffled
+		matRespTS = cellfun(@numel,cellSpikeTimesPerCellPerTrial_TS);
+		intNeuronsTS = size(matRespTS,1);
+		vecPopSparsenessTS = 1-mean(matRespTS,1).^2 ./ sum((matRespTS.^2)./intNeuronsTS,1);
 		
-		%subplot(2,3,5);
-		%scatter(vecHsorted,sum(matResp(:,vecReorder)>0));
+		vecShuffCol1 = [0.5 0.5 0.5];
+		vecShuffCol2 = [0.3 0.3 0.3];
+		subplot(3,3,4)
+		[vecCounts,vecMeansL,vecSDsL] = makeBins(vecMperTrial,vecLperTrial,vecActBins);
+		[vecCounts,vecMeansH,vecSDsH] = makeBins(vecMperTrial,vecHperTrial,vecActBins);
+		[vecCounts_TS,vecMeansL_TS,vecSDsL_TS] = makeBins(vecMperTrial_TS,vecLperTrial_TS,vecActBins);
+		[vecCounts_TS,vecMeansH_TS,vecSDsH_TS] = makeBins(vecMperTrial_TS,vecHperTrial_TS,vecActBins);hold on
 		
-		%subplot(2,3,6);
-		%scatter(vecHsorted,vecMeanOfActiveCells(vecReorder),'.')
+		scatter(cat(1,vecMperTrial_TS,vecMperTrial_TS),cat(1,vecLperTrial_TS(:),vecHperTrial_TS(:)),[],vecShuffCol1,'.');
+		scatter(vecMperTrial,vecLperTrial(:),[],[0.5 0.5 1],'.');
+		scatter(vecMperTrial,vecHperTrial(:),[],[1 0.5 0.5],'.');
 		
-		%% cell-shuffled
+		errorbar(vecActBinsC(indPlotBins),vecMeansL_TS(indPlotBins),vecSDsL_TS(indPlotBins)./sqrt(vecCounts_TS(indPlotBins)),'color',vecShuffCol2)
+		errorbar(vecActBinsC(indPlotBins),vecMeansH_TS(indPlotBins),vecSDsH_TS(indPlotBins)./sqrt(vecCounts_TS(indPlotBins)),'color',vecShuffCol2)
+		errorbar(vecActBinsC(indPlotBins),vecMeansL(indPlotBins),vecSDsL(indPlotBins)./sqrt(vecCounts(indPlotBins)),'color',[0 0 1])
+		errorbar(vecActBinsC(indPlotBins),vecMeansH(indPlotBins),vecSDsH(indPlotBins)./sqrt(vecCounts(indPlotBins)),'color',[1 0 0])
+		
+		hold off
+		fixfig;
+		xlabel('Mean firing rate during trial (Hz)');
+		ylabel('FR in upper/lower 5% (Hz)');
+		title('Real rate fluctuations vs trial-ID-shuffled')
+		fixfig;
+		
+		subplot(3,3,5)
+		dblStep = 0.05;
+		vecBinE = -1:dblStep:1.5;
+		vecBinC = vecBinE(2:end)-dblStep/2;
+		vecCountsLow = histcounts((vecLperTrial-vecLperTrial_TS)./vecLperTrial_TS,vecBinE);
+		vecCountsHigh = histcounts((vecHperTrial-vecHperTrial_TS)./vecHperTrial_TS,vecBinE);
+		plot(vecBinC*100,vecCountsLow,'color',[0 0 1]);
+		hold on
+		plot(vecBinC*100,vecCountsHigh,'color',[1 0 0]);
+		hold off
+		xlabel('% change in FR over trial-ID-shuffled');
+		legend({'Lowest 5%','Highest 5%'});
+		ylabel('Number of trials (count)');
+		vecL = (vecLperTrial-vecLperTrial_TS)./vecLperTrial_TS;
+		vecH = (vecHperTrial-vecHperTrial_TS)./vecHperTrial_TS;
+		[h,pL]=ttest(vecL);
+		[h,pH]=ttest(vecH);
+		title(sprintf('Low, mean=%.1f%%, p=%.1e; high, mean=+%.1f%%, p=%.1e',mean(vecL)*100,pL,mean(vecH)*100,pH));
+		fixfig;
+		
+		vecHperTrial;
+		subplot(3,3,6)
+		r1=corr(vecLperTrial_TS(:),vecPopSparsenessTS(:));
+		r2=corr(vecMperTrial_TS(:),vecPopSparsenessTS(:));
+		[rSpH,pSpH]=corr(vecMperTrial_TS(:),vecPopSparsenessTS(:));
+		vecActBinsH = 0:dblActBinW:1700;
+		vecActBinsHC = vecActBinsH(2:end)-dblActBinW/2;
+		[vecCounts2,vecMeans2,vecSDs2] = makeBins(vecMperTrial_TS,vecPopSparsenessTS,vecActBinsH);
+		indPlotBins2 = vecCounts2>10;
+		mdl = fitlm(vecMperTrial_TS,vecPopSparsenessTS);
+		ci = coefCI(mdl);
+		[ypred,yci] = predict(mdl,vecActBinsHC(indPlotBins2)');
+		
+		hold on;
+		scatter(vecMperTrial_TS,vecPopSparsenessTS,[],1-(1-lines(1))*(2/3),'.');
+		%errorbar(vecActBinsHC(indPlotBins2),vecMeans2(indPlotBins2),vecSDs2(indPlotBins2)./sqrt(vecCounts2(indPlotBins2)),'color',lines(1));
+		plot(vecActBinsHC(indPlotBins2),yci(:,1),'--','color',lines(1));
+		plot(vecActBinsHC(indPlotBins2),ypred,'color',lines(1));
+		plot(vecActBinsHC(indPlotBins2),yci(:,2),'--','color',lines(1));
+		hold off;
+		ylabel('Pop. sparseness per trial');
+		xlabel('Mean pop. firing rate per trial (Hz) ');
+		title(sprintf('Corr(sparse, max rate); r=%.3f, p=%.1e',rSpH,pSpH));
+		fixfig;
+		
+		% overall-shuffled
 		matRespS = cellfun(@numel,cellSpikeTimesPerCellPerTrial_S);
 		intNeuronsS = size(matRespS,1);
 		vecPopSparsenessS = 1-mean(matRespS,1).^2 ./ sum((matRespS.^2)./intNeuronsS,1);
 		
-		[rML,pML]=corr(vecMperTrial_SN(:),vecLperTrial_SN(:));
-		[rMH,pMH]=corr(vecMperTrial_SN,vecHperTrial_SN(:));
-		[rHL,pHL]=corr(vecLperTrial_SN(:),vecHperTrial_SN(:));
+		[rML,pML]=corr(vecMperTrial_TS(:),vecLperTrial_TS(:));
+		[rMH,pMH]=corr(vecMperTrial_TS,vecHperTrial_TS(:));
+		[rHL,pHL]=corr(vecLperTrial_TS(:),vecHperTrial_TS(:));
 		
-		subplot(2,3,4)
-		[vecCounts,vecMeansL,vecSDsL] = makeBins(vecMperTrial_SN,vecLperTrial_SN,vecActBins);
-		[vecCounts,vecMeansH,vecSDsH] = makeBins(vecMperTrial_SN,vecHperTrial_SN,vecActBins);
+		subplot(3,3,7)
+		[vecCounts,vecMeansL,vecSDsL] = makeBins(vecMperTrial_TS,vecLperTrial_TS,vecActBins);
+		[vecCounts,vecMeansH,vecSDsH] = makeBins(vecMperTrial_TS,vecHperTrial_TS,vecActBins);
 		[vecCounts_S,vecMeansL_S,vecSDsL_S] = makeBins(vecMperTrial_SS,vecLperTrial_SS,vecActBins);
 		[vecCounts_S,vecMeansH_S,vecSDsH_S] = makeBins(vecMperTrial_SS,vecHperTrial_SS,vecActBins);hold on
 		
 		scatter(cat(1,vecMperTrial_SS,vecMperTrial_SS),cat(1,vecLperTrial_SS(:),vecHperTrial_SS(:)),[],[0.7 0.7 0.7],'.');
-		scatter(vecMperTrial_SN,vecLperTrial_SN(:),[],[0.5 0.5 1],'.');
-		scatter(vecMperTrial_SN,vecHperTrial_SN(:),[],[1 0.5 0.5],'.');
+		scatter(vecMperTrial_TS,vecLperTrial_TS(:),[],[0.5 0.5 1],'.');
+		scatter(vecMperTrial_TS,vecHperTrial_TS(:),[],[1 0.5 0.5],'.');
 		
 		errorbar(vecActBinsC(indPlotBins),vecMeansL_S(indPlotBins),vecSDsL_S(indPlotBins)./sqrt(vecCounts_S(indPlotBins)),'color',[0.5 0.5 0.5])
 		errorbar(vecActBinsC(indPlotBins),vecMeansH_S(indPlotBins),vecSDsH_S(indPlotBins)./sqrt(vecCounts_S(indPlotBins)),'color',[0.5 0.5 0.5])
@@ -562,53 +671,52 @@ for intRec=1:numel(sAggStim)
 		hold off
 		fixfig;
 		xlabel('Mean firing rate during trial (Hz)');
-		ylabel('Firing rate during upper/lower 5% (Hz)');
+		ylabel('FR in upper/lower 5% (Hz)');
 		dblPercQ = (1/intQuantiles)*100;
-		legend({'Shuffled pop+neuron ISIs',sprintf('Lowest %d%%',dblPercQ),sprintf('Highest %d%%',dblPercQ)},'location','best');
-		title('Overall population-level ISI shuffle control');
+		title('Trial-ID-shuffled vs full-ISI-shuffled')
 		fixfig;
 		
-		subplot(2,3,5)
+		subplot(3,3,8)
 		dblStep = 0.05;
-		vecBinE = -0.5:dblStep:1.5;
+		vecBinE = -1:dblStep:1.5;
 		vecBinC = vecBinE(2:end)-dblStep/2;
-		vecCountsLow = histcounts((vecLperTrial_SN-vecLperTrial_SS)./vecLperTrial_SS,vecBinE);
-		vecCountsHigh = histcounts((vecHperTrial_SN-vecHperTrial_SS)./vecHperTrial_SS,vecBinE);
+		vecCountsLow = histcounts((vecLperTrial_TS-vecLperTrial_SS)./vecLperTrial_SS,vecBinE);
+		vecCountsHigh = histcounts((vecHperTrial_TS-vecHperTrial_SS)./vecHperTrial_SS,vecBinE);
 		plot(vecBinC*100,vecCountsLow,'color',[0 0 1]);
 		hold on
 		plot(vecBinC*100,vecCountsHigh,'color',[1 0 0]);
 		hold off
-		xlabel('% change in firing rate over shuffled pop ISIs');
+		xlabel('% change in FR over full-ISI-shuffled');
 		legend({sprintf('Lowest %d%%',dblPercQ),sprintf('Highest %d%%',dblPercQ)});
 		ylabel('Number of trials (count)');
-		vecL = (vecLperTrial_SN-vecLperTrial_SS)./vecLperTrial_SS;
-		vecH = (vecHperTrial_SN-vecHperTrial_SS)./vecHperTrial_SS;
+		vecL = (vecLperTrial_TS-vecLperTrial_SS)./vecLperTrial_SS;
+		vecH = (vecHperTrial_TS-vecHperTrial_SS)./vecHperTrial_SS;
 		[h,pL]=ttest(vecL);
 		[h,pH]=ttest(vecH);
 		title(sprintf('Low, mean=%.1f%%, p=%.1e; high, mean=+%.1f%%, p=%.1e',mean(vecL)*100,pL,mean(vecH)*100,pH));
 		fixfig;
 		
-		vecHperTrial_SN;
-		subplot(2,3,6)
-		r1=corr(vecLperTrial_SN(:),vecPopSparsenessS(:));
-		r2=corr(vecMperTrial_SN(:),vecPopSparsenessS(:));
-		[rSpH,pSpH]=corr(vecMperTrial_SN(:),vecPopSparsenessS(:));
+		vecHperTrial_TS;
+		subplot(3,3,9)
+		r1=corr(vecLperTrial_TS(:),vecPopSparsenessS(:));
+		r2=corr(vecMperTrial_TS(:),vecPopSparsenessS(:));
+		[rSpH,pSpH]=corr(vecMperTrial_TS(:),vecPopSparsenessS(:));
 		vecActBinsH = 0:dblActBinW:1700;
 		vecActBinsHC = vecActBinsH(2:end)-dblActBinW/2;
-		[vecCounts2,vecMeans2,vecSDs2] = makeBins(vecMperTrial_SN,vecPopSparsenessS,vecActBinsH);
+		[vecCounts2,vecMeans2,vecSDs2] = makeBins(vecMperTrial_TS,vecPopSparsenessS,vecActBinsH);
 		indPlotBins2 = vecCounts2>10;
-		mdl = fitlm(vecMperTrial_SN,vecPopSparsenessS);
+		mdl = fitlm(vecMperTrial_TS,vecPopSparsenessS);
 		ci = coefCI(mdl);
 		[ypred,yci] = predict(mdl,vecActBinsHC(indPlotBins2)');
 		
 		hold on;
-		scatter(vecMperTrial_SN,vecPopSparsenessS,[],1-(1-lines(1))*(2/3),'.');
+		scatter(vecMperTrial_TS,vecPopSparsenessS,[],1-(1-lines(1))*(2/3),'.');
 		%errorbar(vecActBinsHC(indPlotBins2),vecMeans2(indPlotBins2),vecSDs2(indPlotBins2)./sqrt(vecCounts2(indPlotBins2)),'color',lines(1));
 		plot(vecActBinsHC(indPlotBins2),yci(:,1),'--','color',lines(1));
 		plot(vecActBinsHC(indPlotBins2),ypred,'color',lines(1));
 		plot(vecActBinsHC(indPlotBins2),yci(:,2),'--','color',lines(1));
 		hold off;
-		ylabel('Population sparseness per trial');
+		ylabel('Pop. sparseness per trial');
 		xlabel('Mean pop. firing rate per trial (Hz) ');
 		title(sprintf('Corr(sparse, max rate); r=%.3f, p=%.1e',rSpH,pSpH));
 		fixfig;
@@ -828,6 +936,10 @@ for intRec=1:numel(sAggStim)
 			'cellIFR_perTrial',...
 			'cellTimeIFR_perTrial',...
 			'cellISI_perTrial',...
+			...
+			'cellIFR_perTrial_TS',...
+			'cellISI_perTrial_TS',...
+			...
 			'cellIFR_perTrial_S',...
 			...'cellTimeIFR_perTrial_S',...
 			'cellIFR_perTrial_SN',...
@@ -847,11 +959,17 @@ for intRec=1:numel(sAggStim)
 			'vecMperTrial',...
 			'vecPopSparseness',...
 			'vecPopSparsenessS',...
+			'vecPopSparsenessTS',...
 			...
 			'vecSperTrial_S',...
 			'vecHperTrial_S',...
 			'vecLperTrial_S',...
 			'vecMperTrial_S',...
+			...
+			'vecSperTrial_TS',...
+			'vecHperTrial_TS',...
+			'vecLperTrial_TS',...
+			'vecMperTrial_TS',...
 			...
 			'vecSperTrial_SN',...
 			'vecHperTrial_SN',...

@@ -515,8 +515,8 @@ end
 
 
 %% mean and sd scale together: CV is constant
-%error do analysis where you shuffle trials independently for each neuron to test if blue curve is population effect
-error calculate fit on binned points
+%do analysis where you shuffle trials independently for each neuron to test if blue curve is population effect
+%error calculate fit on binned points
 intK = 1;
 subplot(2,3,4);cla;
 %theory
@@ -529,30 +529,42 @@ vecCVperTrial_G = vecY_G./vecX_G;
 [vecCountsSd_G,vecMeansSd_G,vecSDsSd_G] = makeBins(vecX_G,vecY_G,vecActBins);
 indPlotBins_G = vecCountsSd_G>10;
 
-vecFitY_G = vecX_G*dblSlope_G;
-[dblR2_G,dblSS_tot,dblSS_res,dblT,dblP_G,dblR2_adjusted_G,dblR2_GE_G] = getR2(vecY_G,vecFitY_G,intK);
+vecBinX = vecActBinsC';
+dblSlopeBins_G = ((vecBinX' * vecBinX) \ vecBinX') * vecMeansSd_G;
+vecFitY_G = vecBinX*dblSlopeBins_G;
+[dblR2_G,dblSS_tot,dblSS_res,dblT,dblP_G,dblR2_adjusted_G,dblR2_SE_G] = getR2(vecMeansSd_G,vecFitY_G,intK);
 
 %neuron-wise ISI-shuffled
 matMeansSdRem_S = matMeansSd_S;
 matMeansSdRem_S(matCountsCV_S<10)=nan;
 matMeansCVRem_S = matMeansCV_S;
 matMeansCVRem_S(matCountsCV_S<10)=nan;
-vecX_S = cell2vec(cellAllMperTrial_S);
-vecY_S = cell2vec(cellAllSperTrial_S);
-dblSlope_S = ((vecX_S' * vecX_S) \ vecX_S') * vecY_S;
-vecFitY_S = vecX_S*dblSlope_S;
-[dblR2_S,dblSS_tot,dblSS_res,dblT,dblP_S,dblR2_adjusted_S,dblR2_SE_S] = getR2(vecY_S,vecFitY_S,intK);
+%vecX_S = cell2vec(cellAllMperTrial_S);
+%vecY_S = cell2vec(cellAllSperTrial_S);
+%dblSlope_S = ((vecX_S' * vecX_S) \ vecX_S') * vecY_S;
+%vecFitY_S = vecX_S*dblSlope_S;
+%[dblR2_S,dblSS_tot,dblSS_res,dblT,dblP_S,dblR2_adjusted_S,dblR2_SE_S] = getR2(vecY_S,vecFitY_S,intK);
+
+vecMeansSd_S = nanmean(matMeansSdRem_S,2);
+dblSlopeBins_S = ((vecBinX' * vecBinX) \ vecBinX') * vecMeansSd_S;
+vecFitY_S = vecBinX*dblSlopeBins_S;
+[dblR2_S,dblSS_tot,dblSS_res,dblT,dblP_S,dblR2_adjusted_S,dblR2_SE_S] = getR2(vecMeansSd_S,vecFitY_S,intK);
 
 %trial-shuffled
 matMeansSdRem_TS = matMeansSd_TS;
 matMeansSdRem_TS(matCountsCV_TS<10)=nan;
 matMeansCVRem_TS = matMeansCV_TS;
 matMeansCVRem_TS(matCountsCV_TS<10)=nan;
-vecX_TS = cell2vec(cellAllMperTrial_TS);
-vecY_TS = cell2vec(cellAllSperTrial_TS);
-dblSlope_TS = ((vecX_TS' * vecX_TS) \ vecX_TS') * vecY_TS;
-vecFitY_TS = vecX_TS*dblSlope_TS;
-[dblR2_TS,dblSS_tot,dblSS_res,dblT,dblP_TS,dblR2_adjusted_TS,dblR2_SE_TS] = getR2(vecY_TS,vecFitY_TS,intK);
+%vecX_TS = cell2vec(cellAllMperTrial_TS);
+%vecY_TS = cell2vec(cellAllSperTrial_TS);
+%dblSlope_TS = ((vecX_TS' * vecX_TS) \ vecX_TS') * vecY_TS;
+%vecFitY_TS = vecX_TS*dblSlope_TS;
+%[dblR2_TS,dblSS_tot,dblSS_res,dblT,dblP_TS,dblR2_adjusted_TS,dblR2_SE_TS] = getR2(vecY_TS,vecFitY_TS,intK);
+
+vecMeansSd_TS = nanmean(matMeansSdRem_TS,2);
+dblSlopeBins_TS = ((vecBinX' * vecBinX) \ vecBinX') * vecMeansSd_TS;
+vecFitY_TS = vecBinX*dblSlopeBins_TS;
+[dblR2_TS,dblSS_tot,dblSS_res,dblT,dblP_TS,dblR2_adjusted_TS,dblR2_SE_TS] = getR2(vecMeansSd_TS,vecFitY_TS,intK);
 
 matC = lines(4);
 %real
@@ -560,11 +572,16 @@ matMeansSdRem = matMeansSd;
 matMeansSdRem(matCountsCV<10)=nan;
 matMeansCVRem = matMeansCV;
 matMeansCVRem(matCountsCV<10)=nan;
-vecX = cell2vec(cellAllMperTrial);
-vecY = cell2vec(cellAllSperTrial);
-dblSlope = ((vecX' * vecX) \ vecX') * vecY;
-vecFitY = vecX*dblSlope;
-[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
+%vecX = cell2vec(cellAllMperTrial);
+%vecY = cell2vec(cellAllSperTrial);
+%dblSlope = ((vecX' * vecX) \ vecX') * vecY;
+%vecFitY = vecX*dblSlope;
+%[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
+
+vecMeansSd = nanmean(matMeansSdRem,2);
+dblSlopeBins = ((vecBinX' * vecBinX) \ vecBinX') * vecMeansSd;
+vecFitY = vecBinX*dblSlopeBins;
+[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecMeansSd,vecFitY,intK);
 
 hold on
 %plot(vecActBinsC,dblSlope*vecActBinsC,'--','color',matC(1,:));
@@ -578,34 +595,23 @@ hold off
 legend({'Neural data','Theory (Exponential Process)','Trial-ID-shuffle','Neuron-wise ISI-shuffle'},'location','best')
 xlabel('Mean of spiking rate (Hz)');
 ylabel('Sd of spiking rate (Hz)');
-title(sprintf('Constant coefficient of variation (CV) = %.3f',dblSlope));
+title(sprintf('Constant coefficient of variation (CV) = %.3f',dblSlopeBins));
 fixfig;
 
 h=subplot(2,3,5);delete(h);subplot(2,3,5);
-error plot linearness of fit (R^2?)
-vecDeviationM = (nanmean(matMeansCVRem,2) ./ dblSlope)-1;
-vecDeviationSEM = nanstd(matMeansCVRem,[],2) ./ dblSlope;
-vecDeviationM_S = (nanmean(matMeansCVRem_S,2) ./ dblSlope_S)-1;
-vecDeviationSEM_S = nanstd(matMeansCVRem_S,[],2) ./ dblSlope_S;
-vecDeviationM_G = (nanmean(vecMeansCV_G,2) ./ dblSlope_G)-1;
-vecDeviationSEM_G = nanstd(matMeansCVRem,[],2) ./ dblSlope_G;
-
-
-hold on
-plot(vecActBinsC,100*vecDeviationM,'color',matC(1,:));
-plot(vecActBinsC,100*vecDeviationM_S,'color',matC(3,:));
-plot(vecActBinsC,100*vecDeviationM_G,'color',matC(2,:));
-hold off
-%ylim([0 1]);
-xlabel('Mean of spiking rate (Hz)');
-ylabel('Deviation from constant CV (%)');
-title(sprintf('How best to plot this?'));
+hold on;
+errorbar(1,dblR2,dblR2_SE,'x','color',matC(1,:),'capsize',20);
+errorbar(2,dblR2_G,dblR2_SE_G,'x','color',matC(2,:),'capsize',20);
+errorbar(3,dblR2_TS,dblR2_SE_TS,'x','color',matC(3,:),'capsize',20);
+errorbar(4,dblR2_S,dblR2_SE_S,'x','color',matC(4,:),'capsize',20);
+xlim([0 5]);
+set(gca,'xtick',1:4,'xticklabel',{'Data','Theory','Trial-shuf','ISI-shuf'});
+ylabel('Linearity of sd/mean (R^2)');
 fixfig;
-
-%% plot mean vs euclidian
-error to do
 
 drawnow;
 export_fig(fullpath(strFigurePath,sprintf('Q2_ConstantCV.tif')));
 export_fig(fullpath(strFigurePath,sprintf('Q2_ConstantCV.pdf')));
 	
+%% plot mean vs euclidian
+error to do

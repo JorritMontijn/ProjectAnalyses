@@ -4,7 +4,7 @@ https://www.nature.com/articles/s41598-021-95037-z
 https://www.nature.com/articles/s42003-021-02437-y
 
 q1: Can absence of stimulus information in initial period be explained by neurons responding only to
-black/white patches in the first x ms? 
+black/white patches in the first x ms?
 
 q2: How precise are spike times in the natural movie repetitions?
 
@@ -37,7 +37,7 @@ end
 indRemDBA = strcmpi({sAggNeuron.SubjectType},'DBA');
 fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),sum(~indRemDBA),getTime);
 sAggNeuron(indRemDBA) = [];
-	
+
 %% pre-allocate matrices
 intAreas = numel(cellUseAreas);
 
@@ -54,7 +54,10 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	intTrialNum = numel(vecStimOnTime);
 	intStimNum = numel(unique(vecStimIdx));
 	intRepNum = intTrialNum/intStimNum;
+	
+	%original movie time
 	vecOrigStimOnTime = sThisRec.cellBlock{1}.vecStimOnTime;
+	vecOrigStimOffTime = sThisRec.cellBlock{1}.vecStimOffTime;
 	dblStimDur = min(diff(vecOrigStimOnTime));
 	intOrigTrialNum = numel(vecOrigStimOnTime);
 	
@@ -70,98 +73,105 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%% prep data
 		%get data matrix
 		cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
-		[matData,cellSpikeTimes] = NpxPrepMovieData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecFrameIdx);
-		intNumN = size(matData,1);
-		dblBinDur = median(vecStimOffTime-vecStimOnTime);
-	
+		[matMeanRate,cellSpikeTimes] = ...
+			NpxPrepMovieData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecFrameIdx);
 		
-		%% run analysis
-		%intCombEntries = 10;
-		%matDataReduced = zeros(size(matData,1),size(matData,2)/intCombEntries);
-		%for intRedIdx=1:intCombEntries
-		%	matDataReduced = matDataReduced + matData(:,intRedIdx:intCombEntries:end);
-		%end
-		matDataZ = zscore(matData,[],2);
-		[matRespNSRZ,vecStimTypes,vecUnique] = getStimulusResponses(matDataZ.*dblBinDur,vecFrameIdx);
-		
-		[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matData.*dblBinDur,vecFrameIdx);
-		
-		vecBinEdges = 0:dblBinDur:(dblStimDur+0.05);
-		intBinNum = numel(vecBinEdges)-1;
-		matRate = nan(intNumN,intBinNum);
-		matMinDt = nan(intNumN,intBinNum);
-		matMinDt_Raw = nan(intNumN,intBinNum);
-		for intNeuron=1:intNumN
-			intNeuron
-			vecSpikeTimes = cellSpikeTimes{intNeuron};
-			[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecSpikeTimes,vecOrigStimOnTime,dblStimDur);
-			
-			%the expected distance to the nearest neighbour for a point on the unit circle with N-1
-			%other points is pi/n
-			%https://math.stackexchange.com/questions/2931257/the-expected-distance-to-the-nearest-neighbor-when-n-points-are-placed-randomly
-			
-			%make times circular
-			vecTimePerSpikePhase = (vecTimePerSpike/dblStimDur)*2*pi;
-			vecMinDt = nan(size(vecTimePerSpikePhase));
-			vecMinDt_Norm = nan(size(vecTimePerSpikePhase));
-			for intTrial=1:intRepNum
-				indTrialSpikes = vecTrialPerSpike==intTrial;
-				matDist = circ_dist(vecTimePerSpikePhase(indTrialSpikes)',vecTimePerSpikePhase(~indTrialSpikes));
-				vecMinDt(indTrialSpikes) = min(abs(matDist));
-				vecMinDt_Norm(indTrialSpikes) = min(abs(matDist))/(pi/(sum(~indTrialSpikes)+1));
-			end
-			vecMinDt = (vecMinDt/(2*pi))*dblStimDur;
-
-			[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecTimePerSpike,vecMinDt_Norm,vecBinEdges);
-			[vecCounts,vecMeans_Raw,vecSDs,cellVals,cellIDs] = makeBins(vecTimePerSpike,vecMinDt,vecBinEdges);
-
-			matRate(intNeuron,:) = (vecCounts./dblBinDur)./intRepNum;
-			matMinDt(intNeuron,:) = vecMeans;
-			matMinDt_Raw(intNeuron,:) = vecMeans_Raw;
+		%%
+		% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all
+		% spikes at pop level, detect peaks, and split into trials.
+		%get spikes per trial per neuron
+		intTotS = sum(cellfun(@numel,cellSpikeTimes));
+		vecAllSpikeTime = nan(1,intTotS);
+		vecAllSpikeNeuron = zeros(1,intTotS,'int16');
+		intNumN = size(matMeanRate,1);
+		intS = 1;
+		for intN=1:intNumN
+			%add spikes
+			intThisS = numel(cellSpikeTimes{intN});
+			vecAllSpikeTime(intS:(intS+intThisS-1)) = cellSpikeTimes{intN};
+			vecAllSpikeNeuron(intS:(intS+intThisS-1)) = intN;
 		end
+		%sort
+		[vecAllSpikeTime,vecReorder] = sort(vecAllSpikeTime);
+		vecAllSpikeNeuron = vecAllSpikeNeuron(vecReorder);
+		vecEvents = vecOrigStimOnTime(1)-10;
+		dblMaxDur = vecOrigStimOnTime(end)-vecOrigStimOnTime(1)+dblStimDur+10;
+		[vecTime,vecIFR] = getIFR(vecAllSpikeTime,vecEvents,dblMaxDur,[],[],[],0); %takes about 1 minute
+		vecTime = vecTime + vecEvents(1);
 		
-		%% plot
+		%% go through trials
+		figure;maxfig;
 		subplot(2,3,1)
-		imagesc(matRate)
-		colorbar;
+		hold on
+		dblBinDur = 0.05;
+		vecBinEdges = 0:dblBinDur:dblStimDur;
+		vecBinC = vecBinEdges(2:end)-dblBinDur/2;
+		intBinNum = numel(vecBinC);
+		matAvgIFR = nan(intStimNum,intBinNum);
+		[vecMean,vecSEM,vecWindowBinCenters,matAvgPET] = doPEP(vecTime,vecBinEdges,vecOrigStimOnTime,-1);
+		for intRep=1:intStimNum
+			indSpikesInTrial = vecTime>(vecOrigStimOnTime(intRep)-10) & vecTime<(vecOrigStimOnTime(intRep)+dblStimDur+10);
+			vecTrialTime = vecTime(indSpikesInTrial)-vecOrigStimOnTime(intRep);
+			vecTrialIFR = vecIFR(indSpikesInTrial);
+			try
+				matAvgIFR(intRep,:) = interp1(vecTrialTime,vecTrialIFR,vecBinC);
+			end
+			if intRep==50
+			plot(vecTrialTime,vecTrialIFR,'color',[0.5 0.5 0.5]);
+			end
+		end
+		xlim([0 dblStimDur]);
+		title(strRec,'interpreter','none');
+		xlabel('Time (s)');
+		ylabel('Raw IFR of trial #50');
+		
 		subplot(2,3,2)
-		imagesc(matMinDt,[0 2])
-		colorbar;
+		errorbar(vecBinC,vecMean,vecSEM);
+		xlabel('Time (s)');
+		ylabel('Avg binned spiking rate');
+		
 		subplot(2,3,3)
-		imagesc(matMinDt_Raw)
-		colorbar;
+		errorbar(vecBinC,nanmean(matAvgIFR,1),nanstd(matAvgIFR,[],1)./sqrt(intStimNum));
+		xlabel('Time (s)');
+		ylabel('Avg binned IFR');
 		
+		% make distro plots
 		subplot(2,3,4)
-		imagesc(log(matRate))
-		colorbar;
-		subplot(2,3,5)
-		imagesc(log(matMinDt),[-2 2])
-		colormap(redblue)
-		colorbar;
-		subplot(2,3,6)
-		imagesc(log(matMinDt_Raw))
-		colorbar;
+		histx(matAvgIFR(:));
+		xlabel('Binned IFR');
+		ylabel('# of bins');
 		
+		subplot(2,3,5)
+		histx(matAvgPET(:));
+		xlabel('Binned spike rates');
+		ylabel('# of bins');
+		
+		subplot(2,3,6)
+		histx(vecIFR(vecTime>(vecOrigStimOnTime(1)) & vecTime<(vecOrigStimOnTime(end)+dblStimDur)));
+		xlabel('Raw IFR');
+		ylabel('# of spikes');
+		
+		%% detect peaks
+		indStimSpikes = vecTime>(vecOrigStimOnTime(1)-dblStimDur) & vecTime<(vecOrigStimOnTime(end)+dblStimDur);
+		vecStimIFR = vecIFR(indStimSpikes);
+		vecStimTime = vecTime(indStimSpikes);
+		
+		vecT = vecTime(1:2000);
+		vecI = vecIFR(1:2000);
+		[pks,locs,w,p] = findpeaks(vecI);
 		figure
-		subplot(2,3,1)
-		imagesc(mean(matRespNSR,3))
+		plot(vecI);
+		hold on
+		scatter(locs,pks,'rx')
+		tsiqr = iqr(vecI)
 		
-		subplot(2,3,2)
-		imagesc(matRate)
+		intLag = round((numel(vecStimIFR)/numel(vecOrigStimOnTime))/2);
+		dblThreshZ = 1.5;
+		dblInfluence = 0;
+		[signals,avgFilter,stdFilter] = detectpeaks(vecI,intLag,dblThreshZ,dblInfluence);
+		vecPeakLocs = find(signals==1);
+		scatter(vecPeakLocs,vecI(vecPeakLocs),'gx')
 		
-		subplot(2,3,3)
-		scatter(log(matRate(:)),log(matMinDt(:)))
-		
-		subplot(2,3,4)
-		imagesc(mean(matRespNSRZ,3))
-		
-		subplot(2,3,5)
-		imagesc(zscore(matRate,[],2));
-		
-		subplot(2,3,6)
-		scatter(matRate(1,:),matMinDt(1,:))
-		return
 	end
-	close all;
 end
 toc

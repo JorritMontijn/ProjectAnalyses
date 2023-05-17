@@ -87,6 +87,10 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecAllSpikeNeuron_Shuff = zeros(1,intTotS,'int16');
 		intNumN = size(matMeanRate,1);
 		intS = 1;
+		%events
+		dblStartEpoch = vecOrigStimOnTime(1)-10;
+		dblEpochDur = vecOrigStimOnTime(end)-vecOrigStimOnTime(1)+dblStimDur+10;
+		dblStopEpoch = dblStartEpoch+dblEpochDur;
 		for intN=1:intNumN
 			%add spikes
 			intThisS = numel(cellSpikeTimes{intN});
@@ -99,23 +103,31 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			vecGenSpikes = cumsum([0;vecISI(randperm(numel(vecISI)))])+vecSpikeT(1);
 			vecAllSpikeTime_Shuff(intS:(intS+intThisS-1)) = vecGenSpikes;
 			vecAllSpikeNeuron_Shuff(intS:(intS+intThisS-1)) = intN;
+			intS = intS + intThisS;
 		end
-		%events
-		vecEvents = vecOrigStimOnTime(1)-10;
-		dblMaxDur = vecOrigStimOnTime(end)-vecOrigStimOnTime(1)+dblStimDur+10;
+		
+		%remove spikes outside epoch
+		indRemReal = (vecAllSpikeTime_Real > dblStopEpoch) | (vecAllSpikeTime_Real < dblStartEpoch);
+		indRemShuff = (vecAllSpikeTime_Shuff > dblStopEpoch) | (vecAllSpikeTime_Shuff < dblStartEpoch);
+		vecAllSpikeNeuron_Real(indRemReal) = [];
+		vecAllSpikeTime_Real(indRemReal) = [];
+		vecAllSpikeTime_Shuff(indRemShuff) = [];
+		vecAllSpikeNeuron_Shuff(indRemShuff) = [];
 		
 		%sort
+		tic
 		[vecAllSpikeTime_Real,vecReorder] = sort(vecAllSpikeTime_Real);
 		vecAllSpikeNeuron_Real = vecAllSpikeNeuron_Real(vecReorder);
-		[vecTime_Real,vecIFR_Real] = getIFR(vecAllSpikeTime_Real,vecEvents,dblMaxDur,[],[],[],0); %takes about 1 minute
-		vecTime_Real = vecTime_Real + vecEvents(1);
-		
+		[vecTime_Real,vecIFR_Real] = getIFR(vecAllSpikeTime_Real,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
+		vecTime_Real = vecTime_Real + dblStartEpoch(1);
+		toc
+		tic
 		%shuffled
 		[vecAllSpikeTime_Shuff,vecReorder] = sort(vecAllSpikeTime_Shuff);
 		vecAllSpikeNeuron_Shuff = vecAllSpikeNeuron_Shuff(vecReorder);
-		[vecTime_Shuff,vecIFR_Shuff] = getIFR(vecAllSpikeTime_Shuff,vecEvents,dblMaxDur,[],[],[],0); %takes about 1 minute
-		vecTime_Shuff = vecTime_Shuff + vecEvents(1);
-		
+		[vecTime_Shuff,vecIFR_Shuff] = getIFR(vecAllSpikeTime_Shuff,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
+		vecTime_Shuff = vecTime_Shuff + dblStartEpoch(1);
+		toc
 		%% filter
 		%real
 		intLag = round((numel(vecIFR_Real)/numel(vecOrigStimOnTime))/2);
@@ -236,6 +248,9 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		%% save intermediate data
 		save(fullpath(strTargetDataPath,sprintf('T0Data_%s',strRec)),...
+			...%epoch
+			'dblStartEpoch',...
+			'dblEpochDur',...
 			...%real
 			'vecAllSpikeTime_Real',...
 			'vecAllSpikeNeuron_Real',...

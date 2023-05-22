@@ -115,24 +115,23 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecAllSpikeNeuron_Shuff(indRemShuff) = [];
 		
 		%sort
-		tic
+		
 		[vecAllSpikeTime_Real,vecReorder] = sort(vecAllSpikeTime_Real);
 		vecAllSpikeNeuron_Real = vecAllSpikeNeuron_Real(vecReorder);
 		[vecTime_Real,vecIFR_Real] = getIFR(vecAllSpikeTime_Real,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
 		vecTime_Real = vecTime_Real + dblStartEpoch(1);
-		toc
-		tic
+		
 		%shuffled
 		[vecAllSpikeTime_Shuff,vecReorder] = sort(vecAllSpikeTime_Shuff);
 		vecAllSpikeNeuron_Shuff = vecAllSpikeNeuron_Shuff(vecReorder);
 		[vecTime_Shuff,vecIFR_Shuff] = getIFR(vecAllSpikeTime_Shuff,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
 		vecTime_Shuff = vecTime_Shuff + dblStartEpoch(1);
-		toc
+		
 		%% filter
 		%real
 		intLag = round((numel(vecIFR_Real)/numel(vecOrigStimOnTime))/2);
-		dblThreshZ = 1.5;
-		dblInfluence = 0.05;
+		dblThreshZ = 1;
+		dblInfluence = 0.5;
 		[signals,avgFilter_Real,stdFilter_Real] = detectpeaks(vecIFR_Real,intLag,dblThreshZ,dblInfluence);
 		%vecIFR_Real = (vecIFR_Real - avgFilter_Real)./stdFilter_Real;
 		vecNormIFR_Real = (vecIFR_Real - avgFilter_Real)./avgFilter_Real;

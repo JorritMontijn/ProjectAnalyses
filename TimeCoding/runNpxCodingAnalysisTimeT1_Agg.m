@@ -96,6 +96,15 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecAllSpikeNeuron_Real = sLoad.vecAllSpikeNeuron_Real;
 		vecAllSpikeTime_Real = sLoad.vecAllSpikeTime_Real;
 		
+		%% smooth IFRs
+		intSmoothSd = 5;
+		vecFilt = normpdf(-2*(intSmoothSd):2*intSmoothSd,0,intSmoothSd)';
+		vecFilt = vecFilt./sum(vecFilt);
+		
+		%filter
+		vecIFR_Real = gather(conv(padarray(gpuArray(vecIFR_Real),floor(size(vecFilt)/2),'replicate'),gpuArray(vecFilt),'valid'));
+		vecIFR_Shuff = gather(conv(padarray(gpuArray(vecIFR_Shuff),floor(size(vecFilt)/2),'replicate'),gpuArray(vecFilt),'valid'));
+		
 		%% rerun peaks
 		% filter
 		%real
@@ -121,19 +130,24 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		indStimSpikes_Shuff = vecNormTime_Shuff>(vecOrigStimOnTime(1)-dblStimDur) & vecNormTime_Shuff<(vecOrigStimOnTime(end)+dblStimDur);
 		vecStimIFR_Shuff = vecNormIFR_Shuff(indStimSpikes_Shuff);
 		vecStimTime_Shuff = vecNormTime_Shuff(indStimSpikes_Shuff);
-			
+		
 		[vecPeakHeight_Shuff,vecPeakLocs_Shuff,w_Shuff,p_Shuff] = findpeaks(vecStimIFR_Shuff);
-			
+		
 		% real peaks
 		indStimSpikes_Real = vecNormTime_Real>(vecOrigStimOnTime(1)-dblStimDur) & vecNormTime_Real<(vecOrigStimOnTime(end)+dblStimDur);
+		vecStimIFR_RealRaw = vecIFR_Real(indStimSpikes_Real);
 		vecStimIFR_Real = vecNormIFR_Real(indStimSpikes_Real);
 		vecStimTime_Real = vecNormTime_Real(indStimSpikes_Real);
-			
+		
 		[vecPeakHeight_Real,vecPeakLocs_Real,w_Real,p_Real] = findpeaks(vecStimIFR_Real);
 		
-		%% plot
+		%merge peaks
+		dblCutOff = 0.6;
+		vecStimPeakLocs = vecPeakLocs_Real(vecPeakHeight_Real>dblCutOff);
+		matPeakDomain = mergepeaks(vecStimTime_Real,vecStimIFR_Real,vecStimPeakLocs);
+		
+		%% transform time indices
 		%events
-		dblCutOff = 0.8;
 		dblStartEpoch = vecOrigStimOnTime(1)-dblStimDur;
 		dblEpochDur = vecOrigStimOnTime(end)-vecOrigStimOnTime(1)+dblStimDur;
 		
@@ -143,7 +157,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecPopNeuronId_Real = vecAllSpikeNeuron_Real(indStimEpoch);
 		
 		%get event times
-		vecPopEventTimes_Real = vecStimTime_Real(vecPeakLocs_Real(vecPeakHeight_Real>dblCutOff));
+		vecPopEventTimes_Real = vecStimTime_Real(vecStimPeakLocs);
 		intPopEventNum = numel(vecPopEventTimes_Real);
 		vecPopEventLocs_Real = nan(1,intPopEventNum);
 		vecPopEventLocsIFR_Real = nan(1,intPopEventNum);
@@ -153,129 +167,88 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			[dummy,vecPopEventLocsIFR_Real(intEvent)] = min(abs(vecPopEventTimes_Real(intEvent)-vecStimTime_Real));
 		end
 		
-		% plot
-		figure
-		subplot(2,3,1)
-		plot(vecStimTime_Real,vecStimIFR_Real);
+		
+		%% plot
+		figure;maxfig;
+		subplot(2,4,1)
+		h0=plot(vecStimTime_Real,vecStimIFR_RealRaw);
 		hold on
-		scatter(vecPopEventTimes_Real,vecStimIFR_Real(vecPopEventLocsIFR_Real));
-		scatter(vecOrigStimOnTime,ones(size(vecOrigStimOnTime)),'kx');
+		scatter(vecOrigStimOnTime,median(vecStimIFR_RealRaw)*ones(size(vecOrigStimOnTime)),'k.');
+		title(sprintf('%s; raw IFR',strRec),'interpreter','none');
+		xlabel('Time (s)');
+		ylabel('IFR (Hz)');
+		
+		subplot(2,4,2)
+		h1=plot(vecStimTime_Real,vecStimIFR_Real);
+		hold on
+		scatter(vecPopEventTimes_Real,vecStimIFR_Real(vecPopEventLocsIFR_Real),'.');
+		scatter(vecOrigStimOnTime,zeros(size(vecOrigStimOnTime)),'k.');
+		title(sprintf('%d peaks from filtered deviations',numel(vecPopEventLocsIFR_Real)));
+		xlabel('Time (s)');
+		ylabel('IFR normalized to local mean');
+		
+		subplot(2,4,3)
+		h2=plot(vecStimTime_Real,vecStimIFR_Real);
+		hold on
+		scatter(vecStimTime_Real(matPeakDomain(:,1)),vecStimIFR_Real(matPeakDomain(:,1)),'.');
+		scatter(vecOrigStimOnTime,zeros(size(vecOrigStimOnTime)),'k.');
+		title(sprintf('%d peaks after merging',numel(matPeakDomain(:,1))));
+		xlabel('Time (s)');
+		ylabel('IFR normalized to local mean');
 		
 		vecTrialBins = 0:0.25:dblStimDur;
+		vecTrialBinC = vecTrialBins(2:end)-mean(diff(vecTrialBins))/2;
 		[vecMean,vecSEM,vecWindowBinCenters,matPET] = doPEP(cellSpikeTimes,vecTrialBins,vecOrigStimOnTime,-1);
 		
-		subplot(2,3,2)
-		imagesc(mean(matPET,3));
+		subplot(2,4,4)
+		plotRaster(vecStimTime_Real(matPeakDomain(:,1)),vecOrigStimOnTime,dblStimDur,inf);
+		title('Population events');
 		
-		subplot(2,3,4)
-		imagesc(matPET(:,:,1));
-		subplot(2,3,5)
-		imagesc(matPET(:,:,2));
-		subplot(2,3,6)
-		imagesc(matPET(:,:,3));
-		
-		%% merge peaks
-		%how?...
-		indData = vecStimTime_Real>2050.5 & vecStimTime_Real < 2051;
-		vecT = vecStimTime_Real(indData);
-		vecV = vecStimIFR_Real(indData);
-		
-		indPeaks = vecPopEventTimes_Real>2050.5 & vecPopEventTimes_Real < 2051;
-		vecP_T = vecPopEventTimes_Real(indPeaks);
-		vecP_L = vecPopEventLocsIFR_Real(indPeaks)-find(indData,1)+1;
-		vecP_V = vecV(vecP_L);
-		
-		%merge until prominence no longer drops from merges
-		indKeepPeaks = false(size(vecP_T));
-		indProcessed = false(size(vecP_T));
-		matPeakDomain = nan(numel(vecP_T),3); %peak sample idx, start sample idx, stop sample idx
-		matPeakDomain(:,1) = vecP_L; %peak sample idx
-		matPeakDomain(:,2) = vecP_L; %start sample idx
-		matPeakDomain(:,3) = vecP_L; %stop sample idx
-		while ~all(indProcessed)
-			%% merge peaks
-			%find highest unprocessed peak
-			dblHeight = max(vecP_V(~indProcessed));
-			intPeak = find(vecP_V==dblHeight);
-			intPeakLoc = vecP_L(intPeak);
-			dblPeakT = vecP_T(intPeak);
-			
-			%find nearest peak outside domain
-			vecLeftDist = intPeakLoc - matPeakDomain(:,1);
-			vecLeftDist(indProcessed | vecLeftDist<=0)=inf;
-			[intLeftPeakDist,intLeftPeak]=min(vecLeftDist);
-			
-			vecRightDist = matPeakDomain(:,1) - intPeakLoc;
-			vecRightDist(indProcessed | vecRightDist<=0)=inf;
-			[intRightPeakDist,intRightPeak]=min(vecRightDist);
-			
-			%calculate prominence of original peak
-			%left domain
-			intLeftLoc = matPeakDomain(intPeak,2);
-			intLeftTrough = findtrough(vecV,intLeftLoc,-1);
-			matPeakDomain(intPeak,2) = intLeftTrough; %i dont think this will work
-			
-			%right domain
-			intRightLoc = matPeakDomain(intPeak,2);
-			intRightTrough = findtrough(vecV,intRightLoc,+1);
-			matPeakDomain(intPeak,3) = intRightTrough; %i dont think this will work
-			
-			%prominence
-			dblTrough = max([vecV(intLeftTrough) vecV(intRightTrough)]);
-			dblOrigProm = dblHeight-dblTrough;
-			
-			%calculate prominance of merged peak
-			%choose left or right
-			[dummy,intLeftRight] = min([intLeftPeakDist intRightPeakDist]);
-			if intLeftRight == 1 %left
-				intClosestPeak = intLeftPeak;
-				%keep right trough
-				
-				%left domain
-				intLeftLoc = matPeakDomain(intClosestPeak,2);
-				intLeftTrough = findtrough(vecV,intLeftLoc,-1);
-				
-			else %right
-				intClosestPeak = intRightPeak;
-				%keep left trough
-				
-				%right domain
-				intRightLoc = matPeakDomain(intClosestPeak,2);
-				intRightTrough = findtrough(vecV,intRightLoc,+1);
-				
-			end
-			%prominence
-			dblTrough = max([vecV(intLeftTrough) vecV(intRightTrough)]);
-			dblNewProm = dblHeight-dblTrough;
-			
-			
-			%decide to merge or not
-			if dblOrigProm >= dblNewProm
-				%complete
-				indProcessed(intPeak) = true;
-				indKeepPeaks(intPeak) = true;
-			else
-				%merge and continue
-				indProcessed(intClosestPeak) = true;
-				if intLeftRight == 1 %left
-					matPeakDomain(intPeak,2) = vecP_L(intClosestPeak);
-				else %right
-					matPeakDomain(intPeak,3) = vecP_L(intClosestPeak);
-				end
-			end
-			%%
-			%error change to first all left merges until complete, then all right merges until complete
-		end
-		
-		%create new list of merged peaks
-		vecPeakLocs = vecP_L(indKeepPeaks);
-		
-		% plot
-		figure
-		plot(vecT,vecV);
+		subplot(2,4,5)
+		vecBins = -0.5:0.02:1.5;
+		vecBinsC = vecBins(2:end)-mean(diff(vecBins))/2;
+		vecCounts_Real = histcounts(vecPeakHeight_Real(:),vecBins);
+		vecCounts_Shuff = histcounts(vecPeakHeight_Shuff(:),vecBins);
+		vecNormC_Real = vecCounts_Real./sum(vecCounts_Real);
+		vecNormC_Shuff = vecCounts_Shuff./sum(vecCounts_Shuff);
+		plot(vecBinsC,vecNormC_Real);
 		hold on
-		scatter(vecP_T,vecP_V,'ro')
-		scatter(vecP_T(indKeepPeaks),vecP_V(indKeepPeaks),'xb')
+		plot(vecBinsC,vecNormC_Shuff);
+		hold off
+		xlabel('Peak height')
+		ylabel('Normalized count');
+		legend({'Real','Shuffled'},'Location','best');
+		
+		subplot(2,4,6)
+		plot(vecBinsC,(vecNormC_Real-vecNormC_Shuff+eps)./(vecNormC_Real+vecNormC_Shuff+eps));
+		hold on
+		plot(vecBinsC([1 end]),[0 0],'k--');
+		xlabel('Peak height')
+		ylabel('Real/shuffle ratio');
+		
+		subplot(2,4,7)
+		imagesc(matPET(:,:,40));
+		title('Example single neuron firing rate (#40)');
+		xlabel('Time (s)')
+		ylabel('Trial #');
+		colorbar;
+		axis xy
+
+		subplot(2,4,8)
+		imagesc(vecTrialBinC,[],sum(matPET,3));
+		title('Population firing rate');
+		xlabel('Time (s)')
+		ylabel('Trial #');
+		colorbar;
+		axis xy
+
+		fixfig;
+		h0.LineWidth = 1;
+		h1.LineWidth = 1;
+		h2.LineWidth = 1;
+		
+		export_fig(fullpath(strFigurePath,sprintf('T0_PeakDetection_%s.tif',strRec)));
+		export_fig(fullpath(strFigurePath,sprintf('T0_PeakDetection_%s.pdf',strRec)));
 		return
 	end
 end

@@ -47,7 +47,6 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
-	
 	%prep nm data
 	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecStimIdx] = NpxPrepMovies(sAggNeuron,sThisRec,cellUseAreas);
 	[vecFrameIdx,vecUniqueFrames,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecStimIdx);
@@ -75,7 +74,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
 		[matMeanRate,cellSpikeTimes] = ...
 			NpxPrepMovieData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecFrameIdx);
-		
+		fprintf('Running %s (%d/%d) [%s]\n',strRec,intRec,numel(sAggStim),getTime);
+	
 		%%
 		% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all
 		% spikes at pop level, detect peaks, and split into trials.

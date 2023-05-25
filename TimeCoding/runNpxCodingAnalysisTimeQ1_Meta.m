@@ -58,9 +58,10 @@ for intFile=1:intRecNum
 	[vecTrialTypeIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
 	dblChance = 1/numel(vecPriorDistribution);
 	indUseForTest = vecStimTime>0.05 & vecStimTime < 0.15;
-	[h,dblP] = ttest(vecDecCorr(indUseForTest),dblChance);
+	vecDec = vecDecConf;
+	[h,dblP] = ttest(vecDecConf(indUseForTest),dblChance);
 	vecDecP(intFile) = dblP;
-	%matAcrossTimeDecoder(tril(true(size(matAcrossTimeDecoder))) & triu(true(size(matAcrossTimeDecoder)))) = vecDecCorr;
+	matAcrossTimeDecoder(tril(true(size(matAcrossTimeDecoder))) & triu(true(size(matAcrossTimeDecoder)))) = vecDec;
 	
 	%% plot
 	figure;maxfig;
@@ -72,7 +73,7 @@ for intFile=1:intRecNum
 	fixfig;
 	
 	subplot(2,3,2)
-	plot(vecStimTime,vecDecCorr(:,end)');
+	plot(vecStimTime,vecDec(:,end)');
 	hold on
 	plot([vecStimTime(1) vecStimTime(end)],[dblChance dblChance],'--','color',[0.5 0.5 0.5]);
 	hold off
@@ -82,7 +83,7 @@ for intFile=1:intRecNum
 	fixfig;
 	
 	subplot(2,3,3)
-	plot(vecStimTime,(vecDecCorr(:,end)./dblChance)'./(vecSpikesPerBin./dblBinWidth))
+	plot(vecStimTime,(vecDec(:,end)./dblChance)'./(vecSpikesPerBin./dblBinWidth))
 	title('Dec perf / spike')
 	xlabel('Time after onset (s)');
 	ylabel('Performance/spike');
@@ -92,7 +93,7 @@ for intFile=1:intRecNum
 	cMap=colormap(hS,circcol);
 	hB=colorbar;
 	set(gca,'clim',[min(vecStimTime) max(vecStimTime)]);
-	h=cline([vecSpikesPerBin(:); vecSpikesPerBin(1)]./dblBinWidth,[vecDecCorr(:,end); vecDecCorr(1,end)],[vecStimTime(:); vecStimTime(1)]);
+	h=cline([vecSpikesPerBin(:); vecSpikesPerBin(1)]./dblBinWidth,[vecDec(:,end); vecDec(1,end)],[vecStimTime(:); vecStimTime(1)]);
 	set(h,'LineWidth',2);
 	hold on
 	plot([min(vecSpikesPerBin) max(vecSpikesPerBin)]./dblBinWidth,[dblChance dblChance],'--','color',[0.5 0.5 0.5]);
@@ -118,7 +119,7 @@ for intFile=1:intRecNum
 	export_fig(fullpath(strFigurePathSR,sprintf('Q1%s.pdf',strRec)));
 	
 	%% save data
-	matDecPerf(:,intFile) = vecDecCorr;
+	matDecPerf(:,intFile) = vecDec;
 	matRate(:,intFile) = (vecSpikesPerBin./dblBinWidth);
 	matAcrossTimeDecoderAgg(:,:,intFile) = matAcrossTimeDecoder;
 end

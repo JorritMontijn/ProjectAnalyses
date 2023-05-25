@@ -171,7 +171,6 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			[dummy,vecPopEventLocsIFR_Real(intEvent)] = min(abs(vecPopEventTimes_Real(intEvent)-vecStimTime_Real));
 		end
 		
-		
 		%% plot
 		figure;maxfig;
 		subplot(2,4,1)

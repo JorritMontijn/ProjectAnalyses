@@ -105,7 +105,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%filter
 		vecIFR_Real = gather(conv(padarray(gpuArray(vecIFR_Real),floor(size(vecFilt)/2),'replicate'),gpuArray(vecFilt),'valid'));
 		vecIFR_Shuff = gather(conv(padarray(gpuArray(vecIFR_Shuff),floor(size(vecFilt)/2),'replicate'),gpuArray(vecFilt),'valid'));
-		error add poisson as comparison
+		%error add poisson as comparison
 		
 		%% detect peaks
 		% filter

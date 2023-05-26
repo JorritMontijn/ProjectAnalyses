@@ -225,8 +225,11 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%run standard decoder
 		error out of memory
 		intTypeCV = 2;
+		dblLambda = 1;
+		matData = single(matSpikeCounts);
+		vecTrialTypes = single(vecStimIdx);
 		[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion] = ...
-			doCrossValidatedDecoding(matSpikeCounts,vecStimIdx,intTypeCV);
+			doCrossValidatedDecodingLR(matData(1,:),vecTrialTypes,intTypeCV,[],dblLambda);
 		
 		%% repeat for whole population
 		matCrossCorr_Pop = nan(numel(vecTau),numel(vecTimescales),intRepNum);

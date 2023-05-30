@@ -105,7 +105,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%filter
 		vecIFR_Real = gather(conv(padarray(gpuArray(vecIFR_Real),floor(size(vecFilt)/2),'replicate'),gpuArray(vecFilt),'valid'));
 		vecIFR_Shuff = gather(conv(padarray(gpuArray(vecIFR_Shuff),floor(size(vecFilt)/2),'replicate'),gpuArray(vecFilt),'valid'));
-		%error add poisson as comparison
+		vecIFR_Poiss = gather(conv(padarray(gpuArray(vecIFR_Poiss),floor(size(vecFilt)/2),'replicate'),gpuArray(vecFilt),'valid'));
 		
 		%% detect peaks
 		% filter
@@ -128,12 +128,13 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecNormIFR_Shuff(indRem_Shuff) = [];
 		vecNormTime_Shuff = vecTime_Shuff(~indRem_Shuff);
 		
-		% shuff peaks
-		indStimSpikes_Shuff = vecNormTime_Shuff>(vecOrigStimOnTime(1)-dblStimDur) & vecNormTime_Shuff<(vecOrigStimOnTime(end)+dblStimDur);
-		vecStimIFR_Shuff = vecNormIFR_Shuff(indStimSpikes_Shuff);
-		vecStimTime_Shuff = vecNormTime_Shuff(indStimSpikes_Shuff);
-		
-		[vecPeakHeight_Shuff,vecPeakLocs_Shuff,w_Shuff,p_Shuff] = findpeaks(vecStimIFR_Shuff);
+		%poiss
+		[signals,avgFilter_Poiss,stdFilter_Poiss] = detectpeaks(vecIFR_Poiss,intLag,dblThreshZ,dblInfluence);
+		%vecIFR_Poiss = (vecIFR_Poiss - avgFilter_Poiss)./stdFilter_Poiss;
+		vecNormIFR_Poiss = (vecIFR_Poiss - avgFilter_Poiss)./avgFilter_Poiss;
+		indRem_Poiss = isinf(vecNormIFR_Poiss);
+		vecNormIFR_Poiss(indRem_Poiss) = [];
+		vecNormTime_Poiss = vecTime_Poiss(~indRem_Poiss);
 		
 		% real peaks
 		indStimSpikes_Real = vecNormTime_Real>(vecOrigStimOnTime(1)-dblStimDur) & vecNormTime_Real<(vecOrigStimOnTime(end)+dblStimDur);
@@ -143,10 +144,25 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		[vecPeakHeight_Real,vecPeakLocs_Real,w_Real,p_Real] = findpeaks(vecStimIFR_Real);
 		
+		% shuff peaks
+		indStimSpikes_Shuff = vecNormTime_Shuff>(vecOrigStimOnTime(1)-dblStimDur) & vecNormTime_Shuff<(vecOrigStimOnTime(end)+dblStimDur);
+		vecStimIFR_Shuff = vecNormIFR_Shuff(indStimSpikes_Shuff);
+		vecStimTime_Shuff = vecNormTime_Shuff(indStimSpikes_Shuff);
+		
+		[vecPeakHeight_Shuff,vecPeakLocs_Shuff,w_Shuff,p_Shuff] = findpeaks(vecStimIFR_Shuff);
+		
+		% poiss peaks
+		indStimSpikes_Poiss = vecNormTime_Poiss>(vecOrigStimOnTime(1)-dblStimDur) & vecNormTime_Poiss<(vecOrigStimOnTime(end)+dblStimDur);
+		vecStimIFR_Poiss = vecNormIFR_Poiss(indStimSpikes_Poiss);
+		vecStimTime_Poiss = vecNormTime_Poiss(indStimSpikes_Poiss);
+		
+		[vecPeakHeight_Poiss,vecPeakLocs_Poiss,w_Poiss,p_Poiss] = findpeaks(vecStimIFR_Poiss);
+		
 		%merge peaks
 		dblCutOff = 0.6;
 		vecStimPeakLocs_Real = vecPeakLocs_Real(vecPeakHeight_Real>dblCutOff);
 		vecStimPeakLocs_Shuff = vecPeakLocs_Shuff(vecPeakHeight_Shuff>dblCutOff);
+		vecStimPeakLocs_Poiss = vecPeakLocs_Shuff(vecPeakHeight_Poiss>dblCutOff);
 		matPeakDomain = mergepeaks(vecStimTime_Real,vecStimIFR_Real,vecStimPeakLocs_Real);
 		
 		%% transform time indices
@@ -162,6 +178,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%get event times
 		vecPopEventTimes_Real = vecStimTime_Real(vecStimPeakLocs_Real);
 		vecPopEventTimes_Shuff = vecStimTime_Shuff(vecStimPeakLocs_Shuff);
+		vecPopEventTimes_Poiss = vecStimTime_Shuff(vecStimPeakLocs_Poiss);
 		intPopEventNum = numel(vecPopEventTimes_Real);
 		vecPopEventLocs_Real = nan(1,intPopEventNum);
 		vecPopEventLocsIFR_Real = nan(1,intPopEventNum);
@@ -212,15 +229,18 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecBinsC = vecBins(2:end)-mean(diff(vecBins))/2;
 		vecCounts_Real = histcounts(vecPeakHeight_Real(:),vecBins);
 		vecCounts_Shuff = histcounts(vecPeakHeight_Shuff(:),vecBins);
+		vecCounts_Poiss = histcounts(vecPeakHeight_Poiss(:),vecBins);
 		vecNormC_Real = vecCounts_Real./sum(vecCounts_Real);
 		vecNormC_Shuff = vecCounts_Shuff./sum(vecCounts_Shuff);
+		vecNormC_Poiss = vecCounts_Poiss./sum(vecCounts_Poiss);
 		plot(vecBinsC,vecNormC_Real);
 		hold on
 		plot(vecBinsC,vecNormC_Shuff);
+		plot(vecBinsC,vecNormC_Poiss);
 		hold off
 		xlabel('Peak height')
 		ylabel('Normalized count');
-		legend({'Real','Shuffled'},'Location','best');
+		legend({'Real','Shuffled','Poisson'},'Location','best');
 		
 		subplot(2,4,6)
 		plot(vecBinsC,(vecNormC_Real-vecNormC_Shuff+eps)./(vecNormC_Real+vecNormC_Shuff+eps));
@@ -252,44 +272,52 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		export_fig(fullpath(strFigurePath,sprintf('T0_PeakDetection_%s.tif',strRec)));
 		export_fig(fullpath(strFigurePath,sprintf('T0_PeakDetection_%s.pdf',strRec)));
-
+		
 		%% what does peak look like? plot PSTH
 		%reconstruct spiking arrays
 		intNumN = numel(cellSpikeTimes);
 		cellSpikeTimes_Real = cell(1,intNumN);
 		cellSpikeTimes_Shuff = cell(1,intNumN);
+		cellSpikeTimes_Poiss = cell(1,intNumN);
 		for intN=1:intNumN
 			cellSpikeTimes_Real{intN} = vecAllSpikeTime_Real(vecAllSpikeNeuron_Real==intN);
 			cellSpikeTimes_Shuff{intN} = vecAllSpikeTime_Shuff(vecAllSpikeNeuron_Shuff==intN);
+			cellSpikeTimes_Poiss{intN} = vecAllSpikeTime_Poiss(vecAllSpikeNeuron_Poiss==intN);
 		end
 		
 		sReal = struct;
 		sShuff = struct;
+		sPoiss = struct;
 		for intType=1:3
 			if intType==1
-				cellUseSpikeTimes = cellSpikeTimes;
-				vecUsePopEventTimes = vecPopEventTimes_Real;
-				strType = 'Original spikes';
-			elseif intType == 2
 				cellUseSpikeTimes = cellSpikeTimes_Real;
 				vecUsePopEventTimes = vecPopEventTimes_Real;
-				strType = 'Reconstructed spikes';
+				strType = 'Real spikes';
+				%elseif intType == 2
+				%	cellUseSpikeTimes = cellSpikeTimes;
+				%	vecUsePopEventTimes = vecPopEventTimes_Real;
+				%	strType = 'Original spikes';
+			elseif intType == 2
+				cellUseSpikeTimes = cellSpikeTimes_Poiss;
+				vecUsePopEventTimes = vecPopEventTimes_Poiss;
+				strType = 'Poisson spikes';
 			else
 				cellUseSpikeTimes = cellSpikeTimes_Shuff;
 				vecUsePopEventTimes = vecPopEventTimes_Shuff;
 				strType = 'Shuffled spikes';
 			end
 			dblStep = (1/30000);
-			vecEventBins = (-0.05+dblStep/2):dblStep:(0.05-dblStep/2);
+			vecEventBins = (-0.02+dblStep/2):dblStep:(0.02-dblStep/2);
 			[dummy,dummy,vecEventBinsC,matPET] = doPEP(cellUseSpikeTimes,vecEventBins,vecUsePopEventTimes);
-			matMean = sum(matPET,3);
-			vecMean = mean(matMean,1);
-			vecSEM = std(matMean,[],1)./sqrt(size(matMean,1));
+			vecEventBinsC = vecEventBinsC*1000;%ms
+			matPopRate = sum(matPET,3);
+			vecMean = mean(matPopRate,1);
+			vecSEM = std(matPopRate,[],1)./sqrt(size(matPopRate,1));
 			
 			%events range from -1ms to +1ms around peak
 			dblStep = (1/30000);
-			dblStartEvent = -0.001+dblStep/2;
-			dblStopEvent = 0.001-dblStep/2;
+			dblStartEvent = -0.002+dblStep/2;
+			dblStopEvent = 0.002-dblStep/2;
 			vecOrderBins = dblStartEvent:dblStep:dblStopEvent;
 			[cellEventPerSpike,cellTimePerSpike] = getSpikesInTrial(cellUseSpikeTimes,vecUsePopEventTimes+dblStartEvent,range(vecOrderBins));
 			
@@ -310,40 +338,90 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			vecLatencySd = vecLatencySd(vecReorder);
 			matSpikes = matSpikes(vecReorder,:);
 			cellTimePerSpike = cellTimePerSpike(vecReorder);
-			matSpikesNorm = matSpikes./sum(matSpikes,2);
+			matSpikesNorm = matSpikes./mean(matSpikes,2);
+			matSpikesNorm(:,(floor(numel(vecOrderBins)/2))) = 0;
 			matSpikesDev = matSpikesNorm - mean(matSpikesNorm,1);
-			matSpikesSmooth = imfilt(matSpikesDev,normpdf(-2:2)./sum(normpdf(-2:2)));
+			matSpikesSmooth = imfilt(matSpikesNorm,normpdf(-2:2)./sum(normpdf(-2:2)));
 			
 			vecMean(vecEventBinsC==0)=nan;
-			figure
+			
+			%% plot
+			figure;maxfig;
 			subplot(2,3,1)
 			plot(vecEventBinsC,vecMean)
-			ylim([0 3500]);
-			title('spikes at t=0 removed');
+			ylim([0 2500]);
+			title('Pop rate; spikes at t=0 removed');
+			ylabel('Pop rate (Hz)');
+			xlabel('Time after pop event (s)');
 			
-			subplot(2,3,2)
+			subplot(2,3,3)
 			imagesc(vecOrderBinsC*1000,1:intNumN,matSpikesNorm)
 			xlabel('Time after pop event (ms)');
 			ylabel('Neuron #');
 			title(strType)
 			
-			subplot(2,3,3)
-			imagesc(vecOrderBinsC*1000,1:intNumN,matSpikesSmooth)
-			xlabel('Time after pop event (ms)');
-			ylabel('Neuron #');
-			
 			subplot(2,3,4)
+			%neuron rate
+			matNeuronRate = squeeze(sum(matPET,1));
+			matNeuronRate(vecEventBinsC==0,:)=0;
+			%smooth
+			matNeuronRate = imfilt(matNeuronRate,normpdf(-10:10,0,5)'./sum(normpdf(-10:10,0,5)));
+			matNeuronRate = (matNeuronRate - mean(matNeuronRate,1)) ./ std(matNeuronRate,[],1);
+			intNeuronNum = size(matNeuronRate,2);
+			vecCoM = nan(1,intNeuronNum);
+			for intNeuron=1:intNeuronNum
+				vecCoM(intNeuron) = calcCenterOfMass(matNeuronRate(:,intNeuron),1);
+			end
+			imagesc(vecEventBinsC,1:intNeuronNum,matNeuronRate');
+			title('Smoothed and normalized rates around pop events')
+			
+			%sum of auto-correlograms
+			matACG = nan(size(matNeuronRate));
+			parfor intNeuron=1:intNeuronNum
+				vecACG = zeros(1,numel(vecEventBinsC));
+				vecT = cellUseSpikeTimes{intNeuron};
+				for intSpikeIdx=1:numel(vecT)
+					vecACG = vecACG + histcounts(vecT-vecT(intSpikeIdx),vecEventBins);
+				end
+				matACG(:,intNeuron) = vecACG;
+			end
+			matACG(vecEventBinsC==0,:)=0;
+			
+			subplot(2,3,2)
+			plot(vecEventBinsC,sum(matACG,2))
+			ylim([0 2500]);
+			title('Sum of auto-correlograms');
+			ylabel('Avg rate (Hz)');
+			xlabel('Time after spike (s)');
+			
+			subplot(2,3,5)
+			%smooth
+			matPlotACG = imfilt(matACG,normpdf(-10:10,0,5)'./sum(normpdf(-10:10,0,5)));
+			matPlotACG = (matPlotACG) ./ std(matPlotACG,[],1);
+			imagesc(vecEventBinsC,1:intNeuronNum,matPlotACG');
+			title('Smoothed and normalized ACGs')
+			
+			subplot(2,3,6)
 			errorbar(vecLatencyMu,vecLatencySd)
-			if intType == 2
+			
+			fixfig;
+			
+			if intType == 1
 				sReal.cellEventPerSpike = cellEventPerSpike;
 				sReal.cellTimePerSpike = cellTimePerSpike;
-				sReal.matMean = matMean;
+				sReal.matMean = matPopRate;
 				sReal.vecEventBins = vecEventBins;
 				sReal.vecOrderBins = vecOrderBins;
+			elseif intType == 2
+				sPoiss.cellEventPerSpike = cellEventPerSpike;
+				sPoiss.cellTimePerSpike = cellTimePerSpike;
+				sPoiss.matMean = matPopRate;
+				sPoiss.vecEventBins = vecEventBins;
+				sPoiss.vecOrderBins = vecOrderBins;
 			elseif intType == 3
 				sShuff.cellEventPerSpike = cellEventPerSpike;
 				sShuff.cellTimePerSpike = cellTimePerSpike;
-				sShuff.matMean = matMean;
+				sShuff.matMean = matPopRate;
 				sShuff.vecEventBins = vecEventBins;
 				sShuff.vecOrderBins = vecOrderBins;
 			end

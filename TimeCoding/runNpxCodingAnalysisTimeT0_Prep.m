@@ -80,8 +80,20 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all
 		% spikes at pop level, detect peaks, and split into trials.
 		
+		%events
+		dblStartEpoch = vecOrigStimOnTime(1)-10;
+		dblStopEpoch = vecOrigStimOnTime(end)+dblStimDur+10;
+		dblEpochDur = dblStopEpoch - dblStartEpoch;
+		
+		%remove spikes outside epoch
+		intNumN = numel(cellSpikeTimes);
+		for intN=1:intNumN
+			vecT = cellSpikeTimes{intN};
+			indRem = (vecT > dblStopEpoch) | (vecT < dblStartEpoch);
+			cellSpikeTimes{intN} = vecT(~indRem);
+		end
+		
 		%generate poisson-process spikes
-		intNumN = size(matMeanRate,1);
 		cellSpikeTimes_Poiss = cell(1,intNumN);
 		for intN=1:intNumN
 			dblT0 = cellSpikeTimes{intN}(1);
@@ -102,13 +114,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecAllSpikeNeuron_Shuff = zeros(1,intTotS,'int16');
 		vecAllSpikeTime_Poiss = nan(1,intTotS_Poiss);
 		vecAllSpikeNeuron_Poiss = zeros(1,intTotS_Poiss,'int16');
-		intNumN = size(matMeanRate,1);
 		intS = 1;
 		intSP = 1;
-		%events
-		dblStartEpoch = vecOrigStimOnTime(1)-10;
-		dblEpochDur = vecOrigStimOnTime(end)-vecOrigStimOnTime(1)+dblStimDur+10;
-		dblStopEpoch = dblStartEpoch+dblEpochDur;
 		for intN=1:intNumN
 			%add spikes
 			intThisS = numel(cellSpikeTimes{intN});

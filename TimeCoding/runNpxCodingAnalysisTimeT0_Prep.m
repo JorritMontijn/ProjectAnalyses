@@ -70,16 +70,13 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		sArea1Neurons = sUseNeuron(indArea1Neurons);
 		
 		%% prep data
-		%get data matrix
+		%get data matrix & remove cells with rates <0.1Hz
 		cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
 		[matMeanRate,cellSpikeTimes] = ...
 			NpxPrepMovieData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecFrameIdx);
 		fprintf('Running %s (%d/%d) [%s]\n',strRec,intRec,numel(sAggStim),getTime);
 	
-		%%
-		% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all
-		% spikes at pop level, detect peaks, and split into trials.
-		
+		%% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all spikes at pop level
 		%events
 		dblStartEpoch = vecOrigStimOnTime(1)-10;
 		dblStopEpoch = vecOrigStimOnTime(end)+dblStimDur+10;
@@ -99,8 +96,10 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			dblT0 = cellSpikeTimes{intN}(1);
 			dblTN = cellSpikeTimes{intN}(end);
 			dblTotT = dblTN-dblT0;
-			dblLambda = numel(cellSpikeTimes{intN})/dblTotT;
-			vecISI = exprnd(1./dblLambda,[1,round(dblLambda*dblTotT*2)]);
+			%add 3ms refractory period
+			dblRt = (3/1000);
+			dblLambda = numel(cellSpikeTimes{intN})/(dblTotT-dblRt*numel(cellSpikeTimes{intN}));
+			vecISI = dblRt+exprnd(1./dblLambda,[1,round(dblLambda*dblTotT*2)]);
 			vecSpikeT = dblT0+cumsum(vecISI)-vecISI(1);
 			cellSpikeTimes_Poiss{intN} = vecSpikeT(vecSpikeT<dblTN);
 		end

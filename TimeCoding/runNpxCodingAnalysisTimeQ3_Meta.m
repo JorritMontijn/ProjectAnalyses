@@ -27,16 +27,18 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = true;
-if boolHome
+if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
 	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
-	strFigurePath = 'D:\Data\Results\PopTimeCoding\figures\';
-	strTargetDataPath = 'D:\Data\Results\PopTimeCoding\data\';
+	strDataPath = 'E:\DataPreProcessed\';
+	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
+
 
 %% load data
 sFiles = dir ([strTargetDataPath 'Q3Data*.mat']);
@@ -44,7 +46,7 @@ strArea = 'V1';
 intRecNum = numel(sFiles);
 
 %% pre-allocate
-vecBins = -25:2.5:25;
+vecBins = -0.6:0.05:0.6;
 matCounts = [];
 vecAggRelVarMean = [];
 vecAggRelVarNorm = [];
@@ -58,11 +60,11 @@ for intFile=1:intRecNum
 	strRecFile = strRecFile((1+numel('Q3Data_Rec')):(16+numel('Q3Data_Rec')));
 	
 	
-	vecPercDiff = 100*((vecRelVarNorm./vecRelVarMean)-1);
+	vecLogOdds = log(vecRelVarNorm./vecRelVarMean);
 	vecBinsC = vecBins(2:end)-median(diff(vecBins))/2;
-	vecCounts =histcounts(vecPercDiff,vecBins);
+	vecCounts =histcounts(vecLogOdds,vecBins);
 	
-	matAggPercDiff(end+1,:) = vecPercDiff;
+	matAggPercDiff(end+1,:) = vecLogOdds;
 	matCounts(end+1,:) = vecCounts;
 	cellRec(end+1) = {strRecFile};
 	vecAggRelVarMean(end+1) = dblRelVarMean;
@@ -76,7 +78,7 @@ title('Trial-to-trial variability of pop act per stim type');
 ylabel('Number of stimulus types');
 fixfig;
 		
-vecPercDiff2 = 100*((vecAggRelVarNorm./vecAggRelVarMean)-1);
+vecPercDiff2 = log(vecAggRelVarNorm./vecAggRelVarMean);
 vecCounts2 = histcounts(vecPercDiff2,vecBins);
 subplot(2,3,2)
 bar(vecBinsC,vecCounts2,'hist');

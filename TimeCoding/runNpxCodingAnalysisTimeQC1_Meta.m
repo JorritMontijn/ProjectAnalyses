@@ -14,7 +14,6 @@ or end? does this ordering differ between orientations?
 %close all;
 clear all;
 boolSaveFigs = true;
-boolHome = true;
 if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -39,7 +38,7 @@ end
 %% find data
 strStim = 'DG';%DG/NM
 %cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating','TuneFixed'};
-cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating','VarScaling','SdLinear','VarLinear','VarQuad'};
+cellTypes = {'Real','Shuff','Poiss','UniStretch','SdFixed','Saturating','SdScaling','SdLinear','SdQuad','SdCube'};
 sDir = dir([strTargetDataPath 'QC1Data*.mat']); %or ABA if old
 %indUseRecs = contains({sDir.name},['ABI_' strStim]);
 %sDir(~indUseRecs) = [];
@@ -164,6 +163,7 @@ for intType=1:numel(cellTypes)
 	matDp(:,:,indRem) = [];
 	matMuV(:,:,indRem) = [];
 	intRecs = sum(~indRem);
+	error is d prime correct? sd/mean in plot (2,3,2) seems different for for example SdFixed
 	
 	vecMeanDprime = mean(matDp,3);
 	vecSemDprime = std(matDp,[],3)./sqrt(intRecs);

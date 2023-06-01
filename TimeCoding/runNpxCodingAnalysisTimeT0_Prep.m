@@ -71,23 +71,49 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		%% prep data
 		%get data matrix & remove cells with rates <0.1Hz
+		fprintf('Running %s (%d/%d) [%s]\n',strRec,intRec,numel(sAggStim),getTime);
 		cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
 		[matMeanRate,cellSpikeTimes] = ...
 			NpxPrepMovieData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecFrameIdx);
-		fprintf('Running %s (%d/%d) [%s]\n',strRec,intRec,numel(sAggStim),getTime);
-	
-		%% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all spikes at pop level
+		
 		%events
 		dblStartEpoch = vecOrigStimOnTime(1)-10;
 		dblStopEpoch = vecOrigStimOnTime(end)+dblStimDur+10;
 		dblEpochDur = dblStopEpoch - dblStartEpoch;
+		intNumN = numel(cellSpikeTimes);
 		
 		%remove spikes outside epoch
-		intNumN = numel(cellSpikeTimes);
 		for intN=1:intNumN
 			vecT = cellSpikeTimes{intN};
 			indRem = (vecT > dblStopEpoch) | (vecT < dblStartEpoch);
-			cellSpikeTimes{intN} = vecT(~indRem);
+			cellSpikeTimes{intN} = unique(vecT(~indRem));
+		end
+		
+		%% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all spikes at pop level
+		%shuffle trial ids
+		cellSpikeTimes_ShuffTid = cell(size(cellSpikeTimes));
+		cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
+		boolDiscardEdges = true;
+		for intN=1:intNumN
+			%real
+			[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecOrigStimOnTime,dblStimDur);
+			for intTrial=1:intOrigTrialNum
+				vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+				cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
+			end
+			
+			%get beginning & end vectors
+			vecStartSpikes = cellSpikeTimes{intN}(cellSpikeTimes{intN}<vecOrigStimOnTime(1));
+			vecEndSpikes = cellSpikeTimes{intN}(cellSpikeTimes{intN}>(vecOrigStimOnTime(end)+dblStimDur));
+			
+			%shuffle trial id
+			vecRandTrialIds = randperm(intOrigTrialNum);
+			cellShuffTidTrials = cellSpikeTimesPerCellPerTrial(intN,:);
+			for intTrial=1:intOrigTrialNum
+				dblRandStart = vecOrigStimOnTime(vecRandTrialIds(intTrial));
+				cellShuffTidTrials{intTrial} = cellShuffTidTrials{intTrial}+dblRandStart;
+			end
+			cellSpikeTimes_ShuffTid{intN} = unique(sort([vecStartSpikes;cell2vec(cellShuffTidTrials);vecEndSpikes]));
 		end
 		
 		%generate poisson-process spikes
@@ -107,14 +133,18 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%get spikes per trial per neuron
 		intTotS = sum(cellfun(@numel,cellSpikeTimes));
 		intTotS_Poiss = sum(cellfun(@numel,cellSpikeTimes_Poiss));
+		intTotS_ShuffTid= sum(cellfun(@numel,cellSpikeTimes_ShuffTid));
 		vecAllSpikeTime_Real = nan(1,intTotS);
 		vecAllSpikeNeuron_Real = zeros(1,intTotS,'int16');
-		vecAllSpikeTime_Shuff = nan(1,intTotS);
-		vecAllSpikeNeuron_Shuff = zeros(1,intTotS,'int16');
 		vecAllSpikeTime_Poiss = nan(1,intTotS_Poiss);
 		vecAllSpikeNeuron_Poiss = zeros(1,intTotS_Poiss,'int16');
+		vecAllSpikeTime_ShuffTid = nan(1,intTotS_ShuffTid);
+		vecAllSpikeNeuron_ShuffTid = zeros(1,intTotS_ShuffTid,'int16');
+		vecAllSpikeTime_Shuff = nan(1,intTotS);
+		vecAllSpikeNeuron_Shuff = zeros(1,intTotS,'int16');
 		intS = 1;
 		intSP = 1;
+		intSS = 1;
 		for intN=1:intNumN
 			%add spikes
 			intThisS = numel(cellSpikeTimes{intN});
@@ -122,49 +152,71 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			vecAllSpikeTime_Real(intS:(intS+intThisS-1)) = vecSpikeT;
 			vecAllSpikeNeuron_Real(intS:(intS+intThisS-1)) = intN;
 			
-			%shuffle
-			vecISI = diff(sort(vecSpikeT));
-			vecShuffSpikes = cumsum([0;vecISI(randperm(numel(vecISI)))])+vecSpikeT(1);
-			vecAllSpikeTime_Shuff(intS:(intS+intThisS-1)) = vecShuffSpikes;
-			vecAllSpikeNeuron_Shuff(intS:(intS+intThisS-1)) = intN;
-			intS = intS + intThisS;
-			
 			%poisson
 			intThisSP = numel(cellSpikeTimes_Poiss{intN});
 			vecSpikeT_Poiss = cellSpikeTimes_Poiss{intN};
 			vecAllSpikeTime_Poiss(intSP:(intSP+intThisSP-1)) = vecSpikeT_Poiss;
 			vecAllSpikeNeuron_Poiss(intSP:(intSP+intThisSP-1)) = intN;
 			intSP = intSP + intThisSP;
+			
+			%shuffle trial id
+			intThisSS = numel(cellSpikeTimes_ShuffTid{intN});
+			vecSpikeT_ShuffTid = cellSpikeTimes_ShuffTid{intN};
+			vecAllSpikeTime_ShuffTid(intSS:(intSS+intThisSS-1)) = vecSpikeT_ShuffTid;
+			vecAllSpikeNeuron_ShuffTid(intSS:(intSS+intThisSS-1)) = intN;
+			intSS = intSS + intThisSS;
+			
+			%shuffle isi
+			vecISI = diff(sort(vecSpikeT));
+			vecSpikeT_Shuff = cumsum([0;vecISI(randperm(numel(vecISI)))])+vecSpikeT(1);
+			vecAllSpikeTime_Shuff(intS:(intS+intThisS-1)) = vecSpikeT_Shuff;
+			vecAllSpikeNeuron_Shuff(intS:(intS+intThisS-1)) = intN;
+			intS = intS + intThisS;
+			
 		end
 		
-		%remove spikes outside epoch
-		indRemReal = (vecAllSpikeTime_Real > dblStopEpoch) | (vecAllSpikeTime_Real < dblStartEpoch);
-		indRemShuff = (vecAllSpikeTime_Shuff > dblStopEpoch) | (vecAllSpikeTime_Shuff < dblStartEpoch);
-		indRemPoiss = (vecAllSpikeTime_Poiss > dblStopEpoch) | (vecAllSpikeTime_Poiss < dblStartEpoch);
-		vecAllSpikeNeuron_Real(indRemReal) = [];
-		vecAllSpikeTime_Real(indRemReal) = [];
-		vecAllSpikeTime_Shuff(indRemShuff) = [];
-		vecAllSpikeNeuron_Shuff(indRemShuff) = [];
-		vecAllSpikeTime_Poiss(indRemPoiss) = [];
-		vecAllSpikeNeuron_Poiss(indRemPoiss) = [];
-	
-		%sort
-		[vecAllSpikeTime_Real,vecReorder] = sort(vecAllSpikeTime_Real);
-		vecAllSpikeNeuron_Real = vecAllSpikeNeuron_Real(vecReorder);
-		[vecTime_Real,vecIFR_Real] = getIFR(vecAllSpikeTime_Real,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
-		vecTime_Real = vecTime_Real + dblStartEpoch(1);
-		
-		%shuffled
-		[vecAllSpikeTime_Shuff,vecReorder] = sort(vecAllSpikeTime_Shuff);
-		vecAllSpikeNeuron_Shuff = vecAllSpikeNeuron_Shuff(vecReorder);
-		[vecTime_Shuff,vecIFR_Shuff] = getIFR(vecAllSpikeTime_Shuff,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
-		vecTime_Shuff = vecTime_Shuff + dblStartEpoch(1);
-		
-		%poisson
-		[vecAllSpikeTime_Poiss,vecReorder] = sort(vecAllSpikeTime_Poiss);
-		vecAllSpikeNeuron_Poiss = vecAllSpikeNeuron_Poiss(vecReorder);
-		[vecTime_Poiss,vecIFR_Poiss] = getIFR(vecAllSpikeTime_Poiss,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
-		vecTime_Poiss = vecTime_Poiss + dblStartEpoch(1);
+		%generate variables
+		sReal = struct;
+		sPoiss = struct;
+		sShuffTid = struct;
+		sShuff = struct;
+		for intType=1:4
+			if intType==1
+				vecAllSpikeTime = vecAllSpikeTime_Real;
+				vecAllSpikeNeuron = vecAllSpikeNeuron_Real;
+				strType = 'Real';
+			elseif intType == 2
+				vecAllSpikeTime = vecAllSpikeTime_Poiss;
+				vecAllSpikeNeuron = vecAllSpikeNeuron_Poiss;
+				strType = 'Poiss';
+			elseif intType == 3
+				vecAllSpikeTime = vecAllSpikeTime_ShuffTid;
+				vecAllSpikeNeuron = vecAllSpikeNeuron_ShuffTid;
+				strType = 'ShuffTid';
+			else
+				vecAllSpikeTime = vecAllSpikeTime_Shuff;
+				vecAllSpikeNeuron = vecAllSpikeNeuron_Shuff;
+				strType = 'Shuff';
+			end
+			
+			%remove spikes outside epoch
+			indRem = (vecAllSpikeTime > dblStopEpoch) | (vecAllSpikeTime < dblStartEpoch);
+			vecAllSpikeNeuron(indRem) = [];
+			vecAllSpikeTime(indRem) = [];
+			
+			%sort
+			[vecAllSpikeTime,vecReorder] = sort(vecAllSpikeTime);
+			vecAllSpikeNeuron = vecAllSpikeNeuron(vecReorder);
+			[vecTime,vecIFR] = getIFR(vecAllSpikeTime,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
+			vecTime = vecTime + dblStartEpoch(1);
+			
+			%create variables
+			eval(['s' strType '.vecAllSpikeTime = vecAllSpikeTime']);
+			eval(['s' strType '.vecAllSpikeNeuron = vecAllSpikeNeuron']);
+			eval(['s' strType '.vecTime = vecTime']);
+			eval(['s' strType '.vecIFR = vecIFR']);
+			
+		end
 		
 		%% save intermediate data
 		save(fullpath(strTargetDataPath,sprintf('T0Data_%s',strRec)),...
@@ -172,20 +224,13 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			'dblStartEpoch',...
 			'dblEpochDur',...
 			...%real
-			'vecAllSpikeTime_Real',...
-			'vecAllSpikeNeuron_Real',...
-			'vecTime_Real',...
-			'vecIFR_Real',...
-			...%shuffled
-			'vecAllSpikeTime_Shuff',...
-			'vecAllSpikeNeuron_Shuff',...
-			'vecTime_Shuff',...
-			'vecIFR_Shuff',...
-			...%shuffled
-			'vecAllSpikeTime_Poiss',...
-			'vecAllSpikeNeuron_Poiss',...
-			'vecTime_Poiss',...
-			'vecIFR_Poiss'...
+			'sReal',...
+			...%shuffled isi
+			'sShuff',...
+			...%shuffled trial id
+			'sShuffTid',...
+			...%poisson
+			'sPoiss'...
 			);
 	end
 end

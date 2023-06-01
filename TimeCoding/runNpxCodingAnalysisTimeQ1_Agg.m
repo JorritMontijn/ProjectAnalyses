@@ -290,8 +290,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%matDecConfPerTrial(intBinIdx,:)=vecConf;
 		
 		%%
-		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A1_PopActDynamics_%s.tif',strRec)));
-		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A1_PopActDynamics_%s.pdf',strRec)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1_PopActDynamics_%s.tif',strRec)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1_PopActDynamics_%s.pdf',strRec)));
 		
 		%% make example figure; decode & make quantiles
 		% plot example single-neuron response to drifting gratings
@@ -455,8 +455,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		fixfig;grid off;
 		%}
 		%%
-		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A2_ExampleNeuralCodes_%s.tif',strRec)));
-		export_fig(fullpath([strFigurePath filesep 'single_recs'],sprintf('A2_ExampleNeuralCodes_%s.pdf',strRec)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A2_ExampleNeuralCodes_%s.tif',strRec)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A2_ExampleNeuralCodes_%s.pdf',strRec)));
 	
 		%% save data
 		save(fullpath(strTargetDataPath,sprintf('Q1Data_%s',strRec)),...

@@ -14,13 +14,16 @@ or end? does this ordering differ between orientations?
 %close all;
 clear all;
 boolSaveFigs = true;
-boolHome = true;
-if boolHome
+if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
+	strDataPath = 'F:\Data\Processed\Neuropixels\';
+	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
 	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
 else
-	strFigurePath = 'D:\Data\Results\PopTimeCoding\figures\';
-	strTargetDataPath = 'D:\Data\Results\PopTimeCoding\data\';
+	strDataPath = 'E:\DataPreProcessed\';
+	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
+	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
+	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
 dblBimoThreshold = inf;%0.5;%0.4
 dblDevThreshold = 0.7;%0.7;%0.7

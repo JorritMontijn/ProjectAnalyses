@@ -612,6 +612,3 @@ fixfig;
 drawnow;
 export_fig(fullpath(strFigurePath,sprintf('Q2_ConstantCV.tif')));
 export_fig(fullpath(strFigurePath,sprintf('Q2_ConstantCV.pdf')));
-	
-%% plot mean vs euclidian
-error to do

@@ -211,10 +211,10 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			vecTime = vecTime + dblStartEpoch(1);
 			
 			%create variables
-			eval(['s' strType '.vecAllSpikeTime = vecAllSpikeTime']);
-			eval(['s' strType '.vecAllSpikeNeuron = vecAllSpikeNeuron']);
-			eval(['s' strType '.vecTime = vecTime']);
-			eval(['s' strType '.vecIFR = vecIFR']);
+			eval(['s' strType '.vecAllSpikeTime = vecAllSpikeTime;']);
+			eval(['s' strType '.vecAllSpikeNeuron = vecAllSpikeNeuron;']);
+			eval(['s' strType '.vecTime = vecTime;']);
+			eval(['s' strType '.vecIFR = vecIFR;']);
 			
 		end
 		

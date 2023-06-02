@@ -7,9 +7,8 @@ q1: Can absence of stimulus information in initial period be explained by neuron
 black/white patches in the first x ms?
 
 q2: How precise are spike times in the natural movie repetitions?
-
-
 %}
+
 %% define qualifying areas
 clear all;
 cellUseAreas = {...

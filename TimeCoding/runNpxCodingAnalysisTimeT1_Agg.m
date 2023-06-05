@@ -354,6 +354,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			title(sprintf('%s; %s',strRec,strType),'interpreter','none');
 			ylabel('Pop rate (Hz)');
 			xlabel('Time after pop event (ms)');
+			drawnow;
 			
 			subplot(2,3,4)
 			plot(vecEventBinsC,vecMeanMR,'color','k')

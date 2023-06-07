@@ -2,10 +2,11 @@ clear all;
 
 %% generate random data
 %events
+dblFactor = 1;
 dblStartEpoch = 0;
-dblStopEpoch = 30;
+dblStopEpoch = 30*dblFactor;
 dblEpochDur = dblStopEpoch - dblStartEpoch;
-intTotSpikeNum = 20000;
+intTotSpikeNum = 20000*dblFactor;
 
 %random events
 vecAllSpikeTime = sort((rand(1,intTotSpikeNum)*dblEpochDur)+dblStartEpoch);
@@ -17,8 +18,24 @@ vecBins=(dblStartEpoch:dblBinDur:dblStopEpoch)';
 vecIFR = (histcounts(vecAllSpikeTime,vecBins)./dblBinDur)';
 vecTime = vecBins(2:end)-dblBinDur/2;
 
+%real IFR
+if 0
+	vecAllSpikeTimeRev = sort(abs(vecAllSpikeTime-dblStopEpoch)+dblStartEpoch);
+	[vecTimeRev,vecIFRRev] = getIFR(vecAllSpikeTimeRev,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
+	[vecTime,vecReorder] = sort(abs(vecTimeRev-dblStopEpoch)+dblStartEpoch);
+	vecIFR = vecIFRRev(vecReorder);
+else
+	[vecTime,vecIFR] = getIFR(vecAllSpikeTime,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
+end
+
 %find peaks
 [vecPeakHeight,vecPeakLocs,w,p] = findpeaks(vecIFR);
+
+%intSamples = 10;
+%figure;plot( (-intSamples:intSamples)*dblBinDur,mean(vecIFR(vecPeakLocs(10:end-10)+[-intSamples:intSamples])))
+%vecPeakLocs(vecIFR(vecPeakLocs)==vecIFR(vecPeakLocs+1))=[];
+%figure;plot( (-intSamples:intSamples)*dblBinDur,mean(vecIFR(vecPeakLocs(10:end-10)+[-intSamples:intSamples])))
+
 
 %get pop events
 vecPopEventTimes = vecTime(vecPeakLocs);
@@ -66,7 +83,7 @@ plot(vecEventBinsC,vecMeanR,'color','k')
 hold on
 plot(vecEventBinsC,vecMean,'color',lines(1))
 hold off
-ylim([0 3000]);
+%ylim([0 3000]);
 ylabel('Pop rate (Hz)');
 xlabel('Time after pop event (ms)');
 drawnow;

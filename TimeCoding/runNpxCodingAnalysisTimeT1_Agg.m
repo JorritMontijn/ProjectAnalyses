@@ -150,15 +150,18 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			vecNormIFR = (vecIFR - avgFilter)./avgFilter;
 			indRem = isinf(vecNormIFR);
 			vecNormIFR(indRem) = [];
+			vecNormIFR = vecNormIFR + (1e-10)*rand(size(vecNormIFR)); %break identical values
 			vecNormTime = vecTime(~indRem);
 			
-			% poiss peaks
+			% peaks
 			indStimSpikes = vecNormTime>(vecOrigStimOnTime(1)-dblStimDur) & vecNormTime<(vecOrigStimOnTime(end)+dblStimDur);
 			vecStimIFR_Raw = vecIFR(indStimSpikes);
 			vecStimIFR = vecNormIFR(indStimSpikes);
 			vecStimTime = vecNormTime(indStimSpikes);
-			
 			[vecPeakHeight,vecPeakLocs,w,p] = findpeaks(vecStimIFR);
+			
+			%remove peaks with identical subsequent values
+			%vecPeakLocs(vecStimIFR(vecPeakLocs)==vecStimIFR(vecPeakLocs+1))=[];
 			
 			%threshold peaks
 			dblCutOff = 0.65;
@@ -174,7 +177,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			intPopEventNum = numel(vecPopEventTimes);
 			vecPopEventLocs = nan(1,intPopEventNum);
 			vecPopEventLocsIFR = nan(1,intPopEventNum);
-			for intEvent=1:intPopEventNum
+			parfor intEvent=1:intPopEventNum
 				[dummy,vecPopEventLocs(intEvent)] = min(abs(vecPopEventTimes(intEvent)-vecPopSpikeTime));
 				[dummy,vecPopEventLocsIFR(intEvent)] = min(abs(vecPopEventTimes(intEvent)-vecStimTime));
 			end
@@ -188,7 +191,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			intMergedPopEventNum = numel(vecMergedPopEventTimes);
 			vecMergedPopEventLocs = nan(1,intMergedPopEventNum);
 			vecMergedPopEventLocsIFR = nan(1,intMergedPopEventNum);
-			for intEvent=1:intMergedPopEventNum
+			parfor intEvent=1:intMergedPopEventNum
 				[dummy,vecMergedPopEventLocs(intEvent)] = min(abs(vecMergedPopEventTimes(intEvent)-vecPopSpikeTime));
 				[dummy,vecMergedPopEventLocsIFR(intEvent)] = min(abs(vecMergedPopEventTimes(intEvent)-vecStimTime));
 			end
@@ -286,16 +289,6 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			matPopRateMR = sum(matPETMR,3);
 			vecMeanMR = mean(matPopRateMR,1);
 			vecSEMMR = std(matPopRateMR,[],1)./sqrt(size(matPopRateMR,1));
-			
-			
-			%% why are these peaks asymmetric
-			
-			[dummy,dummy,vecEventBinsC,matPET] = doPEP(cellUseSpikeTimes,vecEventBins,vecPopEventTimes);
-			matPopRate = sum(matPET,3);
-			vecMean = mean(matPopRate,1);
-			vecSEM = std(matPopRate,[],1)./sqrt(size(matPopRate,1));
-			vecMean(vecEventBinsC==0)=nan;
-			plot(vecEventBinsC,vecMean,'color',lines(1))
 			
 			%% output
 			%raw peaks; events range from -1ms to +1ms around peak

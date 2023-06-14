@@ -427,6 +427,11 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			
 			fixfig;
 			
+			%% save plot
+			export_fig(fullpath(strFigurePathSR,sprintf('T1_PeakPSTH_%s_%s.tif',strRec,strType)));
+			export_fig(fullpath(strFigurePathSR,sprintf('T1_PeakPSTH_%s_%s.pdf',strRec,strType)));
+			
+			%% save data
 			if intType == 1
 				sReal.cellEventPerSpike = cellEventPerSpike;
 				sReal.cellTimePerSpike = cellTimePerSpike;

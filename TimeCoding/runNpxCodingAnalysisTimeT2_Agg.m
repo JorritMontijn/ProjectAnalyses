@@ -127,6 +127,14 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			vecAllSpikeNeuron = sSource.vecAllSpikeNeuron;
 			intNumN = max(vecAllSpikeNeuron);
 			
+			%% replace IFR with binned rates?
+			if 0
+				dblBinDur = (5/1000);
+				vecBins=(dblStartEpoch:dblBinDur:dblStopEpoch)';
+				vecIFR = flat(histcounts(vecTime,vecBins)./dblBinDur);
+				vecTime = vecBins(2:end)-dblBinDur/2;
+			end
+			
 			%% run analyses
 			%remove spikes outside epoch & build shuffled array
 			cellUseSpikeTimes = cell(1,intNumN);
@@ -176,18 +184,18 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			end
 			
 			%% what does peak look like? plot PSTH
-			dblStep = (1/100);
-			dblRange = 2;%0.02
+			dblStep = (1/50);
+			dblRange = 10;%0.02
 			vecRandMergedPopEventTimes = dblRange*(rand(1,numel(vecMergedPopEventTimes))-0.5)+linspace(min(vecMergedPopEventTimes)+2*dblRange,max(vecMergedPopEventTimes)-2*dblRange,numel(vecMergedPopEventTimes));
 			vecEventBins = (-dblRange+dblStep/2):dblStep:(dblRange-dblStep/2);
 			vecEventBinsC = vecEventBins(2:end)-dblStep/2;
 			
 			%merged peaks, IFR
 			[matPET,vecEventBinsC] = doPET(vecTime,vecIFR,vecMergedPopEventTimes,vecEventBins);
-		
+			
 			%merged random peaks, IFR
 			matPETR = doPET(vecTime,vecIFR,vecRandMergedPopEventTimes,vecEventBins);
-		
+			
 			%normalized pop rates
 			vecMeanM = nanmean(matPET,1);
 			vecSEMM = nanstd(matPET,[],1)./sqrt(size(matPET,1));
@@ -286,7 +294,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			intMax = dblMax/dblBinDur;
 			vecIntervals(vecIntervals<intMin | vecIntervals>intMax)=[];
 			[alphaRate, intervalsRate, fluctsRate] = fastdfa(vecRate', vecIntervals');
-		
+			
 			%% plot
 			figure;maxfig;
 			subplot(2,3,1)
@@ -297,7 +305,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			%ylim([0 3000]);
 			title(sprintf('Merged peaks; %s',strType),'interpreter','none');
 			ylabel('Pop IFR (Hz)');
-			xlabel('Time after merged pop event (ms)');
+			xlabel('Time after merged pop event (s)');
 			
 			subplot(2,3,2)
 			hold on
@@ -305,14 +313,15 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			hold off
 			title(sprintf('Rate normalized to random'),'interpreter','none');
 			ylabel('Normalized pop IFR (z-score)');
-			xlabel('Time after merged pop event (ms)');
+			xlabel('Time after merged pop event (s)');
 			
-				
+			
 			subplot(2,3,5)
-			plot(intervalsRate*dblBinDur,fluctsRate)
+			plot(intervalsRate,fluctsRate)
 			set(gca,'xscale','log','yscale','log')
 			title(sprintf('DFA Binned spiking rate; %s=%.3f',getGreek('alpha'),alphaRate))
-			
+			xlabel('Sample window (n)')
+			ylabel('Fluctuation (F(n))');
 			
 			subplot(2,3,3)
 			%average
@@ -336,15 +345,30 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			
 			fixfig;
 			
+			%% save plot
+			export_fig(fullpath(strFigurePathSR,sprintf('T2_PeakTimescale_%s_%s.tif',strRec,strType)));
+			export_fig(fullpath(strFigurePathSR,sprintf('T2_PeakTimescale_%s_%s.pdf',strRec,strType)));
+			
+			%% save data
 			if intType == 1
 				sReal.vecPeakHeight = vecPeakHeight;
+				sReal.vecEventBinsC = vecEventBinsC;
+				sReal.vecMeanM = vecMeanM;
 			elseif intType == 2
 				sPoiss.vecPeakHeight = vecPeakHeight;
+				sPoiss.vecEventBinsC = vecEventBinsC;
+				sPoiss.vecMeanM = vecMeanM;
 			elseif intType == 3
 				sShuffTid.vecPeakHeight = vecPeakHeight;
+				sShuffTid.vecEventBinsC = vecEventBinsC;
+				sShuffTid.vecMeanM = vecMeanM;
 			elseif intType == 4
 				sShuff.vecPeakHeight = vecPeakHeight;
+				sShuff.vecEventBinsC = vecEventBinsC;
+				sShuff.vecMeanM = vecMeanM;
 			end
+			
+			fprintf('Finished %s [%s]\n',strType,getTime);
 		end
 		
 		%% comparison
@@ -377,6 +401,20 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		xlabel('Peak height')
 		ylabel('Real/shuffle ratio');
 		
+		%plot real minus shufftid
+		subplot(2,3,3)
+		plot(sReal.vecEventBinsC,sReal.vecMeanM-sShuffTid.vecMeanM,'color',lines(1))
+		%ylim([0 3000]);
+		title(sprintf('Merged peaks; %s',strType),'interpreter','none');
+		ylabel('Pop IFR (Hz)');
+		xlabel('Time after merged pop event (s)');
+		
+		fixfig;
+		
+		%% save plot
+		export_fig(fullpath(strFigurePathSR,sprintf('T2_PeakTimescaleNorm_%s_%s.tif',strRec,strType)));
+		export_fig(fullpath(strFigurePathSR,sprintf('T2_PeakTimescaleNorm_%s_%s.pdf',strRec,strType)));
+			
 		return
 	end
 end

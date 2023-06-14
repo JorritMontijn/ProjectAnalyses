@@ -18,39 +18,50 @@ cellTuningP_AlbCtx = {};
 cellOSI_AlbCtx = {};
 cellOPI_AlbCtx = {};
 cellDSI_AlbCtx = {};
+cellSpR_AlbCtx = {};
 vecOSI_AlbCtx = [];
 vecOPI_AlbCtx = [];
 vecDSI_AlbCtx = [];
 cellPrefOri_AlbCtx = {};
+vecTotCells_AlbCtx = [];
+vecKeepCells_AlbCtx = [];
 
 cellTuningP_Bl6Ctx = {};
 cellOSI_Bl6Ctx = {};
 cellOPI_Bl6Ctx = {};
 cellDSI_Bl6Ctx = {};
+cellSpR_Bl6Ctx = {};
 vecOSI_Bl6Ctx = [];
 vecOPI_Bl6Ctx = [];
 vecDSI_Bl6Ctx = [];
 cellPrefOri_Bl6Ctx = {};
+vecTotCells_Bl6Ctx = [];
+vecKeepCells_Bl6Ctx = [];
 
 cellTuningP_Bl6NOT = {};
 cellOSI_Bl6NOT = {};
 cellOPI_Bl6NOT = {};
 cellDSI_Bl6NOT = {};
+cellSpR_Bl6NOT = {};
 vecOSI_Bl6NOT = [];
 vecOPI_Bl6NOT = [];
 vecDSI_Bl6NOT = [];
 cellPrefOri_Bl6NOT = {};
+vecTotCells_Bl6NOT = [];
+vecKeepCells_Bl6NOT = [];
 
 cellTuningP_AlbNOT = {};
 cellOSI_AlbNOT = {};
 cellOPI_AlbNOT = {};
 cellDSI_AlbNOT = {};
+cellSpR_AlbNOT = {};
 vecOSI_AlbNOT = [];
 vecOPI_AlbNOT = [];
 vecDSI_AlbNOT = [];
 cellPrefOri_AlbNOT = {};
-
-
+vecTotCells_AlbNOT = [];
+vecKeepCells_AlbNOT = [];
+					
 %% run
 cellNameAP = arrayfun(@(x) x.sJson.file_preproAP,sExp,'uniformoutput',false);
 cellExperiment = arrayfun(@(x) x.sJson.experiment,sExp,'uniformoutput',false);
@@ -153,7 +164,7 @@ for intSubType=1:2
 		cellSpikeT = {sRec.sCluster(:).SpikeTimes};
 		dblStimDur = median(vecAggStimOffTime-vecAggStimOnTime);
 		[vecAggOriIdx,vecAggUnique,vecAggCounts,cellAggSelect,vecAggRepetition] = val2idx(vecAggDir);
-		if numel(vecUnique) ~= 24,continue,end
+		%if numel(vecUnique) ~= 24,continue,end
 		matData = getSpikeCounts(cellSpikeT,vecAggStimOnTime,dblStimDur);
 		
 		%include?
@@ -193,6 +204,8 @@ for intSubType=1:2
 			if isempty(vecSelectCells)
 				continue;
 			end
+			intTotCells = sum(cellCellsPerArea{intArea}(:));
+			intKeepCells = numel(vecSelectCells);
 			
 			%% calc tuning curves & zeta
 			%calc tuning curve
@@ -207,7 +220,7 @@ for intSubType=1:2
 			indTunedCells = vecTuningP_R2_corr<0.05;
 			
 			%get OPI
-			matUseR = sOut.matMeanResp;%(indTunedCells,:);
+			matUseR = sOut.matMeanResp(indTunedCells,:);
 			%matUseR = sOut.matFittedResp;
 			vecDir24 = sOut.vecUniqueDegs;
 			vecOri24 = mod(vecDir24,180);
@@ -224,11 +237,12 @@ for intSubType=1:2
 			%vecDSI = (vecPrefR-vecAntiR)./(vecAntiR+vecPrefR);
 			
 			%get DSI horizontal
-			matUseRD = matUseR(indTunedCells,:);
+			matUseRD = matUseR;
 			vecLeftR = mean(matUseRD(:,vecDir24==0 | vecDir24==345 | vecDir24==15),2);
 			vecRightR = mean(matUseRD(:,vecDir24==165 | vecDir24==180 | vecDir24==195),2);
-			vecDSI = (vecLeftR-vecRightR)./(vecRightR+vecLeftR);
-			
+			vecDSI = (vecLeftR-vecRightR)./(vecRightR+vecLeftR+eps);
+			vecPrefR = max(matUseRD,[],2);
+				
 			%{
 				figure;
 				subplot(2,3,1)
@@ -249,24 +263,32 @@ for intSubType=1:2
 			
 			if 0
 				%% plot tuning curve
-				[dummy,vecIdx]=sort(vecTuningP_R2_corr);
+				[vecTuningP,vecReorder]=sort(vecTuningP_R2_corr);
+				indTunedResorted = indTunedCells(vecReorder);
+				vecIdx = vecReorder(indTunedResorted);
+				matMeanResp=sOut.matMeanResp;
+				matSDResp=sOut.matSDResp;
+				matFittedResp=sOut.matFittedResp;
+				
+				%collapse angles
+				vecOPIAll = getOPI(matMeanResp,deg2rad(vecOri24));
 				%get DSI horizontal
-				matUseRD = matUseR;
-				vecLeftR = mean(matUseRD(:,vecDir24==0 | vecDir24==345 | vecDir24==15),2);
-				vecRightR = mean(matUseRD(:,vecDir24==165 | vecDir24==180 | vecDir24==195),2);
-				vecDSI = (vecLeftR-vecRightR)./(vecRightR+vecLeftR);
+				vecLeftR = mean(matMeanResp(:,vecDir24==0 | vecDir24==345 | vecDir24==15),2);
+				vecRightR = mean(matMeanResp(:,vecDir24==165 | vecDir24==180 | vecDir24==195),2);
+				vecDSIAll = (vecLeftR-vecRightR)./(vecRightR+vecLeftR+eps);
 				
 				%% plot
 				for intCellIdx=1:numel(vecIdx)
 					%%
 					%intCellIdx=6
-					intCell=vecIdx(intCellIdx);
+					intOrigCell=vecIdx(intCellIdx);
 					%intCell=13;
 					figure;maxfig;
 					vecDirs = vecAggUnique(:)';
-					vecMeanR = sOut.matMeanResp(intCell,:);
-					vecMeanSem = sOut.matSDResp(intCell,:)./sqrt(vecAggCounts');
-					vecFitR = sOut.matFittedResp(intCell,:);
+					vecMeanR = matMeanResp(intOrigCell,:);
+					[dblPrefRate,intPrefDir] = max(vecMeanR);
+					vecMeanSem = matSDResp(intOrigCell,:)./sqrt(vecAggCounts');
+					vecFitR = matFittedResp(intOrigCell,:);
 					intPlotPre = 12;
 					intPlotPost = -12;
 					vecPlotX = [(numel(vecDirs)-intPlotPre+1):numel(vecDirs) 1:(numel(vecDirs)+intPlotPost)];
@@ -280,8 +302,7 @@ for intSubType=1:2
 					hold on
 					polarplot(deg2rad(vecDirs),vecFitR);
 					hold off
-					fixfig;
-					title(sprintf('OSI=%.3f, DSI=%.3f',vecOPI(intCell),vecDSI(intCell)));
+					title(sprintf('OSI=%.3f, DSI=%.3f, Tuning-p=%.3f',vecOPIAll(intOrigCell),vecDSIAll(intOrigCell),vecTuningP_R2_corr(intOrigCell)));
 					
 					subplot(2,3,2)
 					errorbar(vecDirs_Ext,vecMeanR_Ext,vecMeanSem_Ext);
@@ -290,20 +311,19 @@ for intSubType=1:2
 					hold off
 					xlabel('Stimulus direction (degs)');
 					ylabel('Spiking rate (Hz)');
-					title(sprintf('%d',intCell))
-					fixfig;grid off;
+					title(sprintf('%s, %s %d, rate=%.1fHz',strName,strAreaGroup,intOrigCell,dblPrefRate),'interpreter','none')
+					grid off;
 					%xlim([0 360]);
 					ylim([0 max(get(gca,'ylim'))]);
 					
 					subplot(2,3,3)
-					[dummy,intPrefDir] = max(vecMeanR);
 					vecPrefT =  vecAggStimOnTime(cellAggSelect{intPrefDir});
 					dblOffset = -0.3;
 					dblTrialDur = 1.5-dblOffset;
 					dblBinSize = 0.05;
 					vecWindow = dblOffset:dblBinSize:(dblTrialDur+dblOffset);
 					vecLimX = [vecWindow(1) vecWindow(end)];
-					vecSpikeT = cellSubSpikes{intCell};
+					vecSpikeT = cellSubSpikes{intOrigCell};
 					intSmoothSd = 5;
 					%[vecTime,vecRate] = getIFR(vecSpikeT,vecPrefT+dblOffset,dblTrialDur,intSmoothSd);
 					[vecMean,vecSEM,vecWindowBinCenters,matPET] = doPEP(vecSpikeT,vecWindow,vecPrefT,-1);
@@ -311,11 +331,12 @@ for intSubType=1:2
 					hold on
 					errorbar(vecWindowBinCenters,vecMean,vecSEM);
 					hold off
+					ylim([0 max(get(gca,'ylim'))]);
 					
 					xlabel('Time (s)');
 					ylabel('Spiking rate (Hz)');
 					title('pref dir')
-					fixfig;grid off;
+					grid off;
 					xlim(vecLimX);
 					
 					subplot(2,3,6)
@@ -330,22 +351,25 @@ for intSubType=1:2
 					xlabel('Time (s)');
 					ylabel('Instantaneous rate (Hz)');
 					title('orth dir')
-					fixfig;grid off;
 					xlim(vecLimX);
+					ylim([0 max(get(gca,'ylim'))]);
+					fixfig;
 					
 					% save figure
 					drawnow;
-					strFigName = sprintf('ExampleTuningCurve%s_%s%d',strName,cellAreaGroupsAbbr{intArea},intCell);
+					strFigName = sprintf('ExampleTuningCurve%s_%s%d',strName,cellAreaGroupsAbbr{intArea},intOrigCell);
 					export_fig(fullpath([strTargetPath filesep 'single_cells'],[strFigName '.tif']));
 					export_fig(fullpath([strTargetPath filesep 'single_cells'],[strFigName '.pdf']));
 					%%
-					pause
+					pause(0.1);
+					close;
 				end
-				
-				%% plot
+			end
+			%% plot
+			if 0
 				for intCellIdx=1:numel(vecSelectCells)
-					intCell = vecSelectCells(intCellIdx);
-					vecSpikeT = cellSpikeT{intCell};
+					intOrigCell = vecSelectCells(intCellIdx);
+					vecSpikeT = cellSpikeT{intOrigCell};
 					
 					[vecTime,vecRate] = getIFR(vecSpikeT,vecAggStimOnTime,dblTrialDur);
 					
@@ -374,18 +398,24 @@ for intSubType=1:2
 					cellOSI_AlbCtx{end+1} = vecOSI;
 					cellDSI_AlbCtx{end+1} = vecDSI;
 					cellOPI_AlbCtx{end+1} = vecOPI;
+					cellSpR_AlbCtx{end+1} = vecPrefR;
 					vecOSI_AlbCtx(end+1) = nanmean(vecOSI);
 					vecDSI_AlbCtx(end+1) = nanmean(vecDSI);
 					vecOPI_AlbCtx(end+1) = nanmean(vecOPI);
+					vecTotCells_AlbCtx(end+1) = intKeepCells;
+					vecKeepCells_AlbCtx(end+1) = sum(indTunedCells);
 					cellPrefOri_AlbCtx{end+1} = vecPrefOri;
 				elseif strcmpi(strSubjectType,'Bl6')
 					cellTuningP_Bl6Ctx{end+1} = vecTuningP_R2_corr;
 					cellOSI_Bl6Ctx{end+1} = vecOSI;
 					cellDSI_Bl6Ctx{end+1} = vecDSI;
 					cellOPI_Bl6Ctx{end+1} = vecOPI;
+					cellSpR_Bl6Ctx{end+1} = vecPrefR;
 					vecOSI_Bl6Ctx(end+1) = nanmean(vecOSI);
 					vecDSI_Bl6Ctx(end+1) = nanmean(vecDSI);
 					vecOPI_Bl6Ctx(end+1) = nanmean(vecOPI);
+					vecTotCells_Bl6Ctx(end+1) = intKeepCells;
+					vecKeepCells_Bl6Ctx(end+1) = sum(indTunedCells);
 					cellPrefOri_Bl6Ctx{end+1} = vecPrefOri;
 				end
 			elseif intArea == 2
@@ -394,18 +424,24 @@ for intSubType=1:2
 					cellOSI_AlbNOT{end+1} = vecOSI;
 					cellDSI_AlbNOT{end+1} = vecDSI;
 					cellOPI_AlbNOT{end+1} = vecOPI;
+					cellSpR_AlbNOT{end+1} = vecPrefR;
 					vecOSI_AlbNOT(end+1) = nanmean(vecOSI);
 					vecDSI_AlbNOT(end+1) = nanmean(vecDSI);
 					vecOPI_AlbNOT(end+1) = nanmean(vecOPI);
+					vecTotCells_AlbNOT(end+1) = intKeepCells;
+					vecKeepCells_AlbNOT(end+1) = sum(indTunedCells);
 					cellPrefOri_AlbNOT{end+1} = vecPrefOri;
 				elseif strcmpi(strSubjectType,'Bl6')
 					cellTuningP_Bl6NOT{end+1} = vecTuningP_R2_corr;
 					cellOSI_Bl6NOT{end+1} = vecOSI;
 					cellDSI_Bl6NOT{end+1} = vecDSI;
 					cellOPI_Bl6NOT{end+1} = vecOPI;
+					cellSpR_Bl6NOT{end+1} = vecPrefR;
 					vecOSI_Bl6NOT(end+1) = nanmean(vecOSI);
 					vecDSI_Bl6NOT(end+1) = nanmean(vecDSI);
 					vecOPI_Bl6NOT(end+1) = nanmean(vecOPI);
+					vecTotCells_Bl6NOT(end+1) = intKeepCells;
+					vecKeepCells_Bl6NOT(end+1) = sum(indTunedCells);
 					cellPrefOri_Bl6NOT{end+1} = vecPrefOri;
 				end
 			end
@@ -413,6 +449,54 @@ for intSubType=1:2
 		
 	end
 end
+fprintf([...
+	'Cells,   All / Incl / Frac indcluded\n'...
+	'CtxBl6: %04d / %04d / %.3f\n'...
+	'NotBl6: %04d / %04d / %.3f\n'...
+	'CtxAlb: %04d / %04d / %.3f\n'...
+	'NotAlb: %04d / %04d / %.3f\n'],...
+	sum(vecTotCells_Bl6Ctx),sum(vecKeepCells_Bl6Ctx),sum(vecKeepCells_Bl6Ctx)/sum(vecTotCells_Bl6Ctx),...
+	sum(vecTotCells_Bl6NOT),sum(vecKeepCells_Bl6NOT),sum(vecKeepCells_Bl6NOT)/sum(vecTotCells_Bl6NOT),...
+	sum(vecTotCells_AlbCtx),sum(vecKeepCells_AlbCtx),sum(vecKeepCells_AlbCtx)/sum(vecTotCells_AlbCtx),...
+	sum(vecTotCells_AlbNOT),sum(vecKeepCells_AlbNOT),sum(vecKeepCells_AlbNOT)/sum(vecTotCells_AlbNOT)...
+	);
+
+%% plot spiking rate vs direction selectivity
+figure;maxfig;
+h=subplot(2,3,3);
+hold on;
+for intType=1:2
+	if intType == 2
+		strType = 'BL6'; 
+		cellSpR = cellSpR_Bl6NOT;
+		cellDSI = cellDSI_Bl6NOT;
+		vecCol = [0 0 0.8];
+	else
+		strType = 'Alb';
+		cellSpR = cellSpR_AlbNOT;
+		cellDSI = cellDSI_AlbNOT;
+		vecCol = [0.8 0 0];
+	end
+	vecSpR = cell2vec(cellSpR);
+	vecDSI = cell2vec(cellDSI);
+	subplot(2,3,intType)
+	scatter(vecDSI,vecSpR)
+	title(strType)
+	xlim([-1 1])
+	
+	axes(h);
+	vecBins = 0:10:100;
+	vecBinsC = vecBins(2:end)-median(diff(vecBins))/2;
+	vecCounts = histcounts(vecSpR,vecBins);
+	plot(vecBinsC,vecCounts./sum(vecCounts),'color',vecCol)
+end
+fixfig;
+axes(h);
+[h,p]=ttest2(cell2vec(cellSpR_Bl6NOT),cell2vec(cellSpR_AlbNOT));
+title(sprintf('Mean pref rate, BL6=%.1fHz, Alb=%.1fHz, p=%.3f',mean(cell2vec(cellSpR_Bl6NOT)),mean(cell2vec(cellSpR_AlbNOT)),p));
+strFigName = ['FiringRate'];
+export_fig(fullpath(strTargetPath,[strFigName '.tif']));
+export_fig(fullpath(strTargetPath,[strFigName '.pdf']));
 
 %% plot ori vs dir tuning in bl6 vs albino: is direction selectivity in DBA NOT specifically affected?
 figure;maxfig

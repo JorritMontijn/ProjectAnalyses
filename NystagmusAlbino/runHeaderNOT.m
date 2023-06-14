@@ -1,9 +1,12 @@
 %% load data
 if exist('E:\DataPreProcessed','dir')
 	strDataPath = 'E:\DataPreProcessed';
+	%strDataPath = 'C:\Drive\Neuropixels\Old';
 else
 	strDataPath = 'F:\Data\Processed\Neuropixels';
+	%strDataPath = 'F:\Drive\Neuropixels\Old';
 end
+fprintf('Loading %s [%s]\n',strDataPath,getTime);
 sFiles = dir(fullpath(strDataPath,'*_AP.mat'));
 sFiles(contains({sFiles.name},'MP')) = [];
 if ~exist('sExp','var') || isempty(sExp)

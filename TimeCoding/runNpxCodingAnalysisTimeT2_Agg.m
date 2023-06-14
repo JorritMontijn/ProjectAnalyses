@@ -16,7 +16,6 @@ cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
 if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -103,23 +102,21 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		sShuff = struct;
 		sShuffTid = struct;
 		sPoiss = struct;
-		for intType=1:4
-			if intType==1
+		cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain'};
+		for intType=5
+			%which type?
+			cellSpikeTimes = cell(1,intNumN);
+			strType = cellTypes{intType};
+			if strcmp(strType,'Real')
 				sSource = sLoad.sReal;
-				strType = 'Real';
-				%elseif intType == 2
-				%	cellUseSpikeTimes = cellSpikeTimes;
-				%	vecPopEventTimes = vecPopEventTimes_Real;
-				%	strType = 'Original spikes';
-			elseif intType == 2
+			elseif strcmp(strType,'Poiss')
 				sSource = sLoad.sPoiss;
-				strType = 'Poiss';
-			elseif intType == 3
+			elseif strcmp(strType,'ShuffTid')
 				sSource = sLoad.sShuffTid;
-				strType = 'ShuffTid';
-			else
+			elseif strcmp(strType,'Shuff')
 				sSource = sLoad.sShuff;
-				strType = 'Shuff';
+			elseif strcmp(strType,'PoissGain')
+			
 			end
 			vecTime = sSource.vecTime;
 			vecIFR = sSource.vecIFR;

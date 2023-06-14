@@ -26,8 +26,7 @@ cellUseAreas = {strRunArea};
 boolMakeFigs = true;
 boolSaveFigs = true;
 boolSaveData = true;
-boolHome = false;
-if boolHome
+if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
@@ -145,6 +144,7 @@ for intRandomize=1:3
 			dblLambda = 1;%1
 			intTypeCV = 2;
 			dblUseStartT = 0;
+			dblMaxDur = median(vecStimOffTime-vecStimOnTime);
 			dblUseMaxDur = dblMaxDur-dblUseStartT;
 			intUseMax = inf;
 			intReps = mean(vecPriorDistribution);

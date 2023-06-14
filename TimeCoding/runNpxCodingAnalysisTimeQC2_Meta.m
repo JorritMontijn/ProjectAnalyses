@@ -25,7 +25,6 @@ strRunArea = 'Primary visual area';%'posteromedial visual area' 'Primary visual 
 cellUseAreas = {strRunArea};
 
 boolSaveFigs = true;
-boolHome = true;
 if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
@@ -37,7 +36,6 @@ else
 	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
 	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
-
 %% find data
 strStim = 'NM';%DG/NM
 dblBimoThreshold = inf;%0.5;%0.4

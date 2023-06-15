@@ -1,6 +1,6 @@
-function [vecR2,vecR2_NonCV,cellB_rrr] = getRedRankRegCV(matX1,matY1,matX2,matY2,dblLambda)
+function [vecR2,vecR2_NonCV,cellB_rrr] = getRedRankRegCV(matX_Train,matY_Train,matX_Test,matY_Test,dblLambda)
 	%% prep
-	intMaxDim = size(matY1,2);
+	intMaxDim = size(matY_Train,2);
 	vecR2 = nan(1,intMaxDim);
 	vecR2_NonCV = nan(1,intMaxDim);
 	
@@ -16,7 +16,7 @@ function [vecR2,vecR2_NonCV,cellB_rrr] = getRedRankRegCV(matX1,matY1,matX2,matY2
 	for intDim=1:intMaxDim
 		if intType == 1
 			%get subspace
-			[matUseSubspace, dblMSE, intRankOutT, sSuppOut] = doRdRankReg(matX1, matY1, intDim);
+			[matUseSubspace, dblMSE, intRankOutT, sSuppOut] = doRdRankReg(matX_Train, matY_Train, intDim);
 			
 			%suppress warning
 			[dummy,strWID]=lastwarn;
@@ -25,19 +25,19 @@ function [vecR2,vecR2_NonCV,cellB_rrr] = getRedRankRegCV(matX1,matY1,matX2,matY2
 			end
 			
 			%project activity into PC space
-			matTrainZ = matX1*matUseSubspace + repmat(sSuppOut.matMu',[size(matX1,1) 1]);
+			matTrainZ = matX_Train*matUseSubspace + repmat(sSuppOut.matMu',[size(matX_Train,1) 1]);
 			
 			%ridge regression between reduced space X and Y
-			B_ridge_Z = (matTrainZ' * matTrainZ + dblLambda*eye(size(matTrainZ,2))) \ (matTrainZ' * matY1); %left-divide is same as inverse and multiplication
+			B_ridge_Z = (matTrainZ' * matTrainZ + dblLambda*eye(size(matTrainZ,2))) \ (matTrainZ' * matY_Train); %left-divide is same as inverse and multiplication
 			
 			%test
-			matTestZ = matX2*matUseSubspace + repmat(sSuppOut.matMu',[size(matX2,1) 1]);
+			matTestZ = matX_Test*matUseSubspace + repmat(sSuppOut.matMu',[size(matX_Test,1) 1]);
 			Y_pred_Z = matTestZ * B_ridge_Z;
 			
 			% compute R^2
-			vecMu = mean(matY2);
-			dblSSRes_Z = sum(sum((matY2 - Y_pred_Z).^2));
-			dblSSTot = sum(sum(bsxfun(@minus,matY2,vecMu).^2));
+			vecMu = mean(matY_Test);
+			dblSSRes_Z = sum(sum((matY_Test - Y_pred_Z).^2));
+			dblSSTot = sum(sum(bsxfun(@minus,matY_Test,vecMu).^2));
 			dblR2_Z = 1 - dblSSRes_Z / dblSSTot;
 			vecR2(intDim) = dblR2_Z;
 			
@@ -47,22 +47,22 @@ function [vecR2,vecR2_NonCV,cellB_rrr] = getRedRankRegCV(matX1,matY1,matX2,matY2
 			end
 		elseif intType == 2
 			%get subspace
-			[matUseSubspace, dblMSE, intRankOutT, sSuppOut] = doRidgeRRR(matX1,matY1,intDim,dblLambda);
+			[matUseSubspace, dblMSE, intRankOutT, sSuppOut] = doRidgeRRR(matX_Train,matY_Train,intDim,dblLambda);
 			vecR2_NonCV(intDim) = sSuppOut.dblR2;
 			
 			%get bias
-			matMu = mean(matY2)' - (matUseSubspace')*(mean(matX2)');
+			matMu = mean(matY_Test)' - (matUseSubspace')*(mean(matX_Test)');
 			
 			% get prediction
-			matY_pred = repmat(matMu',[size(matY2,1) 1]) + matX2*matUseSubspace;
+			matY_pred = repmat(matMu',[size(matY_Test,1) 1]) + matX_Test*matUseSubspace;
 			
 			% compute MSE
-			matErr = (matY2 - matY_pred).^2;
+			matErr = (matY_Test - matY_pred).^2;
 			
 			%get R^2
-			vecMu = mean(matY2);
+			vecMu = mean(matY_Test);
 			dblSSRes = sum(sum(matErr));
-			dblSSTot = sum(sum(bsxfun(@minus,matY2,vecMu).^2));
+			dblSSTot = sum(sum(bsxfun(@minus,matY_Test,vecMu).^2));
 			vecR2(intDim) = 1 - dblSSRes / dblSSTot;
 			
 			%save

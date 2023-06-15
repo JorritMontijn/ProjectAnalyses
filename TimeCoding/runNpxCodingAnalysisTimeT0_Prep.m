@@ -71,7 +71,6 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		%% prep data
 		%get data matrix & remove cells with rates <0.1Hz
-		fprintf('Running %s (%d/%d) [%s]\n',strRec,intRec,numel(sAggStim),getTime);
 		cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
 		[matMeanRate,cellSpikeTimesReal] = ...
 			NpxPrepMovieData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecFrameIdx);
@@ -91,10 +90,11 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		%% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all spikes at pop level
 		cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain'};
-		for intType=5
+		for intType=[5:-1:1]
 			%which type?
 			cellSpikeTimes = cell(1,intNumN);
 			strType = cellTypes{intType};
+			fprintf('Running %s - %s (%d/%d) [%s]\n',strRec,strType,intRec,numel(sAggStim),getTime);
 			if strcmp(strType,'Real')
 				%real data
 				cellSpikeTimes = cellSpikeTimesReal;
@@ -150,12 +150,17 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			elseif strcmp(strType,'PoissGain')
 				%poisson process neurons with variable lambda matched to population-gain
 				dblWindow = 1; %secs
-				vecAllSpikes = cell2vec(cellSpikeTimesReal);
 				vecGainE = dblStartEpoch:dblWindow:dblStopEpoch;
 				vecGainT = vecGainE(2:end) - dblWindow/2;
-				vecR = histcounts(vecAllSpikes,vecGainE);
-				vecGain = vecR ./ mean(vecR);
 				
+				matSpikeCounts = zeros(intNumN,numel(vecGainT));
+				for intN=1:intNumN
+					matSpikeCounts(intN,:) = histcounts(cellSpikeTimesReal{intN},vecGainE);
+				end
+				vecGainAx = mean(matSpikeCounts,2);
+				vecGain=getProjOnLine(matSpikeCounts,vecGainAx)';
+				vecGain = vecGain./norm(vecGainAx);
+	
 				%poisson process
 				cellSpikeTimes = cell(1,intNumN);
 				for intN=1:intNumN

@@ -71,6 +71,7 @@ for intFile=1:intRecNum
 	vecAggRelVarNorm(end+1) = dblRelVarNorm;
 end
 
+figure;maxfig;
 subplot(2,3,1)
 bar(vecBinsC,sum(matCounts,1),'hist');
 xlabel('Variability of pop act. as Euclidian vs mean distance ((L2/L1) - 1) (%)');
@@ -86,3 +87,7 @@ xlabel('Variability of pop act. as Euclidian vs mean distance ((L2/L1) - 1) (%)'
 title('Trial-to-trial variability of pop act per stim type');
 ylabel('Number of stimulus types');
 fixfig;
+
+drawnow;
+export_fig(fullpath(strFigurePath,sprintf('Q3_VariabilityAsL1orL2.tif')));
+export_fig(fullpath(strFigurePath,sprintf('Q3_VariabilityAsL1orL2.pdf')));

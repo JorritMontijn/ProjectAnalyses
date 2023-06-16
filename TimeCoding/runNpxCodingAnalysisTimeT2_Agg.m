@@ -103,9 +103,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		sShuffTid = struct;
 		sPoiss = struct;
 		cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain'};
-		for intType=5
+		for intType=1%5
 			%which type?
-			cellSpikeTimes = cell(1,intNumN);
 			strType = cellTypes{intType};
 			if strcmp(strType,'Real')
 				sSource = sLoad.sReal;
@@ -123,9 +122,10 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			vecAllSpikeTime = sSource.vecAllSpikeTime;
 			vecAllSpikeNeuron = sSource.vecAllSpikeNeuron;
 			intNumN = max(vecAllSpikeNeuron);
+			cellSpikeTimes = cell(1,intNumN);
 			
 			%% replace IFR with binned rates?
-			if 0
+			if 1
 				dblBinDur = (5/1000);
 				vecBins=(dblStartEpoch:dblBinDur:dblStopEpoch)';
 				vecIFR = flat(histcounts(vecTime,vecBins)./dblBinDur);

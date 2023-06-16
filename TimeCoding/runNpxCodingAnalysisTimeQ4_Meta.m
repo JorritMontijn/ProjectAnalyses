@@ -112,3 +112,7 @@ set(gca,'xtick',1:3,'xticklabel',{'Mean','Gain'});
 ylabel('Correlation with pupil size');
 xlim([0.5 2.5]);
 fixfig;
+
+drawnow;
+export_fig(fullpath(strFigurePath,sprintf('Q4_VariabilityPrediction.tif')));
+export_fig(fullpath(strFigurePath,sprintf('Q4_VariabilityPrediction.pdf')));

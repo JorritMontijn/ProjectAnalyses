@@ -1,5 +1,64 @@
+% get matching recording data
+sRec = sAggABI(intRec);
+strRecOrig = sRec.Exp;
+strRec = strrep(strRecOrig,'ecephys_session_','ABI');
+fprintf('Preparing %d/%d: %s, area %s [%s]\n',intRec,numel(vecUseRec),strRecOrig,strArea,getTime);
+
+strField = ['s' strRunStim];
+if strcmp(strRunStim,'DG') && isfield(sRec.structStimAgg,strField)
+	%% DG
+	% concatenate stimulus structures
+	structStim = sRec.structStimAgg.sDG; %sDG, sNM, sNS
+	
+	%generate stimulus vectors
+	vecStimLabels = mod(structStim.orientation(:)',360);
+	vecStimOnTime = structStim.startT(:)';
+	vecStimOffTime = structStim.stopT(:)';
+	%remove nans
+	indRem = isnan(vecStimLabels);
+	vecStimLabels(indRem) = [];
+	vecStimOnTime(indRem) = [];
+	vecStimOffTime(indRem) = [];
+	
+	
+elseif strcmp(strRunStim,'NM') && isfield(sRec.structStimAgg,strField)
+	%% NM
+	% concatenate stimulus structures
+	structStim = sRec.structStimAgg.sNM; %sDG, sNM, sNS
+	vecOrigStartIdx = [1; 1+find(diff(structStim.frame)<0)];
+	vecOrigStimOnTime = flat(structStim.startT(vecOrigStartIdx))';
+	dblDur = median(diff(vecOrigStimOnTime));
+	vecOrigStimOffTime = vecOrigStimOnTime+dblDur;
+	intFramesInMovie = max(structStim.frame)+1;
+	dblBinAvg = 10;
+	intUseBinsInMovie = intFramesInMovie/dblBinAvg;
+	dblBinRate = round(intUseBinsInMovie/dblDur);
+	dblBinDur = 1/dblBinRate;
+	vecBinEdges = linspace(0,dblBinDur*intUseBinsInMovie,intUseBinsInMovie+1);
+	
+	%generate fake stimulus vectors
+	vecUniqueStims = 1:intUseBinsInMovie;
+	vecFrameIdx = repmat(vecUniqueStims,[1 numel(vecOrigStimOnTime)]);
+	vecStimLabels = (vecFrameIdx/max(vecFrameIdx))*180;
+	vecStimOnTime = flat(vecBinEdges(1:(end-1))' + vecOrigStimOnTime)';
+	vecStimOffTime = vecStimOnTime + dblBinDur;
+end
+%general prep
+[vecStimIdx,vecUniqueStims,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecStimLabels);
+intRepNum = min(vecRepNum);
+indRem2 = vecTrialRepetition>intRepNum;
+vecStimLabels(indRem2) = [];
+vecStimOnTime(indRem2) = [];
+vecStimOffTime(indRem2) = [];
+[vecStimIdx,vecUniqueStims,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecStimLabels);
+intTrialNum = numel(vecStimOnTime);
+intStimNum = numel(vecUniqueStims);
+
 %% remove untuned cells
 %get data matrix
+indArea1Neurons = contains(sRec.cellAreas,strArea,'IgnoreCase',true);
+intNeuronsInArea = sum(indArea1Neurons);
+if intNeuronsInArea==0,return;end
 cellSpikeTimes = sRec.cellSpikes(indArea1Neurons);
 dblDur = median(vecStimOffTime-vecStimOnTime);
 matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur);
@@ -86,8 +145,8 @@ if boolSaveFigs
 	fixfig;
 	
 	%% save fig
-	export_fig(fullpath(strFigurePath,sprintf('BimoCheck%s_%s.tif',strRunStim,strRecOrig)));
-	export_fig(fullpath(strFigurePath,sprintf('BimoCheck%s_%s.pdf',strRunStim,strRecOrig)));
+	export_fig(fullpath(strFigurePathSR,sprintf('BimoCheck%s_%s.tif',strRunStim,strRecOrig)));
+	export_fig(fullpath(strFigurePathSR,sprintf('BimoCheck%s_%s.pdf',strRunStim,strRecOrig)));
 end
 
 %if dblBC > dblBimoThreshold || dblMaxDevFrac > dblDevThreshold
@@ -104,7 +163,7 @@ intTypeCV = 2;
 dblUseStartT = 0;
 dblUseMaxDur = dblMaxDur-dblUseStartT;
 intUseMax = inf;
-intReps = mean(vecPriorDistribution);
+intRepNum = mean(vecPriorDistribution);
 
 %remove zero-variance neurons
 matSpikeCounts_pre = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
@@ -112,7 +171,7 @@ matMeanRate_pre = matSpikeCounts_pre./dblUseMaxDur;
 vecPopRate_pre = sum(matMeanRate_pre,1);
 
 intQuantiles = 5;
-vecStartTrials = round(intReps*linspace(1/intReps,(1+1/intReps),intQuantiles+1));
+vecStartTrials = round(intRepNum*linspace(1/intRepNum,(1+1/intRepNum),intQuantiles+1));
 vecStartTrials(end)=[];
 intSplitTrialsPerOri = min(floor(cellfun(@sum,cellSelect)/intQuantiles));
 indZeroVarNeurons = false(intRespN,1);
@@ -130,4 +189,8 @@ vecUseNeurons = find(~indZeroVarNeurons);
 vecRemNeurons = find(indZeroVarNeurons);
 cellSpikeTimesPerCellPerTrial(vecRemNeurons,:) = [];
 intNeuronNum = numel(vecUseNeurons);
+intTrialsPerQ = intSplitTrialsPerOri*intStimNum;
 
+%simple "rate code"
+matSpikeCounts = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
+matMeanRate = matSpikeCounts./dblUseMaxDur;

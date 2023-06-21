@@ -61,7 +61,7 @@ for intFile=1:intRecNum
 	strRecFile = sFiles(intFile).name;
 	strRecFile = strRecFile((1+numel('Q4Data_Rec')):(16+numel('Q4Data_Rec')));
 	%save
-	if dblP_M < 0.05
+	if dblP_M < 0.05/intRecNum && dblR2_M > 0 && dblR2_G > 0 && dblR2_R > 0
 	vecR2_M(intFile) = dblR2_M;
 	vecR2_G(intFile) = dblR2_G;
 	vecR2_R(intFile) = dblR2_R;
@@ -84,6 +84,7 @@ vecCorrMeanPupil(indRem) = [];
 vecCorrGainPupil(indRem) = [];
 
 %%
+[h,p]=ttest(vecR2_M,vecR2_G);
 figure;maxfig;
 subplot(2,3,1)
 dblMeanR2_M = mean(vecR2_M);

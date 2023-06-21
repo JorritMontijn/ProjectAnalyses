@@ -126,7 +126,9 @@ end
 
 %% plot mean over recordings
 vecCorrP = bonf_holm(vecDecP);
-indUseRecs = vecCorrP<0.01;
+vecAvgPerf=mean(matDecPerf(indUseForTest,:),1);
+indUseRecs = vecCorrP<0.01 & vecAvgPerf>0.09;
+
 matRateZ = matRate(:,indUseRecs);
 matPerfZ = matDecPerf(:,indUseRecs);
 matConfZ = matAcrossTimeDecoderAgg(:,:,indUseRecs);

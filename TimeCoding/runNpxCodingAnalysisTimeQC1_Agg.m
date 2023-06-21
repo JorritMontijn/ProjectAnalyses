@@ -30,7 +30,7 @@ As a function of mean-rate, adjacent stimulus discriminability could theoretical
 To do: show this in a figure
 
 %}
-%% define qualifying areas
+%% define qualifying data
 strRunType = 'ABI'; %ABI or Npx?
 runHeaderPopTimeCoding;
 if strcmp(strRunType,'ABI')
@@ -63,7 +63,7 @@ for intRec=1:intRecNum
 		runRecPrepNpx;
 	end
 	if intNeuronsInArea == 0 || intNeuronNum < 25
-		fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronNum,strRecOrig,getTime);
+		fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronsInArea,strRecOrig,getTime);
 		continue;
 	end
 	

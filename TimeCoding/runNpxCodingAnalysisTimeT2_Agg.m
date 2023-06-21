@@ -28,14 +28,14 @@ else
 	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
 
-
-%% select all neurons in LP and drifting grating stimuli
+%% select all neurons
 if ~exist('sAggStim','var') || isempty(sAggStim) || isempty(sAggNeuron)
 	[sAggStim,sAggNeuron]=loadDataNpx('','natural',strDataPath);
 end
 indRemDBA = strcmpi({sAggNeuron.SubjectType},'DBA');
 fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),sum(~indRemDBA),getTime);
 sAggNeuron(indRemDBA) = [];
+cellRunTypes = {'Real','Shuff','ShuffTid','Poiss','PoissGain'};
 
 %% pre-allocate matrices
 intAreas = numel(cellUseAreas);
@@ -75,57 +75,45 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		[matMeanRate,cellSpikeTimesReal] = ...
 			NpxPrepMovieData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecFrameIdx);
 		
-		%% load prepro T0 data
-		% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all
-		% spikes at pop level, detect peaks, and split into trials.
-		%get spikes per trial per neuron
-		sLoad = load(fullpath(strTargetDataPath,sprintf('T0Data_%s',strRec)));
-		
-		%% detect peaks
-		% filter
-		%real
-		intLag = round((numel(sLoad.sReal.vecIFR)/numel(vecOrigStimOnTime))/2);
-		if (intLag/2) == round(intLag/2)
-			intLag = intLag - 1;
-		end
-		dblThreshZ = 1;
-		dblInfluence = 0.5;
-		
-		%% transform time indices
-		%events
-		dblStartEpoch = vecOrigStimOnTime(1)-dblStimDur;
-		dblEpochDur = vecOrigStimOnTime(end)-vecOrigStimOnTime(1)+dblStimDur;
-		dblStopEpoch = dblStartEpoch + dblEpochDur;
-		
-		%% plot
+		%% run types
 		sReal = struct;
 		sShuff = struct;
 		sShuffTid = struct;
 		sPoiss = struct;
-		cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain'};
-		for intType=1%5
-			%which type?
-			strType = cellTypes{intType};
-			if strcmp(strType,'Real')
-				sSource = sLoad.sReal;
-			elseif strcmp(strType,'Poiss')
-				sSource = sLoad.sPoiss;
-			elseif strcmp(strType,'ShuffTid')
-				sSource = sLoad.sShuffTid;
-			elseif strcmp(strType,'Shuff')
-				sSource = sLoad.sShuff;
-			elseif strcmp(strType,'PoissGain')
-			
+		sPoissGain = struct;
+		for intType=1:numel(cellRunTypes)
+			%% load prepro T0 data
+			% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all
+			% spikes at pop level, detect peaks, and split into trials.
+			%get spikes per trial per neuron
+			strType = cellRunTypes{intType};
+			sSource = load(fullpath(strTargetDataPath,sprintf('T0Data_%s%s',strRec,strType)));
+
+			%% detect peaks
+			% filter
+			%real
+			intLag = round((numel(sSource.vecIFR)/numel(vecOrigStimOnTime))/2);
+			if (intLag/2) == round(intLag/2)
+				intLag = intLag - 1;
 			end
+			dblThreshZ = 1;
+			dblInfluence = 0.5;
+
+			%% transform time indices
+			%events
+			dblStartEpoch = vecOrigStimOnTime(1)-dblStimDur;
+			dblEpochDur = vecOrigStimOnTime(end)-vecOrigStimOnTime(1)+dblStimDur;
+			dblStopEpoch = dblStartEpoch + dblEpochDur;
+
+			%% plot
 			vecTime = sSource.vecTime;
 			vecIFR = sSource.vecIFR;
 			vecAllSpikeTime = sSource.vecAllSpikeTime;
 			vecAllSpikeNeuron = sSource.vecAllSpikeNeuron;
 			intNumN = max(vecAllSpikeNeuron);
-			cellSpikeTimes = cell(1,intNumN);
 			
 			%% replace IFR with binned rates?
-			if 1
+			if 0
 				dblBinDur = (5/1000);
 				vecBins=(dblStartEpoch:dblBinDur:dblStopEpoch)';
 				vecIFR = flat(histcounts(vecTime,vecBins)./dblBinDur);
@@ -347,24 +335,27 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			export_fig(fullpath(strFigurePathSR,sprintf('T2_PeakTimescale_%s_%s.pdf',strRec,strType)));
 			
 			%% save data
-			if intType == 1
-				sReal.vecPeakHeight = vecPeakHeight;
-				sReal.vecEventBinsC = vecEventBinsC;
+			if strcmp(strType,'Real')
 				sReal.vecMeanM = vecMeanM;
-			elseif intType == 2
-				sPoiss.vecPeakHeight = vecPeakHeight;
-				sPoiss.vecEventBinsC = vecEventBinsC;
+				sReal.vecEventBinsC = vecEventBinsC;
+				sReal.vecPeakHeight = vecPeakHeight;
+			elseif strcmp(strType,'Poiss')
 				sPoiss.vecMeanM = vecMeanM;
-			elseif intType == 3
-				sShuffTid.vecPeakHeight = vecPeakHeight;
-				sShuffTid.vecEventBinsC = vecEventBinsC;
+				sPoiss.vecEventBinsC = vecEventBinsC;
+				sPoiss.vecPeakHeight = vecPeakHeight;
+			elseif strcmp(strType,'ShuffTid')
 				sShuffTid.vecMeanM = vecMeanM;
-			elseif intType == 4
-				sShuff.vecPeakHeight = vecPeakHeight;
-				sShuff.vecEventBinsC = vecEventBinsC;
+				sShuffTid.vecEventBinsC = vecEventBinsC;
+				sShuffTid.vecPeakHeight = vecPeakHeight;
+			elseif strcmp(strType,'Shuff')
 				sShuff.vecMeanM = vecMeanM;
+				sShuff.vecEventBinsC = vecEventBinsC;
+				sShuff.vecPeakHeight = vecPeakHeight;
+			elseif strcmp(strType,'PoissGain')
+				sPoissGain.vecMeanM = vecMeanM;
+				sPoissGain.vecEventBinsC = vecEventBinsC;
+				sPoissGain.vecPeakHeight = vecPeakHeight;
 			end
-			
 			fprintf('Finished %s [%s]\n',strType,getTime);
 		end
 		

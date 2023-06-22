@@ -1,5 +1,5 @@
 %clear data
-clearvars -except strRunType sAggABI;
+clearvars -except strRunType strRunStim sAggABI;
 
 %set paths
 if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')

@@ -4,6 +4,7 @@ function [sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation,structStim] = N
 	
 	%remove stimulus sets that are not 24 stim types
 	sThisRec.cellBlock(cellfun(@(x) x.intTrialNum/x.intNumRepeats,sThisRec.cellBlock) ~= 24) = [];
+	sThisRec.cellBlock(cellfun(@(x) ~strcmp(x.strExpType,'RunDriftingGrating'),sThisRec.cellBlock)) = [];
 	
 	% concatenate stimulus structures
 	structStim = catstim(sThisRec.cellBlock(1:end));

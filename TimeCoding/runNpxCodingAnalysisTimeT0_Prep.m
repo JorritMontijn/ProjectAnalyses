@@ -12,8 +12,8 @@ q2: How precise are spike times in the natural movie repetitions?
 %}
 
 %% define qualifying data
-strRunType = 'Npx'; %ABI or Npx?
-strRunStim = 'NM';%DG or NM?
+%strRunType = 'Npx'; %ABI or Npx?
+%strRunStim = 'NM';%DG or NM?
 
 runHeaderPopTimeCoding;
 if strcmp(strRunType,'ABI')
@@ -37,7 +37,7 @@ for intRec=1:intRecNum
 		continue;
 	end
 	cellSpikeTimesReal = cellSpikeTimes;
-	return
+	
 	%events
 	dblStartEpoch = vecStimOnTime(1)-10;
 	dblStopEpoch = vecOrigStimOnTime(end)+dblStimDur+10;
@@ -176,7 +176,7 @@ for intRec=1:intRecNum
 		vecTime = vecTime + dblStartEpoch(1);
 
 		%% save intermediate data
-		save(fullpath(strTargetDataPath,sprintf('T0Data_%s%s',strRec,strType)),...
+		save(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s',strRunType,strRec,strRunStim,strType)),...
 			...%epoch
 			'dblStartEpoch',...
 			'dblEpochDur',...
@@ -186,7 +186,8 @@ for intRec=1:intRecNum
 			'vecAllSpikeTime',...
 			'vecAllSpikeNeuron',...
 			'vecTime',...
-			'vecIFR'...
+			'vecIFR',...
+			'strRunStim'...
 			);
 	end
 end

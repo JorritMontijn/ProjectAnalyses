@@ -3,8 +3,16 @@ function [sUseNeuron,vecStimOnTime,vecStimOffTime,vecStimIdx,structStim] = NpxPr
 	%   [sUseNeuron,vecStimOnTime,vecStimOffTime,vecStimIdx,structStim] = NpxPrepMovies(sAggNeuron,sThisRec,cellUseAreas);
 	
 	%remove stimulus sets that are not 100 reps
-	sThisRec.cellBlock(cellfun(@(x) x.intNumRepeats,sThisRec.cellBlock) < 100) = [];
-	
+	cellType = cellfun(@(x) x.strExpType,sThisRec.cellBlock,'UniformOutput',false);
+	sThisRec.cellBlock(~strcmp(cellType, 'RunNaturalMovie')) = [];
+	if isempty(sThisRec.cellBlock)
+		sUseNeuron = [];
+		vecStimOnTime = [];
+		vecStimOffTime = [];
+		vecStimIdx = [];
+		structStim = [];
+		return;
+	end
 	% concatenate stimulus structures
 	structStim = catstim(sThisRec.cellBlock(1));
 	vecOrigStimOnTime = structStim.vecStimOnTime;

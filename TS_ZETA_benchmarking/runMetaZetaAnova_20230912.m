@@ -4,7 +4,7 @@ strPath = 'F:\Data\Processed\ZETAv2\Inclusion\';
 strFigPath = 'F:\Data\Results\ZETAv2\Inclusion\';
 cellUniqueAreas = {...
 	'HeteroPoissonPeak',...Area 1
-	'',...Area 2
+	'TriPhasic',...Area 2
 	'',...Area 3
 	'',...Area 4
 	'',...Area 5
@@ -60,7 +60,7 @@ cellZetaNewP = [];
 cellZetaOldP = [];
 intIdxNpx = 0;
 intIdx = 0;
-for intArea=1%1:numel(cellUniqueAreas)
+for intArea=2%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 5%7
 		vecRunStims = 1;
@@ -79,7 +79,7 @@ for intArea=1%1:numel(cellUniqueAreas)
 		
 		%% load data
 		strRunType = [strArea strRand strStim];
-		sDir=dir([strPath 'ZetaDataAnova' strRunType 'Resamp250.mat']);
+		sDir=dir([strPath 'ZetaDataAnova' strRunType 'Resamp*.mat']);
 		intFiles=numel(sDir);
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;

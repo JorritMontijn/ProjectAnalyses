@@ -5,7 +5,7 @@
 clear all;
 cellUniqueAreas = {...
 	'HeteroPoissonPeak',...Area 1
-	'',...Area 2
+	'TriPhasic',...Area 2
 	'',...Area 3
 	'',...Area 4
 	'',...Area 5
@@ -22,9 +22,9 @@ intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
-vecResamples = 250;%10:10:90;%[10:10:100];
-intUseGenN = 10000;
-vecRunAreas = 1;%[1 8]
+vecResamples = 250;%250;%10:10:90;%[10:10:100];
+intUseGenN = 100;
+vecRunAreas = 2;%[1 8]
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -82,7 +82,9 @@ for intArea=vecRunAreas
 				
 			elseif contains(strRunType,'Poisson')
 				intNeurons = intUseGenN;
-			end
+			elseif contains(strRunType,'TriPhasic')
+			    intNeurons = intUseGenN;
+            end
 			
 			for intResampleIdx = 1:numel(vecResamples)
 				intResampleNum = vecResamples(intResampleIdx);
@@ -136,7 +138,7 @@ for intArea=vecRunAreas
 						vecTrialStarts = [];
 						vecTrialStarts(:,1) = vecStimOnTime;
 						vecTrialStarts(:,2) = vecStimOffTime;
-					
+					    dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
 					elseif contains(strRunType,'HeteroPoissonPeak')
 						%% generate
 						strRecIdx = 'x';
@@ -160,18 +162,70 @@ for intArea=vecRunAreas
 
 						vecTrialStarts(:,1) = vecStimOnTime;
 						vecTrialStarts(:,2) = vecStimOffTime;
-						[vecSpikeTimes,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles,vecTrialStarts,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,[],intAddSpikes);
+						dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
+					    [vecSpikeTimes,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles,vecTrialStarts,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,[],intAddSpikes);
 					elseif contains(strRunType,'TriPhasic')
+                        %% generate
+						strRecIdx = 'x';
+						strMouse = 'Artificial';
+						strBlock = '1';
+						strDate = getDate();
+						intSU = intNeuron;
+						intClust = intNeuron;
+						
+						%set parameters
+						%m: intTrialNum
+                        %Tr: response dur
+                        %T: trial dur
+                        %tau: total dur
+                        %L_b: base rate
+                    	%L_s: stim rate
+                        %rate is 0 between Tr and T
+
+                        intNumT = 160;
+                        vecTrialDur=linspace(1.1,3,intNumT);
+						
+                        dblBaseRate = exprnd(1);
+						dblFirstRate = exprnd(1);
+						dblThirdRate = exprnd(10);
+						dblUseMaxDur = 1;
+                        dblFirstDur = 0.1;
+                        m=1;
+                        Tr = 0.5;
+                        T = 1;
                         
+                        L_b=dblThirdRate;
+                        L_s=dblFirstRate;
+                        vecTrialStarts = nan(size(vecTrialDur))';
+                        %generate preceding period
+                        dblPreT=5;
+                        cellSpikeT = cell(1,intNumT+3);
+                        dblNextT = dblPreT;
+                        for intTrial=1:intNumT
+                            tau = vecTrialDur(intTrial);
+                            cellSpikeT{intTrial} = dblNextT+getGeneratedTriPhasicR(m,dblFirstDur,dblUseMaxDur,tau,L_b,L_s*dblFirstDur);
+                            vecTrialStarts(intTrial) = dblNextT;
+                            dblNextT = dblNextT + tau;
+                        end
+                        vecTrialStarts(:,2) = vecTrialStarts(:,1) + dblUseMaxDur;
+                        %generate end period
+                        dblPostT=5;
+                        %add baseline spikes
+                        dblTotT=dblNextT+dblPostT;
+                        vecSpikeTimesBase = getGeneratedSpikingData(0,[0;dblTotT],dblBaseRate,dblBaseRate,10);
+                        cellSpikeT{intNumT+1} = vecSpikeTimesBase;
+                        vecSpikeTimes = sort(cell2vec(cellSpikeT));
+                        pNewStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],2,[],[],[],true)
+                        pNewNoStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],2,[],[],[],false)
+                        pOld=getZeta(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],2)
                     end
 					
 					%% get visual responsiveness
 					%get trial dur
-					dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
 					%set derivative params
 					if contains(strRunType,'Rand')
 						dblDur = dblUseMaxDur;
-						vecJitter = (2*dblDur*rand([numel(vecStimOnTime) 1])-dblDur);
+						vecJitter = (2*dblDur*rand([size(vecTrialStarts,1) 1])-dblDur);
 						matEventTimes = bsxfun(@plus,vecTrialStarts,vecJitter);
 					else
 						matEventTimes = vecTrialStarts;

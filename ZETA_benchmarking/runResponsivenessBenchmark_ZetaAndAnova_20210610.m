@@ -92,7 +92,7 @@ for intArea=vecRunAreas
 				strName = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));
 				[sAggStim,sAggNeuron]=loadDataNpx(strArea,strRunStim);
 				if isempty(sAggStim),continue;end
-				cellRecIdx = {sAggStim.Rec};
+				cellRecIdx = {sAggStim.Exp};
 				intNeurons = numel(sAggNeuron);
 				
 			elseif contains(strRunType,'V1') || contains(strRunType,'SC')
@@ -184,7 +184,7 @@ for intArea=vecRunAreas
 						sThisNeuron = sAggNeuron(intNeuron);
 						vecSpikeTimes = sThisNeuron.SpikeTimes;
 						strRecIdx = sThisNeuron.Rec;
-						strMouse = sThisNeuron.Mouse;
+						strMouse = sThisNeuron.Subject;
 						strBlock = '';
 						strArea = strName;
 						strDate = sThisNeuron.Date;

@@ -1,7 +1,13 @@
 clear all;
 %close all;
-strPath = 'F:\Data\Processed\ZETAv2\Inclusion\';
-strFigPath = 'F:\Data\Results\ZETAv2\Inclusion\';
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta';
+end
+strDataPath = fullfile(strPath,'\Data\');
+strFigPath = fullfile(strPath,'\Figs\');
+
 cellUniqueAreas = {...
     'HeteroPoissonPeak',...Area 1
     '',...Area 2
@@ -65,12 +71,12 @@ for intRandType=1:2
 
     %% load data
     strRunType = [strArea strRand];
-    sDir=dir([strPath 'ZetaConvergence' strRunType 'Repeats' num2str(intRepeats) '.mat']);
+    sDir=dir([strDataPath 'ZetaConvergence' strRunType 'Repeats' num2str(intRepeats) '.mat']);
     intFiles=numel(sDir);
     for intFile=1:intFiles
         strFile = sDir(intFile).name;
 
-        sLoad=load([strPath strFile]);
+        sLoad=load([strDataPath strFile]);
         vecResamples = sLoad.vecResamples;
 
         matZetaLinMean(:,:,intRandType) = mean(sLoad.matZetaLinear(:,vecUseNeurons,:),3);%(intResampIdx,intNeuron,intResampRepeat)

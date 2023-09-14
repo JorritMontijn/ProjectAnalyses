@@ -14,10 +14,17 @@ cellUniqueAreas = {...
     'Primary visual',...Area 8
     };
 intArea = 1;
-strDisk = 'F:\';
-strDataMasterPath = fullfile(strDisk,'\Data\Processed\ePhys\');
-strDataTargetPath = fullfile(strDisk,'\Data\Processed\ZETAv2\Inclusion\');
-strFigPath = fullfile(strDisk,'\Data\Results\ZETAv2\Examples\');
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
+	strDataSourcePath = 'F:\Data\Processed\Neuropixels\';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta';
+	strDataSourcePath = 'E:\DataPreProcessed\';
+end
+
+strDataTargetPath = fullfile(strPath,'\Data\');
+strFigPath = fullfile(strPath,'\Figs\');
+
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1];%[1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
@@ -30,7 +37,7 @@ vecTrialNum = [];
 
 for intRandType=vecRandTypes
     %reset vars
-    clearvars -except intResampRepeats intUseGenN vecTrialNum vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
+    clearvars -except strDataSourcePath intResampRepeats intUseGenN vecTrialNum vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
     strArea = cellUniqueAreas{intArea};
    
     if intRandType == 1

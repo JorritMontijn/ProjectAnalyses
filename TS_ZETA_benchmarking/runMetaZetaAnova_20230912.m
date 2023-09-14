@@ -1,7 +1,13 @@
 clear all;
 %close all;
-strPath = 'F:\Data\Processed\ZETAv2\Inclusion\';
-strFigPath = 'F:\Data\Results\ZETAv2\Inclusion\';
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta';
+end
+strDataPath = fullfile(strPath,'\Data\');
+strFigPath = fullfile(strPath,'\Figs\');
+
 cellUniqueAreas = {...
 	'HeteroPoissonPeak',...Area 1
 	'TriPhasic',...Area 2
@@ -49,18 +55,27 @@ cellRepStr = {...
 cellDatasetNames = {};
 matNumCells = [];
 matSignifZetaOld = [];
-matSignifZetaNew = [];
+
+matSignifZetaUniStitch = [];
+matSignifZetaUniNoStitch = [];
+matSignifZetaLinStitch = [];
+matSignifZetaLinNoStitch = [];
+			
 matSignifTtest = [];
 matSignifAnova = [];
 
 cellTtestP = [];
 cellAnovaP = [];
 cellNumSpikes = [];
-cellZetaNewP = [];
+cellUniStitchP = [];
+cellUniNoStitchP = [];
+cellLinStitchP = [];
+cellLinNoStitchP = [];
+
 cellZetaOldP = [];
 intIdxNpx = 0;
 intIdx = 0;
-for intArea=2%1:numel(cellUniqueAreas)
+for intArea=8%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 5%7
 		vecRunStims = 1;
@@ -76,18 +91,17 @@ for intArea=2%1:numel(cellUniqueAreas)
 		%set var
 		strRand = cellRunRand{intRandType};
 		
-		
 		%% load data
 		strRunType = [strArea strRand strStim];
-		sDir=dir([strPath 'ZetaDataAnova' strRunType 'Resamp*.mat']);
+		sDir=dir([strDataPath 'ZetaDataAnova' strRunType 'Resamp*.mat']);
 		intFiles=numel(sDir);
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;
 			
-            sLoad=load([strPath strFile]);
+            sLoad=load([strDataPath strFile]);
 			
 			%remove cells with too few spikes
-            indRemCells = sLoad.vecNumSpikes < 100;
+            indRemCells = sLoad.vecNumSpikes < 10;
             cellFields = fieldnames(sLoad);
             for intField=1:numel(cellFields)
             varData = sLoad.(cellFields{intField});
@@ -95,21 +109,31 @@ for intArea=2%1:numel(cellUniqueAreas)
             end
 
 			matSignifZetaOld(intIdx,intRandType) = sum(sLoad.vecZetaP_old<0.05)/numel(sLoad.vecZetaP_old);
-			matSignifZetaNew(intIdx,intRandType) = sum(sLoad.vecZetaP_new<0.05)/numel(sLoad.vecZetaP_new);
+			
+			matSignifZetaUniStitch(intIdx,intRandType) = sum(sLoad.vecZetaP_UniStitch<0.05)/numel(sLoad.vecZetaP_old);
+			matSignifZetaUniNoStitch(intIdx,intRandType) = sum(sLoad.vecZetaP_UniNoStitch<0.05)/numel(sLoad.vecZetaP_old);
+			matSignifZetaLinStitch(intIdx,intRandType) = sum(sLoad.vecZetaP_LinStitch<0.05)/numel(sLoad.vecZetaP_old);
+			matSignifZetaLinNoStitch(intIdx,intRandType) = sum(sLoad.vecZetaP_LinNoStitch<0.05)/numel(sLoad.vecZetaP_old);
+			
 			matSignifTtest(intIdx,intRandType) = sum(sLoad.vecTtestP<0.05)/numel(sLoad.vecTtestP);
 			matSignifAnova(intIdx,intRandType) = sum(sLoad.vecAnovaP<0.05)/numel(sLoad.vecAnovaP);
 			
 			cellTtestP{intIdx,intRandType} = sLoad.vecTtestP;
 			cellNumSpikes{intIdx,intRandType} = sLoad.vecNumSpikes;
 			cellZetaOldP{intIdx,intRandType} = sLoad.vecZetaP_old;
-			cellZetaNewP{intIdx,intRandType} = sLoad.vecZetaP_new;
+			
+			cellUniStitchP{intIdx,intRandType} = sLoad.vecZetaP_UniStitch;
+			cellUniNoStitchP{intIdx,intRandType} = sLoad.vecZetaP_UniNoStitch;
+			cellLinStitchP{intIdx,intRandType} = sLoad.vecZetaP_LinStitch;
+			cellLinNoStitchP{intIdx,intRandType} = sLoad.vecZetaP_LinNoStitch;
+			
 			cellAnovaP{intIdx,intRandType} = sLoad.vecAnovaP;
-
 		end
-		
 	end
+	
 	%plot ROC
-    matAUCp = nan(4,4);
+    matAUCp = [];
+	matAUC_dprime = [];
 	if size(cellTtestP,1) >= intIdx && ~isempty(cellTtestP{intIdx,1})
 		intIdxNpx = intIdxNpx + 1;
 		figure;
@@ -117,21 +141,14 @@ for intArea=2%1:numel(cellUniqueAreas)
 		subplot(2,3,1)
 		maxfig;
 		hold on;
-		vecAUC = nan(1,4);
-		cellColorPlot = {'k',[0.7 0 0.7],'b','r'};
-        cellLegend = {'Mean-rate t-test','ANOVA','Old ZETA','New zeta-test'};
-        vecPlotOrder = 1:4;
-        for intPlotType=vecPlotOrder
-            if intPlotType == 1
-      		     cellData = cellTtestP;
-            elseif intPlotType == 2
-                cellData = cellAnovaP;
-            elseif intPlotType == 3
-                cellData = cellZetaOldP;
-            elseif intPlotType == 4
-                cellData = cellZetaNewP;
-            end
-
+		cellColorPlot = {'k',[0.7 0 0.7],'b','r',[0.1 0 0.9],[0.8 0 0.2],[0.3 0 0.7]};
+        cellNames = {'Ttest','Anova','ZetaOld','UniStitch','UniNoStitch','LinStitch','LinNoStitch'};
+        cellLegend = cellNames;
+        vecPlotOrder = [1 2 4 5];
+        vecAUC = nan(1,numel(cellLegend));
+		for intPlotType=vecPlotOrder
+            eval(['cellData = cell' cellNames{intPlotType} 'P;']);
+			
             vecBothData = cat(2,cellData{intIdx,1},cellData{intIdx,2});
             vecBothLabels = cat(2,zeros(size(cellData{intIdx,1})),ones(size(cellData{intIdx,2})));
 			%remove nans
@@ -145,7 +162,8 @@ for intArea=2%1:numel(cellUniqueAreas)
 			plot(vecFP,vecTP,'Color',cellColorPlot{intPlotType});
 
 			[dblAUC,Aci,Ase,pAuc] = getAuc(vecTP,vecFP);
-
+			
+			
 			vecAUC(intPlotType) = dblAUC;
             vecAUC_se(intPlotType) = Ase;
 
@@ -155,7 +173,13 @@ for intArea=2%1:numel(cellUniqueAreas)
                 s0 = (vecAUC_se(intCompAuc) + vecAUC_se(intPlotType))/2;
                 z = m0/s0;
                 matAUCp(intCompAuc,intPlotType) = 1 - abs(normcdf(z)-normcdf(-z));
-            end
+				
+				v1 = (vecAUC_se(intCompAuc)*sqrt(2*numel(cellData{1}))).^2;
+				v2 = (vecAUC_se(intPlotType)*sqrt(2*numel(cellData{1}))).^2;
+				dPrime = (vecAUC(intCompAuc) - vecAUC(intPlotType))/sqrt(0.5*(v1+v2));
+				matAUC_dprime(intCompAuc,intPlotType) = dPrime;
+			end
+			cellLegend{intPlotType} = [cellLegend{intPlotType} sprintf('=%.3f',dblAUC)];
         end
 
 		hold off;
@@ -163,7 +187,8 @@ for intArea=2%1:numel(cellUniqueAreas)
 		ylabel('Inclusion fraction');
 		fixfig;
 		legend(cellLegend(vecPlotOrder),'location','best')
-		title(sprintf('%s, N=%d, AUCs: t=%.3f; A=%.3f; Zo=%.3f; Zn=%.3f',strArea,size(cellData{intIdx,1},2),vecAUC))
+		title(sprintf('%s, N=%d'...
+			,strArea,size(cellData{intIdx,1},2)))
 		
 		% save figure
 		drawnow;

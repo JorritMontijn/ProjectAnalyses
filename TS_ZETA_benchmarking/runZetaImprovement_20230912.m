@@ -14,17 +14,22 @@ cellUniqueAreas = {...
 	'Primary visual',...Area 8
 	};
 
-strDisk = 'F:\';
-strDataMasterPath = fullfile(strDisk,'\Data\Processed\ePhys\');
-strDataTargetPath = fullfile(strDisk,'\Data\Processed\ZETAv2\Inclusion\');
-strFigPath = fullfile(strDisk,'\Data\Results\ZETAv2\Examples\');
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
+	strDataSourcePath = 'F:\Data\Processed\Neuropixels\';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta';
+	strDataSourcePath = 'E:\DataPreProcessed\';
+end
+strDataTargetPath = fullfile(strPath,'\Data\');
+strFigPath = fullfile(strPath,'\Figs\');
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 250;%250;%10:10:90;%[10:10:100];
-intUseGenN = 100;
-vecRunAreas = 2;%[1 8]
+intUseGenN = 10000;
+vecRunAreas = 8;%[1 8]
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -60,7 +65,7 @@ for intArea=vecRunAreas
 	for intRunStim=vecUseRunStim
 		for intRandType=vecRandTypes
 			%reset vars
-			clearvars -except intUseGenN vecTrialNum vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
+			clearvars -except strDataSourcePath intUseGenN vecTrialNum vecRestrictRange cellRepStr intRandType vecRandTypes intRunStim vecRunStim cellRunStim intArea vecRunAreas cellUniqueAreas boolSave vecResamples strDataMasterPath strDataTargetPath strFigPath intMakePlots vecRunTypes
 			strArea = cellUniqueAreas{intArea};
 			strRunStim = cellRunStim{intRunStim};
 			
@@ -75,7 +80,7 @@ for intArea=vecRunAreas
 			%% load data
 			if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
 				strName = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));
-				[sAggStim,sAggNeuron]=loadDataNpx(strArea,strRunStim);
+				[sAggStim,sAggNeuron]=loadDataNpx(strArea,strRunStim,strDataSourcePath);
 				if isempty(sAggStim),continue;end
 				cellRecIdx = {sAggStim.Exp};
 				intNeurons = numel(sAggNeuron);
@@ -96,7 +101,10 @@ for intArea=vecRunAreas
 				cellNeuron = cell(1,intNeurons);
 				vecNumSpikes = zeros(1,intNeurons);
 				vecZetaP_old = ones(1,intNeurons);
-				vecZetaP_new = ones(1,intNeurons);
+				vecZetaP_UniStitch = ones(1,intNeurons);
+				vecZetaP_UniNoStitch = ones(1,intNeurons);
+				vecZetaP_LinStitch = ones(1,intNeurons);
+				vecZetaP_LinNoStitch = ones(1,intNeurons);
 				vecAnovaP = ones(1,intNeurons);
 				vecZetaTime = ones(1,intNeurons);
 				vecAnovaTime = ones(1,intNeurons);
@@ -183,11 +191,11 @@ for intArea=vecRunAreas
                         %rate is 0 between Tr and T
 
                         intNumT = 160;
-                        vecTrialDur=linspace(1.1,3,intNumT);
+                        vecTrialDur=linspace(0.5,10,intNumT);
 						
-                        dblBaseRate = exprnd(1);
-						dblFirstRate = exprnd(1);
-						dblThirdRate = exprnd(10);
+                        dblBaseRate = exprnd(0.1)+0.1;
+						dblFirstRate = exprnd(1)+0.2;
+						dblThirdRate = 0;%exprnd(0.1);
 						dblUseMaxDur = 1;
                         dblFirstDur = 0.1;
                         m=1;
@@ -215,9 +223,15 @@ for intArea=vecRunAreas
                         vecSpikeTimesBase = getGeneratedSpikingData(0,[0;dblTotT],dblBaseRate,dblBaseRate,10);
                         cellSpikeT{intNumT+1} = vecSpikeTimesBase;
                         vecSpikeTimes = sort(cell2vec(cellSpikeT));
-                        pNewStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],2,[],[],[],true)
-                        pNewNoStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],2,[],[],[],false)
-                        pOld=getZeta(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],2)
+% 						intPlot = 2;
+% 						intJitterDistro = 1;
+% 						pLinStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot,[],[],[],[],true,intJitterDistro)
+% 						pLinNoStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot,[],[],[],[],false,intJitterDistro)
+% 						intJitterDistro = 2;
+% 						pUniStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot,[],[],[],[],true,intJitterDistro)
+% 						pUniNoStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot,[],[],[],[],false,intJitterDistro)
+% 						pOld=getZeta(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot)
+% return
                     end
 					
 					%% get visual responsiveness
@@ -238,12 +252,17 @@ for intArea=vecRunAreas
 					%if size(matEventTimes,1) > 0,continue;end
 					%%{
 					intGetLatencies = 0;
+					intPlot = 0;
 					hTic1 = tic;
 					dblZetaP_old = getZeta(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,0,intGetLatencies);
 					dblZetaDur_old = toc(hTic1);
+					intJitterDistro = 2;
+					dblZetaP_UniStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,intGetLatencies,[],[],[],true,intJitterDistro);
 					hTic1b = tic;
-					dblZetaP_new = zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,0,intGetLatencies);
+					dblZetaP_UniNoStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,intGetLatencies,[],[],[],false,intJitterDistro);
 					dblZetaDur_new = toc(hTic1b);
+					dblZetaP_LinStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,intGetLatencies,[],[],[],true,intJitterDistro);
+					dblZetaP_LinNoStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,intGetLatencies,[],[],[],false,intJitterDistro);
 					
 					%% ANOVA
 					hTic2 = tic;
@@ -284,7 +303,10 @@ for intArea=vecRunAreas
 					cellNeuron{intNeuron} = [strArea strDate 'N' num2str(intSU)];
 					vecNumSpikes(intNeuron) = intSpikeNum;
 					vecZetaP_old(intNeuron) = dblZetaP_old;
-					vecZetaP_new(intNeuron) = dblZetaP_new;
+					vecZetaP_UniStitch(intNeuron) = dblZetaP_UniStitch;
+					vecZetaP_UniNoStitch(intNeuron) = dblZetaP_UniNoStitch;
+					vecZetaP_LinStitch(intNeuron) = dblZetaP_LinStitch;
+					vecZetaP_LinNoStitch(intNeuron) = dblZetaP_LinNoStitch;
 					vecAnovaP(intNeuron) = dblAnovaP;
 					vecZetaTime(intNeuron) = dblZetaDur_new;
 					vecAnovaTime(intNeuron) = dblAnovaDur;
@@ -294,7 +316,9 @@ for intArea=vecRunAreas
                 
 				if boolSave
 					save([strDataTargetPath 'ZetaDataAnova' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
-						'cellNeuron','vecNumSpikes','vecZetaP_old','vecZetaP_new','vecAnovaP','vecZetaTime','vecAnovaTime','vecTtestP','vecTtestTime');
+						'cellNeuron','vecNumSpikes','vecZetaP_old',...
+						'vecZetaP_UniStitch','vecZetaP_UniNoStitch','vecZetaP_LinStitch','vecZetaP_LinNoStitch',...
+						'vecAnovaP','vecZetaTime','vecAnovaTime','vecTtestP','vecTtestTime');
 				end
 			end
 		end

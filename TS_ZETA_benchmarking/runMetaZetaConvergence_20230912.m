@@ -61,10 +61,10 @@ intIdxNpx = 0;
 intIdx = 0;
 intArea=1;
 strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
-vecResamples = 50:50:500;
+vecResamples = 25;%50:50:500;
 vecUseNeurons = 1;%1:10
-intRepeats = 1000;
-for intRandType=1:2
+intRepeats = 10000;
+for intRandType=1
     %set var
     strRand = cellRunRand{intRandType};
 

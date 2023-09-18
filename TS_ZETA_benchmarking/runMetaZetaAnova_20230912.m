@@ -75,7 +75,7 @@ cellLinNoStitchP = [];
 cellZetaOldP = [];
 intIdxNpx = 0;
 intIdx = 0;
-for intArea=8%1:numel(cellUniqueAreas)
+for intArea=[1 2 8]%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 5%7
 		vecRunStims = 1;
@@ -101,7 +101,7 @@ for intArea=8%1:numel(cellUniqueAreas)
             sLoad=load([strDataPath strFile]);
 			
 			%remove cells with too few spikes
-            indRemCells = sLoad.vecNumSpikes < 10;
+            indRemCells = sLoad.vecNumSpikes < 3;
             cellFields = fieldnames(sLoad);
             for intField=1:numel(cellFields)
             varData = sLoad.(cellFields{intField});
@@ -172,7 +172,7 @@ for intArea=8%1:numel(cellUniqueAreas)
                 m0 = vecAUC(intCompAuc) - vecAUC(intPlotType);
                 s0 = (vecAUC_se(intCompAuc) + vecAUC_se(intPlotType))/2;
                 z = m0/s0;
-                matAUCp(intCompAuc,intPlotType) = 1 - abs(normcdf(z)-normcdf(-z));
+                matAUCp(intCompAuc,intPlotType) = 2*normcdf(abs(z),'upper');%1 - abs(normcdf(z)-normcdf(-z));
 				
 				v1 = (vecAUC_se(intCompAuc)*sqrt(2*numel(cellData{1}))).^2;
 				v2 = (vecAUC_se(intPlotType)*sqrt(2*numel(cellData{1}))).^2;

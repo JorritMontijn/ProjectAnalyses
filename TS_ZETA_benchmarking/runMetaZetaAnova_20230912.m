@@ -11,7 +11,7 @@ strFigPath = fullfile(strPath,'\Figs\');
 cellUniqueAreas = {...
 	'HeteroPoissonPeak',...Area 1
 	'TriPhasic',...Area 2
-	'',...Area 3
+	'QuadriPhasic',...Area 3
 	'',...Area 4
 	'',...Area 5
 	'',...Area 6
@@ -75,7 +75,7 @@ cellLinNoStitchP = [];
 cellZetaOldP = [];
 intIdxNpx = 0;
 intIdx = 0;
-for intArea=[1 2 8]%1:numel(cellUniqueAreas)
+for intArea=3;%[1 2 8]%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 5%7
 		vecRunStims = 1;
@@ -101,7 +101,7 @@ for intArea=[1 2 8]%1:numel(cellUniqueAreas)
             sLoad=load([strDataPath strFile]);
 			
 			%remove cells with too few spikes
-            indRemCells = sLoad.vecNumSpikes < 3;
+            indRemCells = sLoad.vecNumSpikes < 3;%median(sLoad.vecNumSpikes);
             cellFields = fieldnames(sLoad);
             for intField=1:numel(cellFields)
             varData = sLoad.(cellFields{intField});

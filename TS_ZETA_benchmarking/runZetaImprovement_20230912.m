@@ -6,7 +6,7 @@ clear all;
 cellUniqueAreas = {...
 	'HeteroPoissonPeak',...Area 1
 	'TriPhasic',...Area 2
-	'',...Area 3
+	'QuadriPhasic',...Area 3
 	'',...Area 4
 	'',...Area 5
 	'',...Area 6
@@ -29,7 +29,7 @@ vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 250;%250;%10:10:90;%[10:10:100];
 intUseGenN = 10000;
-vecRunAreas = 8;%[1 8]
+vecRunAreas = 3;%[1 8]
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -88,6 +88,8 @@ for intArea=vecRunAreas
 			elseif contains(strRunType,'Poisson')
 				intNeurons = intUseGenN;
 			elseif contains(strRunType,'TriPhasic')
+			    intNeurons = intUseGenN;
+            elseif contains(strRunType,'QuadriPhasic')
 			    intNeurons = intUseGenN;
             end
 			
@@ -232,6 +234,22 @@ for intArea=vecRunAreas
 % 						pUniNoStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot,[],[],[],[],false,intJitterDistro)
 % 						pOld=getZeta(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot)
 % return
+                    elseif contains(strRunType,'QuadriPhasic')
+                        strDate = getDate();
+						intSU = intNeuron;
+						
+                        dblBaseRate = exprnd(0.1)+0.1;
+                        vecDurs = [0.1 0.9 0.1];
+                        vecRates = [2*exprnd(1)+0.2 exprnd(0.2)+0.1 2*exprnd(1)+0.2];
+                        intNumT = 160;
+                        vecTrialDur=linspace(0.5,10,intNumT);
+                        vecRepStarts = 5+cumsum(vecTrialDur);
+                        dblEndT = vecRepStarts(end)+5;
+                        vecSpikeTimes = getGeneratedMultiPhasicR(dblBaseRate,vecRates,vecDurs,vecRepStarts,dblEndT);
+
+                        dblUseMaxDur = 1;
+                        vecTrialStarts = vecRepStarts(:);
+                        vecTrialStarts(:,2) = vecTrialStarts(:,1) + dblUseMaxDur;
                     end
 					
 					%% get visual responsiveness

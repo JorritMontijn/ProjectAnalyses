@@ -201,16 +201,20 @@ for boolDoOGB = [false true]
 	cellColor = {lines(1),'r','k'};
 	%vecH(intResampNpx) = subplot(4,3,intResampNpx);
 	subplot(2,3,3)
-	maxfig;
-	hold on;
-	
-	for intTest=1:3
-		if intTest == 1
-			matData = matZetaP;
-		elseif intTest == 2
-			matData = matAnovaP;
-		elseif intTest == 3
-			matData = matMeanP;
+    maxfig;
+    hold on;
+
+    for intTest=1:5
+        if intTest == 1
+            matData = matZetaP;
+        elseif intTest == 2
+            matData = matAnovaP;
+        elseif intTest == 3
+            matData = matMeanP;
+        elseif intTest == 4
+            matData = matKsP;
+    	elseif intTest == 5
+    		matData = matWilcoxP;
 		end
 		intCells = size(matData,2);
 		vecBothData = cat(2,matData(1,:),matData(2,:));

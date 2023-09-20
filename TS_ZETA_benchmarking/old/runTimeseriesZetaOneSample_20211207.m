@@ -3,12 +3,21 @@
 %% set recording
 close all;
 clear all;
-strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
-strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
+
 vecRunTypes = [1 2];
 intResampNum = 500;%[100 200 500 1000 2000];
 boolSave = true;
-strFigPath = 'D:\Data\Results\TraceZeta\';
+
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta\';
+	strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta\';
+	strDataSourcePath = '';
+    
+end
+strFigPath = [strPath 'Figs\'];
+strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
 
 %% set variables
 strRec = 'SimOneSample1TsZeta';

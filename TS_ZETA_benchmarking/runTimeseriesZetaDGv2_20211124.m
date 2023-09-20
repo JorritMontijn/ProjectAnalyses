@@ -3,11 +3,17 @@
 %% set recording
 close all;
 clear all;
-strDataTargetPath = 'D:\Data\Processed\TraceZeta\data\';
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta';
+end
+strDataPath = fullfile(strPath,'\Data\');
+strFigPath = fullfile(strPath,'\Figs\');
+
 vecRunTypes = [1 2];
 intResampNum = 500;
 boolSave = true;%true;
-strFigPath = 'D:\Data\Results\TraceZeta\';
 dblUseDur = 8;
 boolDirectQuantile = false;
 intUseTrials = 8; %limit number of used trials to reduce performance saturation
@@ -198,7 +204,7 @@ for boolDoOGB = [false true]
 			fprintf('%s; Mean comp time per neuron was %.3fs\n',strRec,mean(vecZetaDur));
 			
 			if boolSave
-				save([strDataTargetPath 'TsZeta' strIndicator '_Q' num2str(boolDirectQuantile) '_' strRunType strUseDur 'T' num2str(intUseTrials) 'Resamp' num2str(intResampNum) '.mat' ],...
+				save([strDataPath 'TsZeta' strIndicator '_Q' num2str(boolDirectQuantile) '_' strRunType strUseDur 'T' num2str(intUseTrials) 'Resamp' num2str(intResampNum) '.mat' ],...
 					'intUseTrials','vecWilcoxP','vecWilcoxDur','vecKsP','vecKsDur',...
 					'vecAnovaP','vecZetaP','vecMeanP','vecAnovaDur','vecZetaDur','strRunType','strRecIdx');
 			end

@@ -4,11 +4,11 @@
 close all;
 clear all;
 strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
-strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
+strDataTargetPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta\Data\';
 vecRunTypes = [1 2];
 intResampNum = 250;
 boolSave = true;
-strFigPath = 'D:\Data\Results\TraceZeta\';
+strFigPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta\Data\';
 
 %% set variables
 intNeurons = 100;

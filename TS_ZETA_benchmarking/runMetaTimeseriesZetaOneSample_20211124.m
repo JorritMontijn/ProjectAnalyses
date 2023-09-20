@@ -1,16 +1,22 @@
 clear all;
 %close all;
-strPath = 'D:\Data\Processed\TraceZeta\';
-strFigPath = 'D:\Data\Results\TraceZeta\';
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta';
+end
+strDataPath = fullfile(strPath,'\Data\');
+strFigPath = fullfile(strPath,'\Figs\');
 
 %% prep
 %strFileSearch = ['SimOneSampleTsZetaQ0.mat'];
-strFileSearch = ['SimOneSampleTsZetaQ0.mat'];
-sDir = dir(fullpath(strPath,strFileSearch));
+strFileSearch = ['SimOneSample1TsZetaQ0.mat'];
+sDir = dir(fullpath(strDataPath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
 matAggTtest = -norminv(sLoad.matTtest/2);
-matAggZeta = -norminv(sLoad.matTsZeta/2);
+%matAggZeta = -norminv(sLoad.matTsZetaUni/2);
+matAggZeta = -norminv(sLoad.matTsZetaLin/2);
 matAggAnova = -norminv(sLoad.matAnova/2);
 strRec = sLoad.strRec;
 

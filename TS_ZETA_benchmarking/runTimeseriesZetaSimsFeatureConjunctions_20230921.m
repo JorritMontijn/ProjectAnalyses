@@ -3,8 +3,18 @@
 %% set recording
 close all;
 clear all;
-strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
-strDataTargetPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta\Data\';
+
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta\';
+	strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta\';
+	strDataSourcePath = '';
+	
+end
+strFigPath = [strPath 'Figs\'];
+strDataTargetPath = [strPath 'Data\'];
+
 vecRunTypes = [1 2];
 intResampNum = 250;
 boolSave = true;

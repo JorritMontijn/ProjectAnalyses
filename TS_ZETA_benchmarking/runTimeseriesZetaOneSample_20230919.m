@@ -104,9 +104,9 @@ for intNeuron=1:intNeurons
         boolDirectQuantile = false;
         dblJitterSize = [];
         intJitterDistro = 1;
-        [dblZetaP_uni,sZETA] = zetatstest(vecTimestamps,vecdFoF,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize,intJitterDistro);
+        [dblZetaP_uni,sZETA] = zetatstest(vecTimestamps,vecdFoF,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize);
         intJitterDistro = 2;
-        [dblZetaP_lin,sZETA] = zetatstest(vecTimestamps,vecdFoF,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize,intJitterDistro);
+        [dblZetaP_lin,sZETA] = zetatstest(vecTimestamps,vecdFoF,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize);
 
 		%normal zeta
 		[dblZetaP_sp,sZETA_sp] = zetatest(vecSpikeTimes, matEventTimes,dblUseMaxDur,intResampNum,intPlot);

@@ -1,10 +1,16 @@
 clear all;
 %close all;
-strPath = 'D:\Data\Processed\TraceZeta\data\';
-strFigPath = 'D:\Data\Results\TraceZeta\';
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta';
+end
+strDataPath = fullfile(strPath,'\Data\');
+strFigPath = fullfile(strPath,'\Figs\');
+
 intResamps = 500;
 intT = 8;
-boolDirectQuantile = false;
+boolDirectQuantile = true;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
@@ -20,15 +26,15 @@ strStim = 'RunDriftingGratings';
 
 hMegaFig = figure;maxfig;
 
-for boolDoOGB = [false true]
+for boolDoOGB = false%[false true]
 	%% load data
 	if boolDoOGB
 		strIndicator = 'OGB';
 	else
 		strIndicator = 'GCaMP';
 	end
-	sDirAll1=dir([strPath 'TsZeta' strIndicator '*' strQ '*sesDur*' strT strR '.mat']);
-	sDirAll2=dir([strPath 'TsZeta' strIndicator '*' strQ '*ses-RandDur*' strT strR '.mat']);
+	sDirAll1=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*sesDur*' strT strR '.mat']);
+	sDirAll2=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*ses-RandDur*' strT strR '.mat']);
 	sDirAll = cat(1,sDirAll1,sDirAll2);
 	vecRand = contains({sDirAll.name},'Rand');
 	sDirReal = sDirAll(~vecRand);
@@ -55,7 +61,7 @@ for boolDoOGB = [false true]
 		
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;
-			sLoad=load([strPath strFile]);
+			sLoad=load([strDataPath strFile]);
 			cellMeanP{intRandType}{intFile} = sLoad.vecMeanP;
 			cellZetaP{intRandType}{intFile} = sLoad.vecZetaP;
 			cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;

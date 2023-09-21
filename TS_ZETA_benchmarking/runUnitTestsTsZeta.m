@@ -1,6 +1,6 @@
 %% set paths
-strPath1 = 'F:\Code\Toolboxes\zetatest\dependencies\';
-strPath2 = 'F:\Code\Acquisition\UniversalProbeFinder\zetatest\dependencies\';
+strPath2 = 'C:\Code\Toolboxes\zetatest\dependencies\';
+strPath1 = 'C:\Code\Acquisition\UniversalProbeFinder\zetatest\dependencies\';
 
 %% gen data
 dblTau = 2;
@@ -44,41 +44,37 @@ vecEventStartT = matTrialT1(:,1);
 % getTsRefT.m
 cd(strPath1)
 rng(1,'mt19937ar')
-[vecRefT,cellSampleAssignments] = getTsRefT(vecTimestamps,vecEventStartT,dblUseMaxDur);
+vecRefT = getTsRefT(vecTimestamps,vecEventStartT,dblUseMaxDur);
 cd(strPath2)
 rng(1,'mt19937ar')
 vecRefT2 = getTsRefT(vecTimestamps,vecEventStartT,dblUseMaxDur);
-%sum(abs(vecRefT-vecRefT2))
+sum(abs(vecRefT-vecRefT2))
 
 
 % getInterpolatedTimeSeries.m
 cd(strPath1)
 rng(1,'mt19937ar')
-matTracePerTrial = getInterpolatedTimeSeries(vecTimestamps,vecdFoF,vecEventStartT,vecRefT,cellSampleAssignments);
+[vecRefT2_a,matTracePerTrial] = getInterpolatedTimeSeries(vecTimestamps,vecdFoF,vecEventStartT,dblUseMaxDur,vecRefT);
 cd(strPath2)
 rng(1,'mt19937ar')
 [vecRefT2_b,matTracePerTrial2] = getInterpolatedTimeSeries(vecTimestamps,vecdFoF,vecEventStartT,dblUseMaxDur,vecRefT2);
-%sum(abs(matTracePerTrial(:)-matTracePerTrial2(:)))
-
-%zetatstest
-cd(strPath1)
-rng(1,'mt19937ar')
-intPlot = 2;
-[dblZetaP1,sZeta1] = zetatstest(vecTimestamps,vecdFoF,matTrialT1,dblUseMaxDur,intResampNum,intPlot);
-cd(strPath2)
-rng(1,'mt19937ar')
-[dblZetaP2,sZeta2] = zetatstest_old(vecTimestamps,vecdFoF,matTrialT1,dblUseMaxDur,intResampNum,intPlot);
+sum(abs(matTracePerTrial(:)-matTracePerTrial2(:)))
 
 %calcTsZetaOne
-intResampNum = 100;boolDirectQuantile=false;dblJitterSize=2;boolUseParallel=false;
+intResampNum = 100;boolDirectQuantile=false;dblJitterSize=2;boolUseParallel=false;intJitterDistro=2;
 cd(strPath1)
 rng(1,'mt19937ar')
+tic
 [vecRefT,vecRealDiff,vecRealFrac,vecRealFracLinear,cellRandT,cellRandDiff,dblZetaP,dblZETA,intZETALoc] = ...
- 	calcTsZetaOne(vecTimestamps,vecdFoF,vecEventStartT,dblUseMaxDur,intResampNum,boolDirectQuantile,dblJitterSize,boolUseParallel);
+ 	calcTsZetaOne(vecTimestamps,vecdFoF,vecEventStartT,dblUseMaxDur,intResampNum,boolDirectQuantile,dblJitterSize,intJitterDistro);
+toc
 cd(strPath2)
 rng(1,'mt19937ar')
+tic
 [vecRefT2,vecRealDiff2,vecRealFrac2,vecRealFracLinear2,cellRandT2,cellRandDiff2,dblZetaP2,dblZETA2,intZETALoc2] = ...
  	calcTsZetaOne(vecTimestamps,vecdFoF,vecEventStartT,dblUseMaxDur,intResampNum,boolDirectQuantile,dblJitterSize,boolUseParallel);
+toc
+any(cellfun(@numel,cellRandT)~=cellfun(@numel,cellRandT2))
 
 % getTraceOffsetOne.m
 cd(strPath1)
@@ -92,3 +88,23 @@ sum(abs(vecThisFrac-vecThisFrac2))
 sum(abs(vecThisFracLinear-vecThisFracLinear2))
 sum(abs(vecRandT-vecRandT2))
 
+%% test interp
+vecRefT = getTsRefT(vecTimestamps,vecEventStartT,dblUseMaxDur);
+% get original times
+for intTrial=1:numel(vecEventStartT)
+dblStartT = vecEventStartT(intTrial);
+intStartT = max([1 find(vecTimestamps > (dblStartT + vecRefT(1)),1) - 1]);
+intStopT = min([numel(vecTimestamps) find(vecTimestamps > (dblStartT + vecRefT(end)),1) + 1]);
+vecSelectSamples = intStartT:intStopT;
+
+%% get data
+vecUseTimes = vecTimestamps(vecSelectSamples);
+vecUseTrace = vecdFoF(vecSelectSamples);
+vecUseInterpT = vecRefT+dblStartT;
+		
+vecInterpTrace1 = interp1(vecUseTimes,vecUseTrace,vecUseInterpT);
+F = griddedInterpolant(vecUseTimes,vecUseTrace,'linear');
+vecInterpTrace2 = F(vecUseInterpT);
+
+all(vecInterpTrace1==vecInterpTrace2)
+end

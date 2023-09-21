@@ -1,12 +1,17 @@
 clear all;
 %close all;
-strPath = 'D:\Data\Processed\TraceZeta\';
-strFigPath = 'D:\Data\Results\TraceZeta\';
+if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
+	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
+else
+	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta';
+end
+strDataPath = fullfile(strPath,'\Data\');
+strFigPath = fullfile(strPath,'\Figs\');
 
 %% prep
 intResamps = 250;
 strFileSearch = ['TsZetaFeatureConjunctionsResamp' num2str(intResamps) '.mat'];
-sDir = dir(fullpath(strPath,strFileSearch));
+sDir = dir(fullpath(strDataPath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
 matTsZeta = sLoad.matTsZeta;

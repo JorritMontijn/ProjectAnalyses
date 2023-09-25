@@ -8,8 +8,8 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
-intResamps = 250;
-intT = 16;
+intResamps = 250; %Q1R10000T16 / Q0R250T112
+intT = 80;
 boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
@@ -26,7 +26,7 @@ strStim = 'RunDriftingGratings';
 
 hMegaFig = figure;maxfig;
 
-for boolDoOGB = false%[false true]
+for boolDoOGB = [false true]
 	%% load data
 	if boolDoOGB
 		strIndicator = 'OGB';
@@ -71,7 +71,7 @@ for boolDoOGB = false%[false true]
 			cellWilcoxP{intRandType}{intFile} = sLoad.vecWilcoxP;
 		end
 	end
-	
+	if isempty(cellMeanP),continue;end
 	%% check if recording is above chance
 	vecResp = cellfun(@(x) sum(x<0.05),cellMeanP{1});
 	vecTot = cellfun(@numel,cellMeanP{1});
@@ -164,7 +164,6 @@ for boolDoOGB = false%[false true]
 	ylabel('ZETA (\zeta_c)')
 	title(sprintf('A) Inclusion at %s=0.05: %s=%.3f, %s=%.3f; n=%d',getGreek('alpha'),getGreek('zeta'),sum(matZetaP(1,:)<0.05)/numel(matZetaP(1,:)),getGreek('mu'),sum(matMeanP(1,:)<0.05)/numel(matMeanP(1,:)),size(matZetaP,2)))
 	%set(gca,'xscale','log','yscale','log');
-	fixfig;
 	
 	h2=subplot(2,3,2);
 	vecColor2 = 1 + 1*(matZetaP(2,:) > 0.05 & matMeanP(2,:) < 0.05) + 2*(matZetaP(2,:) < 0.05 & matMeanP(2,:) > 0.05) + 3*(matZetaP(2,:) < 0.05 & matMeanP(2,:) < 0.05);
@@ -177,34 +176,36 @@ for boolDoOGB = false%[false true]
 	%set(gca,'xscale','log','yscale','log');
 	fixfig;maxfig;
 	
+    dblAlpha = 0.01;
+    intNumN = size(matZetaP,2);
+	vecFP_sortedZ = sort(matZetaP(2,:));
+	vecFP_sortedA = sort(matAnovaP(2,:));
+	dblAlphaAtFpAlphaPercZ = vecFP_sortedZ(round(intNumN*dblAlpha));
+	dblAlphaAtFpAlphaPercA = vecFP_sortedA(round(intNumN*dblAlpha));
+	dblInclusionZ_at_Alpha = sum(matZetaP(1,:)<dblAlphaAtFpAlphaPercZ)/numel(matZetaP(1,:));
 	h4 =subplot(2,3,4);
 	matC = [0.5 0.5 0.5;...
 		0 0.8 0;...
 		0.8 0 0;...
 		0 0 0.8];
-	vecColor1 = 1 + (matZetaP(1,:) < 0.05 & matAnovaP(1,:) > 0.05) + 2*(matZetaP(1,:) > 0.05 & matAnovaP(1,:) < 0.05) + 3*(matZetaP(1,:) < 0.05 & matAnovaP(1,:) < 0.05);
+	vecColor1 = 1 + (matZetaP(1,:) < dblAlpha & matAnovaP(1,:) > dblAlpha) + 2*(matZetaP(1,:) > dblAlpha & matAnovaP(1,:) < dblAlpha) + 3*(matZetaP(1,:) < dblAlpha & matAnovaP(1,:) < dblAlpha);
 	scatter(matAnovaZ(1,:),matZetaZ(1,:),100,vecColor1,'.');
 	colormap(h4,matC(1:max(vecColor1),:));
 	%xlim([0 1]);ylim([0 1]);
 	xlabel('Z-statistic ANOVA (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
-	intNumN = size(matZetaP,2);
-	vecFP_sortedZ = sort(matZetaP(2,:));
-	dblAlphaAtFp5percZ = vecFP_sortedZ(round(intNumN*0.05));
-	vecFP_sortedA = sort(matAnovaP(2,:));
-	dblAlphaAtFp5percA = vecFP_sortedA(round(intNumN*0.05));
-	title(sprintf('C) Inclusion at FPR=0.05: %s=%.3f, %s=%.3f; n=%d',getGreek('zeta'),sum(matZetaP(1,:)<dblAlphaAtFp5percZ)/numel(matZetaP(1,:)),'A',sum(matAnovaP(1,:)<dblAlphaAtFp5percA)/numel(matAnovaP(1,:)),intNumN))
+	title(sprintf('C) Inclusion at FPR=%.3f: %s=%.3f, %s=%.3f; n=%d',dblAlpha,getGreek('zeta'),dblInclusionZ_at_Alpha,'A',sum(matAnovaP(1,:)<dblAlphaAtFpAlphaPercA)/numel(matAnovaP(1,:)),intNumN))
 	%set(gca,'xscale','log','yscale','log');
 	fixfig;
 	
 	h5=subplot(2,3,5);
-	vecColor2 = 1 + 1*(matZetaP(2,:) > 0.05 & matAnovaP(2,:) < 0.05) + 2*(matZetaP(2,:) < 0.05 & matAnovaP(2,:) > 0.05) + 3*(matZetaP(2,:) < 0.05 & matAnovaP(2,:) < 0.05);
+	vecColor2 = 1 + 1*(matZetaP(2,:) > dblAlpha & matAnovaP(2,:) < dblAlpha) + 2*(matZetaP(2,:) < dblAlpha & matAnovaP(2,:) > dblAlpha) + 3*(matZetaP(2,:) < dblAlpha & matAnovaP(2,:) < dblAlpha);
 	scatter(matAnovaZ(2,:),matZetaZ(2,:),100,vecColor1,'.');
 	colormap(h5,matC(1:max(vecColor1),:));
 	%xlim([0 1]);ylim([0 1]);
 	xlabel('Z-statistic ANOVA (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
-	title(sprintf('D) False alarms at %s=0.05: %s=%.3f, %s=%.3f',getGreek('alpha'),getGreek('zeta'),sum(matZetaP(2,:)<0.05)/numel(matZetaP(2,:)),'A',sum(matAnovaP(2,:)<0.05)/numel(matAnovaP(2,:))))
+	title(sprintf('D) False alarms at %s=%.3f: %s=%.3f, %s=%.3f',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(2,:)<dblAlpha)/numel(matZetaP(2,:)),'A',sum(matAnovaP(2,:)<dblAlpha)/numel(matAnovaP(2,:))))
 	%set(gca,'xscale','log','yscale','log');
 	fixfig;maxfig;
 	
@@ -277,13 +278,44 @@ for boolDoOGB = false%[false true]
 	ylabel('Inclusion fraction');
 	title(sprintf('E) ROC; %s %s %s',strQ,strR,strIndicator));
 	legend({sprintf('ZETA-test, AUC=%.3f',vecAUC(1)),sprintf('ANOVA, AUC=%.3f',vecAUC(2)),sprintf('t-test, AUC=%.3f',vecAUC(3))},'location','best','interpreter','none');
-	fixfig;
-	
-	subplot(2,3,6)
-	title(sprintf('Mann-Whitney AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
-		AUC_pTA,AUC_pTZ,AUC_pAZ));
-	
+
+    subplot(2,3,6)
+    cellLegend = {};
+    hold on;
+   for intTest=1:5
+        if intTest == 1
+            matData = matZetaP;
+            cellLegend(end+1) = {'TS-ZETA'};
+        elseif intTest == 2
+            matData = matAnovaP;
+            cellLegend(end+1) = {'ANOVA'};
+        elseif intTest == 3
+            matData = matMeanP;
+            cellLegend(end+1) = {'T-test'};
+        elseif intTest == 4
+            matData = matKsP;
+            cellLegend(end+1) = {'K-S test'};
+    	elseif intTest == 5
+    		matData = matWilcoxP;
+            cellLegend(end+1) = {'Wilcoxon'};
+		end
+        vecRandSorted = sort(matData(2,:));
+        vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
+        plot(vecQuantile,vecRandSorted,'Color',cellColor{intTest});
+    end
+    xlabel(sprintf('Significance level %s',getGreek('alpha')));
+    ylabel(sprintf('P-value threshold required to match empirical FPR'));
+    set(gca,'xscale','log','yscale','log');
+    dblMinVal = max(get(gca,'xlim'),get(gca,'ylim'));
+    plot([dblMinVal 1],[dblMinVal 1],'k--');
+    cellLegend(end+1) = {'Theoretical norm'};
+    hold off;
+    legend(cellLegend,'location','best');
+    title(sprintf('Mann-Whitney AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
+        AUC_pTA,AUC_pTZ,AUC_pAZ));
+
 	%% save
+    fixfig;
 	drawnow;
 	export_fig(fullpath(strFigPath,['TsZeta' strQ strR strIndicator '.tif']));
 	export_fig(fullpath(strFigPath,['TsZeta' strQ strR strIndicator '.pdf']));

@@ -5,7 +5,7 @@ close all;
 clear all;
 
 vecRunTypes = [1 2];
-intResampNum = 500;%[100 200 500 1000 2000];
+intResampNum = 100;%[100 200 500 1000 2000];
 boolSave = true;
 
 if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
@@ -20,8 +20,7 @@ strFigPath = [strPath 'Figs\'];
 strDataTargetPath = [strPath 'Data\'];
 
 %% set variables
-strRec = 'SimOneSample1TsZeta';
-intNeurons = 100;
+intNeurons = 10000;
 dblFracDiffSpikes = 1/2;
 dblTau = 2;
 dblTau0 = (63/1000);
@@ -30,7 +29,9 @@ dblSamplingFreq = 25;
 dblSamplingInterval = 1/dblSamplingFreq;
 boolQuick = false;
 intJitterDistro = 1;
-
+strRec = sprintf('SimOneSample1TsZetaN%dR%d',intNeurons,intResampNum);
+boolDirectQuantile = false;
+        
 %set indicator properties
 sIndicatorProps = struct;
 sIndicatorProps.dblTimescale = dblTau;
@@ -101,7 +102,6 @@ for intNeuron=1:intNeurons
 		%TS-ZETA new
 		%zetatstest
 		intPlot = 0;
-        boolDirectQuantile = false;
         dblJitterSize = [];
         intJitterDistro = 1;
         [dblZetaP_uni,sZETA] = zetatstest(vecTimestamps,vecdFoF,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize);

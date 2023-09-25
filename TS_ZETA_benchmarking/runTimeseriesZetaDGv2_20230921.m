@@ -12,14 +12,15 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRunTypes = [1 2];
-intResampNum = 500;
+intResampNum = 250;
 boolSave = true;%true;
 dblUseDur = 8;
-boolDirectQuantile = true;
+boolDirectQuantile = false;
 intUseTrials = inf; %limit number of used trials to reduce performance saturation
-				
+warning('off','zetatstest:InsufficientDataLength');
+
 %% load data
-for boolDoOGB = false%[false true]
+for boolDoOGB = [false true]
 	%% load data
 	if boolDoOGB
 		strIndicator = 'OGB';

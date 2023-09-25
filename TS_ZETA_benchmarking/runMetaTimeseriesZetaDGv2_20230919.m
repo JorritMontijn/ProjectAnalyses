@@ -8,9 +8,9 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
-intResamps = 500;
-intT = 8;
-boolDirectQuantile = true;
+intResamps = 250;
+intT = 16;
+boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
@@ -114,11 +114,11 @@ for boolDoOGB = false%[false true]
 	matKsP = cat(2,vecRealKsP,vecRandKsP)';
 	matWilcoxP = cat(2,vecRealWilcoxP,vecRandWilcoxP)';
 	
-	matMeanZ = cat(2,norminv(1-vecRealMeanP/2),norminv(1-vecRandMeanP/2))';
-	matZetaZ = cat(2,norminv(1-vecRealZetaP/2),norminv(1-vecRandZetaP/2))';
-	matAnovaZ = cat(2,norminv(1-vecRealAnovaP/2),norminv(1-vecRandAnovaP/2))';
-	matKsZ = cat(2,norminv(1-vecRealKsP/2),norminv(1-vecRandKsP/2))';
-	matWilcoxZ = cat(2,norminv(1-vecRealWilcoxP/2),norminv(1-vecRandWilcoxP/2))';
+	matMeanZ = cat(2,-norminv(vecRealMeanP/2),-norminv(vecRandMeanP/2))';
+	matZetaZ = cat(2,-norminv(vecRealZetaP/2),-norminv(vecRandZetaP/2))';
+	matAnovaZ = cat(2,-norminv(vecRealAnovaP/2),-norminv(vecRandAnovaP/2))';
+	matKsZ = cat(2,-norminv(vecRealKsP/2),-norminv(vecRandKsP/2))';
+	matWilcoxZ = cat(2,-norminv(vecRealWilcoxP/2),-norminv(vecRandWilcoxP/2))';
 	
 	%remove nans
 	indRem = any(isnan(matZetaP),1) | any(isnan(matMeanP),1) | any(isnan(matAnovaZ),1);
@@ -188,7 +188,12 @@ for boolDoOGB = false%[false true]
 	%xlim([0 1]);ylim([0 1]);
 	xlabel('Z-statistic ANOVA (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
-	title(sprintf('C) Inclusion at %s=0.05: %s=%.3f, %s=%.3f; n=%d',getGreek('alpha'),getGreek('zeta'),sum(matZetaP(1,:)<0.05)/numel(matZetaP(1,:)),'A',sum(matAnovaP(1,:)<0.05)/numel(matAnovaP(1,:)),size(matZetaP,2)))
+	intNumN = size(matZetaP,2);
+	vecFP_sortedZ = sort(matZetaP(2,:));
+	dblAlphaAtFp5percZ = vecFP_sortedZ(round(intNumN*0.05));
+	vecFP_sortedA = sort(matAnovaP(2,:));
+	dblAlphaAtFp5percA = vecFP_sortedA(round(intNumN*0.05));
+	title(sprintf('C) Inclusion at FPR=0.05: %s=%.3f, %s=%.3f; n=%d',getGreek('zeta'),sum(matZetaP(1,:)<dblAlphaAtFp5percZ)/numel(matZetaP(1,:)),'A',sum(matAnovaP(1,:)<dblAlphaAtFp5percA)/numel(matAnovaP(1,:)),intNumN))
 	%set(gca,'xscale','log','yscale','log');
 	fixfig;
 	

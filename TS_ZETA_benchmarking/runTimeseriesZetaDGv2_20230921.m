@@ -46,7 +46,7 @@ for boolDoOGB = [false true]
 	end
 	for intRunType=vecRunTypes
 		%% load data
-		for intFile=1%:numel(cellRunRecs)
+		for intFile=1:numel(cellRunRecs)
 			strFile = cellRunRecs{intFile};
 			[dummy,strRec,strExt]=fileparts(strFile);
 			sLoad = load([strDataSourcePath strFile]);

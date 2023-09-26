@@ -8,9 +8,9 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
-intResamps = 250; %Q1R10000T16 / Q0R250T112
-intT = 80;
-boolDirectQuantile = false;
+intResamps = 10000; %Q1R10000T64 / Q0R250T64
+intT = 64;
+boolDirectQuantile = true;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];

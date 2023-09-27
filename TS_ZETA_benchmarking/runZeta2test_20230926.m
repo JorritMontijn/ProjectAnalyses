@@ -8,7 +8,7 @@ cellUniqueAreas = {...
 	'TriPhasic',...Area 2
 	'QuadriPhasic',...Area 3
 	'iidGaussian',...Area 4
-	'',...Area 5
+	'BiPhasic',...Area 5
 	'',...Area 6
 	'lateral geniculate',...Area 7
 	'Primary visual',...Area 8
@@ -29,7 +29,7 @@ vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 250;%250;%10:10:90;%[10:10:100];
 intUseGenN = 10000;
-vecRunAreas = 4;%[1 8]
+vecRunAreas = 5;%[1 8]
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -93,6 +93,8 @@ for intArea=vecRunAreas
 			    intNeurons = intUseGenN;
             elseif contains(strRunType,'iidGaussian')
 			    intNeurons = intUseGenN;
+			 elseif contains(strRunType,'BiPhasic')
+			    intNeurons = intUseGenN;
 			end
 			
 			for intResampleIdx = 1:numel(vecResamples)
@@ -104,16 +106,9 @@ for intArea=vecRunAreas
 				%% pre-allocate output variables
 				cellNeuron = cell(1,intNeurons);
 				vecNumSpikes = zeros(1,intNeurons);
-				vecZetaP_old = ones(1,intNeurons);
-				vecZetaP_UniStitch = ones(1,intNeurons);
-				vecZetaP_UniNoStitch = ones(1,intNeurons);
-				vecZetaP_LinStitch = ones(1,intNeurons);
-				vecZetaP_LinNoStitch = ones(1,intNeurons);
-				vecAnovaP = ones(1,intNeurons);
-				vecZetaTime = ones(1,intNeurons);
-				vecAnovaTime = ones(1,intNeurons);
-				vecTtestP = ones(1,intNeurons);
-				vecTtestTime = ones(1,intNeurons);
+				vecZetaP_Diff = ones(1,intNeurons);
+				vecAnovaP_Diff = ones(1,intNeurons);
+				vecTtestP_Diff = ones(1,intNeurons);
 				%load([strDataTargetPath 'ZetaDataAnova' strRunType strRunStim '.mat']);
 				
 				%% analyze
@@ -153,107 +148,51 @@ for intArea=vecRunAreas
 						vecTrialStarts(:,1) = vecStimOnTime;
 						vecTrialStarts(:,2) = vecStimOffTime;
 					    dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
-					elseif contains(strRunType,'HeteroPoissonPeak')
-						%% generate
-						strRecIdx = 'x';
-						strMouse = 'Artificial';
-						strBlock = '1';
-						strDate = getDate();
-						intSU = intNeuron;
-						intClust = intNeuron;
-						
-						%set parameters
-						dblBaseRate = exprnd(5);
-						dblPrefRate = dblBaseRate+exprnd(20);
-						dblKappa = rand(1)*5+5;
-						vecTrialAngles=repmat([0:45:359],[1 20]);
-						vecTrialDur=linspace(0.2,2,numel(vecTrialAngles));
-						vecStimOnTime = cumsum(vecTrialDur)+1;
-						vecStimOffTime = vecStimOnTime + 1;
-						dblJitter = 0.05;
-                        boolDoublePeaked = true;
-                        intAddSpikes = 0;%numel(vecTrialDur)/10;
 
-						vecTrialStarts(:,1) = vecStimOnTime;
-						vecTrialStarts(:,2) = vecStimOffTime;
-						dblUseMaxDur = round(median(diff(vecTrialStarts(:,1)))*2)/2;
-					    [vecSpikeTimes,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles,vecTrialStarts,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,[],intAddSpikes);
-					elseif contains(strRunType,'TriPhasic')
-                        %% generate
-						strRecIdx = 'x';
-						strMouse = 'Artificial';
-						strBlock = '1';
-						strDate = getDate();
-						intSU = intNeuron;
-						intClust = intNeuron;
-						
-						%set parameters
-						%m: intTrialNum
-                        %Tr: response dur
-                        %T: trial dur
-                        %tau: total dur
-                        %L_b: base rate
-                    	%L_s: stim rate
-                        %rate is 0 between Tr and T
-
-                        intNumT = 160;
-                        vecTrialDur=linspace(0.5,10,intNumT);
-						
-                        dblBaseRate = exprnd(0.1)+0.1;
-						dblFirstRate = exprnd(1)+0.2;
-						dblThirdRate = 0;%exprnd(0.1);
-						dblUseMaxDur = 1;
-                        dblFirstDur = 0.1;
-                        m=1;
-                        Tr = 0.5;
-                        T = 1;
-                        
-                        L_b=dblThirdRate;
-                        L_s=dblFirstRate;
-                        vecTrialStarts = nan(size(vecTrialDur))';
-                        %generate preceding period
-                        dblPreT=5;
-                        cellSpikeT = cell(1,intNumT+3);
-                        dblNextT = dblPreT;
-                        for intTrial=1:intNumT
-                            tau = vecTrialDur(intTrial);
-                            cellSpikeT{intTrial} = dblNextT+getGeneratedTriPhasicR(m,dblFirstDur,dblUseMaxDur,tau,L_b,L_s*dblFirstDur);
-                            vecTrialStarts(intTrial) = dblNextT;
-                            dblNextT = dblNextT + tau;
-                        end
-                        vecTrialStarts(:,2) = vecTrialStarts(:,1) + dblUseMaxDur;
-                        %generate end period
-                        dblPostT=5;
-                        %add baseline spikes
-                        dblTotT=dblNextT+dblPostT;
-                        vecSpikeTimesBase = getGeneratedSpikingData(0,[0;dblTotT],dblBaseRate,dblBaseRate,10);
-                        cellSpikeT{intNumT+1} = vecSpikeTimesBase;
-                        vecSpikeTimes = sort(cell2vec(cellSpikeT));
-% 						intPlot = 2;
-% 						intJitterDistro = 1;
-% 						pLinStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot,[],[],[],[],true,intJitterDistro)
-% 						pLinNoStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot,[],[],[],[],false,intJitterDistro)
-% 						intJitterDistro = 2;
-% 						pUniStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot,[],[],[],[],true,intJitterDistro)
-% 						pUniNoStitch=zetatest(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot,[],[],[],[],false,intJitterDistro)
-% 						pOld=getZeta(vecSpikeTimes,vecTrialStarts,dblUseMaxDur,[],intPlot)
-% return
-                    elseif contains(strRunType,'QuadriPhasic')
+                    elseif contains(strRunType,'BiPhasic')
                         strDate = getDate();
 						intSU = intNeuron;
-						
-                        dblBaseRate = exprnd(0.1)+0.1;
-                        vecDurs = [0.1 0.9 0.1];
-                        vecRates = [2*exprnd(1)+0.2 exprnd(0.2)+0.1 2*exprnd(1)+0.2];
+						%%
+                        dblBaseRate = 1;
+                        vecDurs = [0.1];
+                        vecRates1 = [2];
+                        vecRates2 = [3];
                         intNumT = 160;
-                        vecTrialDur=linspace(0.5,10,intNumT);
+                        dblUseMaxDur = 1;
+                        vecTrialDur=dblUseMaxDur*ones(1,intNumT)*1.5;%linspace(0.5,10,intNumT);
                         vecRepStarts = 5+cumsum(vecTrialDur);
                         dblEndT = vecRepStarts(end)+5;
-                        vecSpikeTimes = getGeneratedMultiPhasicR(dblBaseRate,vecRates,vecDurs,vecRepStarts,dblEndT);
+						vecSpikeTimes1 = getGeneratedMultiPhasicR(dblBaseRate,vecRates1,vecDurs,vecRepStarts,dblEndT);
+						vecSpikeTimes2 = getGeneratedMultiPhasicR(dblBaseRate,vecRates2,vecDurs,vecRepStarts,dblEndT);
 
-                        dblUseMaxDur = 1;
                         vecTrialStarts = vecRepStarts(:);
                         vecTrialStarts(:,2) = vecTrialStarts(:,1) + dblUseMaxDur;
+						intPlot = 0;
+						intGetLatencies = 0;
+						[dblZetaP1,sZETA1]=zetatest(vecSpikeTimes1,vecTrialStarts(:,1),dblUseMaxDur,intResampleNum,intPlot,intGetLatencies,[],[],[],true);
+					
+						[dblZetaP2,sZETA2]=zetatest(vecSpikeTimes2,vecTrialStarts(:,1),dblUseMaxDur,intResampleNum,intPlot,intGetLatencies,[],[],[],true);
+					
+						dblZetaDiff = abs(sZETA1.dblZETA - sZETA2.dblZETA);
+						dblZetaDiffP = 2-2*normcdf(dblZetaDiff)
+						
+						
+						% t-test
+						vecRespBinsDur = sort(flat([vecTrialStarts(:,1) vecTrialStarts(:,2)]));
+					vecD = diff(vecRespBinsDur)';
+					vecR1 = histcounts(vecSpikeTimes1,vecRespBinsDur);
+					vecMu_Dur1 = vecR1(1:2:end)./vecD(1:2:end);
+					vecR2 = histcounts(vecSpikeTimes2,vecRespBinsDur);
+					vecMu_Dur2 = vecR2(1:2:end)./vecD(1:2:end);
+					
+					%get metrics
+					[h,dblTtestP]=ttest2(vecMu_Dur1,vecMu_Dur2);
+					dblTtestP
+						%2-sample zeta
+						boolPaired = false;
+						[dblZeta2,sZETA2T]=zetatest2(vecSpikeTimes1,vecTrialStarts(:,1),vecSpikeTimes2,vecTrialStarts(:,1),boolPaired,dblUseMaxDur,intResampleNum);
+					dblZeta2
+						return
                     elseif contains(strRunType,'iidGaussian')
 						dblUseMaxDur = 4;
                         intBins = 5;
@@ -304,14 +243,7 @@ for intArea=vecRunAreas
 					%%{
 					intGetLatencies = 0;
 					intPlot = 0;
-					hTic1 = tic;
-					dblZetaP_old = getZeta(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,0,intGetLatencies);
-					dblZetaDur_old = toc(hTic1);
-					intJitterDistro = 2;
-					dblZetaP_UniStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,intGetLatencies,[],[],[],true);
-					hTic1b = tic;
-					dblZetaP_UniNoStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,intGetLatencies,[],[],[],false);
-					dblZetaDur_new = toc(hTic1b);
+					dblZetaP=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,intGetLatencies,[],[],[],true);
 					
 					%% ANOVA
 					hTic2 = tic;

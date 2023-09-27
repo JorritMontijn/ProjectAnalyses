@@ -12,7 +12,7 @@ cellUniqueAreas = {...
 	'HeteroPoissonPeak',...Area 1
 	'TriPhasic',...Area 2
 	'QuadriPhasic',...Area 3
-	'',...Area 4
+	'iidGaussian',...Area 4
 	'',...Area 5
 	'',...Area 6
 	'lateral geniculate',...Area 7
@@ -54,27 +54,9 @@ cellRepStr = {...
 %% prep
 cellDatasetNames = {};
 matNumCells = [];
-matSignifZetaOld = [];
 
-matSignifZetaUniStitch = [];
-matSignifZetaUniNoStitch = [];
-matSignifZetaLinStitch = [];
-matSignifZetaLinNoStitch = [];
-
-matSignifTtest = [];
-matSignifAnova = [];
-
-cellTtestP = [];
-cellAnovaP = [];
-cellNumSpikes = [];
-cellUniStitchP = [];
-cellUniNoStitchP = [];
-cellLinStitchP = [];
-cellLinNoStitchP = [];
-
-cellZetaOldP = [];
 intIdxNpx = 0;
-intIdx = 0;
+
 
 intT = 0;
 intResamps = 250;
@@ -82,13 +64,33 @@ boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-for intArea=8;%[1 2 8]%1:numel(cellUniqueAreas)
+for intArea=8%[1:4]%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 5%7
 		vecRunStims = 1;
 	else
 		vecRunStims = 2:numel(cellRunStim);
 	end
+	matSignifZetaOld = [];
+	
+	matSignifZetaUniStitch = [];
+	matSignifZetaUniNoStitch = [];
+	matSignifZetaLinStitch = [];
+	matSignifZetaLinNoStitch = [];
+	
+	matSignifTtest = [];
+	matSignifAnova = [];
+	
+	cellTtestP = [];
+	cellAnovaP = [];
+	cellNumSpikes = [];
+	cellUniStitchP = [];
+	cellUniNoStitchP = [];
+	cellLinStitchP = [];
+	cellLinNoStitchP = [];
+	
+	cellZetaOldP = [];
+	intIdx = 0;
 	for intStimType=vecRunStims
 		intIdx = intIdx + 1;
 		strStim = cellRunStim{intStimType};
@@ -180,7 +182,7 @@ for intArea=8;%[1 2 8]%1:numel(cellUniqueAreas)
 			%xlim([0 1]);ylim([0 1]);
 			xlabel('Z-statistic mean-based t-test (\Phi^-^1(1-p/2))')
 			ylabel('ZETA (\zeta_c)')
-			strTit = sprintf('A) Inclusion at %s=%.3f: %s=%.3f, %s=%.3f; n=%d',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(:,1)<dblAlpha)/numel(matZetaP(:,1)),getGreek('mu'),sum(matMeanP(:,1)<dblAlpha)/numel(matMeanP(:,1)),size(matZetaP,2));
+			strTit = sprintf('A) Inclusion at %s=%.3f: %s=%.3f, %s=%.3f; n=%d',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(:,1)<dblAlpha)/numel(matZetaP(:,1)),getGreek('mu'),sum(matMeanP(:,1)<dblAlpha)/numel(matMeanP(:,1)),size(matZetaP,1));
 			title(strTit)	%set(gca,'xscale','log','yscale','log');
 			
 			h2=subplot(2,3,2);
@@ -308,7 +310,7 @@ for intArea=8;%[1 2 8]%1:numel(cellUniqueAreas)
 				plot(vecQuantile,vecRandSorted,'Color',cellColor{intTest});
 			end
 			xlabel(sprintf('Significance level %s',getGreek('alpha')));
-			ylabel(sprintf('P-value threshold required to match empirical FPR'));
+			ylabel(sprintf('P-value cut-off needed for FPR=%s',getGreek('alpha')));
 			set(gca,'xscale','log','yscale','log');
 			dblMinVal = max(get(gca,'xlim'),get(gca,'ylim'));
 			plot([dblMinVal 1],[dblMinVal 1],'k--');

@@ -64,7 +64,7 @@ boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-for intArea=8%[1:4]%1:numel(cellUniqueAreas)
+for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 5%7
 		vecRunStims = 1;
@@ -147,9 +147,10 @@ for intArea=8%[1:4]%1:numel(cellUniqueAreas)
 		matMeanZ(:,2) = -norminv(cell2vec(cellTtestP(:,2))/2);
 		matMeanP = 2-2*normcdf(matMeanZ);
 		
-		matZetaZ = -norminv(cell2vec(cellUniStitchP(:,1))/2);
+		cellUseZ = cellUniStitchP;%cellUniStitchP cellZetaOldP
+		matZetaZ = -norminv(cell2vec(cellUseZ(:,1))/2);
 		matZetaZ = matZetaZ(1:intUseN);
-		matZetaZ(:,2) = -norminv(cell2vec(cellUniStitchP(:,2))/2);
+		matZetaZ(:,2) = -norminv(cell2vec(cellUseZ(:,2))/2);
 		matZetaP = 2-2*normcdf(matZetaZ);
 		
 		matAnovaZ = -norminv(cell2vec(cellAnovaP(:,1))/2);
@@ -297,7 +298,7 @@ for intArea=8%[1:4]%1:numel(cellUniqueAreas)
 			for intTest=1:3
 				if intTest == 1
 					matData = matZetaP;
-					cellLegend(end+1) = {'TS-ZETA'};
+					cellLegend(end+1) = {'ZETA'};
 				elseif intTest == 2
 					matData = matAnovaP;
 					cellLegend(end+1) = {'ANOVA'};

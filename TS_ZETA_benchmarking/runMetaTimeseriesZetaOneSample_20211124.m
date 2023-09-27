@@ -41,7 +41,7 @@ scatter(matTtest(:,1),matZeta(:,1),100,vecColor1,'.');
 colormap(h1,matC(1:max(vecColor1),:));
 %xlim([0 1]);ylim([0 1]);
 xlabel('T-test (z)')
-ylabel('ZETA (\delta\zeta_c)')
+ylabel('TS-ZETA (\delta\zeta_c)')
 title(sprintf('Diff %d; TP at %s=0.05: %s=%.3f, %s=%.3f',intDiff,getGreek('alpha'),[getGreek('zeta') '2'],sum(matZeta(:,1)>2)/numel(matZeta(:,1)),'T2',sum(matTtest(:,1)>2)/numel(matTtest(:,1))))
 %set(gca,'xscale','log','yscale','log');
 fixfig;
@@ -52,7 +52,7 @@ scatter(matTtest(:,2),matZeta(:,2),100,vecColor1,'.');
 colormap(h2,matC(1:max(vecColor1),:));
 %xlim([0 1]);ylim([0 1]);
 xlabel('T-test (z)')
-ylabel('ZETA (\delta\zeta_c)')
+ylabel('TS-ZETA (\delta\zeta_c)')
 title(sprintf('FP at %s=0.05: %s=%.3f, %s=%.3f',getGreek('alpha'),[getGreek('zeta') '2'],sum(matZeta(:,2)>2)/numel(matZeta(:,2)),'T2',sum(matTtest(:,2)>2)/numel(matTtest(:,2))))
 %set(gca,'xscale','log','yscale','log');
 fixfig;
@@ -67,7 +67,7 @@ scatter(matAnova(:,1),matZeta(:,1),100,vecColor1,'.');
 colormap(h4,matC(1:max(vecColor1),:));
 %xlim([0 1]);ylim([0 1]);
 xlabel('ANOVA (z)')
-ylabel('ZETA (\delta\zeta_c)')
+ylabel('TS-ZETA (\delta\zeta_c)')
 title(sprintf('Diff %d; TP at %s=0.05: %s=%.3f, %s=%.3f',intDiff,getGreek('alpha'),[getGreek('zeta') '2'],sum(matZeta(:,1)>2)/numel(matZeta(:,1)),'A',sum(matAnova(:,1)>2)/numel(matAnova(:,1))))
 %set(gca,'xscale','log','yscale','log');
 fixfig;
@@ -78,7 +78,7 @@ scatter(matAnova(:,2),matZeta(:,2),100,vecColor1,'.');
 colormap(h5,matC(1:max(vecColor1),:));
 %xlim([0 1]);ylim([0 1]);
 xlabel('ANOVA (z)')
-ylabel('ZETA (\delta\zeta_c)')
+ylabel('TS-ZETA (\delta\zeta_c)')
 title(sprintf('FP at %s=0.05: %s=%.3f, %s=%.3f',getGreek('alpha'),[getGreek('zeta') '2'],sum(matZeta(:,2)>2)/numel(matZeta(:,2)),'A',sum(matAnova(:,2)>2)/numel(matAnova(:,2))))
 %set(gca,'xscale','log','yscale','log');
 fixfig;maxfig;

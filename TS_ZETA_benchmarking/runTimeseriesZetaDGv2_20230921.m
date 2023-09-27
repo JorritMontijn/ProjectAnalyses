@@ -12,11 +12,12 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRunTypes = [1 2];
-intResampNum = 10000;
+intResampNum = 250;
 boolSave = true;%true;
 dblUseDur = 8;
-boolDirectQuantile = true;
+boolDirectQuantile = false;
 intUseTrials = 64; %limit number of used trials to reduce performance saturation
+dblSuperResFactor = 1; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 
 %% load data
@@ -158,7 +159,7 @@ for boolDoOGB = [false true]
 				hTicZ = tic;
 				intPlot = 0;
 				%continue;
-				[dblZetaP,sZETA] = zetatstest(vecTraceT,vecTraceAct,matEventTimes,vecUseDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize);
+				[dblZetaP,sZETA] = zetatstest(vecTraceT,vecTraceAct,matEventTimes,vecUseDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize,dblSuperResFactor);
 				%pause
 				% assign data
 				dblMeanP = sZETA.dblMeanP;
@@ -205,7 +206,12 @@ for boolDoOGB = [false true]
 			fprintf('%s; Mean comp time per neuron was %.3fs\n',strRec,mean(vecZetaDur));
 			
 			if boolSave
-				save([strDataPath 'TsZeta' strIndicator '_Q' num2str(boolDirectQuantile) '_' strRunType strUseDur 'T' num2str(intUseTrials) 'Resamp' num2str(intResampNum) '.mat' ],...
+				if dblSuperResFactor == 1
+					strSR = 'SR1';
+				else
+					strSR = '';
+				end
+				save([strDataPath 'TsZeta' strIndicator '_Q' num2str(boolDirectQuantile) '_' strRunType strUseDur 'T' num2str(intUseTrials) 'Resamp' num2str(intResampNum) strSR '.mat' ],...
 					'intUseTrials','vecWilcoxP','vecWilcoxDur','vecKsP','vecKsDur',...
 					'vecAnovaP','vecZetaP','vecMeanP','vecAnovaDur','vecZetaDur','strRunType','strRecIdx');
 			end

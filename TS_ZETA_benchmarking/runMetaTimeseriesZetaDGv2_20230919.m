@@ -7,13 +7,19 @@ else
 end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
-
-intResamps = 10000; %Q1R10000T64 / Q0R250T64
+dblSuperResFactor = 100;
+intResamps = 250; %Q1R10000T64 / Q0R250T64
 intT = 64;
-boolDirectQuantile = true;
+boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
+if dblSuperResFactor == 1
+	strSR = 'SR1';
+else
+	strSR = '';
+end
+
 cellRunRand = {...
 	'',...Rand 1
 	'-Rand',...Rand 2
@@ -33,8 +39,8 @@ for boolDoOGB = [false true]
 	else
 		strIndicator = 'GCaMP';
 	end
-	sDirAll1=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*sesDur*' strT strR '.mat']);
-	sDirAll2=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*ses-RandDur*' strT strR '.mat']);
+	sDirAll1=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*sesDur*' strT strR strSR '.mat']);
+	sDirAll2=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*ses-RandDur*' strT strR strSR '.mat']);
 	sDirAll = cat(1,sDirAll1,sDirAll2);
 	vecRand = contains({sDirAll.name},'Rand');
 	sDirReal = sDirAll(~vecRand);
@@ -363,5 +369,5 @@ end
 %% save
 figure(hMegaFig)
 drawnow;
-export_fig(fullpath(strFigPath,['TsZetaSummary2' strQ strR '.tif']));
-export_fig(fullpath(strFigPath,['TsZetaSummary2' strQ strR '.pdf']));
+export_fig(fullpath(strFigPath,['TsZetaSummary2' strQ strR strSR '.tif']));
+export_fig(fullpath(strFigPath,['TsZetaSummary2' strQ strR strSR '.pdf']));

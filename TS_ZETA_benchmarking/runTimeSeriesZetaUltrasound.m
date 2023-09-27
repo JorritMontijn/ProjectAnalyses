@@ -133,6 +133,8 @@ if ~exist('sRec','var') || ~isfield(sRec(end),'matTsZetaP')
 			for intStimType=1:intStimTypes
 				indUseTrials = sRec(intRec).structStim.vecStimType==intStimType;
 				vecStimOnTimes = sRec(intRec).structStim.vecStimOn(indUseTrials) / sRec(intRec).SampFreq;
+				%remove out-of-range events
+				vecStimOnTimes = vecStimOnTimes((vecStimOnTimes+dblUseMaxDur)<max(vecTimestamps));
 				%zeta
 				dblZetaP=zetatstest(vecTimestamps,vec_dFoF,vecStimOnTimes,dblUseMaxDur,intResampNum,intPlot);
 				matTsZetaP(intStimType,intNeuron) = dblZetaP;

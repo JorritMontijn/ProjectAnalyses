@@ -1,11 +1,19 @@
+
+%% set recording
+close all;
 clear all;
-%close all;
-strPath = 'D:\Data\Processed\TraceZeta\';
+strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
+strDataTargetPath = 'D:\Data\Processed\TraceZeta\';
+vecRunTypes = [1 2];
+vecResamps = 100;%[100 200 500 1000 2000];
+intResamps= numel(vecResamps);
+%vecResamps = [5000 10000];
+boolSave = true;
 strFigPath = 'D:\Data\Results\TraceZeta\';
 
 %% prep
-strFileSearch = ['SimTwoSampleTsZeta.mat'];
-sDir = dir(fullpath(strPath,strFileSearch));
+strFileSearch = ['Zeta2DataAnovaPoissonPeakResamp250.mat'];
+sDir = dir(fullpath(strDataSourcePath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
 matAggTtest2 = sLoad.matTtest2;
@@ -77,7 +85,7 @@ end
 hold off;
 xlabel('False positive fraction');
 ylabel('Inclusion fraction');
-legend({sprintf('TS-ZETA-test, AUC=%.4f',vecAUC(1)),sprintf('T-test, AUC=%.4f',vecAUC(2))},'location','best','interpreter','none');
+legend({sprintf('ZETA-test, AUC=%.4f',vecAUC(1)),sprintf('T-test, AUC=%.4f',vecAUC(2))},'location','best','interpreter','none');
 fixfig;
 
 

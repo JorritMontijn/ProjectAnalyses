@@ -20,15 +20,17 @@ boolSave = true;
 %% prep
 strArea = 'PoissonPeak';
 strQ = 'Q0';
-strR = 'R100';
-strFileSearch = ['Zeta2DataAnova' strArea 'Resamp250.mat'];
+intR = 250;
+strR = ['R' num2str(intR)];
+strBalanced = 'B0';
+strFileSearch = ['Zeta2DataAnova' strArea strBalanced 'Resamp' num2str(intR) '.mat'];
 sDir = dir(fullpath(strDataTargetPath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
 
 cellNeuron = sLoad.cellNeuron;
-matAnovaP = sLoad.matAnova2;
-matAnovaP_ub = sLoad.matAnova2_unbalanced;
+matAnovaP_b = sLoad.matAnova2;
+matAnovaP = sLoad.matAnova2_unbalanced;
 matMeanP = sLoad.matTtest2;
 matZetaP = sLoad.matZeta2;
 matZetaP_old = sLoad.matZeta2_old;
@@ -38,8 +40,8 @@ matZetaP_old = sLoad.matZeta2_old;
 matMeanZ = -norminv(matMeanP/2);
 matZetaZ = -norminv(matZetaP/2);
 matZetaZ_old = -norminv(matZetaP_old/2);
+matAnovaZ_b = -norminv(matAnovaP_b/2);
 matAnovaZ = -norminv(matAnovaP/2);
-matAnovaZ_ub = -norminv(matAnovaP_ub/2);
 
 %plot ROC
 matAUCp = [];
@@ -47,17 +49,17 @@ matAUC_dprime = [];
 if size(matMeanZ,1) >= 1
 	figure
 	dblAlpha = 0.05;
-	matMeanZ(isinf(matMeanZ(:))) = max(matMeanZ(~isinf(matAnovaZ(:))));
-	matZetaZ(isinf(matZetaZ(:))) = max(matZetaZ(~isinf(matAnovaZ(:))));
-	matZetaZ_old(isinf(matZetaZ_old(:))) = max(matZetaZ(~isinf(matAnovaZ(:))));
-	matAnovaZ(isinf(matAnovaZ(:))) = max(matAnovaZ(~isinf(matAnovaZ(:))));
-	matAnovaZ_ub(isinf(matAnovaZ_ub(:))) = max(matAnovaZ(~isinf(matAnovaZ(:))));
+	matMeanZ(isinf(matMeanZ(:))) = max(matMeanZ(~isinf(matAnovaZ_b(:))));
+	matZetaZ(isinf(matZetaZ(:))) = max(matZetaZ(~isinf(matAnovaZ_b(:))));
+	matZetaZ_old(isinf(matZetaZ_old(:))) = max(matZetaZ(~isinf(matAnovaZ_b(:))));
+	matAnovaZ_b(isinf(matAnovaZ_b(:))) = max(matAnovaZ_b(~isinf(matAnovaZ_b(:))));
+	matAnovaZ(isinf(matAnovaZ(:))) = max(matAnovaZ_b(~isinf(matAnovaZ_b(:))));
 	
 	matMeanP(matMeanP(:)==0) = 1e-29;
 	matZetaP(matZetaP(:)==0) = 1e-29;
-	matAnovaP(matAnovaP(:)==0) = 1e-29;
+	matAnovaP_b(matAnovaP_b(:)==0) = 1e-29;
 	matZetaP_old(matZetaP_old(:)==0) = 1e-29;
-	matAnovaP_ub(matAnovaP_ub(:)==0) = 1e-29;
+	matAnovaP(matAnovaP(:)==0) = 1e-29;
 	
 	h1 =subplot(2,3,1);
 	matC = [0.5 0.5 0.5;...
@@ -119,7 +121,8 @@ if size(matMeanZ,1) >= 1
 	subplot(2,3,3)
 	maxfig;
 	hold on;
-	
+	cellNames = {'ZETA','ANOVA','T-test','ZETA-old','ANOVA-b'};
+	cellLegend = {};
 	for intTest=1:5
 		if intTest == 1
 			matData = matZetaP;
@@ -130,7 +133,7 @@ if size(matMeanZ,1) >= 1
 		elseif intTest == 4
 			matData = matZetaP_old;
 		elseif intTest == 5
-			matData = matAnovaP_ub;
+			matData = matAnovaP_b;
 		end
 		intCells = size(matData,1);
 		vecBothData = cat(1,matData(:,1),matData(:,2));
@@ -147,6 +150,8 @@ if size(matMeanZ,1) >= 1
 		[dblAUC,Aci,Ase] = getAuc(vecShuffP,vecRealP,0.05,'mann-whitney');
 		vecAUC(intTest) = dblAUC;
 		vecAUC_se(intTest) = Ase;
+		
+		cellLegend(end+1) = {sprintf('%s, AUC=%.3f',cellNames{intTest},dblAUC)};
 	end
 	
 	%% run tests on aucs
@@ -181,7 +186,7 @@ if size(matMeanZ,1) >= 1
 	xlabel('False positive fraction');
 	ylabel('Inclusion fraction');
 	title(sprintf('E) ROC; %s %s %s',strQ,strR,strArea));
-	legend({sprintf('ZETA-test, AUC=%.3f',vecAUC(1)),sprintf('ANOVA, AUC=%.3f',vecAUC(2)),sprintf('t-test, AUC=%.3f',vecAUC(3))},'location','best','interpreter','none');
+	legend(cellLegend,'location','best','interpreter','none');
 	
 	subplot(2,3,6)
 	cellLegend = {};
@@ -189,20 +194,16 @@ if size(matMeanZ,1) >= 1
 	for intTest=1:5
 		if intTest == 1
 			matData = matZetaP;
-			cellLegend(end+1) = {'ZETA'};
 		elseif intTest == 2
 			matData = matAnovaP;
-			cellLegend(end+1) = {'ANOVA'};
 		elseif intTest == 3
 			matData = matMeanP;
-			cellLegend(end+1) = {'T-test'};
 		elseif intTest == 4
 			matData = matZetaP_old;
-			cellLegend(end+1) = {'ZETA-old'};
 		elseif intTest == 5
-			matData = matAnovaP_ub;
-			cellLegend(end+1) = {'ANOVA-ub'};
+			matData = matAnovaP_b;
 		end
+		cellLegend(end+1) = cellNames(intTest);
 		vecRandSorted = sort(matData(:,2));
 		vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
 		plot(vecQuantile,vecRandSorted,'Color',cellColor{intTest});

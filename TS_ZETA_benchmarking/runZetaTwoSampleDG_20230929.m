@@ -5,15 +5,17 @@
 clear all;
 if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
 	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
+	strDataSourcePath = 'F:\Data\Processed\Neuropixels\';
 else
 	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta';
+	strDataSourcePath = 'E:\DataPreProcessed\';
 end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRandTypes = [1 2];
 intResampNum = 250;
-intRunPairNum = 100;
+intRunPairNum = 1000;
 boolSave = true;%true;
 boolDirectQuantile = false;
 
@@ -57,15 +59,23 @@ matZeta2 = nan(intRunPairNum,2);
 matZeta2_old = nan(intRunPairNum,2);
 matAnova2 = nan(intRunPairNum,2);
 matAnova2_unbalanced = nan(intRunPairNum,2);
+optLow = 2;
+optHigh = 1e6;
 
 %% get neuronal data
+hTicN = tic;
 for intPair = 1:intRunPairNum
 	vecPair = randperm(intNeurons,2);
+	%% message
+	if toc(hTicN) > 5
+		fprintf('Processing pair %d/%d [%s]\n',intPair,intRunPairNum,getTime);
+		hTicN=tic;
+	end
 	
 	%% get neuron1
 	intNeuron1 = vecPair(1);
 	sThisNeuron1 = sAggNeuron(intNeuron1);
-	vecSpikeTimes1 = sThisNeuron1.SpikeTimes;
+	vecSpikeTimesN1 = sThisNeuron1.SpikeTimes;
 	strRecIdx1 = sThisNeuron1.Exp;
 	strMouse1 = sThisNeuron1.Subject;
 	strBlock1 = '';
@@ -83,16 +93,17 @@ for intPair = 1:intRunPairNum
 		vecStimOffTime = cat(2,vecStimOffTime,sThisRec.cellBlock{intRec}.vecStimOffTime);
 	end
 	
-	matTrialT1 = [];
-	matTrialT1(:,1) = vecStimOnTime;
-	matTrialT1(:,2) = vecStimOffTime;
-	dblUseMaxDur1 = round(median(diff(matTrialT1(:,1)))*2)/2;
+	matTrialTN1 = [];
+	matTrialTN1(:,1) = vecStimOnTime;
+	matTrialTN1(:,2) = vecStimOffTime;
+	dblUseMaxDur1 = round(median(diff(matTrialTN1(:,1)))*2)/2;
 	
 	%% neuron 2
 	intNeuron2 = vecPair(2);
 	sThisNeuron2 = sAggNeuron(intNeuron2);
-	vecSpikeTimes2 = sThisNeuron2.SpikeTimes;
+	vecSpikeTimesN2 = sThisNeuron2.SpikeTimes;
 	strRecIdx2 = sThisNeuron2.Exp;
+	intSU2 = sThisNeuron2.Cluster;
 	
 	% get matching recording data
 	sThisRec = sAggStim(strcmpi(strRecIdx2,cellRecIdx));
@@ -103,20 +114,36 @@ for intPair = 1:intRunPairNum
 		vecStimOffTime = cat(2,vecStimOffTime,sThisRec.cellBlock{intRec}.vecStimOffTime);
 	end
 	
-	matTrialT2 = [];
-	matTrialT2(:,1) = vecStimOnTime;
-	matTrialT2(:,2) = vecStimOffTime;
-	dblUseMaxDur2 = round(median(diff(matTrialT2(:,1)))*2)/2;
+	matTrialTN2 = [];
+	matTrialTN2(:,1) = vecStimOnTime;
+	matTrialTN2(:,2) = vecStimOffTime;
+	dblUseMaxDur2 = round(median(diff(matTrialTN2(:,1)))*2)/2;
 	dblUseMaxDur = min(dblUseMaxDur1,dblUseMaxDur2);
 	
 	for intRandType=vecRandTypes
-		%% randomize?
+		%% randomize
 		if intRandType == 2
-			%how to randomize this?!
-			
+			%if random, split data of neuron into two times 50% of spikes
+			matTrialT1 = matTrialTN1;
+			matTrialT2 = matTrialTN1;
+			intSpikesN1 = numel(vecSpikeTimesN1);
+			intTakeSpikesN1 = round(intSpikesN1/2);
+			vecSpikesN1 = randperm(intSpikesN1,intTakeSpikesN1);
+			vecSpikesN2 = find(~ismember(1:intSpikesN1,vecSpikesN1));
+			vecSpikeTimes1 = sort(vecSpikeTimesN1(vecSpikesN1));
+			vecSpikeTimes2 = sort(vecSpikeTimesN1(vecSpikesN2));
+		else
+			%if not random, take 50% of spikes from neuron 1 and 50% of spikes from neuron 2
+			matTrialT1 = matTrialTN1;
+			matTrialT2 = matTrialTN2;
+			intTakeSpikesN1 = round(numel(vecSpikeTimesN1)/2);
+			intTakeSpikesN2 = round(numel(vecSpikeTimesN2)/2);
+			vecSpikeTimes1 = sort(vecSpikeTimesN1(randperm(numel(vecSpikeTimesN1),intTakeSpikesN1)));
+			vecSpikeTimes2 = sort(vecSpikeTimesN2(randperm(numel(vecSpikeTimesN2),intTakeSpikesN2)));
 		end
-		
+	
 		%% run tests
+		intPlot = 0;
 		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
 		[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,false,dblUseMaxDur,intResampNum);
 		
@@ -181,7 +208,7 @@ for intPair = 1:intRunPairNum
 		
 		%% save
 		% assign data
-		cellNeuron{intPair,intRandType} = [strArea1 strDate1 'N' num2str(intSU1)];
+		cellNeuron{intPair,intRandType} = [strArea1 strDate1 'N' num2str(intSU1) 'N' num2str(intSU2)];
 		matTtest2(intPair,intRandType) = dblTtest2P;
 		matZeta2(intPair,intRandType) = dblZeta2P;
 		matZeta2_old(intPair,intRandType) = dblZeta2P_old;
@@ -192,6 +219,6 @@ end
 
 %% save
 if boolSave
-	save([strDataTargetPath 'Zeta2DataAnova' strArea1 strUb 'Resamp' num2str(intResampNum) '.mat' ],...
+	save([strDataPath 'Zeta2DataAnova' strArea1 'Resamp' num2str(intResampNum) '.mat' ],...
 		'cellNeuron','matTtest2','matZeta2','matZeta2_old','matAnova2','matAnova2_unbalanced');
 end

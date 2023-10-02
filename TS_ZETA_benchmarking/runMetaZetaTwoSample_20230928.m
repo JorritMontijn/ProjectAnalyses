@@ -1,6 +1,6 @@
 
 %% set recording
-close all;
+%close all;
 clear all;
 if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
 	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta';
@@ -18,11 +18,20 @@ intResamps= numel(vecResamps);
 boolSave = true;
 
 %% prep
-strArea = 'PoissonPeak';
+intPlotType = 2;
+if intPlotType == 1
+	strArea = 'V1RunDriftingGratings';
+	strBalanced = '';
+elseif intPlotType == 2
+	strArea = 'PoissonPeak';
+	strBalanced = 'B0';
+elseif intPlotType == 3
+	strArea = 'PoissonPeak';
+	strBalanced = 'B1';
+end
 strQ = 'Q0';
 intR = 250;
 strR = ['R' num2str(intR)];
-strBalanced = 'B0';
 strFileSearch = ['Zeta2DataAnova' strArea strBalanced 'Resamp' num2str(intR) '.mat'];
 sDir = dir(fullpath(strDataTargetPath,strFileSearch));
 strFile = sDir(1).name;
@@ -205,6 +214,7 @@ if size(matMeanZ,1) >= 1
 		end
 		cellLegend(end+1) = cellNames(intTest);
 		vecRandSorted = sort(matData(:,2));
+		%vecRandSorted(vecRandSorted<1e-5)=1e-5;
 		vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
 		plot(vecQuantile,vecRandSorted,'Color',cellColor{intTest});
 	end

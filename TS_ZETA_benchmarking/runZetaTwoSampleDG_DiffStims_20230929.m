@@ -15,7 +15,7 @@ strFigPath = fullfile(strPath,'\Figs\');
 
 vecRandTypes = [1 2];
 intResampNum = 250;
-intRunNum = 1000;
+intRunNum = inf;
 boolSave = true;%true;
 boolDirectQuantile = false;
 
@@ -53,6 +53,7 @@ cellRecIdx = {sAggStim.Exp};
 intNeurons = numel(sAggNeuron);
 
 %% pre-allocate output variables
+intRunNum = min(intNeurons,intRunNum);
 cellNeuron = cell(intRunNum,2);
 matTtest2 = nan(intRunNum,2);
 matZeta2 = nan(intRunNum,2);
@@ -95,7 +96,13 @@ for intIdx = 1:intRunNum
 		vecStimTypes = cat(2,vecStimTypes,sThisRec.cellBlock{intRec}.vecTrialStimTypes);
 	end
 	intStimNum = numel(unique(vecStimTypes));
-	intStim1 = randperm(intStimNum,1);
+	
+	%check which stim to use
+	vecDur = vecStimOffTime-vecStimOnTime;
+	vecSpikeCounts = getSpikeCounts(vecSpikeTimes,vecStimOnTime,vecStimOffTime)./vecDur;
+	[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(vecSpikeCounts,vecStimTypes);
+	vecMuPerS = mean(matRespNSR,3);
+	[dummy,intStim1] = max(vecMuPerS);
 	intStim2 = modx(round(intStim1 + intStimNum/4),intStimNum);
 	
 	%stim 1
@@ -136,7 +143,7 @@ for intIdx = 1:intRunNum
 		intPlot = 0;
 		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
 		[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,false,dblUseMaxDur,intResampNum);
-		return
+		
 		%% ANOVA
 		%if balanced
 		hTic2 = tic;

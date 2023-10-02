@@ -55,8 +55,10 @@ matAnovaZ = -norminv(matAnovaP/2);
 %plot ROC
 matAUCp = [];
 matAUC_dprime = [];
+dblCapZ = 40;
+dblCapP = normcdf(dblCapZ,'upper')*2;
 if size(matMeanZ,1) >= 1
-	figure
+	figure;maxfig;
 	dblAlpha = 0.05;
 	matMeanZ(isinf(matMeanZ(:))) = max(matMeanZ(~isinf(matAnovaZ_b(:))));
 	matZetaZ(isinf(matZetaZ(:))) = max(matZetaZ(~isinf(matAnovaZ_b(:))));
@@ -64,11 +66,17 @@ if size(matMeanZ,1) >= 1
 	matAnovaZ_b(isinf(matAnovaZ_b(:))) = max(matAnovaZ_b(~isinf(matAnovaZ_b(:))));
 	matAnovaZ(isinf(matAnovaZ(:))) = max(matAnovaZ_b(~isinf(matAnovaZ_b(:))));
 	
-	matMeanP(matMeanP(:)==0) = 1e-29;
-	matZetaP(matZetaP(:)==0) = 1e-29;
-	matAnovaP_b(matAnovaP_b(:)==0) = 1e-29;
-	matZetaP_old(matZetaP_old(:)==0) = 1e-29;
-	matAnovaP(matAnovaP(:)==0) = 1e-29;
+    matMeanZ(matMeanZ>dblCapZ) = dblCapZ;
+	matZetaZ(matZetaZ>dblCapZ) = dblCapZ;
+	matZetaZ_old(matZetaZ_old>dblCapZ) = dblCapZ;
+	matAnovaZ_b(matAnovaZ_b>dblCapZ) = dblCapZ;
+	matAnovaZ(matAnovaZ>dblCapZ) = dblCapZ;
+	
+	matMeanP(matMeanP<dblCapP) = dblCapP;
+	matZetaP(matZetaP<dblCapP) = dblCapP;
+	matAnovaP_b(matAnovaP_b<dblCapP) = dblCapP;
+	matZetaP_old(matZetaP_old<dblCapP) = dblCapP;
+	matAnovaP(matAnovaP<dblCapP) = dblCapP;
 	
 	h1 =subplot(2,3,1);
 	matC = [0.5 0.5 0.5;...
@@ -93,6 +101,7 @@ if size(matMeanZ,1) >= 1
 	ylabel('ZETA (\zeta_c)')
 	title(sprintf('B) False alarms at %s=%.3f: %s=%.3f, %s=%.3f',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(:,2)<dblAlpha)/numel(matZetaP(:,2)),getGreek('mu'),sum(matMeanP(:,2)<dblAlpha)/numel(matMeanP(:,2))))
 	%set(gca,'xscale','log','yscale','log');
+	xlim([0 4]);ylim([0 4]);
 	
 	intNumN = size(matZetaP,1);
 	vecFP_sortedZ = sort(matZetaP(:,2));
@@ -108,7 +117,6 @@ if size(matMeanZ,1) >= 1
 	vecColor1 = 1 + (matZetaP(:,1) < dblAlpha & matAnovaP(:,1) > dblAlpha) + 2*(matZetaP(:,1) > dblAlpha & matAnovaP(:,1) < dblAlpha) + 3*(matZetaP(:,1) < dblAlpha & matAnovaP(:,1) < dblAlpha);
 	scatter(matAnovaZ(:,1),matZetaZ(:,1),100,vecColor1,'.');
 	colormap(h4,matC(1:max(vecColor1),:));
-	%xlim([0 1]);ylim([0 1]);
 	xlabel('Z-statistic ANOVA (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
 	title(sprintf('C) Inclusion at FPR=%.3f: %s=%.3f, %s=%.3f; n=%d',dblAlpha,getGreek('zeta'),dblInclusionZ_at_Alpha,'A',sum(matAnovaP(:,1)<dblAlphaAtFpAlphaPercA)/numel(matAnovaP(:,1)),intNumN))
@@ -118,7 +126,7 @@ if size(matMeanZ,1) >= 1
 	vecColor2 = 1 + 1*(matZetaP(:,2) > dblAlpha & matAnovaP(:,2) < dblAlpha) + 2*(matZetaP(:,2) < dblAlpha & matAnovaP(:,2) > dblAlpha) + 3*(matZetaP(:,2) < dblAlpha & matAnovaP(:,2) < dblAlpha);
 	scatter(matAnovaZ(:,2),matZetaZ(:,2),100,vecColor1,'.');
 	colormap(h5,matC(1:max(vecColor1),:));
-	%xlim([0 1]);ylim([0 1]);
+	xlim([0 4]);ylim([0 4]);
 	xlabel('Z-statistic ANOVA (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
 	title(sprintf('D) False alarms at %s=%.3f: %s=%.3f, %s=%.3f',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(:,2)<dblAlpha)/numel(matZetaP(:,2)),'A',sum(matAnovaP(:,2)<dblAlpha)/numel(matAnovaP(:,2))))
@@ -128,11 +136,10 @@ if size(matMeanZ,1) >= 1
 	cellColor = {lines(1),'r','k','b','m'};
 	%vecH(intResampNpx) = subplot(4,3,intResampNpx);
 	subplot(2,3,3)
-	maxfig;
 	hold on;
 	cellNames = {'ZETA','ANOVA','T-test','ZETA-old','ANOVA-b'};
 	cellLegend = {};
-	for intTest=1:5
+	for intTest=1:3
 		if intTest == 1
 			matData = matZetaP;
 		elseif intTest == 2
@@ -148,11 +155,11 @@ if size(matMeanZ,1) >= 1
 		vecBothData = cat(1,matData(:,1),matData(:,2));
 		vecBothLabels = cat(1,zeros(size(matData(:,1))),ones(size(matData(:,1))));
 		vecThresholds = sort(vecBothData);
+        vecThresholds(isnan(vecThresholds))=1;
 		vecRealP = matData(:,1);
 		vecShuffP = matData(:,2);
-		
-		vecTP = sum(vecRealP<=vecThresholds',1)/intCells;
-		vecFP = sum(vecShuffP<=vecThresholds',1)/intCells;
+		vecTP = sum(vecRealP<=vecThresholds',1)/sum(~isnan(vecRealP));
+		vecFP = sum(vecShuffP<=vecThresholds',1)/sum(~isnan(vecShuffP));
 		
 		plot(vecFP,vecTP,'Color',cellColor{intTest});
 		
@@ -200,7 +207,7 @@ if size(matMeanZ,1) >= 1
 	subplot(2,3,6)
 	cellLegend = {};
 	hold on;
-	for intTest=1:5
+	for intTest=1:3
 		if intTest == 1
 			matData = matZetaP;
 		elseif intTest == 2
@@ -228,7 +235,7 @@ if size(matMeanZ,1) >= 1
 	legend(cellLegend,'location','best');
 	title(sprintf('MW AUC tests; T-A,p=%.1e; T-Z,p=%.1e; A-Z,p=%.1e;',...
 		AUC_pTA,AUC_pTZ,AUC_pAZ));
-	fixfig;maxfig;
+	fixfig;
 	
 	%% save
 	drawnow;

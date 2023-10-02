@@ -18,21 +18,21 @@ intResamps= numel(vecResamps);
 boolSave = true;
 
 %% prep
-intPlotType = 2;
+intPlotType = 3;
 if intPlotType == 1
-	strArea = 'V1RunDriftingGratings';
+	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';
 elseif intPlotType == 2
-	strArea = 'PoissonPeak';
+	strArea = 'AnovaPoissonPeak';
 	strBalanced = 'B0';
 elseif intPlotType == 3
-	strArea = 'PoissonPeak';
-	strBalanced = 'B1';
+	strArea = 'StimDiffV1RunDriftingGratings';
+	strBalanced = '';
 end
 strQ = 'Q0';
 intR = 250;
 strR = ['R' num2str(intR)];
-strFileSearch = ['Zeta2DataAnova' strArea strBalanced 'Resamp' num2str(intR) '.mat'];
+strFileSearch = ['Zeta2Data' strArea strBalanced 'Resamp' num2str(intR) '.mat'];
 sDir = dir(fullpath(strDataTargetPath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));

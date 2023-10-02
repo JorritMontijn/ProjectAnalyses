@@ -88,30 +88,30 @@ for intIdx = 1:intRunNum
 	sThisRec = sAggStim(strcmpi(strRecIdx,cellRecIdx));
 	vecStimOnTime = [];
 	vecStimOffTime = [];
-    vecStimTypes = [];
+	vecStimTypes = [];
 	for intRec=1%:numel(sThisRec.cellStim)
 		vecStimOnTime = cat(2,vecStimOnTime,sThisRec.cellBlock{intRec}.vecStimOnTime);
 		vecStimOffTime = cat(2,vecStimOffTime,sThisRec.cellBlock{intRec}.vecStimOffTime);
-        vecStimTypes = cat(2,vecStimTypes,sThisRec.cellBlock{intRec}.vecTrialStimTypes);
-    end
-    intStimNum = numel(unique(vecStimTypes));
-    intStim1 = randperm(intStimNum,1);
+		vecStimTypes = cat(2,vecStimTypes,sThisRec.cellBlock{intRec}.vecTrialStimTypes);
+	end
+	intStimNum = numel(unique(vecStimTypes));
+	intStim1 = randperm(intStimNum,1);
 	intStim2 = modx(round(intStim1 + intStimNum/4),intStimNum);
-    
+	
 	%stim 1
-    indUseTrials1 = vecStimTypes==intStim1;
+	indUseTrials1 = vecStimTypes==intStim1;
 	matTrialTS1 = [];
 	matTrialTS1(:,1) = vecStimOnTime(indUseTrials1);
 	matTrialTS1(:,2) = vecStimOffTime(indUseTrials1);
-	dblUseMaxDur1 = round(median(diff(matTrialTS1(:,1)))*2)/2;
+	dblUseMaxDur1 = round(median(diff(vecStimOnTime))*2)/2;
 	intTrialsS1 = sum(indUseTrials1);
 	
-    %stim 2
-    indUseTrials2 = vecStimTypes==intStim2;
+	%stim 2
+	indUseTrials2 = vecStimTypes==intStim2;
 	matTrialTS2 = [];
 	matTrialTS2(:,1) = vecStimOnTime(indUseTrials2);
 	matTrialTS2(:,2) = vecStimOffTime(indUseTrials2);
-	dblUseMaxDur2 = round(median(diff(matTrialTS2(:,1)))*2)/2;
+	dblUseMaxDur2 = round(median(diff(vecStimOnTime))*2)/2;
 	dblUseMaxDur = min(dblUseMaxDur1,dblUseMaxDur2);
 	intTrialsS2 = sum(indUseTrials1);
 	
@@ -131,12 +131,12 @@ for intIdx = 1:intRunNum
 			matTrialT1 = matTrialTS1;
 			matTrialT2 = matTrialTS2;
 		end
-	
+		
 		%% run tests
 		intPlot = 0;
 		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
 		[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,false,dblUseMaxDur,intResampNum);
-		
+		return
 		%% ANOVA
 		%if balanced
 		hTic2 = tic;

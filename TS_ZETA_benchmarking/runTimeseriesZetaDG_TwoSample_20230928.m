@@ -17,7 +17,7 @@ boolSave = true;%true;
 dblUseDur = 8;
 boolDirectQuantile = false;
 intUseTrials = 64; %limit number of used trials to reduce performance saturation
-dblSuperResFactor = 1; %1 or 100
+intSuperResFactor = 1; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 
 %% load data
@@ -156,10 +156,9 @@ for boolDoOGB = [false true]
 				
 				%% remove superfluous data
 				intPlot = 0;
-				boolPairwise =0;
 				boolDirectQuantile=0;
-				%[dblZetaP,sZETA] = zetatstest(vecTimestamps1(1:intS),vecdFoF1(1:intS)-vecdFoF2(1:intS),matTrialT,dblUseTrialDur,intResampNum,0,boolDirectQuantile);
-				[dblZeta2P,sZETA] = zetatstest2(vecTraceT,vecTraceAct,matTrialT1,vecTraceT,vecTraceAct,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolPairwise,boolDirectQuantile);
+				[dblZeta2P,sZETA] = zetatstest2b(vecTraceT,vecTraceAct,matTrialT1,vecTraceT,vecTraceAct,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,intSuperResFactor);
+				
 				vecTtestP(intNeuron) = sZETA.dblMeanP;
 				vecTsZetaP(intNeuron) = dblZeta2P;
 				
@@ -177,14 +176,15 @@ for boolDoOGB = [false true]
 				g1 = cat(1,ones(size(vecR1)),2*ones(size(vecR2)));
 				g2 = cat(1,vecBin1,vecBin2);
 				vecP=anovan(cat(1,vecR1,vecR2),{g1,g2},'model','interaction','display','off');%,'varnames',{'g1','g2'})%
-				dblAnova2P = vecP(3);
-				
+				[h crit_p adj_p]=fdr_bh(vecP([1 3]));
+				dblAnova2P = min(adj_p);
+		
 				%one-sample diff
 				vecAnovaP(intNeuron) = dblAnova2P;
 
 			end
 			if boolSave
-				save([strDataTargetPath 'TsZetaTwoSample' strIndicator '_Q' num2str(boolDirectQuantile) '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
+				save([strDataPath 'TsZeta2' strIndicator '_Q' num2str(boolDirectQuantile) '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
 					'vecAnovaP','vecTsZetaP','vecTtestP','strRunType','strRecIdx');
 			end
 		end

@@ -18,7 +18,7 @@ intResamps= numel(vecResamps);
 boolSave = true;
 
 %% prep
-intPlotType = 4;
+intPlotType = 1;
 if intPlotType == 1
 	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';

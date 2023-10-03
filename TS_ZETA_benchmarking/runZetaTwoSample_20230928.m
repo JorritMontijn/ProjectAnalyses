@@ -6,7 +6,7 @@
 clear all;
 cellUniqueAreas = {...
 	'PoissonPeak',...Area 1
-	'',...Area 2
+	'PoissonDoublePeak',...Area 2
 	};
 
 if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
@@ -26,9 +26,9 @@ vecResamps = 250;%250;%10:10:90;%[10:10:100];
 intResampIdx = 1;
 intResampNum = vecResamps(intResampIdx);
 intResamps= numel(vecResamps);
-intUseGenN = 10000;
+intUseGenN = 100;
 boolUnbalanced = false;
-vecRunAreas = 1;%[1 8]
+vecRunAreas = 2;%[1 8]
 intNeurons = intUseGenN;
 intFracDiffSpikes = 0.5;
 
@@ -96,24 +96,35 @@ for intNeuron=1:intNeurons
 	end
 	
 	%% generate data
-	% generate bursts
-	intAddSpikes1 = intTrials/4;
-	intDiffSpikes = round(intFracDiffSpikes*intAddSpikes1);
-	
 	% generate peak
-	[vecSpikeTimes1,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles1,matTrialT1,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes1);
+	dblStartDelay = 0.1;
+	dblPeakDelay1 = dblStartDelay;
+	intAddSpikes1 = intTrials/4;
+	[vecSpikeTimes1,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles1,matTrialT1,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes1,dblStartDelay,dblPeakDelay1);
 	
-	%real+rand
+	%% real+rand
 	for intRunType=vecRandTypes
 		%randomize
 		if intRunType ==2
 			%generate n2, no diff
 			intAddSpikes2 = intAddSpikes1;
-			[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2);
+			dblPeakDelay2 = dblPeakDelay1;
+			[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2,dblStartDelay,dblPeakDelay2);
 		else
-			%generate n2, diff
-			intAddSpikes2 = intAddSpikes1 + intDiffSpikes;
-			[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2);
+			if strcmp(strArea,'PoissonDoublePeak')
+				%generate n2, diff in peak time
+				dblPeakDelay2 = dblPeakDelay1+0.1;
+				intAddSpikes2 = intAddSpikes1;
+				[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2,dblStartDelay,dblPeakDelay2);
+			elseif strcmp(strArea,'PoissonPeak')
+				%generate n2, diff in peak height
+				intDiffSpikes = round(intFracDiffSpikes*intAddSpikes1);
+				dblPeakDelay2 = dblPeakDelay1;
+				intAddSpikes2 = intAddSpikes1 + intDiffSpikes;
+				[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2,dblStartDelay,dblPeakDelay2);
+			else
+				error('not recognized');
+			end
 		end
 		%plot if first
 		if intNeuron == 1

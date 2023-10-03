@@ -18,7 +18,7 @@ intResamps= numel(vecResamps);
 boolSave = true;
 
 %% prep
-intPlotType = 3;
+intPlotType = 4;
 if intPlotType == 1
 	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';
@@ -28,6 +28,9 @@ elseif intPlotType == 2
 elseif intPlotType == 3
 	strArea = 'StimDiffV1RunDriftingGratings';
 	strBalanced = '';
+elseif intPlotType == 4
+	strArea = 'AnovaPoissonDoublePeak';
+	strBalanced = 'B1';
 end
 strQ = 'Q0';
 intR = 250;

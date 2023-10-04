@@ -7,18 +7,12 @@ else
 end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
-dblSuperResFactor = 1;
-intResamps = 250; %Q1R10000T64 / Q0R250T64
-intT = 64;
+dblSuperResFactor = 100;
+intResamps = 1000; %Q1R10000T64 / Q0R250T64
 boolDirectQuantile = false;
-strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-if dblSuperResFactor == 1
-	strSR = 'SR1';
-else
-	strSR = '';
-end
+strTest = 'TsZeta2';
 
 cellRunRand = {...
 	'',...Rand 1
@@ -39,8 +33,8 @@ for boolDoOGB = [false true]
 	else
 		strIndicator = 'GCaMP';
 	end
-	sDirAll1=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*sesDur*' strT strR strSR '.mat']);
-	sDirAll2=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*ses-RandDur*' strT strR strSR '.mat']);
+	sDirAll1=dir([strDataPath strTest strIndicator '*' strQ '*ses' strR '.mat']);
+	sDirAll2=dir([strDataPath strTest strIndicator '*' strQ '*ses-Rand' strR '.mat']);
 	sDirAll = cat(1,sDirAll1,sDirAll2);
 	vecRand = contains({sDirAll.name},'Rand');
 	sDirReal = sDirAll(~vecRand);
@@ -48,10 +42,6 @@ for boolDoOGB = [false true]
 	cellMeanP = [];
 	cellZetaP = [];
 	cellAnovaP = [];
-	cellKsP = [];
-	cellWilcoxP = [];
-	cellZetaDur = [];
-	cellAnovaDur = [];
 	
 	matZetaP = [];
 	matMeanP = [];
@@ -68,13 +58,9 @@ for boolDoOGB = [false true]
 		for intFile=1:intFiles
 			strFile = sDir(intFile).name;
 			sLoad=load([strDataPath strFile]);
-			cellMeanP{intRandType}{intFile} = sLoad.vecMeanP;
-			cellZetaP{intRandType}{intFile} = sLoad.vecZetaP;
+			cellMeanP{intRandType}{intFile} = sLoad.vecTtestP;
+			cellZetaP{intRandType}{intFile} = sLoad.vecTsZetaP;
 			cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;
-			cellZetaDur{intRandType}{intFile} = sLoad.vecZetaDur;
-			cellAnovaDur{intRandType}{intFile} = sLoad.vecAnovaDur;
-			cellKsP{intRandType}{intFile} = sLoad.vecKsP;
-			cellWilcoxP{intRandType}{intFile} = sLoad.vecWilcoxP;
 		end
 	end
 	if isempty(cellMeanP),continue;end
@@ -90,14 +76,6 @@ for boolDoOGB = [false true]
 	cellZetaP{2}(indRemRecs) = [];
 	cellAnovaP{1}(indRemRecs) = [];
 	cellAnovaP{2}(indRemRecs) = [];
-	cellKsP{1}(indRemRecs) = [];
-	cellKsP{2}(indRemRecs) = [];
-	cellWilcoxP{1}(indRemRecs) = [];
-	cellWilcoxP{2}(indRemRecs) = [];
-	cellZetaDur{1}(indRemRecs) = [];
-	cellZetaDur{2}(indRemRecs) = [];
-	cellAnovaDur{1}(indRemRecs) = [];
-	cellAnovaDur{2}(indRemRecs) = [];
 	
 	vecRandMeanP = cell2vec(cellMeanP{2});
 	vecRealMeanP = cell2vec(cellMeanP{1});
@@ -105,26 +83,14 @@ for boolDoOGB = [false true]
 	vecRealZetaP = cell2vec(cellZetaP{1});
 	vecRandAnovaP = cell2vec(cellAnovaP{2});
 	vecRealAnovaP = cell2vec(cellAnovaP{1});
-	vecRandKsP = cell2vec(cellKsP{2});
-	vecRealKsP = cell2vec(cellKsP{1});
-	vecRandWilcoxP = cell2vec(cellWilcoxP{2});
-	vecRealWilcoxP = cell2vec(cellWilcoxP{1});
-	vecRandZetaDur = cell2vec(cellZetaDur{2});
-	vecRealZetaDur = cell2vec(cellZetaDur{1});
-	vecRandAnovaDur = cell2vec(cellAnovaDur{2});
-	vecRealAnovaDur = cell2vec(cellAnovaDur{1});
 	
 	matMeanP = cat(2,vecRealMeanP,vecRandMeanP)';
 	matZetaP = cat(2,vecRealZetaP,vecRandZetaP)';
 	matAnovaP = cat(2,vecRealAnovaP,vecRandAnovaP)';
-	matKsP = cat(2,vecRealKsP,vecRandKsP)';
-	matWilcoxP = cat(2,vecRealWilcoxP,vecRandWilcoxP)';
 	
 	matMeanZ = cat(2,-norminv(vecRealMeanP/2),-norminv(vecRandMeanP/2))';
 	matZetaZ = cat(2,-norminv(vecRealZetaP/2),-norminv(vecRandZetaP/2))';
 	matAnovaZ = cat(2,-norminv(vecRealAnovaP/2),-norminv(vecRandAnovaP/2))';
-	matKsZ = cat(2,-norminv(vecRealKsP/2),-norminv(vecRandKsP/2))';
-	matWilcoxZ = cat(2,-norminv(vecRealWilcoxP/2),-norminv(vecRandWilcoxP/2))';
 	
 	%remove nans
 	indRem = any(isnan(matZetaP),1) | any(isnan(matMeanP),1) | any(isnan(matAnovaZ),1);
@@ -134,10 +100,6 @@ for boolDoOGB = [false true]
 	matZetaZ(:,indRem)=[];
 	matAnovaP(:,indRem)=[];
 	matAnovaZ(:,indRem)=[];
-	matKsP(:,indRem)=[];
-	matKsZ(:,indRem)=[];
-	matWilcoxP(:,indRem)=[];
-	matWilcoxZ(:,indRem)=[];
 	
 	%rename ks => anova, wilcox=>t
 	%matAnovaP = matKsP;
@@ -147,13 +109,9 @@ for boolDoOGB = [false true]
 	
 	%% plot
 	figure
-	matWilcoxZ(isinf(matWilcoxZ(:))) = max(matWilcoxZ(~isinf(matAnovaZ(:))));
-	matKsZ(isinf(matKsZ(:))) = max(matKsZ(~isinf(matAnovaZ(:))));
 	matMeanZ(isinf(matMeanZ(:))) = max(matMeanZ(~isinf(matAnovaZ(:))));
 	matZetaZ(isinf(matZetaZ(:))) = max(matZetaZ(~isinf(matAnovaZ(:))));
 	matAnovaZ(isinf(matAnovaZ(:))) = max(matAnovaZ(~isinf(matAnovaZ(:))));
-	matWilcoxP(matWilcoxP(:)==0) = 1e-29;
-	matKsP(matKsP(:)==0) = 1e-29;
 	matMeanP(matMeanP(:)==0) = 1e-29;
 	matZetaP(matZetaP(:)==0) = 1e-29;
 	matAnovaP(matAnovaP(:)==0) = 1e-29;
@@ -222,17 +180,13 @@ for boolDoOGB = [false true]
     maxfig;
     hold on;
 
-    for intTest=1:5
+    for intTest=1:3
         if intTest == 1
             matData = matZetaP;
         elseif intTest == 2
             matData = matAnovaP;
         elseif intTest == 3
             matData = matMeanP;
-        elseif intTest == 4
-            matData = matKsP;
-    	elseif intTest == 5
-    		matData = matWilcoxP;
 		end
 		intCells = size(matData,2);
 		vecBothData = cat(2,matData(1,:),matData(2,:));
@@ -288,7 +242,7 @@ for boolDoOGB = [false true]
     subplot(2,3,6)
     cellLegend = {};
     hold on;
-   for intTest=1:5
+   for intTest=1:3
         if intTest == 1
             matData = matZetaP;
             cellLegend(end+1) = {'TS-ZETA'};
@@ -298,12 +252,6 @@ for boolDoOGB = [false true]
         elseif intTest == 3
             matData = matMeanP;
             cellLegend(end+1) = {'T-test'};
-        elseif intTest == 4
-            matData = matKsP;
-            cellLegend(end+1) = {'K-S test'};
-    	elseif intTest == 5
-    		matData = matWilcoxP;
-            cellLegend(end+1) = {'Wilcoxon'};
 		end
         vecRandSorted = sort(matData(2,:));
         vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
@@ -323,8 +271,8 @@ for boolDoOGB = [false true]
 	%% save
     fixfig;
 	drawnow;
-	export_fig(fullpath(strFigPath,['TsZeta' strQ strR strIndicator '.tif']));
-	export_fig(fullpath(strFigPath,['TsZeta' strQ strR strIndicator '.pdf']));
+	export_fig(fullpath(strFigPath,[strTest strQ strR strIndicator '.tif']));
+	export_fig(fullpath(strFigPath,[strTest strQ strR strIndicator '.pdf']));
 	
 	%% add to mega fig
 	figure(hMegaFig);drawnow;
@@ -369,5 +317,5 @@ end
 %% save
 figure(hMegaFig)
 drawnow;
-export_fig(fullpath(strFigPath,['TsZetaSummary2' strQ strR strSR '.tif']));
-export_fig(fullpath(strFigPath,['TsZetaSummary2' strQ strR strSR '.pdf']));
+export_fig(fullpath(strFigPath,[strTest 'Summary2' strQ strR '.tif']));
+export_fig(fullpath(strFigPath,[strTest 'Summary2' strQ strR '.pdf']));

@@ -12,13 +12,13 @@ end
 strDataTargetPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 vecRunTypes = [1 2];
-vecResamps = 100;%[100 200 500 1000 2000];
+vecResamps = 1000;%[100 200 500 1000 2000];
 intResamps= numel(vecResamps);
 %vecResamps = [5000 10000];
 boolSave = true;
 
 %% prep
-intPlotType = 4;
+intPlotType = 3;
 if intPlotType == 1
 	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';

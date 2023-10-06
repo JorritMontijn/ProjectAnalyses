@@ -100,9 +100,10 @@ for intIdx = 1:intRunNum
 	%check which stim to use
 	vecDur = vecStimOffTime-vecStimOnTime;
 	vecSpikeCounts = getSpikeCounts(vecSpikeTimes,vecStimOnTime,vecStimOffTime)./vecDur;
-	[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(vecSpikeCounts,vecStimTypes);
-	vecMuPerS = mean(matRespNSR,3);
-	[dummy,intStim1] = max(vecMuPerS);
+	%[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(vecSpikeCounts,vecStimTypes);
+	%vecMuPerS = mean(matRespNSR,3);
+	%[dummy,intStim1] = max(vecMuPerS);
+	intStim1 = 1;
 	intStim2 = modx(round(intStim1 + intStimNum/4),intStimNum);
 	
 	%stim 1

@@ -7,9 +7,9 @@ else
 end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
-dblSuperResFactor = 1;
+dblSuperResFactor = 100;
 intResamps = 250; %Q1R10000T64 / Q0R250T64
-intT = 64;
+intT = 16;
 boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];

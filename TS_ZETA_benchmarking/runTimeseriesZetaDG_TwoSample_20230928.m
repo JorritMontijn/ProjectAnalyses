@@ -16,7 +16,7 @@ intResampNum = 250;
 boolSave = true;%true;
 dblUseDur = 8;
 boolDirectQuantile = false;
-intUseTrials = 64; %limit number of used trials to reduce performance saturation
+intUseTrials = 80; %limit number of used trials to reduce performance saturation
 intSuperResFactor = 1; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 
@@ -60,7 +60,8 @@ for boolDoOGB = [false true]
 			vecOrientation = ses.structStim.Orientation;
 			matResp = getRespMatSes(ses);
 			sOut = getTuningCurves(matResp,vecOrientation);
-			indUseNeurons = sOut.vecFitP < 0.05;
+			dblCutOff = 0.05;
+			indUseNeurons = sOut.vecFitP < dblCutOff;
 			ses.neuron(~indUseNeurons) = [];
 			intNeurons = numel(ses.neuron);
 			cellData = {ses.neuron(:).dFoF};

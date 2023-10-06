@@ -16,8 +16,8 @@ intResampNum = 250;
 boolSave = true;%true;
 dblUseDur = 8;
 boolDirectQuantile = false;
-intUseTrials = 64; %limit number of used trials to reduce performance saturation
-dblSuperResFactor = 1; %1 or 100
+intUseTrials = 8; %limit number of used trials to reduce performance saturation
+dblSuperResFactor = 100; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 
 %% load data

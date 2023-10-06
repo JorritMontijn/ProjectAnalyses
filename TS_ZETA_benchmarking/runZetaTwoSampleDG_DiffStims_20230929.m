@@ -14,7 +14,7 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRandTypes = [1 2];
-intResampNum = 250;
+intResampNum = 1000;
 intRunNum = inf;
 boolSave = true;%true;
 boolDirectQuantile = false;

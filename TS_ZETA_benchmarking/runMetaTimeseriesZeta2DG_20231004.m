@@ -169,7 +169,7 @@ for boolDoOGB = [false true]
 	%xlim([0 1]);ylim([0 1]);
 	xlabel('Z-statistic ANOVA (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
-	title(sprintf('D) False alarms at %s=%.3f: %s=%.3f, %s=%.3f',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(2,:)<dblAlpha)/numel(matZetaP(2,:)),'A',sum(matAnovaP(2,:)<dblAlpha)/numel(matAnovaP(2,:))))
+	title(sprintf('D) FPR at %s=%.3f: %s=%.3f, %s=%.3f, %s=%.3f',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(2,:)<dblAlpha)/numel(matZetaP(2,:)),'A',sum(matAnovaP(2,:)<dblAlpha)/numel(matAnovaP(2,:)),'T',sum(matMeanP(2,:)<dblAlpha)/numel(matMeanP(2,:))))
 	%set(gca,'xscale','log','yscale','log');
 	fixfig;maxfig;
 	
@@ -265,7 +265,7 @@ for boolDoOGB = [false true]
     cellLegend(end+1) = {'Theoretical norm'};
     hold off;
     legend(cellLegend,'location','best');
-    title(sprintf('Mann-Whitney AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
+    title(sprintf('M-W; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
         AUC_pTA,AUC_pTZ,AUC_pAZ));
 
 	%% save

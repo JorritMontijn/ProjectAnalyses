@@ -33,7 +33,7 @@ elseif intPlotType == 4
 	strBalanced = 'B1';
 end
 strQ = 'Q0';
-intR = 250;
+intR = vecResamps(1);
 strR = ['R' num2str(intR)];
 strFileSearch = ['Zeta2Data' strArea strBalanced 'Resamp' num2str(intR) '.mat'];
 sDir = dir(fullpath(strDataTargetPath,strFileSearch));
@@ -146,7 +146,7 @@ if size(matMeanZ,1) >= 1
 		if intTest == 1
 			matData = matZetaP;
 		elseif intTest == 2
-			matData = matAnovaP;
+			matData = matAnovaP_b;
 		elseif intTest == 3
 			matData = matMeanP;
 		elseif intTest == 4

@@ -14,10 +14,10 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRandTypes = [1 2];
-intResampNum = 1000;
+intResampNum = 10000;
 intRunNum = inf;
 boolSave = true;%true;
-boolDirectQuantile = false;
+boolDirectQuantile = true;
 
 %% load data
 %reset vars
@@ -45,7 +45,11 @@ cellRepStr = {...
 	'Dentate gyrus','H-DG';...
 	'Retrosplenial','RetSpl';...
 	};
-
+if boolDirectQuantile
+	strQ = 'Q1';
+else
+	strQ = 'Q0';
+end
 %% load data
 strName = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));
 [sAggStim,sAggNeuron]=loadDataNpx(strArea,strRunStim,strDataSourcePath);
@@ -98,8 +102,8 @@ for intIdx = 1:intRunNum
 	intStimNum = numel(unique(vecStimTypes));
 	
 	%check which stim to use
-	vecDur = vecStimOffTime-vecStimOnTime;
-	vecSpikeCounts = getSpikeCounts(vecSpikeTimes,vecStimOnTime,vecStimOffTime)./vecDur;
+	%vecDur = vecStimOffTime-vecStimOnTime;
+	%vecSpikeCounts = getSpikeCounts(vecSpikeTimes,vecStimOnTime,vecStimOffTime)./vecDur;
 	%[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(vecSpikeCounts,vecStimTypes);
 	%vecMuPerS = mean(matRespNSR,3);
 	%[dummy,intStim1] = max(vecMuPerS);
@@ -142,8 +146,9 @@ for intIdx = 1:intRunNum
 		
 		%% run tests
 		intPlot = 0;
-		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
-		[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,false,dblUseMaxDur,intResampNum);
+		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+		%[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,false,dblUseMaxDur,intResampNum);
+		dblZeta2P_old = 1;
 		
 		%% ANOVA
 		%if balanced
@@ -217,6 +222,6 @@ end
 
 %% save
 if boolSave
-	save([strDataPath 'Zeta2DataStimDiff' strArea 'Resamp' num2str(intResampNum) '.mat' ],...
+	save([strDataPath 'Zeta2DataStimDiff' strArea 'Resamp' num2str(intResampNum) strQ '.mat' ],...
 		'cellNeuron','matTtest2','matZeta2','matZeta2_old','matAnova2','matAnova2_unbalanced');
 end

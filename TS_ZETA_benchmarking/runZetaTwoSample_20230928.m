@@ -170,8 +170,12 @@ for intNeuron=1:intNeurons
 		end
 		%if balanced
 		if intTrials1==intTrials2
-			matPSTH = matPSTH1 - matPSTH2;
-			dblAnova2P=anova1(matPSTH,[],'off');
+			%matPSTH = matPSTH1 - matPSTH2;
+			%dblAnova2P=anova1(matPSTH,[],'off');
+						
+			vecP = anova2(cat(2,matPSTH1(:),matPSTH2(:)),intTrials1,'on');
+			[h crit_p adj_p]=fdr_bh(vecP([1 3]));
+			dblAnova2P = min(adj_p);
 		else
 			dblAnova2P=1;
 		end

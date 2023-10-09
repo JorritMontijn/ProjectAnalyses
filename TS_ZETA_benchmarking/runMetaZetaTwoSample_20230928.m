@@ -12,30 +12,34 @@ end
 strDataTargetPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 vecRunTypes = [1 2];
-vecResamps = 1000;%[100 200 500 1000 2000];
-intResamps= numel(vecResamps);
-%vecResamps = [5000 10000];
 boolSave = true;
 
 %% prep
-intPlotType = 3;
+intPlotType = 4;
 if intPlotType == 1
 	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';
+	strQ = '';
+	intResamps = 250;
 elseif intPlotType == 2
 	strArea = 'AnovaPoissonPeak';
 	strBalanced = 'B0';
+	strQ = '';
+	intResamps = 250;
 elseif intPlotType == 3
 	strArea = 'StimDiffV1RunDriftingGratings';
 	strBalanced = '';
+	strQ = '';%Q1
+	intResamps = 10000;
 elseif intPlotType == 4
 	strArea = 'AnovaPoissonDoublePeak';
 	strBalanced = 'B1';
+	strQ = '';
+	intResamps = 250;
 end
-strQ = 'Q0';
-intR = vecResamps(1);
-strR = ['R' num2str(intR)];
-strFileSearch = ['Zeta2Data' strArea strBalanced 'Resamp' num2str(intR) '.mat'];
+strR = ['R' num2str(intResamps)];
+strFileSearch = ['Zeta2Data' strArea strBalanced 'Resamp' num2str(intResamps) strQ '.mat'];
+if isempty(strQ),strQ = 'Q0';end
 sDir = dir(fullpath(strDataTargetPath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
@@ -108,7 +112,7 @@ if size(matMeanZ,1) >= 1
 	
 	intNumN = size(matZetaP,1);
 	vecFP_sortedZ = sort(matZetaP(:,2));
-	vecFP_sortedA = sort(matAnovaP(:,2));
+	vecFP_sortedA = sort(matAnovaP_b(:,2));
 	dblAlphaAtFpAlphaPercZ = vecFP_sortedZ(round(intNumN*dblAlpha));
 	dblAlphaAtFpAlphaPercA = vecFP_sortedA(round(intNumN*dblAlpha));
 	dblInclusionZ_at_Alpha = sum(matZetaP(:,1)<dblAlphaAtFpAlphaPercZ)/numel(matZetaP(:,1));
@@ -117,22 +121,22 @@ if size(matMeanZ,1) >= 1
 		0 0.8 0;...
 		0.8 0 0;...
 		0 0 0.8];
-	vecColor1 = 1 + (matZetaP(:,1) < dblAlpha & matAnovaP(:,1) > dblAlpha) + 2*(matZetaP(:,1) > dblAlpha & matAnovaP(:,1) < dblAlpha) + 3*(matZetaP(:,1) < dblAlpha & matAnovaP(:,1) < dblAlpha);
-	scatter(matAnovaZ(:,1),matZetaZ(:,1),100,vecColor1,'.');
+	vecColor1 = 1 + (matZetaP(:,1) < dblAlpha & matAnovaP_b(:,1) > dblAlpha) + 2*(matZetaP(:,1) > dblAlpha & matAnovaP_b(:,1) < dblAlpha) + 3*(matZetaP(:,1) < dblAlpha & matAnovaP_b(:,1) < dblAlpha);
+	scatter(matAnovaZ_b(:,1),matZetaZ(:,1),100,vecColor1,'.');
 	colormap(h4,matC(1:max(vecColor1),:));
 	xlabel('Z-statistic ANOVA (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
-	title(sprintf('C) Inclusion at FPR=%.3f: %s=%.3f, %s=%.3f; n=%d',dblAlpha,getGreek('zeta'),dblInclusionZ_at_Alpha,'A',sum(matAnovaP(:,1)<dblAlphaAtFpAlphaPercA)/numel(matAnovaP(:,1)),intNumN))
+	title(sprintf('C) Inclusion at FPR=%.3f: %s=%.3f, %s=%.3f; n=%d',dblAlpha,getGreek('zeta'),dblInclusionZ_at_Alpha,'A',sum(matAnovaP_b(:,1)<dblAlphaAtFpAlphaPercA)/numel(matAnovaP_b(:,1)),intNumN))
 	%set(gca,'xscale','log','yscale','log');
 	
 	h5=subplot(2,3,5);
-	vecColor2 = 1 + 1*(matZetaP(:,2) > dblAlpha & matAnovaP(:,2) < dblAlpha) + 2*(matZetaP(:,2) < dblAlpha & matAnovaP(:,2) > dblAlpha) + 3*(matZetaP(:,2) < dblAlpha & matAnovaP(:,2) < dblAlpha);
-	scatter(matAnovaZ(:,2),matZetaZ(:,2),100,vecColor1,'.');
+	vecColor2 = 1 + 1*(matZetaP(:,2) > dblAlpha & matAnovaP_b(:,2) < dblAlpha) + 2*(matZetaP(:,2) < dblAlpha & matAnovaP_b(:,2) > dblAlpha) + 3*(matZetaP(:,2) < dblAlpha & matAnovaP_b(:,2) < dblAlpha);
+	scatter(matAnovaZ_b(:,2),matZetaZ(:,2),100,vecColor1,'.');
 	colormap(h5,matC(1:max(vecColor1),:));
 	xlim([0 4]);ylim([0 4]);
 	xlabel('Z-statistic ANOVA (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
-	title(sprintf('D) False alarms at %s=%.3f: %s=%.3f, %s=%.3f',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(:,2)<dblAlpha)/numel(matZetaP(:,2)),'A',sum(matAnovaP(:,2)<dblAlpha)/numel(matAnovaP(:,2))))
+	title(sprintf('D) False alarms at %s=%.3f: %s=%.3f, %s=%.3f',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(:,2)<dblAlpha)/numel(matZetaP(:,2)),'A',sum(matAnovaP_b(:,2)<dblAlpha)/numel(matAnovaP_b(:,2))))
 	%set(gca,'xscale','log','yscale','log');
 	
 	%% plot ROC
@@ -214,7 +218,7 @@ if size(matMeanZ,1) >= 1
 		if intTest == 1
 			matData = matZetaP;
 		elseif intTest == 2
-			matData = matAnovaP;
+			matData = matAnovaP_b;
 		elseif intTest == 3
 			matData = matMeanP;
 		elseif intTest == 4

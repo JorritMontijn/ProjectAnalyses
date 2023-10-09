@@ -57,12 +57,12 @@ for intNeuron=1:intNeurons
 	end
 	
 	%% tuning params
-	dblBaseRate = exprnd(1);
+	dblBaseRate = 1;%exprnd(1);
 	boolDoublePeaked = false; %orientation or direction tuned
 	dblPrefOri = rand(1)*2*pi; %preferred orientation (rads)
 	dblKappa = rand(1)*5+5; %von Mises concentration parameter
 	dblPrefRate = dblBaseRate; %mean single-spike rate during stimulus (exponential ISI)
-	dblJitter = 5; %in ms'
+	dblJitter = 1; %in ms'
 	intSU = intNeuron;
 	
 	%% stimulus data
@@ -97,9 +97,9 @@ for intNeuron=1:intNeurons
 	
 	%% generate data
 	% generate peak
-	dblStartDelay = 0.1;
+	dblStartDelay = 0.053;
 	dblPeakDelay1 = dblStartDelay;
-	intAddSpikes1 = intTrials/4;
+	intAddSpikes1 = intTrials/2;
 	[vecSpikeTimes1,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles1,matTrialT1,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes1,dblStartDelay,dblPeakDelay1);
 	
 	%% real+rand
@@ -113,7 +113,7 @@ for intNeuron=1:intNeurons
 		else
 			if strcmp(strArea,'PoissonDoublePeak')
 				%generate n2, diff in peak time
-				dblPeakDelay2 = dblPeakDelay1+0.1;
+				dblPeakDelay2 = dblPeakDelay1+0.003;
 				intAddSpikes2 = intAddSpikes1;
 				[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2,dblStartDelay,dblPeakDelay2);
 			elseif strcmp(strArea,'PoissonPeak')
@@ -139,7 +139,8 @@ for intNeuron=1:intNeurons
 		
 		%% run tests
 		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
-		[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,false,dblUseMaxDur,intResampNum);
+		%[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,false,dblUseMaxDur,intResampNum);
+		dblZeta2P_old=1;
 		
 		%% ANOVA
 		%if balanced
@@ -151,7 +152,7 @@ for intNeuron=1:intNeurons
 		[optN, dblC, allN, allC] = opthist(xComb);
 		if optN<optLow,optN=optLow;end %at least 2 bins
 		if optN>optHigh,optN=optHigh;end %at least 2 bins
-		
+		optN = dblUseMaxDur/0.01;
 		intTrials1 = size(matTrialT1,1);
 		intTrials2 = size(matTrialT2,1);
 		dblBinWidth = dblUseMaxDur/optN;
@@ -173,7 +174,7 @@ for intNeuron=1:intNeurons
 			%matPSTH = matPSTH1 - matPSTH2;
 			%dblAnova2P=anova1(matPSTH,[],'off');
 						
-			vecP = anova2(cat(2,matPSTH1(:),matPSTH2(:)),intTrials1,'on');
+			vecP = anova2(cat(2,matPSTH1(:),matPSTH2(:)),intTrials1,'off');
 			[h crit_p adj_p]=fdr_bh(vecP([1 3]));
 			dblAnova2P = min(adj_p);
 		else
@@ -181,12 +182,13 @@ for intNeuron=1:intNeurons
 		end
 		
 		%if not balanced
-		y = cat(1,matPSTH1(:),matPSTH2(:));
-		g1 = cat(1,matLabelN1(:),matLabelN2(:));
-		g2 = cat(1,matLabelBin1(:),matLabelBin2(:));
-		[vecP,tbl,stats] = anovan(y,{g1 g2},'continuous',[2],'model','interaction','display','off');
-		[h crit_p adj_p]=fdr_bh(vecP([1 3]));
-		dblAnova2P_unbalanced = min(adj_p);
+		%y = cat(1,matPSTH1(:),matPSTH2(:));
+		%g1 = cat(1,matLabelN1(:),matLabelN2(:));
+		%g2 = cat(1,matLabelBin1(:),matLabelBin2(:));
+		%[vecP,tbl,stats] = anovan(y,{g1 g2},'model','interaction','display','off');
+		%[h crit_p adj_p]=fdr_bh(vecP([1 3]));
+		%dblAnova2P_unbalanced = min(adj_p);
+		dblAnova2P_unbalanced=1;
 		
 		%% t-test
 		%'vecTtestP','vecTtestTime'

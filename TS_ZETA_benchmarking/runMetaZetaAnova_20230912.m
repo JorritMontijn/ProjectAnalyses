@@ -64,7 +64,7 @@ boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
+for intArea=1%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 5%7
 		vecRunStims = 1;
@@ -153,6 +153,12 @@ for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 		matZetaZ(:,2) = -norminv(cell2vec(cellUseZ(:,2))/2);
 		matZetaP = 2-2*normcdf(matZetaZ);
 		
+		cellUse2Z = cellUniNoStitchP;%cellUniStitchP cellZetaOldP
+		matZeta2Z = -norminv(cell2vec(cellUse2Z(:,1))/2);
+		matZeta2Z = matZeta2Z(1:intUseN);
+		matZeta2Z(:,2) = -norminv(cell2vec(cellUse2Z(:,2))/2);
+		matZeta2P = 2-2*normcdf(matZeta2Z);
+		
 		matAnovaZ = -norminv(cell2vec(cellAnovaP(:,1))/2);
 		matAnovaZ = matAnovaZ(1:intUseN);
 		matAnovaZ(:,2) = -norminv(cell2vec(cellAnovaP(:,2))/2);
@@ -233,13 +239,21 @@ for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 			maxfig;
 			hold on;
 			
-			for intTest=1:3
+			cellLegend = {};
+			hold on;
+			for intTest=1:4
 				if intTest == 1
 					matData = matZetaP;
+					cellLegend(end+1) = {'ZETA'};
 				elseif intTest == 2
 					matData = matAnovaP;
+					cellLegend(end+1) = {'ANOVA'};
 				elseif intTest == 3
 					matData = matMeanP;
+					cellLegend(end+1) = {'T-test'};
+				elseif intTest == 4
+					matData = matZeta2P;
+					cellLegend(end+1) = {'ZETA-NS'};
 				end
 				intCells = size(matData,1);
 				vecBothData = cat(1,matData(:,1),matData(:,2));
@@ -256,6 +270,8 @@ for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 				[dblAUC,Aci,Ase] = getAuc(vecShuffP,vecRealP,0.05,'mann-whitney');
 				vecAUC(intTest) = dblAUC;
 				vecAUC_se(intTest) = Ase;
+				
+				cellLegend{end} = [cellLegend{end} sprintf(', AUC=%.3f',dblAUC)];
 			end
 			
 			%% run tests on aucs
@@ -290,12 +306,13 @@ for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 			xlabel('False positive fraction');
 			ylabel('Inclusion fraction');
 			title(sprintf('E) ROC; %s %s %s',strQ,strR,strArea));
-			legend({sprintf('ZETA-test, AUC=%.3f',vecAUC(1)),sprintf('ANOVA, AUC=%.3f',vecAUC(2)),sprintf('t-test, AUC=%.3f',vecAUC(3))},'location','best','interpreter','none');
+			legend(cellLegend,'location','best');
+			%legend({sprintf('ZETA-test, AUC=%.3f',vecAUC(1)),sprintf('ANOVA, AUC=%.3f',vecAUC(2)),sprintf('t-test, AUC=%.3f',vecAUC(3))},'location','best','interpreter','none');
 			
 			subplot(2,3,6)
 			cellLegend = {};
 			hold on;
-			for intTest=1:3
+			for intTest=1:4
 				if intTest == 1
 					matData = matZetaP;
 					cellLegend(end+1) = {'ZETA'};
@@ -305,6 +322,9 @@ for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 				elseif intTest == 3
 					matData = matMeanP;
 					cellLegend(end+1) = {'T-test'};
+				elseif intTest == 4
+					matData = matZeta2P;
+					cellLegend(end+1) = {'ZETA-NS'};
 				end
 				vecRandSorted = sort(matData(:,2));
 				vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));

@@ -57,7 +57,7 @@ for intNeuron=1:intNeurons
 	end
 	
 	%% tuning params
-	dblBaseRate = 1;%exprnd(1);
+	dblBaseRate = exprnd(1);
 	boolDoublePeaked = false; %orientation or direction tuned
 	dblPrefOri = rand(1)*2*pi; %preferred orientation (rads)
 	dblKappa = rand(1)*5+5; %von Mises concentration parameter
@@ -113,7 +113,7 @@ for intNeuron=1:intNeurons
 		else
 			if strcmp(strArea,'PoissonDoublePeak')
 				%generate n2, diff in peak time
-				dblPeakDelay2 = dblPeakDelay1+0.003;
+				dblPeakDelay2 = dblPeakDelay1+0.002;
 				intAddSpikes2 = intAddSpikes1;
 				[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2,dblStartDelay,dblPeakDelay2);
 			elseif strcmp(strArea,'PoissonPeak')
@@ -148,8 +148,7 @@ for intNeuron=1:intNeurons
 		[vecTrialPerSpike1,vecTimePerSpike1] = getSpikesInTrial(vecSpikeTimes1,matTrialT1(:,1),dblUseMaxDur);
 		[vecTrialPerSpike2,vecTimePerSpike2] = getSpikesInTrial(vecSpikeTimes2,matTrialT2(:,1),dblUseMaxDur);
 		if numel(vecTimePerSpike1) < 3 && numel(vecTimePerSpike2) < 3,continue;end
-		xComb = sort(cat(1,vecTimePerSpike1,vecTimePerSpike2));
-		[optN, dblC, allN, allC] = opthist(xComb);
+		[optN, dblC, allN, allC] = opthist(vecTimePerSpike1);
 		if optN<optLow,optN=optLow;end %at least 2 bins
 		if optN>optHigh,optN=optHigh;end %at least 2 bins
 		optN = dblUseMaxDur/0.01;

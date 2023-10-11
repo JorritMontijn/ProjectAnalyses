@@ -45,6 +45,7 @@ for boolDoOGB = [false true]
 		end
 		
 	end
+	
 	for intRunType=vecRunTypes
 		%% load data
 		for intFile=1:numel(cellRunRecs)

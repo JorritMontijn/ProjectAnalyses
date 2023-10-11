@@ -9,7 +9,7 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 dblSuperResFactor = 100;
 intResamps = 250; %Q1R10000T64 / Q0R250T64
-intT = 16;
+intT = 8;
 boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
@@ -222,7 +222,7 @@ for boolDoOGB = [false true]
     maxfig;
     hold on;
 
-    for intTest=1:5
+    for intTest=1:3
         if intTest == 1
             matData = matZetaP;
         elseif intTest == 2
@@ -288,7 +288,7 @@ for boolDoOGB = [false true]
     subplot(2,3,6)
     cellLegend = {};
     hold on;
-   for intTest=1:5
+   for intTest=1:3
         if intTest == 1
             matData = matZetaP;
             cellLegend(end+1) = {'TS-ZETA'};
@@ -317,7 +317,7 @@ for boolDoOGB = [false true]
     cellLegend(end+1) = {'Theoretical norm'};
     hold off;
     legend(cellLegend,'location','best');
-    title(sprintf('Mann-Whitney AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
+    title(sprintf('MW AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
         AUC_pTA,AUC_pTZ,AUC_pAZ));
 
 	%% save

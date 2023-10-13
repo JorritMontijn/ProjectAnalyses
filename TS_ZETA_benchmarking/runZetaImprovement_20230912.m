@@ -29,7 +29,7 @@ vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 250;%250;%10:10:90;%[10:10:100];
 intUseGenN = 10000;
-vecRunAreas = 1;%[1 8]
+vecRunAreas = 8;%[1 8]
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -116,8 +116,10 @@ for intArea=vecRunAreas
 				vecTtestTime = ones(1,intNeurons);
 				%load([strDataTargetPath 'ZetaDataAnova' strRunType strRunStim '.mat']);
 				
-				%% analyze
-				for intNeuron=1:intNeurons%31
+				%% analyze 
+				dblStimDur = 1;%5
+				dblBinW = 0.05;
+				for intNeuron=1:intNeurons%26
 					%% message
 					if toc(hTic) > 5
 						fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
@@ -299,6 +301,11 @@ for intArea=vecRunAreas
 					intTrials = size(matEventTimes,1);
 					intSpikeNum = numel(vecSpikeTimes);
 					if intSpikeNum>50000 || intSpikeNum<3,continue;end
+					
+					[vecMean,vecSEM,vecWindowBinCenters] = ...
+						doPEP(vecSpikeTimes,[-0.5:dblBinW:(dblStimDur+0.5)],matEventTimes(:,1));
+					pause
+					continue;
 					
 					%if size(matEventTimes,1) > 0,continue;end
 					%%{

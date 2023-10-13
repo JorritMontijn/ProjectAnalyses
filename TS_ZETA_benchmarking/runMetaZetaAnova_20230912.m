@@ -64,7 +64,7 @@ boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-for intArea=1%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
+for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 5%7
 		vecRunStims = 1;

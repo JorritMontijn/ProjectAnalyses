@@ -39,8 +39,7 @@ sIndicatorProps.dblNoise = dblNoise;
 
 %% pre-allocate output variables
 matTtest = nan(intNeurons,2);
-matTsZetaUni = nan(intNeurons,2);
-matTsZetaLin = nan(intNeurons,2);
+matTsZeta = nan(intNeurons,2);
 matAnova = nan(intNeurons,2);
 strPath1 = 'F:\Code\Toolboxes\zetatest\dependencies\';
 strPath2 = 'F:\Code\Acquisition\UniversalProbeFinder\zetatest\dependencies\';
@@ -103,10 +102,7 @@ for intNeuron=1:intNeurons
 		%zetatstest
 		intPlot = 0;
         dblJitterSize = [];
-        intJitterDistro = 1;
-        [dblZetaP_uni,sZETA] = zetatstest(vecTimestamps,vecdFoF,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize);
-        intJitterDistro = 2;
-        [dblZetaP_lin,sZETA] = zetatstest(vecTimestamps,vecdFoF,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize);
+        [dblZetaP,sZETA] = zetatstest(vecTimestamps,vecdFoF,matEventTimes,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,dblJitterSize);
 
 		%normal zeta
 		[dblZetaP_sp,sZETA_sp] = zetatest(vecSpikeTimes, matEventTimes,dblUseMaxDur,intResampNum,intPlot);
@@ -116,8 +112,7 @@ for intNeuron=1:intNeurons
 		dblMeanP = sZETA.dblMeanP;
 		dblMeanZ = -norminv(dblMeanP/2);
 		dblZetaZ = sZETA.dblZETA;
-		matTsZetaUni(intNeuron,intRunType) = dblZetaP_uni;
-		matTsZetaLin(intNeuron,intRunType) = dblZetaP_lin;
+		matTsZeta(intNeuron,intRunType) = dblZetaP;
 		matTtest(intNeuron,intRunType) = dblMeanP;
 	end
 end
@@ -125,5 +120,5 @@ end
 %% save
 if boolSave
 	save([strDataTargetPath strRec 'Q' num2str(boolDirectQuantile) '.mat' ],...
-		'matAnova','matTtest','matTsZetaUni','matTsZetaLin','strRec');
+		'matAnova','matTtest','matTsZeta','strRec');
 end

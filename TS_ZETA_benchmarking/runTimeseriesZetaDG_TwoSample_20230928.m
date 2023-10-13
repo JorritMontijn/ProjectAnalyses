@@ -12,12 +12,11 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRunTypes = [1 2];
-intResampNum = 250;
+intResampNum = 1001;
 boolSave = true;%true;
 dblUseDur = 8;
 boolDirectQuantile = false;
-intUseTrials = 80; %limit number of used trials to reduce performance saturation
-intSuperResFactor = 1; %1 or 100
+intSuperResFactor = 100; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 
 %% load data
@@ -50,6 +49,7 @@ for boolDoOGB = [false true]
 		%% load data
 		for intFile=1:numel(cellRunRecs)
 			strFile = cellRunRecs{intFile};
+			fprintf('Running file %d/%d: %s [%s]\n',intFile,numel(cellRunRecs),strFile,getTime);
 			[dummy,strRec,strExt]=fileparts(strFile);
 			sLoad = load([strDataSourcePath strFile]);
 			ses = sLoad.ses;

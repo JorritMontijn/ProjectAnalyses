@@ -15,7 +15,7 @@ vecRunTypes = [1 2];
 boolSave = true;
 
 %% prep
-intPlotType = 4;
+intPlotType = 2;
 if intPlotType == 1
 	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';
@@ -45,7 +45,7 @@ strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
 
 cellNeuron = sLoad.cellNeuron;
-matAnovaP_b = sLoad.matAnova2;
+matAnovaP_b = sLoad.matAnova2_unbalanced;
 matAnovaP = sLoad.matAnova2_unbalanced;
 matMeanP = sLoad.matTtest2;
 matZetaP = sLoad.matZeta2;

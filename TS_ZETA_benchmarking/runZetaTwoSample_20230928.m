@@ -28,7 +28,7 @@ intResampNum = vecResamps(intResampIdx);
 intResamps= numel(vecResamps);
 intUseGenN = 1000;
 boolUnbalanced = false;
-vecRunAreas = 2;%[1 8]
+vecRunAreas = 1;%[1 8]
 intNeurons = intUseGenN;
 intFracDiffSpikes = 0.5;
 

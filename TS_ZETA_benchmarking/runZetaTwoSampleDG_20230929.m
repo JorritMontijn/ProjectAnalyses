@@ -145,8 +145,18 @@ for intPair = 1:intRunPairNum
 		%% run tests
 		intPlot = 0;
 		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
-		[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,false,dblUseMaxDur,intResampNum);
-		
+		if sZETA.dblMeanZ < 2 && sZETA.dblZETA > 2
+			intPlot = 4;
+			[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
+			subplot(2,3,5)
+			boxplot([sZETA.vecMu1' sZETA.vecMu2'],'notch','on');
+			ylabel('Spiking rate per trial (Hz)');
+			set(gca,'xtick',[1 2],'xticklabel',{'Neuron 1','Neuron 2'});
+			fixfig;
+			pause
+		end
+		%[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,false,dblUseMaxDur,intResampNum);
+		continue;
 		%% ANOVA
 		%if balanced
 		hTic2 = tic;

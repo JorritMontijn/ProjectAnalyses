@@ -43,8 +43,8 @@ for boolDoOGB = [false true]
 			cellRecs = sLoad.cellRecGratings{intEntry};
 			cellRunRecs{i} = cellRecs{floor(numel(cellRecs)/2)};
 		end
-		
 	end
+	
 	for intRunType=vecRunTypes
 		%% load data
 		for intFile=1:numel(cellRunRecs)

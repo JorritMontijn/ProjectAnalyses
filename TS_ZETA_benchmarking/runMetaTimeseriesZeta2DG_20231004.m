@@ -8,7 +8,7 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 dblSuperResFactor = 100;
-intResamps = 1000; %Q1R10000T64 / Q0R250T64
+intResamps = 1001; %Q1R10000T64 / Q0R250T64
 boolDirectQuantile = false;
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];

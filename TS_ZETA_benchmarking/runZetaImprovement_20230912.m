@@ -29,7 +29,7 @@ vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 250;%250;%10:10:90;%[10:10:100];
 intUseGenN = 10000;
-vecRunAreas = 8;%[1 8]
+vecRunAreas = 1;%[1 8]
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -302,10 +302,10 @@ for intArea=vecRunAreas
 					intSpikeNum = numel(vecSpikeTimes);
 					if intSpikeNum>50000 || intSpikeNum<3,continue;end
 					
-					[vecMean,vecSEM,vecWindowBinCenters] = ...
-						doPEP(vecSpikeTimes,[-0.5:dblBinW:(dblStimDur+0.5)],matEventTimes(:,1));
-					pause
-					continue;
+					%[vecMean,vecSEM,vecWindowBinCenters] = ...
+					%	doPEP(vecSpikeTimes,[-0.5:dblBinW:(dblStimDur+0.5)],matEventTimes(:,1));
+					%pause
+					%continue;
 					
 					%if size(matEventTimes,1) > 0,continue;end
 					%%{

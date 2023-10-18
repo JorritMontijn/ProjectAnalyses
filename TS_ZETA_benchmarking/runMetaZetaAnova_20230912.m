@@ -64,7 +64,7 @@ boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
+for intArea=[1:4 8]%8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
 	if intArea < 5%7
 		vecRunStims = 1;
@@ -104,6 +104,9 @@ for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 			strRunType = [strArea strRand strStim];
 			sDir=dir([strDataPath 'ZetaDataAnova' strRunType 'Resamp' num2str(intResamps) '.mat']);
 			intFiles=numel(sDir);
+			if intFiles == 0
+				error
+			end
 			for intFile=1:intFiles
 				strFile = sDir(intFile).name;
 				
@@ -278,9 +281,11 @@ for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 			AUC_T = vecAUC(3) ;
 			AUC_A = vecAUC(2);
 			AUC_Z = vecAUC(1);
+			AUC_Zns = vecAUC(4);
 			Ase_T = vecAUC_se(3) ;
 			Ase_A = vecAUC_se(2);
 			Ase_Z = vecAUC_se(1);
+			Ase_Zns = vecAUC_se(4);
 			
 			%t vs a
 			m0 = AUC_T - AUC_A;
@@ -299,6 +304,12 @@ for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 			s0 = (Ase_A + Ase_Z)/2;
 			zAZ = abs(m0/s0);
 			AUC_pAZ = normcdf(zAZ,'upper')*2;
+			
+			%z vs zna
+			m0 = AUC_Zns - AUC_Z;
+			s0 = (Ase_Zns + Ase_Z)/2;
+			zZZns = abs(m0/s0);
+			AUC_pZZns = normcdf(zZZns,'upper')*2;
 			
 			
 			%plot
@@ -338,8 +349,8 @@ for intArea=8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 			cellLegend(end+1) = {'Theoretical norm'};
 			hold off;
 			legend(cellLegend,'location','best');
-			title(sprintf('MW AUC tests; T-A,p=%.1e; T-Z,p=%.1e; A-Z,p=%.1e;',...
-				AUC_pTA,AUC_pTZ,AUC_pAZ));
+			title(sprintf('MW AUC tests; Z-Zns,p=%.1e; Z-T,p=%.1e; Z-A,p=%.1e;',...
+				AUC_pZZns,AUC_pTZ,AUC_pAZ));
 			fixfig;maxfig;
 			
 			%% save

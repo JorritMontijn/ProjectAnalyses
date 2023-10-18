@@ -182,12 +182,12 @@ for boolDoOGB = [false true]
 	%set(gca,'xscale','log','yscale','log');
 	fixfig;maxfig;
 	
-    dblAlpha = 0.01;
+    dblAlpha = 0.05;
     intNumN = size(matZetaP,2);
 	vecFP_sortedZ = sort(matZetaP(2,:));
 	vecFP_sortedA = sort(matAnovaP(2,:));
-	dblAlphaAtFpAlphaPercZ = vecFP_sortedZ(round(intNumN*dblAlpha));
-	dblAlphaAtFpAlphaPercA = vecFP_sortedA(round(intNumN*dblAlpha));
+	dblAlphaAtFpAlphaPercZ = dblAlpha;%vecFP_sortedZ(round(intNumN*dblAlpha));
+	dblAlphaAtFpAlphaPercA = dblAlpha;%vecFP_sortedA(round(intNumN*dblAlpha));
 	dblInclusionZ_at_Alpha = sum(matZetaP(1,:)<dblAlphaAtFpAlphaPercZ)/numel(matZetaP(1,:));
 	h4 =subplot(2,3,4);
 	matC = [0.5 0.5 0.5;...

@@ -13,27 +13,28 @@ strDataTargetPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 vecRunTypes = [1 2];
 boolSave = true;
+vecRunTests = [1:4];
 
 %% prep
-intPlotType = 2;
+intPlotType = 4;
 if intPlotType == 1
 	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';
 	strQ = '';
-	intResamps = 250;
+	intResamps = 500;
 elseif intPlotType == 2
-	strArea = 'AnovaPoissonPeak';
+	strArea = 'AnovaPoissonPeakHeight';
 	strBalanced = 'B0';
 	strQ = '';
 	intResamps = 250;
 elseif intPlotType == 3
 	strArea = 'StimDiffV1RunDriftingGratings';
 	strBalanced = '';
-	strQ = '';%Q1
-	intResamps = 10000;
+	strQ = 'Q0';%Q1
+	intResamps = 500;
 elseif intPlotType == 4
 	strArea = 'AnovaPoissonDoublePeak';
-	strBalanced = 'B1';
+	strBalanced = 'B0';
 	strQ = '';
 	intResamps = 250;
 end
@@ -48,8 +49,8 @@ cellNeuron = sLoad.cellNeuron;
 matAnovaP_b = sLoad.matAnova2_unbalanced;
 matAnovaP = sLoad.matAnova2_unbalanced;
 matMeanP = sLoad.matTtest2;
-matZetaP = sLoad.matZeta2;
-matZetaP_old = sLoad.matZeta2_old;
+matZetaP_old = sLoad.matZeta2;
+matZetaP = sLoad.matZeta2_old;
 
 %% plot
 %flatten
@@ -113,8 +114,8 @@ if size(matMeanZ,1) >= 1
 	intNumN = size(matZetaP,1);
 	vecFP_sortedZ = sort(matZetaP(:,2));
 	vecFP_sortedA = sort(matAnovaP_b(:,2));
-	dblAlphaAtFpAlphaPercZ = vecFP_sortedZ(round(intNumN*dblAlpha));
-	dblAlphaAtFpAlphaPercA = vecFP_sortedA(round(intNumN*dblAlpha));
+	dblAlphaAtFpAlphaPercZ = 0.05;%vecFP_sortedZ(round(intNumN*dblAlpha));
+	dblAlphaAtFpAlphaPercA = 0.05;%vecFP_sortedA(round(intNumN*dblAlpha));
 	dblInclusionZ_at_Alpha = sum(matZetaP(:,1)<dblAlphaAtFpAlphaPercZ)/numel(matZetaP(:,1));
 	h4 =subplot(2,3,4);
 	matC = [0.5 0.5 0.5;...
@@ -144,9 +145,9 @@ if size(matMeanZ,1) >= 1
 	%vecH(intResampNpx) = subplot(4,3,intResampNpx);
 	subplot(2,3,3)
 	hold on;
-	cellNames = {'ZETA','ANOVA','T-test','ZETA-old','ANOVA-b'};
+	cellNames = {'ZETA','ANOVA','T-test','ZETA-wr','ANOVA-b'};
 	cellLegend = {};
-	for intTest=1:3
+	for intTest=vecRunTests
 		if intTest == 1
 			matData = matZetaP;
 		elseif intTest == 2
@@ -214,7 +215,7 @@ if size(matMeanZ,1) >= 1
 	subplot(2,3,6)
 	cellLegend = {};
 	hold on;
-	for intTest=1:3
+	for intTest=vecRunTests
 		if intTest == 1
 			matData = matZetaP;
 		elseif intTest == 2
@@ -246,6 +247,6 @@ if size(matMeanZ,1) >= 1
 	
 	%% save
 	drawnow;
-	export_fig(fullpath(strFigPath,['Zeta2' strQ strR strArea '.tif']));
+	export_fig(fullpath(strFigPath,['Zeta2' strQ strR strArea '.png']));
 	export_fig(fullpath(strFigPath,['Zeta2' strQ strR strArea '.pdf']));
 end

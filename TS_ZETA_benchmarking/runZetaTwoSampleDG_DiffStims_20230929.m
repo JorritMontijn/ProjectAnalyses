@@ -14,10 +14,10 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRandTypes = [1 2];
-intResampNum = 10000;
+intResampNum = 500;
 intRunNum = inf;
 boolSave = true;%true;
-boolDirectQuantile = true;
+boolDirectQuantile = false;
 
 %% load data
 %reset vars
@@ -67,6 +67,7 @@ matAnova2 = nan(intRunNum,2);
 matAnova2_unbalanced = nan(intRunNum,2);
 optLow = 2;
 optHigh = 1e6;
+global boolWithReplacement;
 
 %% get neuronal data
 hTicN = tic;
@@ -147,9 +148,10 @@ for intIdx = 1:intRunNum
 		
 		%% run tests
 		intPlot = 0;
-		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
-		%[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,false,dblUseMaxDur,intResampNum);
-		dblZeta2P_old = 1;
+		boolWithReplacement = false; %randperm
+		dblZeta2P = zetatest2b(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+		boolWithReplacement = true; %randi
+		dblZeta2P_withrep = zetatest2b(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
 		
 		%% ANOVA
 		%if balanced
@@ -215,7 +217,7 @@ for intIdx = 1:intRunNum
 		cellNeuron{intIdx,intRandType} = [strArea strDate 'N' num2str(intSU) 'S' num2str(intStim1)];
 		matTtest2(intIdx,intRandType) = dblTtest2P;
 		matZeta2(intIdx,intRandType) = dblZeta2P;
-		matZeta2_old(intIdx,intRandType) = dblZeta2P_old;
+		matZeta2_old(intIdx,intRandType) = dblZeta2P_withrep;
 		matAnova2(intIdx,intRandType) = dblAnova2P;
 		matAnova2_unbalanced(intIdx,intRandType) = dblAnova2P_unbalanced;
 	end

@@ -18,6 +18,7 @@ dblUseDur = 8;
 boolDirectQuantile = false;
 intSuperResFactor = 100; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
+global boolWithReplacement;
 
 %% load data
 for boolDoOGB = [false true]
@@ -78,6 +79,7 @@ for boolDoOGB = [false true]
 			
 			%% pre-allocate output variables
 			vecTsZetaP = nan(1,intNeurons);
+			vecTsZetaP_wr = nan(1,intNeurons);
 			vecTtestP = nan(1,intNeurons);
 			vecAnovaP = nan(1,intNeurons);
 			vecAnovaDur = nan(1,intNeurons);
@@ -156,13 +158,28 @@ for boolDoOGB = [false true]
 				matTrialT2(:,1) = vecStimOnTime2;
 				matTrialT2(:,2) = vecStimOffTime2;
 				
-				%% remove superfluous data
-				intPlot = 0;
+				%% run tests
 				boolDirectQuantile=0;
-				[dblZeta2P,sZETA] = zetatstest2b(vecTraceT,vecTraceAct,matTrialT1,vecTraceT,vecTraceAct,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,intSuperResFactor);
+				intPlot = 0;
+				boolWithReplacement = false; %randperm
+				[dblZeta2P,sZETA] =  zetatstest2b(vecTraceT,vecTraceAct,matTrialT1,vecTraceT,vecTraceAct,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,intSuperResFactor);
+				boolWithReplacement = true; %randi
+				dblZeta2P_withrep = zetatstest2b(vecTraceT,vecTraceAct,matTrialT1,vecTraceT,vecTraceAct,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,intSuperResFactor);
+				if 0%sZETA.dblMeanP > 0.1 && dblZeta2P < 0.01
+					intPlot = 4;
+					[dblZeta2P,sZETA] = zetatstest2b(vecTraceT,vecTraceAct,matTrialT1,vecTraceT,vecTraceAct,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile,intSuperResFactor);
+					subplot(2,3,5)
+					bplot([sZETA.vecMu1' sZETA.vecMu2'],'outliers');
+					ylabel('dF/F0');
+					set(gca,'xtick',[1 2],'xticklabel',{'Pref stim','Orth stim'});
+					title(sprintf('%s N%d',strRecIdx,intNeuron));
+					fixfig;
+					pause
+				end
 				
 				vecTtestP(intNeuron) = sZETA.dblMeanP;
 				vecTsZetaP(intNeuron) = dblZeta2P;
+				vecTsZetaP_wr(intNeuron) = dblZeta2P_withrep;
 				
 				%ANOVA
 				hTicA = tic;
@@ -187,7 +204,7 @@ for boolDoOGB = [false true]
 			end
 			if boolSave
 				save([strDataPath 'TsZeta2' strIndicator '_Q' num2str(boolDirectQuantile) '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
-					'vecAnovaP','vecTsZetaP','vecTtestP','strRunType','strRecIdx');
+					'vecAnovaP','vecTsZetaP','vecTsZetaP_wr','vecTtestP','strRunType','strRecIdx');
 			end
 		end
 	end

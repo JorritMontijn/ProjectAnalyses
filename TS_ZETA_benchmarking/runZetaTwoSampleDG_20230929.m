@@ -14,10 +14,11 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRandTypes = [1 2];
-intResampNum = 250;
+intResampNum = 500;
 intRunPairNum = 1000;
 boolSave = true;%true;
 boolDirectQuantile = false;
+global boolWithReplacement;
 
 %% load data
 %reset vars
@@ -96,7 +97,7 @@ for intPair = 1:intRunPairNum
 	matTrialTN1 = [];
 	matTrialTN1(:,1) = vecStimOnTime;
 	matTrialTN1(:,2) = vecStimOffTime;
-	dblUseMaxDur1 = round(median(diff(matTrialTN1(:,1)))*2)/2;
+	dblUseMaxDur1 = round(median(matTrialTN1(:,2) - matTrialTN1(:,1))*2)/2;
 	
 	%% neuron 2
 	intNeuron2 = vecPair(2);
@@ -117,7 +118,7 @@ for intPair = 1:intRunPairNum
 	matTrialTN2 = [];
 	matTrialTN2(:,1) = vecStimOnTime;
 	matTrialTN2(:,2) = vecStimOffTime;
-	dblUseMaxDur2 = round(median(diff(matTrialTN2(:,1)))*2)/2;
+	dblUseMaxDur2 = round(median(matTrialTN2(:,2) - matTrialTN2(:,1))*2)/2;
 	dblUseMaxDur = min(dblUseMaxDur1,dblUseMaxDur2);
 	
 	for intRandType=vecRandTypes
@@ -144,8 +145,12 @@ for intPair = 1:intRunPairNum
 	
 		%% run tests
 		intPlot = 0;
-		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
-		if sZETA.dblMeanZ < 2 && sZETA.dblZETA > 2
+		boolWithReplacement = false; %randperm
+		dblZeta2P = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
+		boolWithReplacement = true; %randi
+		dblZeta2P_withrep = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
+		
+		if 0%sZETA.dblZETA > 2.5 %sZETA.dblMeanZ < 2 && sZETA.dblZETA > 2
 			intPlot = 4;
 			[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
 			subplot(2,3,5)
@@ -153,10 +158,9 @@ for intPair = 1:intRunPairNum
 			ylabel('Spiking rate per trial (Hz)');
 			set(gca,'xtick',[1 2],'xticklabel',{'Neuron 1','Neuron 2'});
 			fixfig;
-			pause
+			return
 		end
-		%[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,false,dblUseMaxDur,intResampNum);
-		continue;
+		
 		%% ANOVA
 		%if balanced
 		hTic2 = tic;
@@ -221,7 +225,7 @@ for intPair = 1:intRunPairNum
 		cellNeuron{intPair,intRandType} = [strArea1 strDate1 'N' num2str(intSU1) 'N' num2str(intSU2)];
 		matTtest2(intPair,intRandType) = dblTtest2P;
 		matZeta2(intPair,intRandType) = dblZeta2P;
-		matZeta2_old(intPair,intRandType) = dblZeta2P_old;
+		matZeta2_old(intPair,intRandType) = dblZeta2P_withrep;
 		matAnova2(intPair,intRandType) = dblAnova2P;
 		matAnova2_unbalanced(intPair,intRandType) = dblAnova2P_unbalanced;
 	end

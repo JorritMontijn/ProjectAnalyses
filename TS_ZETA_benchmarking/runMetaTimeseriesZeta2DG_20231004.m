@@ -7,12 +7,18 @@ else
 end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
+
+
 dblSuperResFactor = 100;
 intResamps = 1001; %Q1R10000T64 / Q0R250T64
+vecRunTests = [1:3];
 boolDirectQuantile = false;
+
+
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
 strTest = 'TsZeta2';
+
 
 cellRunRand = {...
 	'',...Rand 1
@@ -42,10 +48,12 @@ for boolDoOGB = [false true]
 	cellMeanP = [];
 	cellZetaP = [];
 	cellAnovaP = [];
+	cellZetaP_wr = [];
 	
 	matZetaP = [];
 	matMeanP = [];
-
+	matZetawrP = [];
+	
 	for intRandType=1:2
 		if intRandType == 1
 			sDir = sDirReal;
@@ -61,6 +69,7 @@ for boolDoOGB = [false true]
 			cellMeanP{intRandType}{intFile} = sLoad.vecTtestP;
 			cellZetaP{intRandType}{intFile} = sLoad.vecTsZetaP;
 			cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;
+			cellZetaP_wr{intRandType}{intFile} = sLoad.vecTsZetaP_wr;
 		end
 	end
 	if isempty(cellMeanP),continue;end
@@ -76,6 +85,8 @@ for boolDoOGB = [false true]
 	cellZetaP{2}(indRemRecs) = [];
 	cellAnovaP{1}(indRemRecs) = [];
 	cellAnovaP{2}(indRemRecs) = [];
+	cellZetaP_wr{1}(indRemRecs) = [];
+	cellZetaP_wr{2}(indRemRecs) = [];
 	
 	vecRandMeanP = cell2vec(cellMeanP{2});
 	vecRealMeanP = cell2vec(cellMeanP{1});
@@ -83,14 +94,18 @@ for boolDoOGB = [false true]
 	vecRealZetaP = cell2vec(cellZetaP{1});
 	vecRandAnovaP = cell2vec(cellAnovaP{2});
 	vecRealAnovaP = cell2vec(cellAnovaP{1});
+	vecRandZetawrP = cell2vec(cellZetaP_wr{2});
+	vecRealZetawrP = cell2vec(cellZetaP_wr{1});
 	
 	matMeanP = cat(2,vecRealMeanP,vecRandMeanP)';
 	matZetaP = cat(2,vecRealZetaP,vecRandZetaP)';
 	matAnovaP = cat(2,vecRealAnovaP,vecRandAnovaP)';
+	matZetawrP = cat(2,vecRealZetawrP,vecRandZetawrP)';
 	
 	matMeanZ = cat(2,-norminv(vecRealMeanP/2),-norminv(vecRandMeanP/2))';
 	matZetaZ = cat(2,-norminv(vecRealZetaP/2),-norminv(vecRandZetaP/2))';
 	matAnovaZ = cat(2,-norminv(vecRealAnovaP/2),-norminv(vecRandAnovaP/2))';
+	matZetawrZ = cat(2,-norminv(vecRealZetawrP/2),-norminv(vecRandZetawrP/2))';
 	
 	%remove nans
 	indRem = any(isnan(matZetaP),1) | any(isnan(matMeanP),1) | any(isnan(matAnovaZ),1);
@@ -100,6 +115,8 @@ for boolDoOGB = [false true]
 	matZetaZ(:,indRem)=[];
 	matAnovaP(:,indRem)=[];
 	matAnovaZ(:,indRem)=[];
+	matZetawrP(:,indRem)=[];
+	matZetawrZ(:,indRem)=[];
 	
 	%rename ks => anova, wilcox=>t
 	%matAnovaP = matKsP;
@@ -111,48 +128,50 @@ for boolDoOGB = [false true]
 	figure
 	matMeanZ(isinf(matMeanZ(:))) = max(matMeanZ(~isinf(matAnovaZ(:))));
 	matZetaZ(isinf(matZetaZ(:))) = max(matZetaZ(~isinf(matAnovaZ(:))));
+	matZetawrZ(isinf(matZetawrZ(:))) = max(matZetawrZ(~isinf(matAnovaZ(:))));
 	matAnovaZ(isinf(matAnovaZ(:))) = max(matAnovaZ(~isinf(matAnovaZ(:))));
 	matMeanP(matMeanP(:)==0) = 1e-29;
 	matZetaP(matZetaP(:)==0) = 1e-29;
+	matZetawrP(matZetawrP(:)==0) = 1e-29;
 	matAnovaP(matAnovaP(:)==0) = 1e-29;
 	h1 =subplot(2,3,1);
 	matC = [0.5 0.5 0.5;...
 		0 0.8 0;...
 		0.8 0 0;...
 		0 0 0.8];
-	vecColor1 = 1 + (matZetaP(1,:) < 0.05 & matMeanP(1,:) > 0.05) + 2*(matZetaP(1,:) > 0.05 & matMeanP(1,:) < 0.05) + 3*(matZetaP(1,:) < 0.05 & matMeanP(1,:) < 0.05);
+	vecColor1 = 1 + (matZetawrP(1,:) < 0.05 & matMeanP(1,:) > 0.05) + 2*(matZetawrP(1,:) > 0.05 & matMeanP(1,:) < 0.05) + 3*(matZetawrP(1,:) < 0.05 & matMeanP(1,:) < 0.05);
 	scatter(matMeanZ(1,:),matZetaZ(1,:),100,vecColor1,'.');
 	colormap(h1,matC(1:max(vecColor1),:));
 	%xlim([0 1]);ylim([0 1]);
 	xlabel('Z-statistic mean-based t-test (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
-	title(sprintf('A) Inclusion at %s=0.05: %s=%.3f, %s=%.3f; n=%d',getGreek('alpha'),getGreek('zeta'),sum(matZetaP(1,:)<0.05)/numel(matZetaP(1,:)),getGreek('mu'),sum(matMeanP(1,:)<0.05)/numel(matMeanP(1,:)),size(matZetaP,2)))
+	title(sprintf('A) Inclusion at %s=0.05: %s=%.3f, %s=%.3f; n=%d',getGreek('alpha'),getGreek('zeta'),sum(matZetawrP(1,:)<0.05)/numel(matZetawrP(1,:)),getGreek('mu'),sum(matMeanP(1,:)<0.05)/numel(matMeanP(1,:)),size(matZetawrP,2)))
 	%set(gca,'xscale','log','yscale','log');
 	
 	h2=subplot(2,3,2);
-	vecColor2 = 1 + 1*(matZetaP(2,:) > 0.05 & matMeanP(2,:) < 0.05) + 2*(matZetaP(2,:) < 0.05 & matMeanP(2,:) > 0.05) + 3*(matZetaP(2,:) < 0.05 & matMeanP(2,:) < 0.05);
+	vecColor2 = 1 + 1*(matZetawrP(2,:) > 0.05 & matMeanP(2,:) < 0.05) + 2*(matZetawrP(2,:) < 0.05 & matMeanP(2,:) > 0.05) + 3*(matZetawrP(2,:) < 0.05 & matMeanP(2,:) < 0.05);
 	scatter(matMeanZ(2,:),matZetaZ(2,:),100,vecColor1,'.');
 	colormap(h2,matC(1:max(vecColor1),:));
 	%xlim([0 1]);ylim([0 1]);
 	xlabel('Z-statistic mean-based t-test (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
-	title(sprintf('B) False alarms at %s=0.05: %s=%.3f, %s=%.3f',getGreek('alpha'),getGreek('zeta'),sum(matZetaP(2,:)<0.05)/numel(matZetaP(2,:)),getGreek('mu'),sum(matMeanP(2,:)<0.05)/numel(matMeanP(2,:))))
+	title(sprintf('B) False alarms at %s=0.05: %s=%.3f, %s=%.3f',getGreek('alpha'),getGreek('zeta'),sum(matZetawrP(2,:)<0.05)/numel(matZetawrP(2,:)),getGreek('mu'),sum(matMeanP(2,:)<0.05)/numel(matMeanP(2,:))))
 	%set(gca,'xscale','log','yscale','log');
 	fixfig;maxfig;
 	
-    dblAlpha = 0.01;
-    intNumN = size(matZetaP,2);
-	vecFP_sortedZ = sort(matZetaP(2,:));
+    dblAlpha = 0.05;
+    intNumN = size(matZetawrP,2);
+	vecFP_sortedZ = sort(matZetawrP(2,:));
 	vecFP_sortedA = sort(matAnovaP(2,:));
-	dblAlphaAtFpAlphaPercZ = vecFP_sortedZ(round(intNumN*dblAlpha));
-	dblAlphaAtFpAlphaPercA = vecFP_sortedA(round(intNumN*dblAlpha));
-	dblInclusionZ_at_Alpha = sum(matZetaP(1,:)<dblAlphaAtFpAlphaPercZ)/numel(matZetaP(1,:));
+	dblAlphaAtFpAlphaPercZ = dblAlpha;%vecFP_sortedZ(round(intNumN*dblAlpha));
+	dblAlphaAtFpAlphaPercA = dblAlpha;%vecFP_sortedA(round(intNumN*dblAlpha));
+	dblInclusionZ_at_Alpha = sum(matZetawrP(1,:)<dblAlphaAtFpAlphaPercZ)/numel(matZetawrP(1,:));
 	h4 =subplot(2,3,4);
 	matC = [0.5 0.5 0.5;...
 		0 0.8 0;...
 		0.8 0 0;...
 		0 0 0.8];
-	vecColor1 = 1 + (matZetaP(1,:) < dblAlpha & matAnovaP(1,:) > dblAlpha) + 2*(matZetaP(1,:) > dblAlpha & matAnovaP(1,:) < dblAlpha) + 3*(matZetaP(1,:) < dblAlpha & matAnovaP(1,:) < dblAlpha);
+	vecColor1 = 1 + (matZetawrP(1,:) < dblAlpha & matAnovaP(1,:) > dblAlpha) + 2*(matZetawrP(1,:) > dblAlpha & matAnovaP(1,:) < dblAlpha) + 3*(matZetawrP(1,:) < dblAlpha & matAnovaP(1,:) < dblAlpha);
 	scatter(matAnovaZ(1,:),matZetaZ(1,:),100,vecColor1,'.');
 	colormap(h4,matC(1:max(vecColor1),:));
 	%xlim([0 1]);ylim([0 1]);
@@ -163,13 +182,13 @@ for boolDoOGB = [false true]
 	fixfig;
 	
 	h5=subplot(2,3,5);
-	vecColor2 = 1 + 1*(matZetaP(2,:) > dblAlpha & matAnovaP(2,:) < dblAlpha) + 2*(matZetaP(2,:) < dblAlpha & matAnovaP(2,:) > dblAlpha) + 3*(matZetaP(2,:) < dblAlpha & matAnovaP(2,:) < dblAlpha);
+	vecColor2 = 1 + 1*(matZetawrP(2,:) > dblAlpha & matAnovaP(2,:) < dblAlpha) + 2*(matZetawrP(2,:) < dblAlpha & matAnovaP(2,:) > dblAlpha) + 3*(matZetawrP(2,:) < dblAlpha & matAnovaP(2,:) < dblAlpha);
 	scatter(matAnovaZ(2,:),matZetaZ(2,:),100,vecColor1,'.');
 	colormap(h5,matC(1:max(vecColor1),:));
 	%xlim([0 1]);ylim([0 1]);
 	xlabel('Z-statistic ANOVA (\Phi^-^1(1-p/2))')
 	ylabel('ZETA (\zeta_c)')
-	title(sprintf('D) FPR at %s=%.3f: %s=%.3f, %s=%.3f, %s=%.3f',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetaP(2,:)<dblAlpha)/numel(matZetaP(2,:)),'A',sum(matAnovaP(2,:)<dblAlpha)/numel(matAnovaP(2,:)),'T',sum(matMeanP(2,:)<dblAlpha)/numel(matMeanP(2,:))))
+	title(sprintf('D) FPR at %s=%.3f: %s=%.3f, %s=%.3f, %s=%.3f',getGreek('alpha'),dblAlpha,getGreek('zeta'),sum(matZetawrP(2,:)<dblAlpha)/numel(matZetawrP(2,:)),'A',sum(matAnovaP(2,:)<dblAlpha)/numel(matAnovaP(2,:)),'T',sum(matMeanP(2,:)<dblAlpha)/numel(matMeanP(2,:))))
 	%set(gca,'xscale','log','yscale','log');
 	fixfig;maxfig;
 	
@@ -179,15 +198,19 @@ for boolDoOGB = [false true]
 	subplot(2,3,3)
     maxfig;
     hold on;
-
-    for intTest=1:3
+	cellNames = {'TS-ZETA-wr','ANOVA','T-test','ZETA','ANOVA-b'};
+	cellLegendAuc = {};
+	
+    for intTest=vecRunTests
         if intTest == 1
-            matData = matZetaP;
+            matData = matZetawrP;
         elseif intTest == 2
             matData = matAnovaP;
         elseif intTest == 3
             matData = matMeanP;
-		end
+		 elseif intTest == 4
+            matData = matZetaP;
+       end
 		intCells = size(matData,2);
 		vecBothData = cat(2,matData(1,:),matData(2,:));
 		vecBothLabels = cat(2,zeros(size(matData(1,:))),ones(size(matData(1,:))));
@@ -203,6 +226,8 @@ for boolDoOGB = [false true]
 		[dblAUC,Aci,Ase] = getAuc(vecShuffP,vecRealP,0.05,'mann-whitney');
 		vecAUC(intTest) = dblAUC;
 		vecAUC_se(intTest) = Ase;
+		
+		cellLegendAuc(end+1) = {sprintf('%s, AUC=%.3f',cellNames{intTest},dblAUC)};
 	end
 	
 	%% run tests on aucs
@@ -237,21 +262,24 @@ for boolDoOGB = [false true]
 	xlabel('False positive fraction');
 	ylabel('Inclusion fraction');
 	title(sprintf('E) ROC; %s %s %s',strQ,strR,strIndicator));
-	legend({sprintf('ZETA-test, AUC=%.3f',vecAUC(1)),sprintf('ANOVA, AUC=%.3f',vecAUC(2)),sprintf('t-test, AUC=%.3f',vecAUC(3))},'location','best','interpreter','none');
+	legend(cellLegendAuc,'location','best','interpreter','none');
 
     subplot(2,3,6)
     cellLegend = {};
     hold on;
-   for intTest=1:3
+   for intTest=vecRunTests
         if intTest == 1
-            matData = matZetaP;
-            cellLegend(end+1) = {'TS-ZETA'};
+            matData = matZetawrP;
+            cellLegend(end+1) = {'TS-ZETA-wr'};
         elseif intTest == 2
             matData = matAnovaP;
             cellLegend(end+1) = {'ANOVA'};
         elseif intTest == 3
             matData = matMeanP;
             cellLegend(end+1) = {'T-test'};
+		elseif intTest == 4
+			matData = matZetaP;
+			cellLegend(end+1) = {'TS-ZETA'};
 		end
         vecRandSorted = sort(matData(2,:));
         vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
@@ -260,8 +288,9 @@ for boolDoOGB = [false true]
     xlabel(sprintf('Significance level %s',getGreek('alpha')));
     ylabel(sprintf('P-value threshold required to match empirical FPR'));
     set(gca,'xscale','log','yscale','log');
+    xlim([0.001 1]);
     dblMinVal = max(get(gca,'xlim'),get(gca,'ylim'));
-    plot([dblMinVal 1],[dblMinVal 1],'k--');
+	plot([dblMinVal 1],[dblMinVal 1],'k--');
     cellLegend(end+1) = {'Theoretical norm'};
     hold off;
     legend(cellLegend,'location','best');
@@ -278,17 +307,19 @@ for boolDoOGB = [false true]
 	figure(hMegaFig);drawnow;
 	intPlot = (boolDoOGB) + 1;
 	subplot(2,3,intPlot);
-	cellColor = {lines(1),'r','k'};
+	cellColor = {lines(1),'r','k','b'};
 	%vecH(intResampNpx) = subplot(4,3,intResampNpx);
 	hold on;
 	
-	for intTest=1:3
+	for intTest=vecRunTests
 		if intTest == 1
-			matData = matZetaP;
+			matData = matZetawrP;
 		elseif intTest == 2
 			matData = matAnovaP;
 		elseif intTest == 3
 			matData = matMeanP;
+		elseif intTest == 4
+			matData = matZetaP;
 		end
 		intCells = size(matData,2);
 		vecBothData = cat(2,matData(1,:),matData(2,:));
@@ -309,7 +340,7 @@ for boolDoOGB = [false true]
 	xlabel('False positive fraction');
 	ylabel('Inclusion fraction');
 	title(sprintf('ROC; %s %s %s',strQ,strR,strIndicator));
-	legend({sprintf('ZETA-test, AUC=%.3f',vecAUC(1)),sprintf('ANOVA, AUC=%.3f',vecAUC(2)),sprintf('t-test, AUC=%.3f',vecAUC(3))},'location','best','interpreter','none');
+	legend(cellLegendAuc,'location','best','interpreter','none');
 	fixfig;
 	
 end

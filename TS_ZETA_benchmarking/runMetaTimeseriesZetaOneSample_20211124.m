@@ -16,9 +16,8 @@ strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
 matAggTtestP = sLoad.matTtest;
 matAggTtest = -norminv(matAggTtestP/2);
-matAggZetaP_uni = sLoad.matTsZetaUni;
-matAggZetaP_lin = sLoad.matTsZetaLin;
-matAggZeta =-norminv(matAggZetaP_uni/2);
+matAggZetaP = sLoad.matTsZeta;
+matAggZeta =-norminv(matAggZetaP/2);
 matAggAnovaP = sLoad.matAnova;
 matAggAnova = -norminv(matAggAnovaP/2);
 strRec = sLoad.strRec;
@@ -88,7 +87,7 @@ subplot(2,3,6)
 hold on;
 for intTest=1:3
     if intTest == 1
-        matData = matAggZetaP_uni;
+        matData = matAggZetaP;
     elseif intTest == 2
         matData = matAggAnovaP;
     elseif intTest == 3

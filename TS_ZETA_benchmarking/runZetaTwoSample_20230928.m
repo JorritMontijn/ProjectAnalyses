@@ -5,7 +5,7 @@
 %close all;
 clear all;
 cellUniqueAreas = {...
-	'PoissonPeak',...Area 1
+	'PoissonPeakHeight',...Area 1
 	'PoissonDoublePeak',...Area 2
 	};
 
@@ -27,10 +27,11 @@ intResampIdx = 1;
 intResampNum = vecResamps(intResampIdx);
 intResamps= numel(vecResamps);
 intUseGenN = 1000;
-boolUnbalanced = false;
+boolUnbalanced = true;
 vecRunAreas = 1;%[1 8]
 intNeurons = intUseGenN;
-intFracDiffSpikes = 0.5;
+dblFracDiffSpikes = 0.25;%max 0.5
+global boolWithReplacement
 
 %% pre-allocate output variables
 cellNeuron = cell(intNeurons,2,intResamps);
@@ -70,7 +71,7 @@ for intNeuron=1:intNeurons
 	dblPreBaseDur = 3;
 	dblPostBaseDur = 2;
 	dblTrialDur = dblPreBaseDur + dblStimDur + dblPostBaseDur;
-	dblUseMaxDur = dblTrialDur;
+	dblUseMaxDur = dblStimDur;
 	intOris = 24;
 	dblStepDeg = 360/intOris;
 	vecOris = linspace(0,360-dblStepDeg,intOris);
@@ -99,28 +100,28 @@ for intNeuron=1:intNeurons
 	% generate peak
 	dblStartDelay = 0.053;
 	dblPeakDelay1 = dblStartDelay;
-	intAddSpikes1 = intTrials/2;
+	intAddSpikes1 = round(intTrials*dblFracDiffSpikes);
 	[vecSpikeTimes1,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles1,matTrialT1,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes1,dblStartDelay,dblPeakDelay1);
-	
+	intTrials2 = size(matTrialT2,1);
+				
 	%% real+rand
 	for intRunType=vecRandTypes
 		%randomize
 		if intRunType ==2
 			%generate n2, no diff
-			intAddSpikes2 = intAddSpikes1;
+			intAddSpikes2 = round((intAddSpikes1/intTrials)*intTrials2);
 			dblPeakDelay2 = dblPeakDelay1;
 			[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2,dblStartDelay,dblPeakDelay2);
 		else
 			if strcmp(strArea,'PoissonDoublePeak')
 				%generate n2, diff in peak time
 				dblPeakDelay2 = dblPeakDelay1+0.002;
-				intAddSpikes2 = intAddSpikes1;
+				intAddSpikes2 = round(dblFracDiffSpikes*intTrials2);
 				[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2,dblStartDelay,dblPeakDelay2);
-			elseif strcmp(strArea,'PoissonPeak')
+			elseif strcmp(strArea,'PoissonPeakHeight')
 				%generate n2, diff in peak height
-				intDiffSpikes = round(intFracDiffSpikes*intAddSpikes1);
 				dblPeakDelay2 = dblPeakDelay1;
-				intAddSpikes2 = intAddSpikes1 + intDiffSpikes;
+				intAddSpikes2 = 2*round(dblFracDiffSpikes*intTrials2);
 				[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2,dblStartDelay,dblPeakDelay2);
 			else
 				error('not recognized');
@@ -138,9 +139,10 @@ for intNeuron=1:intNeurons
 		end
 		
 		%% run tests
+		boolWithReplacement = false; %randperm
 		[dblZeta2P,sZETA] = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
-		%[dblZeta2P_old,sZETA] = zetatest2(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,false,dblUseMaxDur,intResampNum);
-		dblZeta2P_old=1;
+		boolWithReplacement = true; %randi
+		[dblZeta2P_withrep,sZETA] = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
 		
 		%% ANOVA
 		%if balanced
@@ -151,7 +153,7 @@ for intNeuron=1:intNeurons
 		[optN, dblC, allN, allC] = opthist(vecTimePerSpike1);
 		if optN<optLow,optN=optLow;end %at least 2 bins
 		if optN>optHigh,optN=optHigh;end %at least 2 bins
-		optN = dblUseMaxDur/0.01;
+		%optN = dblUseMaxDur/0.01;
 		intTrials1 = size(matTrialT1,1);
 		intTrials2 = size(matTrialT2,1);
 		dblBinWidth = dblUseMaxDur/optN;
@@ -181,13 +183,13 @@ for intNeuron=1:intNeurons
 		end
 		
 		%if not balanced
-		%y = cat(1,matPSTH1(:),matPSTH2(:));
-		%g1 = cat(1,matLabelN1(:),matLabelN2(:));
-		%g2 = cat(1,matLabelBin1(:),matLabelBin2(:));
-		%[vecP,tbl,stats] = anovan(y,{g1 g2},'model','interaction','display','off');
-		%[h crit_p adj_p]=fdr_bh(vecP([1 3]));
-		%dblAnova2P_unbalanced = min(adj_p);
-		dblAnova2P_unbalanced=1;
+		y = cat(1,matPSTH1(:),matPSTH2(:));
+		g1 = cat(1,matLabelN1(:),matLabelN2(:));
+		g2 = cat(1,matLabelBin1(:),matLabelBin2(:));
+		[vecP,tbl,stats] = anovan(y,{g1 g2},'continuous',[2],'model','interaction','display','off');
+		[h crit_p adj_p]=fdr_bh(vecP([1 3]));
+		dblAnova2P_unbalanced = min(adj_p);
+		%dblAnova2P_unbalanced=1;
 		
 		%% t-test
 		%'vecTtestP','vecTtestTime'
@@ -210,7 +212,7 @@ for intNeuron=1:intNeurons
 		cellNeuron{intNeuron,intRunType,intResampIdx} = [strArea strDate 'N' num2str(intSU)];
 		matTtest2(intNeuron,intRunType,intResampIdx) = dblTtest2P;
 		matZeta2(intNeuron,intRunType,intResampIdx) = dblZeta2P;
-		matZeta2_old(intNeuron,intRunType,intResampIdx) = dblZeta2P_old;
+		matZeta2_old(intNeuron,intRunType,intResampIdx) = dblZeta2P_withrep;
 		matAnova2(intNeuron,intRunType,intResampIdx) = dblAnova2P;
 		matAnova2_unbalanced(intNeuron,intRunType,intResampIdx) = dblAnova2P_unbalanced;
 	end

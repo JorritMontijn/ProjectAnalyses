@@ -93,9 +93,12 @@ for intTest=1:3
     elseif intTest == 3
         matData = matAggTtestP;
     end
-    vecRandSorted = sort(matData(:,2));
-    vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
-    plot(vecQuantile,vecRandSorted,'Color',cellColor{intTest});
+	
+	vecRandSorted = sort(matData(:,2)');
+	vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
+	
+	vecFPR = sum(vecRandSorted'<vecQuantile,1)/numel(vecRandSorted);
+	plot(vecQuantile,vecFPR,'Color',cellColor{intTest});
 end
 xlabel(sprintf('Significance level %s',getGreek('alpha')));
 ylabel(sprintf('P-value threshold required to match empirical FPR'));

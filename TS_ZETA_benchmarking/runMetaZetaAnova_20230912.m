@@ -13,7 +13,7 @@ cellUniqueAreas = {...
 	'TriPhasic',...Area 2
 	'QuadriPhasic',...Area 3
 	'iidGaussian',...Area 4
-	'',...Area 5
+	'TriHomoPhasic',...Area 5
 	'',...Area 6
 	'lateral geniculate',...Area 7
 	'Primary visual',...Area 8
@@ -64,9 +64,9 @@ boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-for intArea=[1:4 8]%8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
+for intArea=5%[1:4 8]%8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 	strArea = cellUniqueAreas{intArea}; %V1, SC, Retina, Poisson, GCaMP
-	if intArea < 5%7
+	if intArea < 7%7
 		vecRunStims = 1;
 	else
 		vecRunStims = 2:numel(cellRunStim);
@@ -261,7 +261,7 @@ for intArea=[1:4 8]%8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 				intCells = size(matData,1);
 				vecBothData = cat(1,matData(:,1),matData(:,2));
 				vecBothLabels = cat(1,zeros(size(matData(:,1))),ones(size(matData(:,1))));
-				vecThresholds = sort(vecBothData);
+				vecThresholds = [0; sort(vecBothData); 1];
 				vecRealP = matData(:,1);
 				vecShuffP = matData(:,2);
 				

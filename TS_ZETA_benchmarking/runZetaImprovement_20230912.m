@@ -323,10 +323,10 @@ for intArea=vecRunAreas
 					intSpikeNum = numel(vecSpikeTimes);
 					if intSpikeNum<3,continue;end
 					
-					%[vecMean,vecSEM,vecWindowBinCenters] = ...
-					%	doPEP(vecSpikeTimes,[-0.5:dblBinW:(dblStimDur+0.5)],matEventTimes(:,1));
-					%pause
-					%continue;
+					[vecMean,vecSEM,vecWindowBinCenters] = ...
+						doPEP(vecSpikeTimes,[-0.5:dblBinW:(3*dblStimDur+0.5)],matEventTimes(:,1));
+					pause 
+					continue;
 					
 					%if size(matEventTimes,1) > 0,continue;end
 					%%{

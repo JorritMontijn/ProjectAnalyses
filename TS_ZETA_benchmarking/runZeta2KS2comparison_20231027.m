@@ -27,14 +27,14 @@ intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 boolSave = true;
 intResampleNum = 250;%250;%10:10:90;%[10:10:100];
-intNeurons = 100;
-vecRunTrialNums = [2:10 20:10:100];
+intNeurons = 1000;
+vecRunTrialNums = [2 5 10:10:100];
 intRunTrialNums = numel(vecRunTrialNums);
 			
 cellNeuron = cell(intRunTrialNums,intNeurons,2);
-vecNumSpikes = nan(intRunTrialNums,intNeurons,2);
-vecZetaP = nan(intRunTrialNums,intNeurons,2);
-vecKsP = nan(intRunTrialNums,intNeurons,2);
+matNumSpikes = nan(intRunTrialNums,intNeurons,2);
+matZetaP = nan(intRunTrialNums,intNeurons,2);
+matKsP = nan(intRunTrialNums,intNeurons,2);
 %set var
 for intTrialNumIdx=1:intRunTrialNums
 	intTrialNum = vecRunTrialNums(intTrialNumIdx);
@@ -55,7 +55,7 @@ for intTrialNumIdx=1:intRunTrialNums
 		
 		%% pre-allocate output variables
 		cellNeuron = cell(1,intNeurons);
-		vecNumSpikes = zeros(1,intNeurons);
+		matNumSpikes = zeros(1,intNeurons);
 		vecZeta2P = ones(1,intNeurons);
 		vecKS2P = ones(1,intNeurons);
 		
@@ -88,21 +88,19 @@ for intTrialNumIdx=1:intRunTrialNums
 			vecRepStarts = 5+cumsum(vecTrialDur);
 			dblEndT = vecRepStarts(end)+5;
 			vecSpikeTimes1 = getGeneratedMultiPhasicR(dblBaseRate,vecRates1,vecDurs,vecRepStarts,dblEndT);
-			vecSpikeTimes2 = getGeneratedMultiPhasicR(dblBaseRate,vecRates2,vecDurs,vecRepStarts,dblEndT);
-			
-			vecTrialStarts = vecRepStarts(:);
-			vecTrialStarts(:,2) = vecTrialStarts(:,1) + dblUseMaxDur;
+			if contains(strRunType,'Rand')
+				%generate duplicate
+				vecSpikeTimes2 = getGeneratedMultiPhasicR(dblBaseRate,vecRates1,vecDurs,vecRepStarts,dblEndT);
+			else
+				%generate difference
+				vecSpikeTimes2 = getGeneratedMultiPhasicR(dblBaseRate,vecRates2,vecDurs,vecRepStarts,dblEndT);
+			end
+			matEventTimes = vecRepStarts(:);
+			matEventTimes(:,2) = matEventTimes(:,1) + dblUseMaxDur;
 			
 			%% get visual responsiveness
 			%get trial dur
 			%set derivative params
-			if contains(strRunType,'Rand')
-				dblDur = dblUseMaxDur;
-				vecJitter = (2*dblDur*rand([size(vecTrialStarts,1) 1])-dblDur);
-				matEventTimes = bsxfun(@plus,vecTrialStarts,vecJitter);
-			else
-				matEventTimes = vecTrialStarts;
-			end
 			intTrials = size(matEventTimes,1);
 			intSpikeNum = numel(vecSpikeTimes1)+numel(vecSpikeTimes2);
 			[vecTrialPerSpike1,vecTimePerSpike1] = getSpikesInTrial(vecSpikeTimes1,matEventTimes(:,1),dblUseMaxDur);
@@ -130,13 +128,13 @@ for intTrialNumIdx=1:intRunTrialNums
 			%%
 			% assign data
 			cellNeuron{intTrialNumIdx,intNeuron,intRandType} = [strDate 'N' num2str(intSU)];
-			vecNumSpikes(intTrialNumIdx,intNeuron,intRandType) = intSpikeNum;
-			vecZetaP(intTrialNumIdx,intNeuron,intRandType) = dblZetaP;
-			vecKsP(intTrialNumIdx,intNeuron,intRandType) = pKS2;
+			matNumSpikes(intTrialNumIdx,intNeuron,intRandType) = intSpikeNum;
+			matZetaP(intTrialNumIdx,intNeuron,intRandType) = dblZetaP;
+			matKsP(intTrialNumIdx,intNeuron,intRandType) = pKS2;
 		end
 	end
 end
 if boolSave
 	save([strDataTargetPath 'ZetaDataKsResamp' num2str(intResampleNum) '.mat' ],...
-		'cellNeuron','vecNumSpikes','vecZetaP','vecKsP');
+		'cellNeuron','matNumSpikes','matZetaP','matKsP','vecRunTrialNums');
 end

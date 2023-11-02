@@ -16,7 +16,7 @@ boolSave = true;
 vecRunTests = [1:4];
 
 %% prep
-intPlotType = 4;
+intPlotType = 3;
 if intPlotType == 1
 	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';
@@ -49,14 +49,14 @@ cellNeuron = sLoad.cellNeuron;
 matAnovaP_b = sLoad.matAnova2_unbalanced;
 matAnovaP = sLoad.matAnova2_unbalanced;
 matMeanP = sLoad.matTtest2;
-matZetaP_old = sLoad.matZeta2;
-matZetaP = sLoad.matZeta2_old;
+matZetaP_old = sLoad.matZeta2; %without replacement
+matZetaP = sLoad.matZeta2_old; %with replacement
 
 %% plot
 %flatten
 matMeanZ = -norminv(matMeanP/2);
-matZetaZ = -norminv(matZetaP/2);
-matZetaZ_old = -norminv(matZetaP_old/2);
+matZetaZ = -norminv(matZetaP/2); %with replacement
+matZetaZ_old = -norminv(matZetaP_old/2); %without replacement
 matAnovaZ_b = -norminv(matAnovaP_b/2);
 matAnovaZ = -norminv(matAnovaP/2);
 
@@ -145,7 +145,7 @@ if size(matMeanZ,1) >= 1
 	%vecH(intResampNpx) = subplot(4,3,intResampNpx);
 	subplot(2,3,3)
 	hold on;
-	cellNames = {'ZETA','ANOVA','T-test','ZETA-wr','ANOVA-b'};
+	cellNames = {'ZETA','ANOVA','T-test','ZETA-nr','ANOVA-b'};
 	cellLegend = {};
 	for intTest=vecRunTests
 		if intTest == 1

@@ -26,14 +26,15 @@ strFigPath = fullfile(strPath,'\Figs\');
 intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 boolSave = true;
-intResampleNum = 250;%250;%10:10:90;%[10:10:100];
-intNeurons = 1000;
-vecRunTrialNums = [2 5 10:10:100];
+intResampleNum = 1000;%250;%10:10:90;%[10:10:100];
+intNeurons = 10000;
+vecRunTrialNums = [2 10:10:100 200:100:1000];
 intRunTrialNums = numel(vecRunTrialNums);
 			
 cellNeuron = cell(intRunTrialNums,intNeurons,2);
 matNumSpikes = nan(intRunTrialNums,intNeurons,2);
 matZetaP = nan(intRunTrialNums,intNeurons,2);
+matTtestP = nan(intRunTrialNums,intNeurons,2);
 matKsP = nan(intRunTrialNums,intNeurons,2);
 %set var
 for intTrialNumIdx=1:intRunTrialNums
@@ -115,7 +116,8 @@ for intTrialNumIdx=1:intRunTrialNums
 			%if size(matEventTimes,1) > 0,continue;end
 			%%{
 			intPlot = 0;
-			dblZetaP=zetatest2(vecSpikeTimes1,matEventTimes(:,1),vecSpikeTimes2,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot);
+			[dblZetaP,sZeta2]=zetatest2(vecSpikeTimes1,matEventTimes,vecSpikeTimes2,matEventTimes,dblUseMaxDur,intResampleNum,intPlot);
+			dblTtestP = sZeta2.dblMeanP;
 			
 			%% KS
 			hTic2 = tic;
@@ -130,11 +132,12 @@ for intTrialNumIdx=1:intRunTrialNums
 			cellNeuron{intTrialNumIdx,intNeuron,intRandType} = [strDate 'N' num2str(intSU)];
 			matNumSpikes(intTrialNumIdx,intNeuron,intRandType) = intSpikeNum;
 			matZetaP(intTrialNumIdx,intNeuron,intRandType) = dblZetaP;
+			matTtestP(intTrialNumIdx,intNeuron,intRandType) = dblTtestP;
 			matKsP(intTrialNumIdx,intNeuron,intRandType) = pKS2;
 		end
 	end
 end
 if boolSave
-	save([strDataTargetPath 'ZetaDataKsResamp' num2str(intResampleNum) '.mat' ],...
+	save([strDataTargetPath 'Zeta2DataKsResamp' num2str(intResampleNum) '.mat' ],...
 		'cellNeuron','matNumSpikes','matZetaP','matKsP','vecRunTrialNums');
 end

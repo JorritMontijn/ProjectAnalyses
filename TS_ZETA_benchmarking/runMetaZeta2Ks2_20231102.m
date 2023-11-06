@@ -9,7 +9,7 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 %% load data
-sDir=dir([strDataPath 'ZetaDataKsResamp250.mat']);
+sDir=dir([strDataPath 'ZetaDataKsResamp1000.mat']);
 strFile = sDir(1).name;
 sLoad=load([strDataPath strFile]);
 
@@ -23,10 +23,10 @@ hAx3=subplot(2,3,3);hold on; %auc
 % analysis
 cellColor = {lines(1),'m'};
 %vecH(intResampNpx) = subplot(4,3,intResampNpx);
-cellNames = {'ZETA2','KS2'};
+cellNames = {'ZETA2','KS2','Ttest2'};
 cellLegend = {};
 intTrialNum = numel(sLoad.vecRunTrialNums);
-vecRunTests = 1:2;
+vecRunTests = 1:3;
 matTPR = nan(numel(vecRunTests),intTrialNum);
 matTPR_se = nan(numel(vecRunTests),intTrialNum,2);
 matFPR = nan(numel(vecRunTests),intTrialNum);
@@ -39,6 +39,8 @@ for intTest=vecRunTests
 	if intTest == 1
 		matFullData = sLoad.matZetaP;
 	elseif intTest == 2
+		matFullData = sLoad.matKsP;
+	elseif intTest == 3
 		matFullData = sLoad.matKsP;
 	end
 	for intTrialIdx = 1:intTrialNum

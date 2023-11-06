@@ -139,5 +139,5 @@ for intTrialNumIdx=1:intRunTrialNums
 end
 if boolSave
 	save([strDataTargetPath 'Zeta2DataKsResamp' num2str(intResampleNum) '.mat' ],...
-		'cellNeuron','matNumSpikes','matZetaP','matKsP','vecRunTrialNums');
+		'cellNeuron','matNumSpikes','matTtestP','matZetaP','matKsP','vecRunTrialNums');
 end

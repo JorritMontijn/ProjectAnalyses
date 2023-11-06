@@ -27,7 +27,7 @@ intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 boolSave = true;
 intResampleNum = 1000;%250;%10:10:90;%[10:10:100];
-intNeurons = 10000;
+intNeurons = 1000;%10000
 vecRunTrialNums = [2 10:10:100 200:100:1000];
 intRunTrialNums = numel(vecRunTrialNums);
 			
@@ -53,12 +53,6 @@ for intTrialNumIdx=1:intRunTrialNums
 		%% message
 		fprintf('Processing %s, trial # %d (%d/%d) [%s]\n',strRunType,intTrialNum,intTrialNumIdx,intRunTrialNums,getTime);
 		hTic=tic;
-		
-		%% pre-allocate output variables
-		cellNeuron = cell(1,intNeurons);
-		matNumSpikes = zeros(1,intNeurons);
-		vecZeta2P = ones(1,intNeurons);
-		vecKS2P = ones(1,intNeurons);
 		
 		%% analyze
 		dblStimDur = 1;%5
@@ -116,7 +110,8 @@ for intTrialNumIdx=1:intRunTrialNums
 			%if size(matEventTimes,1) > 0,continue;end
 			%%{
 			intPlot = 0;
-			[dblZetaP,sZeta2]=zetatest2(vecSpikeTimes1,matEventTimes,vecSpikeTimes2,matEventTimes,dblUseMaxDur,intResampleNum,intPlot);
+			boolDirectQuantile = false;
+			[dblZetaP,sZeta2]=zetatest2(vecSpikeTimes1,matEventTimes,vecSpikeTimes2,matEventTimes,dblUseMaxDur,intResampleNum,intPlot,boolDirectQuantile);
 			dblTtestP = sZeta2.dblMeanP;
 			
 			%% KS
@@ -137,6 +132,7 @@ for intTrialNumIdx=1:intRunTrialNums
 		end
 	end
 end
+
 if boolSave
 	save([strDataTargetPath 'Zeta2DataKsResamp' num2str(intResampleNum) '.mat' ],...
 		'cellNeuron','matNumSpikes','matTtestP','matZetaP','matKsP','vecRunTrialNums');

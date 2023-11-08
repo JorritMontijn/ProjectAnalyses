@@ -28,7 +28,7 @@ vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 boolSave = true;
 intResampleNum = 1000;%250;%10:10:90;%[10:10:100];
 intNeurons = 1000;%10000
-vecRunTrialNums = [2 10:10:100 200:100:1000];
+vecRunTrialNums = [2 10 20 50 100];
 intRunTrialNums = numel(vecRunTrialNums);
 			
 cellNeuron = cell(intRunTrialNums,intNeurons,2);

@@ -49,7 +49,7 @@ cellRepStr = {...
 sDir = dir(fullpath(strDataSourcePath,'*.mat'));
 cellFiles = {sDir.name};
 
-for intRec=2:numel(sDir)
+for intRec=1%2:numel(sDir)
 	sLoad = load(fullpath(sDir(intRec).folder,sDir(intRec).name));
 	sAP = sLoad.sAP;
 	strRec = sAP.Rec;
@@ -269,18 +269,18 @@ for intRec=2:numel(sDir)
 		for intNeuron=1:intNeurons
 			dblP = bonf_holm(matZeta2P(intNeuron,~isnan(matZeta2P(intNeuron,:,intRand)),intRand));
 			%dblP = squeeze(min(matZeta2P(intNeuron,:,intRand),[],2));
-			if isempty(dblP),dblP=1;end
-			matZeta2P_summary(intNeuron,intRand) = min(dblP);
+			if isempty(dblP),dblP=nan;end
+			matZeta2P_summary(intNeuron,intRand) = nanmin(dblP);
 			
 			dblP = bonf_holm(matTtest2P(intNeuron,~isnan(matTtest2P(intNeuron,:,intRand)),intRand));
 			%dblP = squeeze(min(matTtest2P(intNeuron,:,intRand),[],2));
-			if isempty(dblP),dblP=1;end
-			matTtest2P_summary(intNeuron,intRand) = min(dblP);
+			if isempty(dblP),dblP=nan;end
+			matTtest2P_summary(intNeuron,intRand) = nanmin(dblP);
 			
 			dblP = bonf_holm(matAnova2P(intNeuron,~isnan(matAnova2P(intNeuron,:,intRand)),intRand));
 			%dblP = squeeze(min(matAnova2P(intNeuron,:,intRand),[],2));
-			if isempty(dblP),dblP=1;end
-			matAnova2P_summary(intNeuron,intRand) = min(dblP);
+			if isempty(dblP),dblP=nan;end
+			matAnova2P_summary(intNeuron,intRand) = nanmin(dblP);
 		end
 		if intRand == 1
 			strRand = 'Inclusion';
@@ -301,6 +301,6 @@ for intRec=2:numel(sDir)
 			strCombine = 'Split';
 		end
 		save([strDataTargetPath 'Zeta2Steinmetz' strCombine strRec '.mat' ],...
-			'matTrialNum','matZeta2P','matTtest2P','matAnova2P');
+			'cellArea','matTrialNum','matZeta2P','matTtest2P','matAnova2P');
 	end
 end

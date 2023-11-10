@@ -27,8 +27,8 @@ intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 boolSave = true;
 intResampleNum = 1000;%250;%10:10:90;%[10:10:100];
-intNeurons = 1000;%10000
-vecRunTrialNums = [2 10 20 50 100];
+intNeurons = 10000;%10000
+vecRunTrialNums = [2 10:10:100 200:100:1000];
 intRunTrialNums = numel(vecRunTrialNums);
 			
 cellNeuron = cell(intRunTrialNums,intNeurons,2);
@@ -37,7 +37,7 @@ matZetaP = nan(intRunTrialNums,intNeurons,2);
 matTtestP = nan(intRunTrialNums,intNeurons,2);
 matKsP = nan(intRunTrialNums,intNeurons,2);
 %set var
-for intTrialNumIdx=1:intRunTrialNums
+for intTrialNumIdx=19:intRunTrialNums
 	intTrialNum = vecRunTrialNums(intTrialNumIdx);
 	for intRandType=vecRandTypes
 		%reset vars

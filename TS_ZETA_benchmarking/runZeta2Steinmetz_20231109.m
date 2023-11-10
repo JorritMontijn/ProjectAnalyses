@@ -19,6 +19,7 @@ boolSave = true;
 intResampNum = 250;%250;%10:10:90;%[10:10:100];
 optLow = 2;
 optHigh = 100;
+boolCombineAll = true;
 
 cellRepStr = {...
 	'RunDriftingGratings','-DG';...
@@ -48,7 +49,7 @@ cellRepStr = {...
 sDir = dir(fullpath(strDataSourcePath,'*.mat'));
 cellFiles = {sDir.name};
 
-for intRec=1:numel(sDir)
+for intRec=2:numel(sDir)
 	sLoad = load(fullpath(sDir(intRec).folder,sDir(intRec).name));
 	sAP = sLoad.sAP;
 	strRec = sAP.Rec;
@@ -113,9 +114,11 @@ for intRec=1:numel(sDir)
 	dblUseMaxDur = min(vecCueDur)-dblOffsetT;
 	
 	%% run
+	if boolCombineAll,intUseCombos=1;end
 	matZeta2P = nan(intNeurons,intUseCombos,2);
 	matTtest2P = nan(intNeurons,intUseCombos,2);
 	matAnova2P = nan(intNeurons,intUseCombos,2);
+	matTrialNum = nan(2,intUseCombos,2);
 	for intUseCombo=1:intUseCombos
 		%% message
 		fprintf('Processing %s (%d/%d), combination %d/%d [%s]\n',strRec,intRec,numel(sDir),intUseCombo,intUseCombos,getTime);
@@ -132,9 +135,13 @@ for intRec=1:numel(sDir)
 			
 			for intRand=[1 2]
 				%% prep data
-				indCorrectTrials = matComboTrialsPerResp(intUseCombo,:,1);
-				indIncorrectTrials = matComboTrialsPerResp(intUseCombo,:,2);
-				
+				if boolCombineAll
+					indCorrectTrials = sum(matComboTrialsPerResp(:,:,1),1)==1;
+					indIncorrectTrials = sum(matComboTrialsPerResp(:,:,2),1)==1;
+				else
+					indCorrectTrials = matComboTrialsPerResp(intUseCombo,:,1);
+					indIncorrectTrials = matComboTrialsPerResp(intUseCombo,:,2);
+				end
 				vecEventOnCorrect = sStim.vecResponseTime(indCorrectTrials) - dblOffsetT;
 				matTrialT1 = cat(2,vecEventOnCorrect,vecEventOnCorrect+dblUseMaxDur);
 				
@@ -216,6 +223,8 @@ for intRec=1:numel(sDir)
 				[h,dblTtest2P]=ttest2(vecMu1,vecMu2);
 				
 				%% save
+				matTrialNum(1,intUseCombo,intRand) = sum(indCorrectTrials);
+				matTrialNum(2,intUseCombo,intRand) = sum(indIncorrectTrials);
 				matZeta2P(intNeuron,intUseCombo,intRand) = dblZeta2P;
 				matTtest2P(intNeuron,intUseCombo,intRand) = dblTtest2P;
 				matAnova2P(intNeuron,intUseCombo,intRand) = dblAnova2P;
@@ -227,15 +236,15 @@ for intRec=1:numel(sDir)
 		matAnova2P_summary = nan(intNeurons,2);
 		for intRand=[1 2]
 			for intNeuron=1:intNeurons
-				dblP = bonf_holm(matZeta2P(intNeuron,~isnan(matZeta2P(intNeuron,:,intRand)),intRand));
+				dblP = bonf_holm(matZeta2P(intNeuron,~isnan(matZeta2P(intNeuron,intUseCombo,intRand)),intRand));
 				if isempty(dblP),dblP=1;end
 				matZeta2P_summary(intNeuron,intRand) = min(dblP);
 				
-				dblP = bonf_holm(matTtest2P(intNeuron,~isnan(matTtest2P(intNeuron,:,intRand)),intRand));
+				dblP = bonf_holm(matTtest2P(intNeuron,~isnan(matTtest2P(intNeuron,intUseCombo,intRand)),intRand));
 				if isempty(dblP),dblP=1;end
 				matTtest2P_summary(intNeuron,intRand) = min(dblP);
 				
-				dblP = bonf_holm(matAnova2P(intNeuron,~isnan(matAnova2P(intNeuron,:,intRand)),intRand));
+				dblP = bonf_holm(matAnova2P(intNeuron,~isnan(matAnova2P(intNeuron,intUseCombo,intRand)),intRand));
 				if isempty(dblP),dblP=1;end
 				matAnova2P_summary(intNeuron,intRand) = min(dblP);
 			end
@@ -244,13 +253,54 @@ for intRec=1:numel(sDir)
 			else
 				strRand = 'FPR';
 			end
-			fprintf('%s at alpha=0.05, Z=%d%%,T=%d%%,A=%d%%\n',...
-				strRand,...
+			fprintf('%s %s, combo %d/%d at alpha=0.05, Z=%d%%,T=%d%%,A=%d%%\n',...
+				strRec,strRand,intUseCombo,intUseCombos,...
 				round(100*(sum(matZeta2P_summary(:,intRand)<0.05)/intNeurons)),...
 				round(100*(sum(matTtest2P_summary(:,intRand)<0.05)/intNeurons)),...
 				round(100*(sum(matAnova2P_summary(:,intRand)<0.05)/intNeurons)));
 		end
-		%% save data
-		return
+		
+	end
+	%% create summary
+	matZeta2P_summary = nan(intNeurons,2);
+	matTtest2P_summary = nan(intNeurons,2);
+	matAnova2P_summary = nan(intNeurons,2);
+	for intRand=[1 2]
+		for intNeuron=1:intNeurons
+			dblP = bonf_holm(matZeta2P(intNeuron,~isnan(matZeta2P(intNeuron,:,intRand)),intRand));
+			%dblP = squeeze(min(matZeta2P(intNeuron,:,intRand),[],2));
+			if isempty(dblP),dblP=1;end
+			matZeta2P_summary(intNeuron,intRand) = min(dblP);
+			
+			dblP = bonf_holm(matTtest2P(intNeuron,~isnan(matTtest2P(intNeuron,:,intRand)),intRand));
+			%dblP = squeeze(min(matTtest2P(intNeuron,:,intRand),[],2));
+			if isempty(dblP),dblP=1;end
+			matTtest2P_summary(intNeuron,intRand) = min(dblP);
+			
+			dblP = bonf_holm(matAnova2P(intNeuron,~isnan(matAnova2P(intNeuron,:,intRand)),intRand));
+			%dblP = squeeze(min(matAnova2P(intNeuron,:,intRand),[],2));
+			if isempty(dblP),dblP=1;end
+			matAnova2P_summary(intNeuron,intRand) = min(dblP);
+		end
+		if intRand == 1
+			strRand = 'Inclusion';
+		else
+			strRand = 'FPR';
+		end
+		fprintf('%s %s at alpha=0.05, Z=%d%%,T=%d%%,A=%d%%\n',...
+			strRec, strRand,...
+			round(100*(sum(matZeta2P_summary(:,intRand)<0.05)/intNeurons)),...
+			round(100*(sum(matTtest2P_summary(:,intRand)<0.05)/intNeurons)),...
+			round(100*(sum(matAnova2P_summary(:,intRand)<0.05)/intNeurons)));
+	end
+	%% save data
+	if boolSave
+		if boolCombineAll
+			strCombine = 'Lumped';
+		else
+			strCombine = 'Split';
+		end
+		save([strDataTargetPath 'Zeta2Steinmetz' strCombine strRec '.mat' ],...
+			'matTrialNum','matZeta2P','matTtest2P','matAnova2P');
 	end
 end

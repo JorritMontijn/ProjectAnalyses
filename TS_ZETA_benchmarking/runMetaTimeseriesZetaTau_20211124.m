@@ -33,7 +33,7 @@ matTP = zeros(numel(vecTau),intNeurons*2);
 matFP = zeros(numel(vecTau),intNeurons*2);
 		
 intRunTauNum = numel(vecRunTau);
-
+figure;maxfig;
 for intTauIdx=1:numel(vecRunTau)
 	intTau = vecRunTau(intTauIdx);
 	dblTau=vecTau(intTau);
@@ -52,16 +52,13 @@ for intTauIdx=1:numel(vecRunTau)
 		xlabel('TS-ZETA (\zeta_c)')
 		ylabel('ZETA (\zeta_c)')
 		%legend({sprintf('TS-ZETA-test, AUC=%.2f',vecAUC(1)),sprintf('ZETA-test, AUC=%.2f',vecAUC(2))},'location','best','interpreter','none');
-		fixfig;
 	else
-		fixfig;
 		set(gca,'yticklabel',[]);
 	end
-	title(sprintf('TP=%.2f',sum(matTsZeta(:,1,intTau)>2)/numel(matTsZeta(:,1,intTau))))
+	title(h1,sprintf('TP=%.2f',sum(matTsZeta(:,1,intTau)>2)/numel(matTsZeta(:,1,intTau))))
 	%set(gca,'xscale','log','yscale','log');
-	fixfig;
-	xlim([0 8]);
-	ylim([0 8]);
+	xlim(h1,[0 8]);
+	ylim(h1,[0 8]);
 	
 	h2=subplot(3,intRunTauNum,intRunTauNum+intTauIdx)
 	vecColor2 = 1 + 1*(matTsZeta(:,2,intTau) < 2 & matZeta(:,2) > 2) + 2*(matTsZeta(:,2,intTau) > 2 & matZeta(:,2) < 2) + 3*(matTsZeta(:,2,intTau) > 2 & matZeta(:,2) > 2);
@@ -72,22 +69,18 @@ for intTauIdx=1:numel(vecRunTau)
 		xlabel('TS-ZETA (\zeta_c)')
 		ylabel('ZETA (\zeta_c)')
 		%legend({sprintf('TS-ZETA-test, AUC=%.2f',vecAUC(1)),sprintf('ZETA-test, AUC=%.2f',vecAUC(2))},'location','best','interpreter','none');
-		fixfig;
 	else
-		fixfig;
 		set(gca,'yticklabel',[]);
 	end
-	title(sprintf('FP=%.2f',sum(matTsZeta(:,2,intTau)>2)/numel(matTsZeta(:,2,intTau))));
+	title(h2,sprintf('FP=%.2f',sum(matTsZeta(:,2,intTau)>2)/numel(matTsZeta(:,2,intTau))));
 	%set(gca,'xscale','log','yscale','log');
-	fixfig;maxfig;
-	xlim([0 3]);
-	ylim([0 3]);
+	xlim(h2,[0 3]);
+	ylim(h2,[0 3]);
 	
 	%% plot ROC
 	cellColor = {'k',lines(1)};
 	%vecH(intResampNpx) = subplot(4,3,intResampNpx);
-	h2=subplot(3,intRunTauNum,intRunTauNum*2+intTauIdx)
-	maxfig;
+	h3=subplot(3,intRunTauNum,intRunTauNum*2+intTauIdx)
 	hold on;
 	
 	for intTest=1:2
@@ -108,7 +101,7 @@ for intTauIdx=1:numel(vecRunTau)
 		vecFP = sum(vecShuffP<vecThresholds',1)/intCells;
 		
 		
-		plot(vecFP,vecTP,'Color',cellColor{intTest});
+		plot(h3,vecFP,vecTP,'Color',cellColor{intTest});
 		
 		[dblAUC,Aci] = getAuc(vecTP,vecFP);
 		vecAUC(intTest) = dblAUC;
@@ -127,23 +120,25 @@ for intTauIdx=1:numel(vecRunTau)
 		end
 	end
 	hold off;
-	title(sprintf('tau=%.3fs',dblTau));
+	title(h3,sprintf('tau=%.3fs',dblTau));
 	if intTauIdx==1
-		xlabel('False positive fraction');
-		ylabel('Inclusion fraction');
-		legend({sprintf('TS-ZETA-test, AUC=%.2f',vecAUC(1)),sprintf('ZETA-test, AUC=%.2f',vecAUC(2))},'location','best','interpreter','none');
-		fixfig;
+		xlabel(h3,'False positive fraction');
+		ylabel(h3,'Inclusion fraction');
+		legend(h3,{sprintf('TS-ZETA-test, AUC=%.2f',vecAUC(1)),sprintf('ZETA-test, AUC=%.2f',vecAUC(2))},'location','best','interpreter','none');
 	else
-		fixfig;
-		set(gca,'yticklabel',[]);
+		set(h3,'yticklabel',[]);
 	end
 	%% save correlation
 	vecRandZeta = matZeta(:,1);
 	vecRandTS_Zeta = matTsZeta(:,1,intTau);
 	[R,P,RL,RU] = corrcoef(vecRandZeta,vecRandTS_Zeta);
-	vecR(intTau) = R(1,2);
-	matR_ci(:,intTau) = [RL(1,2) RU(1,2)];
+	
+	R_reflective = sum(vecRandZeta.*vecRandTS_Zeta)/sqrt(sum(vecRandZeta.^2)*sum(vecRandTS_Zeta.^2));
+	R_reflective_se = sqrt((1-R_reflective^2)/(intNeurons-2));
+	vecR(intTau) = R_reflective;
+	matR_ci(:,intTau) = [R_reflective-R_reflective_se R_reflective+R_reflective_se];
 end
+fixfig;
 
 %% save
 drawnow;
@@ -168,7 +163,6 @@ ylabel('Inclusion fraction');
 hold on
 plot(vecFP_zeta,vecTP_zeta,'color',cellColor{2});
 hold off
-fixfig;
 
 subplot(2,3,2)
 hold on
@@ -176,9 +170,8 @@ errorbar(vecTau,vecR,vecR-matR_ci(1,:),vecR-matR_ci(2,:),'color',cellColor{1})
 hold off
 %ylim([0 1]);
 set(gca,'xscale','log');
-fixfig;
 xlabel('Ca-indicator mean lifetime tau (s)');
-ylabel('Pearson correlation, r(ZETA,TS-ZETA)');
+ylabel('Reflective correlation, r(ZETA,TS-ZETA)');
 grid off;
 set(gca,'box','off');
 
@@ -188,11 +181,11 @@ errorbar(vecTau,vecAUC_Tau,vecAUC_Tau-matAUC_TauCi(1,:),vecAUC_Tau-matAUC_TauCi(
 plot(vecTau,dblAUC_zeta*ones(size(vecTau)),'color',cellColor{2})
 hold off
 set(gca,'xscale','log');
-fixfig;
-xlabel('Ca-indicator timescale (tau)');
+xlabel('Ca-indicator mean lifetime tau (s)');
 ylabel('AUC TS-ZETA');
 grid off;
 set(gca,'box','off');
+fixfig;
 
 %% save
 drawnow;

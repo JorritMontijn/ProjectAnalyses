@@ -1,4 +1,4 @@
-function [matMeanP,matZetawrP] = loadTsZeta2(strIndicator)
+function [matMeanP,matZetawrP,matAnovaP] = loadTsZeta2(strIndicator)
 	%UNTITLED2 Summary of this function goes here
 	%   Detailed explanation goes here
 	

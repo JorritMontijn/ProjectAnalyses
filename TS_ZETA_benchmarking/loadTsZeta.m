@@ -1,4 +1,4 @@
-function [matMeanP,matZetaP] = loadTsZeta(strIndicator)
+function [matMeanP,matZetaP,matAnovaP] = loadTsZeta(strIndicator)
 	%UNTITLED2 Summary of this function goes here
 	%   Detailed explanation goes here
 	
@@ -23,9 +23,6 @@ function [matMeanP,matZetaP] = loadTsZeta(strIndicator)
 	cellAnovaP = [];
 	cellZetaP_wr = [];
 	
-	matZetaP = [];
-	matMeanP = [];
-	
 	for intRandType=1:2
 		if intRandType == 1
 			sDir = sDirReal;
@@ -40,7 +37,7 @@ function [matMeanP,matZetaP] = loadTsZeta(strIndicator)
 			sLoad=load([strDataPath strFile]);
 			cellMeanP{intRandType}{intFile} = sLoad.vecMeanP;
 			cellZetaP{intRandType}{intFile} = sLoad.vecZetaP;
-			cellAnovaP{intRandType}{intFile} = sLoad.vecZetaP;
+			cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;
 		end
 	end
 	

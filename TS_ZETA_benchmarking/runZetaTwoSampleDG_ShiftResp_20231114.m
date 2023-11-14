@@ -66,8 +66,10 @@ matZeta2_old = nan(intRunNum,2);
 matAnova2 = nan(intRunNum,2);
 matAnova2_unbalanced = nan(intRunNum,2);
 matAnova2_optimal = nan(intRunNum,2);
+vecInclusionP = nan(intRunNum,1);
 optLow = 2;
 optHigh = 1e3;
+dblTimeShift = 0.5;
 
 %% get neuronal data
 hTicN = tic;
@@ -96,39 +98,50 @@ for intIdx = 1:intRunNum
 	vecStimOnTime = [];
 	vecStimOffTime = [];
 	vecStimTypes = [];
+	vecOrientations = [];
 	for intRec=1:numel(sThisRec.cellBlock)
 		vecStimOnTime = cat(2,vecStimOnTime,sThisRec.cellBlock{intRec}.vecStimOnTime);
 		vecStimOffTime = cat(2,vecStimOffTime,sThisRec.cellBlock{intRec}.vecStimOffTime);
 		vecStimTypes = cat(2,vecStimTypes,sThisRec.cellBlock{intRec}.vecTrialStimTypes);
+		vecOrientations = cat(2,vecOrientations,sThisRec.cellBlock{intRec}.Orientation);
 	end
 	intStimNum = numel(unique(vecStimTypes));
 	
 	%check which stim to use
-	%vecDur = vecStimOffTime-vecStimOnTime;
-	%vecSpikeCounts = getSpikeCounts(vecSpikeTimes,vecStimOnTime,vecStimOffTime)./vecDur;
-	%[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(vecSpikeCounts,vecStimTypes);
-	%vecMuPerS = mean(matRespNSR,3);
-	%[dummy,intStim1] = max(vecMuPerS);
-	intStim1 = 1;
-	intStim2 = modx(round(intStim1 + intStimNum/4),intStimNum);
+	vecDur = vecStimOffTime-vecStimOnTime;
+	vecSpikeCounts = getSpikeCounts(vecSpikeTimes,vecStimOnTime,vecStimOffTime)./vecDur;
+	[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(vecSpikeCounts,vecOrientations);
+	
+	vecMuPerS = mean(matRespNSR,3);
+	[dummy,intStim] = max(vecMuPerS);
 	
 	%stim 1
-	indUseTrials1 = vecStimTypes==intStim1;
+	indUseTrials1 = vecStimTypes==intStim;
 	matTrialTS1 = [];
 	matTrialTS1(:,1) = vecStimOnTime(indUseTrials1);
 	matTrialTS1(:,2) = vecStimOffTime(indUseTrials1);
-	dblUseMaxDur1 = round(median(diff(vecStimOnTime))*2)/2;
+	dblUseMaxDur = round(median(diff(vecStimOnTime))*2)/2;
 	intTrialsS1 = sum(indUseTrials1);
 	
 	%stim 2
-	indUseTrials2 = vecStimTypes==intStim2;
-	matTrialTS2 = [];
-	matTrialTS2(:,1) = vecStimOnTime(indUseTrials2);
-	matTrialTS2(:,2) = vecStimOffTime(indUseTrials2);
-	dblUseMaxDur2 = round(median(diff(vecStimOnTime))*2)/2;
-	dblUseMaxDur = min(dblUseMaxDur1,dblUseMaxDur2);
-	intTrialsS2 = sum(indUseTrials1);
+	matTrialTS2 = matTrialTS1-dblTimeShift;
+	intTrialsS2 = intTrialsS1;
 	dblFixedBinWidth = 50/1000;
+	
+	%check to include
+	vecRespBinsDur = sort(flat([matTrialTS1(:,1) matTrialTS1(:,2)]));
+	vecR = histcounts(vecSpikeTimes,vecRespBinsDur);
+	vecD = diff(vecRespBinsDur)';
+	vecMu_Dur = vecR(1:2:end)./vecD(1:2:end);
+	dblStart1 = min(vecRespBinsDur);
+	dblFirstPreDur = dblStart1 - max([0 dblStart1 - median(vecD(2:2:end))]);
+	dblR1 = sum(vecSpikeTimes > (dblStart1 - dblFirstPreDur) & vecSpikeTimes < dblStart1);
+	vecMu_Pre = [dblR1 vecR(2:2:end)]./[dblFirstPreDur vecD(2:2:end)];
+	
+	%get metrics
+	dblMeanD = mean(vecMu_Dur - vecMu_Pre) / ( (std(vecMu_Dur) + std(vecMu_Pre))/2);
+	[h,dblTtestP]=ttest(vecMu_Dur,vecMu_Pre);
+	%if dblTtestP>0.05,continue;end
 	
 	for intRandType=vecRandTypes
 		%% randomize
@@ -150,6 +163,7 @@ for intIdx = 1:intRunNum
 		%% run tests
 		intPlot = 0;
 		dblZeta2P = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+		%pause;close;
 		
 		%% ANOVA
 		%if balanced
@@ -242,17 +256,18 @@ for intIdx = 1:intRunNum
 		
 		%% save
 		% assign data
-		cellNeuron{intIdx,intRandType} = [strArea strDate 'N' num2str(intSU) 'S' num2str(intStim1)];
+		cellNeuron{intIdx,intRandType} = [strArea strDate 'N' num2str(intSU) 'S' num2str(intStim)];
 		matTtest2(intIdx,intRandType) = dblTtest2P;
 		matZeta2(intIdx,intRandType) = dblZeta2P;
 		matAnova2(intIdx,intRandType) = dblAnova2P;
 		matAnova2_unbalanced(intIdx,intRandType) = dblAnova2P_unbalanced;
 		matAnova2_optimal(intIdx,intRandType) = dblAnova2P_optimal;
+		vecInclusionP(intIdx) = dblTtestP;
 	end
 end
 
 %% save
 if boolSave
-	save([strDataPath 'Zeta2DataStimDiff' strArea 'Resamp' num2str(intResampNum) strQ '.mat' ],...
-		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_optimal','matAnova2_unbalanced');
+	save([strDataPath 'Zeta2DataShiftResp' strArea 'Resamp' num2str(intResampNum) strQ '.mat' ],...
+		'cellNeuron','vecInclusionP','matTtest2','matZeta2','matAnova2','matAnova2_optimal','matAnova2_unbalanced');
 end

@@ -18,7 +18,6 @@ intResampNum = 500;
 intRunPairNum = 1000;
 boolSave = true;%true;
 boolDirectQuantile = false;
-global boolWithReplacement;
 
 %% load data
 %reset vars
@@ -57,11 +56,10 @@ intNeurons = numel(sAggNeuron);
 cellNeuron = cell(intRunPairNum,2);
 matTtest2 = nan(intRunPairNum,2);
 matZeta2 = nan(intRunPairNum,2);
-matZeta2_old = nan(intRunPairNum,2);
 matAnova2 = nan(intRunPairNum,2);
 matAnova2_unbalanced = nan(intRunPairNum,2);
 optLow = 2;
-optHigh = 1e6;
+optHigh = 1e3;
 
 %% get neuronal data
 hTicN = tic;
@@ -145,10 +143,7 @@ for intPair = 1:intRunPairNum
 	
 		%% run tests
 		intPlot = 0;
-		boolWithReplacement = false; %randperm
-		dblZeta2P = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
-		boolWithReplacement = true; %randi
-		dblZeta2P_withrep = zetatest2b(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
+		dblZeta2P = zetatest2(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
 		
 		if 0%sZETA.dblZETA > 2.5 %sZETA.dblMeanZ < 2 && sZETA.dblZETA > 2
 			intPlot = 4;
@@ -200,7 +195,7 @@ for intPair = 1:intRunPairNum
 		y = cat(1,matPSTH1(:),matPSTH2(:));
 		g1 = cat(1,matLabelN1(:),matLabelN2(:));
 		g2 = cat(1,matLabelBin1(:),matLabelBin2(:));
-		[vecP,tbl,stats] = anovan(y,{g1 g2},'continuous',[2],'model','interaction','display','off');
+		[vecP,tbl,stats] = anovan(y,{g1 g2},'model','interaction','display','off');
 		[h crit_p adj_p]=fdr_bh(vecP([1 3]));
 		dblAnova2P_unbalanced = min(adj_p);
 		
@@ -225,7 +220,6 @@ for intPair = 1:intRunPairNum
 		cellNeuron{intPair,intRandType} = [strArea1 strDate1 'N' num2str(intSU1) 'N' num2str(intSU2)];
 		matTtest2(intPair,intRandType) = dblTtest2P;
 		matZeta2(intPair,intRandType) = dblZeta2P;
-		matZeta2_old(intPair,intRandType) = dblZeta2P_withrep;
 		matAnova2(intPair,intRandType) = dblAnova2P;
 		matAnova2_unbalanced(intPair,intRandType) = dblAnova2P_unbalanced;
 	end
@@ -234,5 +228,5 @@ end
 %% save
 if boolSave
 	save([strDataPath 'Zeta2DataAnova' strArea1 'Resamp' num2str(intResampNum) '.mat' ],...
-		'cellNeuron','matTtest2','matZeta2','matZeta2_old','matAnova2','matAnova2_unbalanced');
+		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_unbalanced');
 end

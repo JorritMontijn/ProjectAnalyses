@@ -29,7 +29,7 @@ vecRestrictRange = [0 inf];
 boolSave = true;
 vecResamples = 250;%250;%10:10:90;%[10:10:100];
 intUseGenN = 10000;
-vecRunAreas = 5;%[1 8]
+vecRunAreas = 8;%[1 8]
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
 vecRunStim = 2;%2:3;
 cellRepStr = {...
@@ -112,6 +112,7 @@ for intArea=vecRunAreas
 				vecZetaP_LinStitch = ones(1,intNeurons);
 				vecZetaP_LinNoStitch = ones(1,intNeurons);
 				vecAnovaP = ones(1,intNeurons);
+				vecAnovaP_optimal = ones(1,intNeurons);
 				vecZetaTime = ones(1,intNeurons);
 				vecAnovaTime = ones(1,intNeurons);
 				vecTtestP = ones(1,intNeurons);
@@ -119,8 +120,7 @@ for intArea=vecRunAreas
 				%load([strDataTargetPath 'ZetaDataAnova' strRunType strRunStim '.mat']);
 				
 				%% analyze 
-				dblStimDur = 1;%5
-				dblBinW = 0.05;
+				dblFixedBinWidth = 50/1000;
 				for intNeuron=1:intNeurons%26
 					%% message
 					if toc(hTic) > 5
@@ -131,7 +131,7 @@ for intArea=vecRunAreas
 					
 					%% prep data
 					optLow = 2;
-					optHigh = 20000;
+					optHigh = 1000;
 					if contains(strRunType,cellUniqueAreas(7:end),'IgnoreCase',true)
 						%% get neuronal data
 						sThisNeuron = sAggNeuron(intNeuron);
@@ -148,7 +148,7 @@ for intArea=vecRunAreas
 						sThisRec = sAggStim(strcmpi(strRecIdx,cellRecIdx));
 						vecStimOnTime = [];
 						vecStimOffTime = [];
-						for intRec=1%:numel(sThisRec.cellStim)
+						for intRec=1:numel(sThisRec.cellBlock)
 							vecStimOnTime = cat(2,vecStimOnTime,sThisRec.cellBlock{intRec}.vecStimOnTime);
 							vecStimOffTime = cat(2,vecStimOffTime,sThisRec.cellBlock{intRec}.vecStimOffTime);
 						end
@@ -323,10 +323,10 @@ for intArea=vecRunAreas
 					intSpikeNum = numel(vecSpikeTimes);
 					if intSpikeNum<3,continue;end
 					
-					[vecMean,vecSEM,vecWindowBinCenters] = ...
-						doPEP(vecSpikeTimes,[-0.5:dblBinW:(3*dblStimDur+0.5)],matEventTimes(:,1));
-					pause 
-					continue;
+					%[vecMean,vecSEM,vecWindowBinCenters] = ...
+					%	doPEP(vecSpikeTimes,[-0.5:dblBinW:(3*dblStimDur+0.5)],matEventTimes(:,1));
+					%pause 
+					%continue;
 					
 					%if size(matEventTimes,1) > 0,continue;end
 					%%{
@@ -341,7 +341,7 @@ for intArea=vecRunAreas
 					dblZetaP_UniNoStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,[],[],[],false);
 					dblZetaDur_new = toc(hTic1b);
 					
-					%% ANOVA
+					%% ANOVA optimal
 					hTic2 = tic;
 					[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur);
 					if numel(vecTimePerSpike) < 3,continue;end
@@ -355,8 +355,16 @@ for intArea=vecRunAreas
 					for intTrial=1:intTrials
 						matPSTH(intTrial,:) = histcounts(vecTimePerSpike(vecTrialPerSpike==intTrial),vecBins);
 					end
-					dblAnovaP=anova1(matPSTH,[],'off');
+					dblAnovaP_optimal=anova1(matPSTH,[],'off');
 					dblAnovaDur = toc(hTic2);
+					
+					%% ANOVA fixed
+					vecBins = 0:dblFixedBinWidth:dblUseMaxDur;
+					matPSTH = nan(intTrials,numel(vecBins)-1);
+					for intTrial=1:intTrials
+						matPSTH(intTrial,:) = histcounts(vecTimePerSpike(vecTrialPerSpike==intTrial),vecBins);
+					end
+					dblAnovaP=anova1(matPSTH,[],'off');
 					
 					%% t-test
 					%'vecTtestP','vecTtestTime'
@@ -385,6 +393,7 @@ for intArea=vecRunAreas
 					vecZetaP_LinStitch(intNeuron) = 1;
 					vecZetaP_LinNoStitch(intNeuron) = 1;
 					vecAnovaP(intNeuron) = dblAnovaP;
+					vecAnovaP_optimal(intNeuron) = dblAnovaP_optimal;
 					vecZetaTime(intNeuron) = dblZetaDur_new;
 					vecAnovaTime(intNeuron) = dblAnovaDur;
 					vecTtestP(intNeuron) = dblTtestP;
@@ -395,7 +404,7 @@ for intArea=vecRunAreas
 					save([strDataTargetPath 'ZetaDataAnova' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
 						'cellNeuron','vecNumSpikes','vecZetaP_old',...
 						'vecZetaP_UniStitch','vecZetaP_UniNoStitch','vecZetaP_LinStitch','vecZetaP_LinNoStitch',...
-						'vecAnovaP','vecZetaTime','vecAnovaTime','vecTtestP','vecTtestTime');
+						'vecAnovaP','vecAnovaP_optimal','vecZetaTime','vecAnovaTime','vecTtestP','vecTtestTime');
 				end
 			end
 		end

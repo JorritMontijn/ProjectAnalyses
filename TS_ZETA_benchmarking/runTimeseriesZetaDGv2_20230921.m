@@ -16,12 +16,12 @@ intResampNum = 250;
 boolSave = true;%true;
 dblUseDur = 8;
 boolDirectQuantile = false;
-intUseTrials = 8; %limit number of used trials to reduce performance saturation
+intUseTrials = 80; %limit number of used trials to reduce performance saturation
 dblSuperResFactor = 100; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 
 %% load data
-for boolDoOGB = [false true]
+for boolDoOGB = false%[false true]
 	%% load data
 	if boolDoOGB
 		strIndicator = 'OGB';

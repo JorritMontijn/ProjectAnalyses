@@ -15,7 +15,7 @@ strIndicator = 'GCaMP';
 cellTests = {'Spike times','Time-series','Two-sample spike t','Two-sample t-s'};
 cellTests = {'Neuropixels','GCaMP6f','Two-sample Npx','Two-sample GCaMP6f'};
 figure;maxfig;
-for intCase=3
+for intCase=1:4
 	if intCase==1
 		%zeta
 		strFile=fullpath(strDataPath, 'ZetaDataAnovaPrimary visualRunDriftingGratingsResamp250.mat');
@@ -31,8 +31,8 @@ for intCase=3
 	elseif intCase==3
 		%2-sample zeta
 		%strFile = fullpath(strDataPath, 'Zeta2DataAnovaV1RunDriftingGratingsResamp500.mat');
-		%strFile = fullpath(strDataPath, 'Zeta2DataStimDiffV1RunDriftingGratingsResamp500Q0.mat');
-		strFile = fullpath(strDataPath, 'Zeta2DataShiftRespV1RunDriftingGratingsResamp500Q0.mat');
+		strFile = fullpath(strDataPath, 'Zeta2DataStimDiffV1RunDriftingGratingsResamp500Q0.mat');
+		%strFile = fullpath(strDataPath, 'Zeta2DataShiftRespV1RunDriftingGratingsResamp500Q0.mat');
 		
 		sLoad = load(strFile);
 		matMeanP = sLoad.matTtest2';

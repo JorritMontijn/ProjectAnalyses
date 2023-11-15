@@ -270,5 +270,5 @@ title(sprintf('MW AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
 %% save
 fixfig;
 drawnow;
-export_fig(fullpath(strFigPath,['Zeta2Steinmetz' strGrouping '.tif']));
+export_fig(fullpath(strFigPath,['Zeta2Steinmetz' strGrouping '.png']));
 export_fig(fullpath(strFigPath,['Zeta2Steinmetz' strGrouping '.pdf']));

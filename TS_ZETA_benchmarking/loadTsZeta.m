@@ -11,8 +11,8 @@ function [matMeanP,matZetaP,matAnovaP] = loadTsZeta(strIndicator)
 	strDataPath = fullfile(strPath,'\Data\');
 	strFigPath = fullfile(strPath,'\Figs\');
 
-	sDirAll1=dir([strDataPath 'TsZeta' strIndicator '*Q0*sesDur8T8Resamp250.mat']);
-	sDirAll2=dir([strDataPath 'TsZeta' strIndicator '*Q0*ses-RandDur8T8Resamp250.mat']);
+	sDirAll1=dir([strDataPath 'TsZeta' strIndicator '*Q0*sesDur8T80Resamp250.mat']);
+	sDirAll2=dir([strDataPath 'TsZeta' strIndicator '*Q0*ses-RandDur8T80Resamp250.mat']);
 
 	sDirAll = cat(1,sDirAll1,sDirAll2);
 	vecRand = contains({sDirAll.name},'Rand');

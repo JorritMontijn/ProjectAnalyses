@@ -141,8 +141,9 @@ for intIdx = 1:intRunNum
 	%get metrics
 	dblMeanD = mean(vecMu_Dur - vecMu_Pre) / ( (std(vecMu_Dur) + std(vecMu_Pre))/2);
 	[h,dblTtestP]=ttest(vecMu_Dur,vecMu_Pre);
-	%if dblTtestP>0.05,continue;end
-	
+	dblZetaP = zetatest(vecSpikeTimes,matTrialTS1,dblUseMaxDur);
+	if dblZetaP>0.05,continue;end
+
 	for intRandType=vecRandTypes
 		%% randomize
 		if intRandType == 2

@@ -49,7 +49,7 @@ cellRepStr = {...
 sDir = dir(fullpath(strDataSourcePath,'*.mat'));
 cellFiles = {sDir.name};
 
-for intRec=1%2:numel(sDir)
+for intRec=1:numel(sDir)
 	sLoad = load(fullpath(sDir(intRec).folder,sDir(intRec).name));
 	sAP = sLoad.sAP;
 	strRec = sAP.Rec;

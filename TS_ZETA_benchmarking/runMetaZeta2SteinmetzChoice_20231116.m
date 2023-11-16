@@ -21,8 +21,8 @@ cellRunRand = {...
 
 
 %% prep
-strArea = 'APN';%VISp
-strFile = ['Zeta2Steinmetz' strGrouping '*.mat'];
+strArea = '';%VISp
+strFile = ['Zeta2SteinmetzChoice*.mat'];
 sFiles = dir(fullpath(strDataPath,strFile));
 cellFiles = {sFiles.name};
 intFiles=numel(cellFiles);
@@ -40,17 +40,17 @@ for intFile=1:intFiles
 	sLoad=load([strDataPath strFile]);
 	intN = size(sLoad.matTtest2P,1);
 	vecIdx = size(matTtest2P,1) + (1:intN);
-	matTtest2P(vecIdx,1) = nanmean(sLoad.matTtest2P(:,:,1),2);
-	matTtest2P(vecIdx,2) = nanmean(sLoad.matTtest2P(:,:,2),2);
-	matZeta2P(vecIdx,1) = nanmean(sLoad.matZeta2P(:,:,1),2);
-	matZeta2P(vecIdx,2) = nanmean(sLoad.matZeta2P(:,:,2),2);
-	matAnova2P(vecIdx,1) = nanmean(sLoad.matAnova2P(:,:,1),2);
-	matAnova2P(vecIdx,2) = nanmean(sLoad.matAnova2P(:,:,2),2);
+	matTtest2P(vecIdx,1) = nanmean(sLoad.matTtest2P(:,1),2);
+	matTtest2P(vecIdx,2) = nanmean(sLoad.matTtest2P(:,2),2);
+	matZeta2P(vecIdx,1) = nanmean(sLoad.matZeta2P(:,1),2);
+	matZeta2P(vecIdx,2) = nanmean(sLoad.matZeta2P(:,2),2);
+	matAnova2P(vecIdx,1) = nanmean(sLoad.matAnova2P(:,1),2);
+	matAnova2P(vecIdx,2) = nanmean(sLoad.matAnova2P(:,2),2);
 	cellArea(vecIdx) = strrep(sLoad.cellArea,' ','');
-	matTrialNumCorr(vecIdx,1) = repmat(nanmean(sLoad.matTrialNum(1,:,1),2),[intN 1]);
-	matTrialNumCorr(vecIdx,2) = repmat(nanmean(sLoad.matTrialNum(2,:,2),2),[intN 1]);
-	matTrialNumIncorr(vecIdx,1) = repmat(nanmean(sLoad.matTrialNum(1,:,1),2),[intN 1]);
-	matTrialNumIncorr(vecIdx,2) = repmat(nanmean(sLoad.matTrialNum(2,:,2),2),[intN 1]);
+	matTrialNumCorr(vecIdx,1) = repmat(nanmean(sLoad.matTrialNum(1,1),2),[intN 1]);
+	matTrialNumCorr(vecIdx,2) = repmat(nanmean(sLoad.matTrialNum(2,2),2),[intN 1]);
+	matTrialNumIncorr(vecIdx,1) = repmat(nanmean(sLoad.matTrialNum(1,1),2),[intN 1]);
+	matTrialNumIncorr(vecIdx,2) = repmat(nanmean(sLoad.matTrialNum(2,2),2),[intN 1]);
 	vecRecording(vecIdx,1) = intFile;
 end
 
@@ -270,5 +270,5 @@ title(sprintf('MW AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
 %% save
 fixfig;
 drawnow;
-export_fig(fullpath(strFigPath,['Zeta2Steinmetz' strGrouping '.png']));
-export_fig(fullpath(strFigPath,['Zeta2Steinmetz' strGrouping '.pdf']));
+export_fig(fullpath(strFigPath,['Zeta2SteinmetzChoice.png']));
+export_fig(fullpath(strFigPath,['Zeta2SteinmetzChoice.pdf']));

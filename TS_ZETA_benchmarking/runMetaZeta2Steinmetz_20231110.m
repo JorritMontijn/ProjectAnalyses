@@ -21,7 +21,7 @@ cellRunRand = {...
 
 
 %% prep
-strArea = 'APN';%VISp
+strArea = 'VIS';%VISp
 strFile = ['Zeta2Steinmetz' strGrouping '*.mat'];
 sFiles = dir(fullpath(strDataPath,strFile));
 cellFiles = {sFiles.name};

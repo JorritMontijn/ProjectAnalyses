@@ -19,7 +19,7 @@ boolSave = true;
 intResampNum = 250;%250;%10:10:90;%[10:10:100];
 optLow = 2;
 optHigh = 100;
-boolCombineAll = false;
+boolCombineAll = true;
 
 cellRepStr = {...
 	'RunDriftingGratings','-DG';...

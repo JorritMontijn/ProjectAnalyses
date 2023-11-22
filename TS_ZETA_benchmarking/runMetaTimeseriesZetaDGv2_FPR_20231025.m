@@ -9,7 +9,7 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 dblSuperResFactor = 100;
 intResamps = 250; %Q1R10000T64 / Q0R250T64
-intT = 8;
+intT = 80;
 boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
@@ -32,7 +32,7 @@ strStim = 'RunDriftingGratings';
 
 hMegaFig = figure;maxfig;
 
-for boolDoOGB = [false true]
+for boolDoOGB = false%[false true]
 	%% load data
 	if boolDoOGB
 		strIndicator = 'OGB';
@@ -312,7 +312,7 @@ for boolDoOGB = [false true]
         plot(vecQuantile,vecFPR,'Color',cellColor{intTest});
     end
     xlabel(sprintf('Significance level %s',getGreek('alpha')));
-    ylabel(sprintf('P-value threshold required to match empirical FPR'));
+    ylabel(sprintf('False positive rate'));
     set(gca,'xscale','log','yscale','log');
     dblMinVal = max(get(gca,'xlim'),get(gca,'ylim'));
     plot([dblMinVal 1],[dblMinVal 1],'k--');
@@ -321,55 +321,13 @@ for boolDoOGB = [false true]
     legend(cellLegend,'location','best');
     title(sprintf('MW AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
         AUC_pTA,AUC_pTZ,AUC_pAZ));
-
+	xlim([1e-3 1]);
+	ylim([1e-3 1]);
+	
 	%% save
     fixfig;
 	drawnow;
 	export_fig(fullpath(strFigPath,['TsZeta' strQ strR strIndicator '.tif']));
 	export_fig(fullpath(strFigPath,['TsZeta' strQ strR strIndicator '.pdf']));
 	
-	%% add to mega fig
-	figure(hMegaFig);drawnow;
-	intPlot = (boolDoOGB) + 1;
-	subplot(2,3,intPlot);
-	cellColor = {lines(1),'r','k'};
-	%vecH(intResampNpx) = subplot(4,3,intResampNpx);
-	hold on;
-	
-	for intTest=1:3
-		if intTest == 1
-			matData = matZetaP;
-		elseif intTest == 2
-			matData = matAnovaP;
-		elseif intTest == 3
-			matData = matMeanP;
-		end
-		intCells = size(matData,2);
-		vecBothData = cat(2,matData(1,:),matData(2,:));
-		vecBothLabels = cat(2,zeros(size(matData(1,:))),ones(size(matData(1,:))));
-		vecThresholds = sort(vecBothData);
-		vecRealP = matData(1,:);
-		vecShuffP = matData(2,:);
-		
-		vecTP = sum(vecRealP<=vecThresholds',2)/intCells;
-		vecFP = sum(vecShuffP<=vecThresholds',2)/intCells;
-		
-		plot(vecFP,vecTP,'Color',cellColor{intTest});
-		
-		[dblAUC,Aci] = getAuc(vecShuffP,vecRealP);
-		vecAUC(intTest) = dblAUC;
-	end
-	hold off;
-	xlabel('False positive fraction');
-	ylabel('Inclusion fraction');
-	title(sprintf('ROC; %s %s %s',strQ,strR,strIndicator));
-	legend({sprintf('ZETA-test, AUC=%.3f',vecAUC(1)),sprintf('ANOVA, AUC=%.3f',vecAUC(2)),sprintf('t-test, AUC=%.3f',vecAUC(3))},'location','best','interpreter','none');
-	fixfig;
-	
 end
-
-%% save
-figure(hMegaFig)
-drawnow;
-export_fig(fullpath(strFigPath,['TsZetaSummary2' strQ strR strSR '.tif']));
-export_fig(fullpath(strFigPath,['TsZetaSummary2' strQ strR strSR '.pdf']));

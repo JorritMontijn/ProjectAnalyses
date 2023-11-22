@@ -70,7 +70,8 @@ vecInclusionP = nan(intRunNum,1);
 optLow = 2;
 optHigh = 1e3;
 dblTimeShift = 0.5;
-
+dblFixedBinWidth = 50/1000;
+	
 %% get neuronal data
 hTicN = tic;
 vecRunNeurons = sort(randperm(intNeurons,intRunNum));
@@ -126,7 +127,6 @@ for intIdx = 1:intRunNum
 	%stim 2
 	matTrialTS2 = matTrialTS1-dblTimeShift;
 	intTrialsS2 = intTrialsS1;
-	dblFixedBinWidth = 50/1000;
 	
 	%check to include
 	vecRespBinsDur = sort(flat([matTrialTS1(:,1) matTrialTS1(:,2)]));
@@ -192,13 +192,6 @@ for intIdx = 1:intRunNum
 		matLabelBin2 = repmat(1:optN,[intTrials2 1]);
 		for intTrial=1:intTrials2
 			matPSTH2(intTrial,:) = histcounts(vecTimePerSpike2(vecTrialPerSpike2==intTrial),vecBins);
-		end
-		%if balanced
-		if intTrials1==intTrials2
-			matPSTH = matPSTH1 - matPSTH2;
-			dblAnova2P=anova1(matPSTH,[],'off');
-		else
-			dblAnova2P=1;
 		end
 		
 		%if not balanced

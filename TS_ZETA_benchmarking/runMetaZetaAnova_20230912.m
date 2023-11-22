@@ -58,10 +58,8 @@ matNumCells = [];
 intIdxNpx = 0;
 
 
-intT = 0;
 intResamps = 250;
 boolDirectQuantile = false;
-strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
 for intArea=8%[1:4 8]%8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)

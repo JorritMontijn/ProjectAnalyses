@@ -9,7 +9,7 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 dblSuperResFactor = 100;
 intResamps = 250; %Q1R10000T64 / Q0R250T64
-intT = 8;
+intT = 80;
 boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
 strQ = ['Q' num2str(boolDirectQuantile) ];
@@ -32,7 +32,7 @@ strStim = 'RunDriftingGratings';
 
 hMegaFig = figure;maxfig;
 
-for boolDoOGB = [false true]
+for boolDoOGB = false
 	%% load data
 	if boolDoOGB
 		strIndicator = 'OGB';

@@ -333,7 +333,7 @@ for intArea=vecRunAreas
 					intGetLatencies = 0;
 					intPlot = 0;
 					hTic1 = tic;
-					dblZetaP_old = 1;%getZeta(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,0,intGetLatencies);
+					dblZetaP_old = zetatestb(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,[],[],[],true);
 					dblZetaDur_old = toc(hTic1);
 					intJitterDistro = 2;
 					dblZetaP_UniStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,[],[],[],true);
@@ -401,7 +401,7 @@ for intArea=vecRunAreas
 				end
 				
 				if boolSave
-					save([strDataTargetPath 'ZetaDataAnova' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
+					save([strDataTargetPath 'ZetaDataDev' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
 						'cellNeuron','vecNumSpikes','vecZetaP_old',...
 						'vecZetaP_UniStitch','vecZetaP_UniNoStitch','vecZetaP_LinStitch','vecZetaP_LinNoStitch',...
 						'vecAnovaP','vecAnovaP_optimal','vecZetaTime','vecAnovaTime','vecTtestP','vecTtestTime');

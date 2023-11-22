@@ -102,6 +102,11 @@ ylabel(hAx3,'AUC');
 xlabel(hAx3,'Number of trials');
 fixfig;
 
+%save
+drawnow;
+export_fig(fullpath(strFigPath,['TZETA2_KS2.tif']));
+export_fig(fullpath(strFigPath,['TZETA2_KS2.pdf']));
+
 %% plot fprs
 fZ = @(x) -norminv(x/2);
 matPH0Z_Z = abs(fZ(sLoad.matZetaP(indKeep,:,2))-0);

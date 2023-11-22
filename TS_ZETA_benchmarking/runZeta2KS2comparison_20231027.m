@@ -37,7 +37,7 @@ matZetaP = nan(intRunTrialNums,intNeurons,2);
 matTtestP = nan(intRunTrialNums,intNeurons,2);
 matKsP = nan(intRunTrialNums,intNeurons,2);
 %set var
-for intTrialNumIdx=19:intRunTrialNums
+for intTrialNumIdx=2%19:intRunTrialNums
 	intTrialNum = vecRunTrialNums(intTrialNumIdx);
 	for intRandType=vecRandTypes
 		%reset vars
@@ -109,7 +109,7 @@ for intTrialNumIdx=19:intRunTrialNums
 			
 			%if size(matEventTimes,1) > 0,continue;end
 			%%{
-			intPlot = 0;
+			intPlot = 4;
 			boolDirectQuantile = false;
 			[dblZetaP,sZeta2]=zetatest2(vecSpikeTimes1,matEventTimes,vecSpikeTimes2,matEventTimes,dblUseMaxDur,intResampleNum,intPlot,boolDirectQuantile);
 			dblTtestP = sZeta2.dblMeanP;
@@ -122,6 +122,23 @@ for intTrialNumIdx=19:intRunTrialNums
 			
 			[h,pKS2] = kstest2(vecKsSpikes1,vecKsSpikes2);
 			
+			if intPlot > 0
+				subplot(2,3,5);cla
+				title(sprintf('KS2, p=%.3f',pKS2));
+				hold on
+				stairs([0 vecKsSpikes1'],[linspace(0,1,1+numel(vecKsSpikes1))]);
+				stairs([0 vecKsSpikes2'],[linspace(0,1,1+numel(vecKsSpikes2))]);
+				hold off
+				ylabel('Cumulative Probability');
+				xlabel('Time of spike (s)');
+				fixfig;
+				
+				%save
+				drawnow;
+				export_fig(fullpath(strFigPath,sprintf('TZETA2_KS2_T%dExample.tif',intTrialNum)));
+				export_fig(fullpath(strFigPath,sprintf('TZETA2_KS2_T%dExample.pdf',intTrialNum)));
+				return
+			end
 			%%
 			% assign data
 			cellNeuron{intTrialNumIdx,intNeuron,intRandType} = [strDate 'N' num2str(intSU)];

@@ -28,7 +28,7 @@ intResampNum = vecResamps(intResampIdx);
 intResamps= numel(vecResamps);
 intUseGenN = 1000;
 boolUnbalanced = true;
-vecRunAreas = 1;%[1 8]
+intArea = 2;
 intNeurons = intUseGenN;
 dblFracDiffSpikes = 0.25;%max 0.5
 optLow = 2;
@@ -43,7 +43,6 @@ matAnova2 = nan(intNeurons,2,intResamps);
 matAnova2_unbalanced = nan(intNeurons,2,intResamps);
 matAnova2_optimal = nan(intNeurons,2,intResamps);
 
-intArea = vecRunAreas(1);
 strArea = cellUniqueAreas{intArea};
 strDate = getDate();
 
@@ -143,8 +142,8 @@ for intNeuron=1:intNeurons
 		%% ANOVA
 		%if balanced
 		hTic2 = tic;
-		[vecTrialPerSpike1,vecTimePerSpike1] = getSpikesInTrial(vecSpikeTimes,matTrialT1(:,1),dblUseMaxDur);
-		[vecTrialPerSpike2,vecTimePerSpike2] = getSpikesInTrial(vecSpikeTimes,matTrialT2(:,1),dblUseMaxDur);
+		[vecTrialPerSpike1,vecTimePerSpike1] = getSpikesInTrial(vecSpikeTimes1,matTrialT1(:,1),dblUseMaxDur);
+		[vecTrialPerSpike2,vecTimePerSpike2] = getSpikesInTrial(vecSpikeTimes2,matTrialT2(:,1),dblUseMaxDur);
 		if numel(vecTimePerSpike1) < 3 && numel(vecTimePerSpike2) < 3,continue;end
 		xComb = sort(cat(1,vecTimePerSpike1,vecTimePerSpike2));
 		[optN, dblC, allN, allC] = opthist(xComb);

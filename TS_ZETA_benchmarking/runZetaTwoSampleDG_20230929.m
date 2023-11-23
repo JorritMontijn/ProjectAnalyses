@@ -58,8 +58,10 @@ matTtest2 = nan(intRunPairNum,2);
 matZeta2 = nan(intRunPairNum,2);
 matAnova2 = nan(intRunPairNum,2);
 matAnova2_unbalanced = nan(intRunPairNum,2);
+matAnova2_optimal = nan(intRunPairNum,2);
 optLow = 2;
 optHigh = 1e3;
+dblFixedBinWidth = 50/1000;
 
 %% get neuronal data
 hTicN = tic;
@@ -157,7 +159,7 @@ for intPair = 1:intRunPairNum
 		end
 		
 		%% ANOVA
-		%if balanced
+		%optimal
 		hTic2 = tic;
 		[vecTrialPerSpike1,vecTimePerSpike1] = getSpikesInTrial(vecSpikeTimes1,matTrialT1(:,1),dblUseMaxDur);
 		[vecTrialPerSpike2,vecTimePerSpike2] = getSpikesInTrial(vecSpikeTimes2,matTrialT2(:,1),dblUseMaxDur);
@@ -183,6 +185,30 @@ for intPair = 1:intRunPairNum
 		for intTrial=1:intTrials2
 			matPSTH2(intTrial,:) = histcounts(vecTimePerSpike2(vecTrialPerSpike2==intTrial),vecBins);
 		end
+
+		%if not balanced
+		y = cat(1,matPSTH1(:),matPSTH2(:));
+		g1 = cat(1,matLabelN1(:),matLabelN2(:));
+		g2 = cat(1,matLabelBin1(:),matLabelBin2(:));
+		[vecP,tbl,stats] = anovan(y,{g1 g2},'model','interaction','display','off');
+		[h crit_p adj_p]=fdr_bh(vecP([1 3]));
+		dblAnova2P_optimal = min(adj_p);
+		
+		%fixed bin
+		vecBins = 0:dblFixedBinWidth:dblUseMaxDur;
+		optN = numel(vecBins)-1;
+		matPSTH1 = nan(intTrials1,optN);
+		matLabelN1 = ones(size(matPSTH1));
+		matLabelBin1 = repmat(1:optN,[intTrials1 1]);
+		for intTrial=1:intTrials1
+			matPSTH1(intTrial,:) = histcounts(vecTimePerSpike1(vecTrialPerSpike1==intTrial),vecBins);
+		end
+		matPSTH2 = nan(intTrials2,numel(vecBins)-1);
+		matLabelN2 = 2*ones(size(matPSTH2));
+		matLabelBin2 = repmat(1:optN,[intTrials2 1]);
+		for intTrial=1:intTrials2
+			matPSTH2(intTrial,:) = histcounts(vecTimePerSpike2(vecTrialPerSpike2==intTrial),vecBins);
+		end
 		%if balanced
 		if intTrials1==intTrials2
 			matPSTH = matPSTH1 - matPSTH2;
@@ -191,13 +217,12 @@ for intPair = 1:intRunPairNum
 			dblAnova2P=1;
 		end
 		
-		%if not balanced
 		y = cat(1,matPSTH1(:),matPSTH2(:));
 		g1 = cat(1,matLabelN1(:),matLabelN2(:));
 		g2 = cat(1,matLabelBin1(:),matLabelBin2(:));
 		[vecP,tbl,stats] = anovan(y,{g1 g2},'model','interaction','display','off');
 		[h crit_p adj_p]=fdr_bh(vecP([1 3]));
-		dblAnova2P_unbalanced = min(adj_p);
+		dblAnova2P_unbalanced= min(adj_p);
 		
 		%% t-test
 		%'vecTtestP','vecTtestTime'
@@ -217,11 +242,12 @@ for intPair = 1:intRunPairNum
 		
 		%% save
 		% assign data
-		cellNeuron{intPair,intRandType} = [strArea1 strDate1 'N' num2str(intSU1) 'N' num2str(intSU2)];
+		cellNeuron{intPair,intRandType} = [strArea1 strDate1 'N' num2str(intSU1)];
 		matTtest2(intPair,intRandType) = dblTtest2P;
 		matZeta2(intPair,intRandType) = dblZeta2P;
 		matAnova2(intPair,intRandType) = dblAnova2P;
 		matAnova2_unbalanced(intPair,intRandType) = dblAnova2P_unbalanced;
+		matAnova2_optimal(intPair,intRandType) = dblAnova2P_optimal;
 	end
 end
 

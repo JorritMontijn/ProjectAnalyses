@@ -16,7 +16,7 @@ boolSave = true;
 vecRunTests = [1:3];
 
 %% prep
-intPlotType = 1;
+intPlotType = 2;
 if intPlotType == 1
 	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';
@@ -231,7 +231,7 @@ if size(matMeanZ,1) >= 1
 		plot(vecAlphas,vecFPR,'Color',cellColor{intTest});
 	end
 	xlabel(sprintf('Significance level %s',getGreek('alpha')));
-	ylabel(sprintf('P-value cut-off needed for FPR=%s',getGreek('alpha')));
+	ylabel(sprintf('False positive fraction'));
 	set(gca,'xscale','log','yscale','log');
 	dblMinVal = max(get(gca,'xlim'),get(gca,'ylim'));
 	plot([dblMinVal 1],[dblMinVal 1],'k--');

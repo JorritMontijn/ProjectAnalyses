@@ -178,13 +178,6 @@ for intIdx = 1:intRunNum
 		for intTrial=1:intTrials2
 			matPSTH2(intTrial,:) = histcounts(vecTimePerSpike2(vecTrialPerSpike2==intTrial),vecBins);
 		end
-		%if balanced
-		if intTrials1==intTrials2
-			matPSTH = matPSTH1 - matPSTH2;
-			dblAnova2P=anova1(matPSTH,[],'off');
-		else
-			dblAnova2P=1;
-		end
 		
 		%if not balanced
 		y = cat(1,matPSTH1(:),matPSTH2(:));

@@ -16,7 +16,7 @@ boolSave = true;
 vecRunTests = [1:3];
 
 %% prep
-intPlotType = 2;
+intPlotType = 1;
 if intPlotType == 1
 	strArea = 'AnovaV1RunDriftingGratings';
 	strBalanced = '';

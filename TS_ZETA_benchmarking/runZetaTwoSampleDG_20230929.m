@@ -254,5 +254,5 @@ end
 %% save
 if boolSave
 	save([strDataPath 'Zeta2DataAnova' strArea1 'Resamp' num2str(intResampNum) '.mat' ],...
-		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_unbalanced');
+		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_unbalanced','matAnova2_optimal');
 end

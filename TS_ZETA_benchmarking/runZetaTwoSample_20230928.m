@@ -28,7 +28,7 @@ intResampNum = vecResamps(intResampIdx);
 intResamps= numel(vecResamps);
 intUseGenN = 1000;
 boolUnbalanced = true;
-intArea = 2;
+intArea = 1;
 intNeurons = intUseGenN;
 dblFracDiffSpikes = 0.25;%max 0.5
 optLow = 2;
@@ -103,9 +103,9 @@ for intNeuron=1:intNeurons
 	intTrials2 = size(matTrialT2,1);
 				
 	%% real+rand
-	for intRunType=vecRandTypes
+	for intRandType=vecRandTypes
 		%randomize
-		if intRunType ==2
+		if intRandType ==2
 			%generate n2, no diff
 			intAddSpikes2 = round((intAddSpikes1/intTrials)*intTrials2);
 			dblPeakDelay2 = dblPeakDelay1;
@@ -223,7 +223,7 @@ for intNeuron=1:intNeurons
 		
 		%% save
 		% assign data
-		cellNeuron{intNeuron,intRunType,intResampIdx} = [strArea strDate 'N' num2str(intSU)];
+		cellNeuron{intNeuron,intRandType,intResampIdx} = [strArea strDate 'N' num2str(intSU)];
 		matTtest2(intNeuron,intRandType) = dblTtest2P;
 		matZeta2(intNeuron,intRandType) = dblZeta2P;
 		matAnova2(intNeuron,intRandType) = dblAnova2P;

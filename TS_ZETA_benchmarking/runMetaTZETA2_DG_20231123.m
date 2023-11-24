@@ -8,25 +8,21 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
-
-intResamps = 1001; %Q1R10000T64 / Q0R250T64
-vecRunTests = [1:3];
+intResamps = 500; %Q1R10000T64 / Q0R250T64
+strComp = 'PeakTime';%DiffNeurons, DiffStims, PeakHeight, PeakTime
 boolDirectQuantile = false;
 
 
+
+%% prep
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
 strTest = 'TsZeta2';
-strComp = 'PeakTime';%DiffNeurons, DiffStims, PeakHeight, PeakTime
-
-
 cellRunRand = {...
 	'',...Rand 1
 	'-Rand',...Rand 2
 	};
-
-
-%% prep
+vecRunTests = [1:3];
 if contains(strComp,'Diff')
 	sDirAll1=dir([strDataPath strTest '_' strComp '*' strQ '*ses' strR '.mat']);
 	sDirAll2=dir([strDataPath strTest '_' strComp '*' strQ '*ses-Rand' strR '.mat']);

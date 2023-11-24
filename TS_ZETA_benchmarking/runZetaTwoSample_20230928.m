@@ -224,11 +224,11 @@ for intNeuron=1:intNeurons
 		%% save
 		% assign data
 		cellNeuron{intNeuron,intRunType,intResampIdx} = [strArea strDate 'N' num2str(intSU)];
-		matTtest2(intIdx,intRandType) = dblTtest2P;
-		matZeta2(intIdx,intRandType) = dblZeta2P;
-		matAnova2(intIdx,intRandType) = dblAnova2P;
-		matAnova2_unbalanced(intIdx,intRandType) = dblAnova2P_unbalanced;
-		matAnova2_optimal(intIdx,intRandType) = dblAnova2P_optimal;
+		matTtest2(intNeuron,intRandType) = dblTtest2P;
+		matZeta2(intNeuron,intRandType) = dblZeta2P;
+		matAnova2(intNeuron,intRandType) = dblAnova2P;
+		matAnova2_unbalanced(intNeuron,intRandType) = dblAnova2P_unbalanced;
+		matAnova2_optimal(intNeuron,intRandType) = dblAnova2P_optimal;
 		%vecInclusionP(intIdx) = dblTtestP;
 	end
 end

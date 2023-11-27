@@ -15,17 +15,17 @@ vecRandTypes = [1 2];
 intResampNum = 500;
 boolSave = true;%true;
 dblUseDur = 8;
-intNeurons = 1000;
+intNeurons = 100;
 boolDirectQuantile = false;
-intSuperResFactor = 1; %1 or 100
+intSuperResFactor = 100; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 
 %% set variables
 dblFracDiffSpikes = 1/2;
-dblTau = 2;
+dblTau = 1;
 dblTau0 = (63/1000);
 dblNoise = 0.025;
-dblSamplingFreq = 25;
+dblSamplingFreq = 51.1;
 dblSamplingInterval = 1/dblSamplingFreq;
 boolQuick = false;
 
@@ -35,7 +35,7 @@ sIndicatorProps.dblTimescale = dblTau;
 sIndicatorProps.dblNoise = dblNoise;
 
 %% load data
-for intCompType=1:2
+for intCompType=2%1:2
 	if intCompType == 1
 		strCompType = 'PeakHeight';
 	else
@@ -64,7 +64,7 @@ for intCompType=1:2
 		dblPrefOri = rand(1)*2*pi; %preferred orientation (rads)
 		dblKappa = rand(1)*5+5; %von Mises concentration parameter
 		dblPrefRate = dblBaseRate; %mean single-spike rate during stimulus (exponential ISI)
-		dblJitter = 1; %in ms'
+		dblJitter = 50; %in ms'
 		
 		%% stimulus data
 		dblStimDur = 3;
@@ -91,7 +91,7 @@ for intCompType=1:2
 		
 		%% generate data
 		% generate peak
-		dblStartDelay = 0.053;
+		dblStartDelay = 0.2;
 		dblPeakDelay1 = dblStartDelay;
 		intAddSpikes1 = round(intTrials*dblFracDiffSpikes);
 		[vecSpikeTimes1,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles1,matTrialT1,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes1,dblStartDelay,dblPeakDelay1);
@@ -121,7 +121,7 @@ for intCompType=1:2
 			else
 				if strcmp(strCompType,'PeakTime')
 					%generate n2, diff in peak time
-					dblPeakDelay2 = dblPeakDelay1+0.05;
+					dblPeakDelay2 = dblPeakDelay1+0.025;
 					intAddSpikes2 = round(dblFracDiffSpikes*intTrials2);
 					[vecSpikeTimes2,dblPrefOri] = getGeneratedSpikingDataWithPeak(vecTrialAngles2,matTrialT2,dblBaseRate,dblPrefRate,dblJitter,dblKappa,boolDoublePeaked,dblPrefOri,intAddSpikes2,dblStartDelay,dblPeakDelay2);
 				elseif strcmp(strCompType,'PeakHeight')

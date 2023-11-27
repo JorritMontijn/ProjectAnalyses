@@ -47,7 +47,6 @@ boolMakeAllPlots = false;
 if boolMakeAllPlots,intPlotZ = 4;else,intPlotZ=0;end
 
 try
-	error
 	load(fullpath(strDataPath,'ZetaEEG'),'sZetaEEG');
 	
 	cellFields = fieldnames(sZetaEEG);
@@ -158,6 +157,12 @@ catch
 				sMultiZF(intElectrode) = sZF;
 			end
 			
+			%cluster analysis
+			%intResampNum = 250;
+			%dblJitterSize = 2;
+			%boolStitch=true;
+			%dblSuperResFactor=100;
+			%sClustHouses=clustertest(vecTime,vecData,cat(2,vecHouseOn,vecHouseOff),dblUseMaxDur,intResampNum,dblJitterSize,boolStitch,dblSuperResFactor);
 			
 			%cluster analysis
 			matCond1 = sZETA2.matDataPerTrial1';
@@ -298,6 +303,7 @@ ylabel('ZETA/t-test Significance (\sigma)');
 xlabel('Signal predictability (R^2)');
 
 hAx3=subplot(2,3,3);cla(hAx3);hold on;
+[pBino2,z]=bino2test(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff),sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
 dblZTS = 1.96;
 ind00 = vecAllZetaZ_diff<dblZTS & vecAllClustZ_diff<dblZTS;
 ind01 = vecAllZetaZ_diff<dblZTS & vecAllClustZ_diff>=dblZTS;
@@ -307,15 +313,14 @@ scatter(hAx3,vecAllClustZ_diff(ind00),vecAllZetaZ_diff(ind00),dblSize,[0.5 0.5 0
 scatter(hAx3,vecAllClustZ_diff(ind01),vecAllZetaZ_diff(ind01),dblSize,[1 0 0],'o','filled','markerfacealpha',0.8);
 scatter(hAx3,vecAllClustZ_diff(ind10),vecAllZetaZ_diff(ind10),dblSize,[0 1 0],'o','filled','markerfacealpha',0.8);
 scatter(hAx3,vecAllClustZ_diff(ind11),vecAllZetaZ_diff(ind11),dblSize,[0 0 1],'o','filled','markerfacealpha',0.8);
-title(sprintf('Diff-signif, Z: %d%%, T: %d%%',...
+title(sprintf('Diff-signif, Z: %d%%, C: %d%%; bino2-p=%.3f',...
 	round(sum(vecAllZetaZ_diff>1.96)/numel(vecAllZetaZ_diff)*100),...
-	round(sum(vecAllClustZ_diff>1.96)/numel(vecAllClustZ_diff)*100)...
+	round(sum(vecAllClustZ_diff>1.96)/numel(vecAllClustZ_diff)*100),pBino2...
 	))
 xlabel('Clustering test significance (\sigma)');
 ylabel('ZETA significance (\sigma)');
 
 % finish figs
-hAx3=subplot(2,3,3);hold on;
 hAx4=subplot(2,3,4);hold on;
 hAx5=subplot(2,3,5);hold on;
 hAx6=subplot(2,3,6);hold on;
@@ -372,7 +377,8 @@ zlabel('DV? coords')
 title('Differential responsiveness');
 xlim([-75 75]);
 ylim([-100 50]);
-%%
 fixfig;
+
+%%
 export_fig(fullpath(strFigPath,'ZetaEEG.png'));
 export_fig(fullpath(strFigPath,'ZetaEEG.pdf'));

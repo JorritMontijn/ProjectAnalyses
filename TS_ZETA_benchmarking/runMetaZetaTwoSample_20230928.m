@@ -18,9 +18,10 @@ vecRunTests = [1:3];
 %% prep
 intPlotType = 1;
 if intPlotType == 1
-	strArea = 'AnovaV1RunDriftingGratings';
+	%strArea = 'ShiftRespV1RunDriftingGratings';
+	strArea = 'AnovaPrimary visual';
 	strBalanced = '';
-	strQ = '';
+	strQ = '';%Q0
 	intResamps = 500;
 elseif intPlotType == 2
 	strArea = 'AnovaPoissonPeakHeight';

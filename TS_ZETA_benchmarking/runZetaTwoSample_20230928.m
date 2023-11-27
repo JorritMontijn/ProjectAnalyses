@@ -28,13 +28,13 @@ intResampNum = vecResamps(intResampIdx);
 intResamps= numel(vecResamps);
 intUseGenN = 1000;
 boolUnbalanced = true;
-intArea = 1;
+intArea = 2;
 intNeurons = intUseGenN;
 dblFracDiffSpikes = 0.25;%max 0.5
 optLow = 2;
-optHigh = 1e3;
+optHigh = 1e2;
 dblFixedBinWidth = 50/1000;
-	
+
 %% pre-allocate output variables
 cellNeuron = cell(intNeurons,2,intResamps);
 matTtest2 = nan(intNeurons,2,intResamps);
@@ -139,12 +139,14 @@ for intNeuron=1:intNeurons
 		%% run tests
 		[dblZeta2P,sZETA] = zetatest2(vecSpikeTimes1,matTrialT1,vecSpikeTimes2,matTrialT2,dblUseMaxDur,intResampNum,intPlot);
 		
-		%% ANOVA
+		%% prep
 		%if balanced
 		hTic2 = tic;
 		[vecTrialPerSpike1,vecTimePerSpike1] = getSpikesInTrial(vecSpikeTimes1,matTrialT1(:,1),dblUseMaxDur);
 		[vecTrialPerSpike2,vecTimePerSpike2] = getSpikesInTrial(vecSpikeTimes2,matTrialT2(:,1),dblUseMaxDur);
 		if numel(vecTimePerSpike1) < 3 && numel(vecTimePerSpike2) < 3,continue;end
+		
+		%% optimal ANOVA
 		xComb = sort(cat(1,vecTimePerSpike1,vecTimePerSpike2));
 		[optN, dblC, allN, allC] = opthist(xComb);
 		if optN<optLow,optN=optLow;end %at least 2 bins
@@ -175,7 +177,7 @@ for intNeuron=1:intNeurons
 		[h crit_p adj_p]=fdr_bh(vecP([1 3]));
 		dblAnova2P_optimal = min(adj_p);
 		
-		%fixed bin
+		%% fixed bin ANOVA
 		vecBins = 0:dblFixedBinWidth:dblUseMaxDur;
 		optN = numel(vecBins)-1;
 		matPSTH1 = nan(intTrials1,optN);

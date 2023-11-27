@@ -51,6 +51,7 @@ strName = replace([lower(strArea1) strRunStim],lower(cellRepStr(:,1)),cellRepStr
 [sAggStim,sAggNeuron]=loadDataNpx(strArea1,strRunStim,strDataSourcePath);
 cellRecIdx = {sAggStim.Exp};
 intNeurons = numel(sAggNeuron);
+intMaxTrials = 24*5;%multiple of 24
 
 %% pre-allocate output variables
 cellNeuron = cell(intRunPairNum,2);
@@ -80,7 +81,6 @@ for intPair = 1:intRunPairNum
 	strRecIdx1 = sThisNeuron1.Exp;
 	strMouse1 = sThisNeuron1.Subject;
 	strBlock1 = '';
-	strArea1 = strName;
 	strDate1 = sThisNeuron1.Date;
 	intSU1 = sThisNeuron1.Cluster;
 	intClust1 = sThisNeuron1.IdxClust;
@@ -97,6 +97,7 @@ for intPair = 1:intRunPairNum
 	matTrialTN1 = [];
 	matTrialTN1(:,1) = vecStimOnTime;
 	matTrialTN1(:,2) = vecStimOffTime;
+	matTrialTN1 = matTrialTN1(1:intMaxTrials,:);
 	dblUseMaxDur1 = round(median(matTrialTN1(:,2) - matTrialTN1(:,1))*2)/2;
 	
 	%% neuron 2
@@ -118,6 +119,7 @@ for intPair = 1:intRunPairNum
 	matTrialTN2 = [];
 	matTrialTN2(:,1) = vecStimOnTime;
 	matTrialTN2(:,2) = vecStimOffTime;
+	matTrialTN2 = matTrialTN2(1:intMaxTrials,:);
 	dblUseMaxDur2 = round(median(matTrialTN2(:,2) - matTrialTN2(:,1))*2)/2;
 	dblUseMaxDur = min(dblUseMaxDur1,dblUseMaxDur2);
 	
@@ -155,7 +157,6 @@ for intPair = 1:intRunPairNum
 			ylabel('Spiking rate per trial (Hz)');
 			set(gca,'xtick',[1 2],'xticklabel',{'Neuron 1','Neuron 2'});
 			fixfig;
-			return
 		end
 		
 		%% ANOVA

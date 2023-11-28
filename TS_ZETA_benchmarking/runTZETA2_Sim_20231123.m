@@ -14,8 +14,7 @@ strFigPath = fullfile(strPath,'\Figs\');
 vecRandTypes = [1 2];
 intResampNum = 500;
 boolSave = true;%true;
-dblUseDur = 8;
-intNeurons = 100;
+intNeurons = 1000;
 boolDirectQuantile = false;
 intSuperResFactor = 100; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
@@ -35,7 +34,7 @@ sIndicatorProps.dblTimescale = dblTau;
 sIndicatorProps.dblNoise = dblNoise;
 
 %% load data
-for intCompType=2%1:2
+for intCompType=1:2
 	if intCompType == 1
 		strCompType = 'PeakHeight';
 	else
@@ -67,15 +66,15 @@ for intCompType=2%1:2
 		dblJitter = 50; %in ms'
 		
 		%% stimulus data
-		dblStimDur = 3;
-		dblPreBaseDur = 3;
-		dblPostBaseDur = 2;
+		dblStimDur = 1;
+		dblPreBaseDur = 0.2;
+		dblPostBaseDur = 0.3;
 		dblTrialDur = dblPreBaseDur + dblStimDur + dblPostBaseDur;
 		dblUseMaxDur = dblStimDur;
 		intOris = 24;
 		dblStepDeg = 360/intOris;
 		vecOris = linspace(0,360-dblStepDeg,intOris);
-		intReps = 10;
+		intReps = 20;
 		intTrials = intOris*intReps;
 		vecTrialAngles1 = nan(1,intTrials);
 		for intRep=1:intReps

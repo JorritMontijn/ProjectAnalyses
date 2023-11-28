@@ -16,7 +16,7 @@ boolSave = true;
 vecRunTests = [1:3];
 
 %% prep
-intPlotType = 1;
+intPlotType = 4;
 if intPlotType == 1
 	%strArea = 'ShiftRespV1RunDriftingGratings';
 	strArea = 'AnovaPrimary visual';

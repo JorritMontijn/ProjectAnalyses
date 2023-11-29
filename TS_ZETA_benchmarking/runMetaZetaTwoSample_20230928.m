@@ -16,7 +16,7 @@ boolSave = true;
 vecRunTests = [1:3];
 
 %% prep
-intPlotType = 4;
+intPlotType = 1;
 if intPlotType == 1
 	%strArea = 'ShiftRespV1RunDriftingGratings';
 	strArea = 'AnovaPrimary visual';
@@ -47,7 +47,7 @@ strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));
 
 cellNeuron = sLoad.cellNeuron;
-matAnovaP_b = sLoad.matAnova2_unbalanced;
+matAnovaP_b = sLoad.matAnova2_unbalanced;%matAnova2_optimal matAnova2_unbalanced
 matAnovaP = sLoad.matAnova2_optimal;
 matMeanP = sLoad.matTtest2;
 matZetaP = sLoad.matZeta2; %with replacement

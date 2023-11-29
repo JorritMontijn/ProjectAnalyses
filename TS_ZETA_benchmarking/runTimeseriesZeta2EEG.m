@@ -232,6 +232,39 @@ catch
 				fixfig;
 				export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('%s_E%02d',strSubject,intElectrode) '.png']));
 				export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('%s_E%02d',strSubject,intElectrode) '.pdf']));
+				
+				%% clustering figure
+				figure;
+				subplot(2,3,1)
+				matDiff = matCond1 - matCond2;
+				vecMuD = mean(matDiff,2);
+				vecSeD = std(matDiff,[],2)/sqrt(size(matDiff,2));
+				plot(vecT,vecMuD);
+				hold on
+				plot(vecT,vecMuD-vecSeD,'--','color',lines(1));
+				plot(vecT,vecMuD+vecSeD,'--','color',lines(1));
+				hold off
+				xlabel('Time (s)');
+				ylabel('Signal difference');
+				title(sprintf('%s E%d',strSubject,intElectrode));
+				
+				subplot(2,3,2)
+				hold on
+				plot(vecT,clustersPos.tmap);
+				plot(vecT,clustersNeg.tmap);
+				plot(vecT,clustersPos.map);
+				plot(vecT,-clustersNeg.map);
+				plot(vecT([1 end]),1.963*[1 1]);
+				plot(vecT([1 end]),-1.963*[1 1]);
+				hold off
+				title(sprintf('crit-sum=%.3f; +Sum=%.3f,p=%.3f; -Sum=%.3f,p=%.3f',clustersNeg.cluscrit,clustersPos.clustsum,clustersPos.p,clustersNeg.clustsum,clustersNeg.p));
+				xlim([0 dblUseMaxDur]);
+				xlabel('Time (s)');
+				ylabel('t-tstatistic per 1 ms bin');
+				maxfig;fixfig;
+				export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('Clust%s_E%02d',strSubject,intElectrode) '.png']));
+				export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('Clust%s_E%02d',strSubject,intElectrode) '.pdf']));
+				
 			end
 		end
 		
@@ -274,6 +307,7 @@ catch
 	sZetaEEG.vecAllSubject = vecAllSubject;
 	save(fullpath(strDataPath,'ZetaEEG'),'sZetaEEG');
 end
+
 %% plot
 %prep summary fig
 hFigAll = figure;maxfig;
@@ -302,6 +336,8 @@ legend({'ZETA','T-test'},'location','best');
 ylabel('ZETA/t-test Significance (\sigma)');
 xlabel('Signal predictability (R^2)');
 
+vecAllClustZ_diff(isinf(vecAllClustZ_diff))=0;
+vecAllClustZ_diff = abs(vecAllClustZ_diff);
 hAx3=subplot(2,3,3);cla(hAx3);hold on;
 [pBino2,z]=bino2test(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff),sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
 dblZTS = 1.96;
@@ -348,8 +384,8 @@ xlabel('ML? coords')
 ylabel('AP? coords')
 zlabel('DV? coords')
 title('Face responsiveness');
-xlim([-75 75]);
-ylim([-100 50]);
+xlim([-100 100]);
+ylim([-100 100]);
 
 %show locations
 cellUniqueNames = unique(cellElectrodeLocs);
@@ -359,26 +395,74 @@ for intArea=1:numel(cellUniqueNames)
 end
 
 axes(hAx5);
-scatter3(matAllCoords(:,1),matAllCoords(:,2),matAllCoords(:,3),(vecAllZetaZ_houses/max(vecAllZetaZ_houses))*vecSize,vecAllZetaZ_houses,'filled');
+scatter(matAllCoords(:,1),matAllCoords(:,2),(vecAllZetaZ_houses/max(vecAllZetaZ_houses))*vecSize,vecAllZetaZ_houses,'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
 zlabel('DV? coords')
 title('House responsiveness');
-xlim([-75 75]);
-ylim([-100 50]);
+xlim([-100 100]);
+ylim([-100 100]);
 
 axes(hAx6);
-scatter3(matAllCoords(:,1),matAllCoords(:,2),matAllCoords(:,3),(vecAllZetaZ_diff/max(vecAllZetaZ_diff))*vecSize,vecAllZetaZ_diff,'filled');
+dblMaxZ = max(max(vecAllZetaZ_diff),max(vecAllClustZ_diff));
+scatter(matAllCoords(:,1),matAllCoords(:,2),(vecAllZetaZ_diff/dblMaxZ)*vecSize,vecAllZetaZ_diff,'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
 zlabel('DV? coords')
 title('Differential responsiveness');
-xlim([-75 75]);
-ylim([-100 50]);
+xlim([-100 100]);
+ylim([-100 100]);
 fixfig;
 
 %%
 export_fig(fullpath(strFigPath,'ZetaEEG.png'));
 export_fig(fullpath(strFigPath,'ZetaEEG.pdf'));
+
+%%
+figure;maxfig
+subplot(2,3,1)
+scatter(matAllCoords(:,1),matAllCoords(:,2),(vecAllR2_houses/max(vecAllR2_houses))*vecSize,vecAllR2_houses,'filled');
+colorbar
+xlabel('ML? coords')
+ylabel('AP? coords')
+zlabel('DV? coords')
+title('R2 houses');
+xlim([-100 100]);
+ylim([-100 100]);
+
+subplot(2,3,2)
+scatter(matAllCoords(:,1),matAllCoords(:,2),(vecAllR2_faces/max(vecAllR2_faces))*vecSize,vecAllR2_faces,'filled');
+colorbar
+xlabel('ML? coords')
+ylabel('AP? coords')
+zlabel('DV? coords')
+title('R2 faces');
+xlim([-100 100]);
+ylim([-100 100]);
+
+hax=subplot(2,3,3);
+matBrain = niftiread(niftiinfo('D:\Data\Processed\EEG\fhpred\brains\ca\ca_mri.nii'));
+matIm = flipud(squeeze(matBrain(:,round(128-mean(matAllCoords(:,3))),:))');
+him=imagesc(-128:127,-128:127,matIm);
+axis on
+hax.Colormap = gray;
+xlim([-100 100]);
+ylim([-100 100]);
+
+vecAllClustZ_diff = abs(vecAllClustZ_diff);
+subplot(2,3,6)
+scatter(matAllCoords(:,1),matAllCoords(:,2),0.1+(vecAllClustZ_diff/dblMaxZ)*vecSize,vecAllClustZ_diff,'filled');
+colorbar
+xlabel('ML? coords')
+ylabel('AP? coords')
+zlabel('DV? coords')
+title('Differential responsiveness');
+caxis([0 dblMaxZ])
+xlim([-100 100]);
+ylim([-100 100]);
+fixfig;
+
+export_fig(fullpath(strFigPath,'ZetaEEG2.png'));
+export_fig(fullpath(strFigPath,'ZetaEEG2.pdf'));

@@ -336,9 +336,9 @@ legend({'ZETA','T-test'},'location','best');
 ylabel('ZETA/t-test Significance (\sigma)');
 xlabel('Signal predictability (R^2)');
 
+hAx3=subplot(2,3,3);cla(hAx3);hold on;
 vecAllClustZ_diff(isinf(vecAllClustZ_diff))=0;
 vecAllClustZ_diff = abs(vecAllClustZ_diff);
-hAx3=subplot(2,3,3);cla(hAx3);hold on;
 [pBino2,z]=bino2test(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff),sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
 dblZTS = 1.96;
 ind00 = vecAllZetaZ_diff<dblZTS & vecAllClustZ_diff<dblZTS;
@@ -355,6 +355,7 @@ title(sprintf('Diff-signif, Z: %d%%, C: %d%%; bino2-p=%.3f',...
 	))
 xlabel('Clustering test significance (\sigma)');
 ylabel('ZETA significance (\sigma)');
+
 
 % finish figs
 hAx4=subplot(2,3,4);hold on;
@@ -451,6 +452,30 @@ hax.Colormap = gray;
 xlim([-100 100]);
 ylim([-100 100]);
 
+subplot(2,3,4)
+vecRespDiff = vecAllZetaZ_diff-max(vecAllZetaZ_faces,vecAllZetaZ_houses);
+vecRespDiff(vecRespDiff<0)=0;
+vecPlotSize = (0.1+imnorm(vecRespDiff))*vecSize;
+scatter(matAllCoords(:,1),matAllCoords(:,2),vecPlotSize,vecRespDiff,'filled');
+colorbar
+xlabel('ML? coords')
+ylabel('AP? coords')
+zlabel('DV? coords')
+title('Z2-max(Zf,Zh)');
+xlim([-100 100]);
+ylim([-100 100]);
+
+subplot(2,3,5)
+vecPlotSize = (abs(vecAllZetaZ_faces-vecAllZetaZ_houses)/max(abs(vecAllZetaZ_faces-vecAllZetaZ_houses)))*vecSize;
+scatter(matAllCoords(:,1),matAllCoords(:,2),vecPlotSize,vecAllZetaZ_faces-vecAllZetaZ_houses,'filled');
+colorbar
+xlabel('ML? coords')
+ylabel('AP? coords')
+zlabel('DV? coords')
+title('Zf-Zh');
+xlim([-100 100]);
+ylim([-100 100]);
+
 vecAllClustZ_diff = abs(vecAllClustZ_diff);
 subplot(2,3,6)
 scatter(matAllCoords(:,1),matAllCoords(:,2),0.1+(vecAllClustZ_diff/dblMaxZ)*vecSize,vecAllClustZ_diff,'filled');
@@ -466,3 +491,69 @@ fixfig;
 
 export_fig(fullpath(strFigPath,'ZetaEEG2.png'));
 export_fig(fullpath(strFigPath,'ZetaEEG2.pdf'));
+
+%% inclusion summaries
+figure;maxfig;
+%houses
+subplot(2,3,1);hold on;
+[pZR,z]=bino2test(sum(vecAllZetaZ_houses>1.96),numel(vecAllZetaZ_houses),sum(vecAllR2_houses>0.05),numel(vecAllR2_houses));
+[pZT,z]=bino2test(sum(vecAllZetaZ_houses>1.96),numel(vecAllZetaZ_houses),sum(vecAllTtestZ_houses>1.96),numel(vecAllTtestZ_houses));
+[pTR,z]=bino2test(sum(vecAllTtestZ_houses>1.96),numel(vecAllTtestZ_houses),sum(vecAllR2_houses>0.05),numel(vecAllR2_houses));
+[dblZ,vecZ_ci]=binofit(sum(vecAllZetaZ_houses>1.96),numel(vecAllZetaZ_houses));
+[dblT,vecT_ci]=binofit(sum(vecAllTtestZ_houses>1.96),numel(vecAllTtestZ_houses));
+[dblR,vecR_ci]=binofit(sum(vecAllR2_houses>0.05),numel(vecAllR2_houses));
+
+errorbar(1,dblZ,dblZ-vecZ_ci(1),dblZ-vecZ_ci(2),'x','color',lines(1));
+errorbar(2,dblT,dblT-vecT_ci(1),dblT-vecT_ci(2),'x','color','k');
+errorbar(3,dblR,dblR-vecR_ci(1),dblR-vecR_ci(2),'x','color','r');
+hold off;
+xlim([0 4]);
+set(gca,'xtick',[1 2 3],'xticklabel',{'T-ZETA2','T-test','R^2'});
+ylim([0 1]);
+ylabel('# of house resp. sites');
+title(sprintf('houses, Bino2-p; Z-R=%.1e;Z-T=%.1e;T-R=%.1e',pZR,pZT,pTR));
+
+%faces
+subplot(2,3,2);hold on;
+[pZR,z]=bino2test(sum(vecAllZetaZ_faces>1.96),numel(vecAllZetaZ_faces),sum(vecAllR2_faces>0.05),numel(vecAllR2_faces));
+[pZT,z]=bino2test(sum(vecAllZetaZ_faces>1.96),numel(vecAllZetaZ_faces),sum(vecAllTtestZ_faces>1.96),numel(vecAllTtestZ_faces));
+[pTR,z]=bino2test(sum(vecAllTtestZ_faces>1.96),numel(vecAllTtestZ_faces),sum(vecAllR2_faces>0.05),numel(vecAllR2_faces));
+[dblZ,vecZ_ci]=binofit(sum(vecAllZetaZ_faces>1.96),numel(vecAllZetaZ_faces));
+[dblT,vecT_ci]=binofit(sum(vecAllTtestZ_faces>1.96),numel(vecAllTtestZ_faces));
+[dblR,vecR_ci]=binofit(sum(vecAllR2_faces>0.05),numel(vecAllR2_faces));
+
+errorbar(1,dblZ,dblZ-vecZ_ci(1),dblZ-vecZ_ci(2),'x','color',lines(1));
+errorbar(2,dblT,dblT-vecT_ci(1),dblT-vecT_ci(2),'x','color','k');
+errorbar(3,dblR,dblR-vecR_ci(1),dblR-vecR_ci(2),'x','color','r');
+hold off;
+xlim([0 4]);
+set(gca,'xtick',[1 2 3],'xticklabel',{'T-ZETA2','T-test','R^2'});
+ylim([0 1]);
+ylabel('# of face resp. sites');
+title(sprintf('faces, Bino2; Z-R=%.1e;Z-T=%.1e;T-R=%.1e',pZR,pZT,pTR));
+
+%diff
+subplot(2,3,3);hold on;
+vecAllClustZ_diff(isinf(vecAllClustZ_diff))=0;
+vecAllClustZ_diff = abs(vecAllClustZ_diff);
+[pZC,z]=bino2test(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff),sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
+[pZT,z]=bino2test(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff),sum(vecAllTtestZ_diff>1.96),numel(vecAllTtestZ_diff));
+[pTC,z]=bino2test(sum(vecAllTtestZ_diff>1.96),numel(vecAllTtestZ_diff),sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
+[dblZ,vecZ_ci]=binofit(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff));
+[dblT,vecT_ci]=binofit(sum(vecAllTtestZ_diff>1.96),numel(vecAllTtestZ_diff));
+[dblC,vecC_ci]=binofit(sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
+
+errorbar(1,dblZ,dblZ-vecZ_ci(1),dblZ-vecZ_ci(2),'x','color',lines(1));
+errorbar(2,dblT,dblT-vecT_ci(1),dblT-vecT_ci(2),'x','color','k');
+errorbar(3,dblC,dblC-vecC_ci(1),dblC-vecC_ci(2),'x','color','r');
+hold off;
+xlim([0 4]);
+set(gca,'xtick',[1 2 3],'xticklabel',{'T-ZETA2','T-test','Clustering'});
+ylim([0 1]);
+ylabel('# of diff. resp. sites');
+title(sprintf('Diff, Bino2; Z-C=%.1e;Z-T=%.1e;T-C=%.1e',pZC,pZT,pTC));
+fixfig;
+
+
+export_fig(fullpath(strFigPath,'ZetaEEG3.png'));
+export_fig(fullpath(strFigPath,'ZetaEEG3.pdf'));

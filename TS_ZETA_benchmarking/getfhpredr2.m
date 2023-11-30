@@ -1,5 +1,10 @@
-function [vecR2_faces,vecR2_houses,dblR2_cutoff] = getfhpredr2(strSubject,strDataPath)
+function [vecR2_faces,vecR2_houses,dblR2_cutoff] = getfhpredr2(strSubject,strDataPath,boolRandomize)
+	
 	% for both discrete and continuous classification
+	if ~exist('boolRandomize','var') || isempty(boolRandomize)
+		boolRandomize = false;
+	end
+	
 	%subject = 'ca';
 	cls='erp';
 	sLoad=load(fullpath([strDataPath filesep strSubject],[strSubject '_' cls '_cross_folds']),'*fold*');
@@ -20,6 +25,11 @@ function [vecR2_faces,vecR2_houses,dblR2_cutoff] = getfhpredr2(strSubject,strDat
 	testdata_f = sLoad.f_template_test_fold{cf}(sLoad.test_events_fold{cf}(:,1),:);
 	testdata_h = sLoad.h_template_test_fold{cf}(sLoad.test_events_fold{cf}(:,1),:);
 	testlabels = sLoad.test_events_fold{cf}(:,2);
+	
+	if boolRandomize
+		trainlabels = trainlabels(randperm(numel(trainlabels)));
+		testlabels = testlabels(randperm(numel(testlabels)));
+	end
 	
 	%% parameters to use
 	preselect_r2=clsparms.preselect_r2; %r2 threshold to keep channels

@@ -45,9 +45,10 @@ cellSubjects = cellFiles(~contains(cellFiles,'.'));
 strOldPath = cd(strMasterPath);
 boolMakeAllPlots = false;
 if boolMakeAllPlots,intPlotZ = 4;else,intPlotZ=0;end
-
+dblUseMaxDur = 0.5;
+			
 try
-	load(fullpath(strDataPath,'ZetaEEG'),'sZetaEEG');
+	load(fullpath(strDataPath,'ZetaEEG_0.5s.mat'),'sZetaEEG');
 	
 	cellFields = fieldnames(sZetaEEG);
 	for intField=1:numel(cellFields)
@@ -68,16 +69,16 @@ catch
 	%prep vars
 	matAllCoords = [];
 	matAllCoordsT = [];
-	vecAllZetaZ_faces = [];
-	vecAllZetaZ_houses = [];
-	vecAllZetaZ_diff = [];
-	vecAllTtestZ_faces = [];
-	vecAllTtestZ_houses = [];
-	vecAllTtestZ_diff = [];
-	vecAllClustZ_diff = [];
-	vecAllR2_faces = [];
-	vecAllR2_houses = [];
-	vecAllSubject = [];
+	matAllZetaZ_faces = [];
+	matAllZetaZ_houses = [];
+	matAllZetaZ_diff = [];
+	matAllTtestZ_faces = [];
+	matAllTtestZ_houses = [];
+	matAllTtestZ_diff = [];
+	matAllClustZ_diff = [];
+	matAllR2_faces = [];
+	matAllR2_houses = [];
+	matAllSubject = [];
 	
 	%%
 	%pre-run all subjects
@@ -88,223 +89,254 @@ catch
 		if ~exist(strTargetFile,'file')
 			fhpred_master;
 		end
-		close all;
-		
-		%% get data
-		[vecR2_faces,vecR2_houses,dblR2_cutoff] = getfhpredr2(strSubject,strSourceDataPath);
-		sData = load(fullpath([strMasterPath filesep 'data' filesep strSubject], [strSubject '_faceshouses'])); %note that bad channels have already been rejected
-		sLocs = load(fullpath([strMasterPath filesep 'locs'], [strSubject '_xslocs']));
-		%discard non-included areas
-		matCoords = sLocs.locs;
-		matData = sData.data(:,sLocs.elcode~=20);
-		cellElectrodeLocs = area_lbls(sLocs.elcode)';
-		cellElectrodeLocs(sLocs.elcode==20)=[];
-		vecR2_faces(sLocs.elcode==20)=[];
-		vecR2_houses(sLocs.elcode==20)=[];
-		matCoords(sLocs.elcode==20,:)=[];
-		
-		vecStim = sData.stim;
-		
-		% transform coords
-		strNifti = [strMasterPath filesep 'brains' filesep strSubject filesep strSubject '_mri.nii'];
-		info = niftiinfo(strNifti);
-		tform = affine3d(info.Transform.T);
-		%transform coords
-		matCoords4 = matCoords;
-		matCoords4(:,4)=1;
-		matCoords4T = matCoords4 * tform.T;
-		matCoordsTransformed = matCoords4T(:,1:3);
-		
-		%define stims
-		intITI = 101;
-		intPrePost = 0;
-		vecHouses = 1:50;
-		vecFaces = 51:100;
-		
-		%% re-reference / regress out 1st mode
-		matData=car(matData);
-		dblFs = sData.srate;
-		vecTime = (1:size(matData,1))/dblFs;
-		
-		%% get events
-		vecHouseOn = find(~ismember(sData.stim(1:(end-1)),vecHouses) & ismember(sData.stim(2:end),vecHouses))/dblFs;
-		vecHouseOff = find(ismember(sData.stim(1:(end-1)),vecHouses) & ~ismember(sData.stim(2:end),vecHouses))/dblFs;
-		vecFaceOn = find(~ismember(sData.stim(1:(end-1)),vecFaces) & ismember(sData.stim(2:end),vecFaces))/dblFs;
-		vecFaceOff = find(ismember(sData.stim(1:(end-1)),vecFaces) & ~ismember(sData.stim(2:end),vecFaces))/dblFs;
-		dblUseMaxDur = 0.6;
-		matCol = lines(2);
-		%go through electrodes
-		
-		for intElectrode = 1:size(matData,2)
-			fprintf('Running subject %s (%d/%d), electrode %d/%d [%s]\n',...
-				strSubject,intSubject,numel(cellSubjects),intElectrode,size(matData,2),getTime);
+		cellRand = {'normal; ','rand; '};
+		for intRand=1:2
+			%% rand?
+			boolRand =intRand==2;
+			%% get data
+			[vecR2_faces,vecR2_houses,dblR2_cutoff] = getfhpredr2(strSubject,strSourceDataPath,boolRand);
+			sData = load(fullpath([strMasterPath filesep 'data' filesep strSubject], [strSubject '_faceshouses'])); %note that bad channels have already been rejected
+			sLocs = load(fullpath([strMasterPath filesep 'locs'], [strSubject '_xslocs']));
+			%discard non-included areas
+			matCoords = sLocs.locs;
+			matData = sData.data(:,sLocs.elcode~=20);
+			cellElectrodeLocs = area_lbls(sLocs.elcode)';
+			cellElectrodeLocs(sLocs.elcode==20)=[];
+			vecR2_faces(sLocs.elcode==20)=[];
+			vecR2_houses(sLocs.elcode==20)=[];
+			matCoords(sLocs.elcode==20,:)=[];
 			
-			%calc zeta
-			vecData = matData(:,intElectrode);
-			[dblP,sZETA2]=zetatstest2(vecTime,vecData,cat(2,vecHouseOn,vecHouseOff),vecTime,vecData,cat(2,vecFaceOn,vecFaceOff),dblUseMaxDur,250,intPlotZ);
-			[dblP_Houses,sZH]=zetatstest(vecTime,vecData,cat(2,vecHouseOn,vecHouseOff),dblUseMaxDur,250,0,0,[],true,1);
-			[dblP_Faces,sZF]=zetatstest(vecTime,vecData,cat(2,vecFaceOn,vecFaceOff),dblUseMaxDur,250,0,0,[],true,1);
+			vecStim = sData.stim;
 			
-			%save data
-			if intElectrode==1
-				sMultiZ2 = sZETA2;
-				sMultiZH = sZH;
-				sMultiZF = sZF;
-				vecClustZ_diff = nan(size(matData,2),1);
-			else
-				sMultiZ2(intElectrode) = sZETA2;
-				sMultiZH(intElectrode) = sZH;
-				sMultiZF(intElectrode) = sZF;
+			% transform coords
+			strNifti = [strMasterPath filesep 'brains' filesep strSubject filesep strSubject '_mri.nii'];
+			info = niftiinfo(strNifti);
+			tform = affine3d(info.Transform.T);
+			%transform coords
+			matCoords4 = matCoords;
+			matCoords4(:,4)=1;
+			matCoords4T = matCoords4 * tform.T;
+			matCoordsTransformed = matCoords4T(:,1:3);
+			
+			%% re-reference / regress out 1st mode
+			matData=car(matData);
+			dblFs = sData.srate;
+			vecTime = (1:size(matData,1))/dblFs;
+			
+			%% get events
+			matCol = lines(2);
+			%go through electrodes
+			
+			for intElectrode = 1:size(matData,2)
+				fprintf('Running %ssubject %s (%d/%d), electrode %d/%d [%s]\n',...
+					cellRand{intRand},strSubject,intSubject,numel(cellSubjects),intElectrode,size(matData,2),getTime);
+				
+				%% define stims
+				intITI = 101;
+				intPrePost = 0;
+				vecHouses = 1:50;
+				vecFaces = 51:100;
+				if boolRand
+					intHouses = numel(vecHouses);
+					intFaces = numel(vecFaces);
+					dblHouseRatio = intHouses/(intHouses+intFaces);
+					
+					intHouse2House = round(intHouses*dblHouseRatio);
+					intHouse2Face = intHouses-intHouse2House;
+					intFace2Face = round(intFaces*(1-dblHouseRatio));
+					intFace2House = intFaces-intFace2Face;
+					
+					vecRandHouses = vecHouses(randperm(intHouses));
+					vecRandFaces = vecFaces(randperm(intFaces));
+					
+					vecHouses = sort(cat(2,vecRandHouses(1:intHouse2House),vecRandFaces(1:intFace2House)));
+					vecFaces = sort(cat(2,vecRandHouses((intHouse2House+1):end),vecRandFaces((intFace2House+1):end)));
+				end
+				%stim times
+				vecHouseOn = find(~ismember(sData.stim(1:(end-1)),vecHouses) & ismember(sData.stim(2:end),vecHouses))/dblFs;
+				vecHouseOff = find(ismember(sData.stim(1:(end-1)),vecHouses) & ~ismember(sData.stim(2:end),vecHouses))/dblFs;
+				vecFaceOn = find(~ismember(sData.stim(1:(end-1)),vecFaces) & ismember(sData.stim(2:end),vecFaces))/dblFs;
+				vecFaceOff = find(ismember(sData.stim(1:(end-1)),vecFaces) & ~ismember(sData.stim(2:end),vecFaces))/dblFs;
+				if boolRand
+					vecHouseOn = sort(vecHouseOn + (rand(size(vecHouseOn))-0.5)*dblUseMaxDur*4);
+					vecHouseOff = sort(vecHouseOff + (rand(size(vecHouseOff))-0.5)*dblUseMaxDur*4);
+					vecFaceOn = sort(vecFaceOn + (rand(size(vecFaceOn))-0.5)*dblUseMaxDur*4);
+					vecFaceOff = sort(vecFaceOff + (rand(size(vecFaceOff))-0.5)*dblUseMaxDur*4);
+				end
+				
+				%calc zeta
+				vecData = matData(:,intElectrode);
+				[dblP,sZETA2]=zetatstest2(vecTime,vecData,cat(2,vecHouseOn,vecHouseOff),vecTime,vecData,cat(2,vecFaceOn,vecFaceOff),dblUseMaxDur,250,intPlotZ);
+				[dblP_Houses,sZH]=zetatstest(vecTime,vecData,cat(2,vecHouseOn,vecHouseOff),dblUseMaxDur,250,0,0,[],true,1);
+				[dblP_Faces,sZF]=zetatstest(vecTime,vecData,cat(2,vecFaceOn,vecFaceOff),dblUseMaxDur,250,0,0,[],true,1);
+				
+				%save data
+				if intElectrode==1
+					sMultiZ2 = sZETA2;
+					sMultiZH = sZH;
+					sMultiZF = sZF;
+					vecClustZ_diff = nan(size(matData,2),1);
+				else
+					sMultiZ2(intElectrode) = sZETA2;
+					sMultiZH(intElectrode) = sZH;
+					sMultiZF(intElectrode) = sZF;
+				end
+				
+				%cluster analysis
+				matCond1 = sZETA2.matDataPerTrial1';
+				matCond2 = sZETA2.matDataPerTrial2';
+				clustersPos = ez_clusterstat_time(matCond1,matCond2,1000);
+				clustersNeg = ez_clusterstat_time(matCond2,matCond1,1000);
+				vecPosP = cell2vec({clustersPos.p});
+				vecNegP = cell2vec({clustersNeg.p});
+				dblClustP=min(1,min(bonf_holm([min(vecPosP) min(vecNegP)])));
+				vecClustZ_diff(intElectrode) = -norminv(dblClustP/2);
+				
+				%% plot
+				if boolMakeAllPlots
+					hF=gcf;
+					h1 = hF.Children(2);
+					h2 = hF.Children(4);
+					title(h1,sprintf('%s, Electrode %d, %s; Houses',strSubject,intElectrode,cellElectrodeLocs{intElectrode}));
+					title(h2,sprintf('%s, Electrode %d, %s; Faces',strSubject,intElectrode,cellElectrodeLocs{intElectrode}));
+					
+					subplot(2,3,2);cla;
+					hold all
+					intPlotIters = 50;
+					for intIter=1:intPlotIters
+						plot(sZH.cellRandT{intIter},sZH.cellRandDiff{intIter},'Color',[0.5 0.5 0.5]);
+					end
+					plot(sZH.vecTimeSR,sZH.vecD,'Color',matCol(1,:));
+					hold off
+					xlabel('Time after event (s)');
+					ylabel('Data deviation');
+					title(sprintf('Houses T-ZETA p=%.3f, t-test p=%.3f, R^2=%.3f',sZH.dblZetaP,sZH.dblMeanP,vecR2_houses(intElectrode)));
+					
+					subplot(2,3,5);cla;
+					hold all
+					intPlotIters = 50;
+					for intIter=1:intPlotIters
+						plot(sZF.cellRandT{intIter},sZF.cellRandDiff{intIter},'Color',[0.5 0.5 0.5]);
+					end
+					plot(sZF.vecTimeSR,sZF.vecD,'Color',matCol(1,:));
+					hold off
+					xlabel('Time after event (s)');
+					ylabel('Data deviation');
+					title(sprintf('Faces T-ZETA p=%.3f, t-test p=%.3f, R^2=%.3f',sZF.dblZetaP,sZF.dblMeanP,vecR2_faces(intElectrode)));
+					
+					subplot(2,3,6);
+					intReps1 = numel(vecHouseOn);
+					intReps2 = numel(vecFaceOn);
+					vecT = sZETA2.vecRefT;
+					vecMu1 = mean(sZETA2.matDataPerTrial1);
+					vecSd1 = std(sZETA2.matDataPerTrial1)./sqrt(intReps1);
+					vecMu2 = mean(sZETA2.matDataPerTrial2);
+					vecSd2 = std(sZETA2.matDataPerTrial2)./sqrt(intReps2);
+					hold on
+					h1=plot(vecT,vecMu1);
+					h2=plot(vecT,vecMu2);
+					plot(vecT,vecMu1-vecSd1,'--','color',h1.Color);
+					plot(vecT,vecMu1+vecSd1,'--','color',h1.Color);
+					plot(vecT,vecMu2-vecSd2,'--','color',h2.Color);
+					plot(vecT,vecMu2+vecSd2,'--','color',h2.Color);
+					hold off
+					title(sprintf('%s, Electrode %d, %s',strSubject,intElectrode,cellElectrodeLocs{intElectrode}));
+					legend({'House','Face'},'location','best');
+					xlabel('Time after event (s)');
+					ylabel('Normalized signal (a.u.)');
+					xlim([0 dblUseMaxDur]);
+					
+					%test single-condition responsiveness
+					fixfig;
+					export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('%s_E%02d',strSubject,intElectrode) '.png']));
+					export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('%s_E%02d',strSubject,intElectrode) '.pdf']));
+					
+					%% clustering figure
+					figure;
+					subplot(2,3,1)
+					matDiff = matCond1 - matCond2;
+					vecMuD = mean(matDiff,2);
+					vecSeD = std(matDiff,[],2)/sqrt(size(matDiff,2));
+					plot(vecT,vecMuD);
+					hold on
+					plot(vecT,vecMuD-vecSeD,'--','color',lines(1));
+					plot(vecT,vecMuD+vecSeD,'--','color',lines(1));
+					hold off
+					xlabel('Time (s)');
+					ylabel('Signal difference');
+					title(sprintf('%s E%d',strSubject,intElectrode));
+					
+					subplot(2,3,2)
+					hold on
+					plot(vecT,clustersPos.tmap);
+					plot(vecT,clustersNeg.tmap);
+					plot(vecT,clustersPos.map);
+					plot(vecT,-clustersNeg.map);
+					plot(vecT([1 end]),1.963*[1 1]);
+					plot(vecT([1 end]),-1.963*[1 1]);
+					hold off
+					title(sprintf('crit-sum=%.3f; +Sum=%.3f,p=%.3f; -Sum=%.3f,p=%.3f',clustersNeg.cluscrit,clustersPos.clustsum,clustersPos.p,clustersNeg.clustsum,clustersNeg.p));
+					xlim([0 dblUseMaxDur]);
+					xlabel('Time (s)');
+					ylabel('t-tstatistic per 1 ms bin');
+					maxfig;fixfig;
+					export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('Clust%s_E%02d',strSubject,intElectrode) '.png']));
+					export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('Clust%s_E%02d',strSubject,intElectrode) '.pdf']));
+					
+				end
 			end
 			
-			%cluster analysis
-			%intResampNum = 250;
-			%dblJitterSize = 2;
-			%boolStitch=true;
-			%dblSuperResFactor=100;
-			%sClustHouses=clustertest(vecTime,vecData,cat(2,vecHouseOn,vecHouseOff),dblUseMaxDur,intResampNum,dblJitterSize,boolStitch,dblSuperResFactor);
-			
-			%cluster analysis
-			matCond1 = sZETA2.matDataPerTrial1';
-			matCond2 = sZETA2.matDataPerTrial2';
-			clustersPos = ez_clusterstat_time(matCond1,matCond2,1000);
-			clustersNeg = ez_clusterstat_time(matCond2,matCond1,1000);
-			vecPosP = cell2vec({clustersPos.p});
-			vecNegP = cell2vec({clustersNeg.p});
-			dblClustP=min(bonf_holm([min(vecPosP) min(vecNegP)]));
-			vecClustZ_diff(intElectrode) = -norminv(dblClustP/2);
-			
-			%plot
-			if boolMakeAllPlots
-				hF=gcf;
-				h1 = hF.Children(2);
-				h2 = hF.Children(4);
-				title(h1,sprintf('%s, Electrode %d, %s; Houses',strSubject,intElectrode,cellElectrodeLocs{intElectrode}));
-				title(h2,sprintf('%s, Electrode %d, %s; Faces',strSubject,intElectrode,cellElectrodeLocs{intElectrode}));
+			%plot electrode responsiveness in 3d
+			if ~boolRand
+				matZetaZ_faces = cell2vec({sMultiZF.dblZETA});
+				matZetaZ_houses = cell2vec({sMultiZH.dblZETA});
+				matZetaZ_diff = cell2vec({sMultiZ2.dblZETA});
+				matTtestZ_faces = cell2vec({sMultiZF.dblMeanZ});
+				matTtestZ_houses = cell2vec({sMultiZH.dblMeanZ});
+				matTtestZ_diff = cell2vec({sMultiZ2.dblMeanZ});
+				matClustZ_diff = vecClustZ_diff;
+				matR2_faces = vecR2_faces';
+				matR2_houses = vecR2_houses';
 				
-				subplot(2,3,2);cla;
-				hold all
-				intPlotIters = 50;
-				for intIter=1:intPlotIters
-					plot(sZH.cellRandT{intIter},sZH.cellRandDiff{intIter},'Color',[0.5 0.5 0.5]);
-				end
-				plot(sZH.vecTimeSR,sZH.vecD,'Color',matCol(1,:));
-				hold off
-				xlabel('Time after event (s)');
-				ylabel('Data deviation');
-				title(sprintf('Houses T-ZETA p=%.3f, t-test p=%.3f, R^2=%.3f',sZH.dblZetaP,sZH.dblMeanP,vecR2_houses(intElectrode)));
-				
-				subplot(2,3,5);cla;
-				hold all
-				intPlotIters = 50;
-				for intIter=1:intPlotIters
-					plot(sZF.cellRandT{intIter},sZF.cellRandDiff{intIter},'Color',[0.5 0.5 0.5]);
-				end
-				plot(sZF.vecTimeSR,sZF.vecD,'Color',matCol(1,:));
-				hold off
-				xlabel('Time after event (s)');
-				ylabel('Data deviation');
-				title(sprintf('Faces T-ZETA p=%.3f, t-test p=%.3f, R^2=%.3f',sZF.dblZetaP,sZF.dblMeanP,vecR2_faces(intElectrode)));
-				
-				subplot(2,3,6);
-				intReps1 = numel(vecHouseOn);
-				intReps2 = numel(vecFaceOn);
-				vecT = sZETA2.vecRefT;
-				vecMu1 = mean(sZETA2.matDataPerTrial1);
-				vecSd1 = std(sZETA2.matDataPerTrial1)./sqrt(intReps1);
-				vecMu2 = mean(sZETA2.matDataPerTrial2);
-				vecSd2 = std(sZETA2.matDataPerTrial2)./sqrt(intReps2);
-				hold on
-				h1=plot(vecT,vecMu1);
-				h2=plot(vecT,vecMu2);
-				plot(vecT,vecMu1-vecSd1,'--','color',h1.Color);
-				plot(vecT,vecMu1+vecSd1,'--','color',h1.Color);
-				plot(vecT,vecMu2-vecSd2,'--','color',h2.Color);
-				plot(vecT,vecMu2+vecSd2,'--','color',h2.Color);
-				hold off
-				title(sprintf('%s, Electrode %d, %s',strSubject,intElectrode,cellElectrodeLocs{intElectrode}));
-				legend({'House','Face'},'location','best');
-				xlabel('Time after event (s)');
-				ylabel('Normalized signal (a.u.)');
-				xlim([0 dblUseMaxDur]);
-				
-				%test single-condition responsiveness
-				fixfig;
-				export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('%s_E%02d',strSubject,intElectrode) '.png']));
-				export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('%s_E%02d',strSubject,intElectrode) '.pdf']));
-				
-				%% clustering figure
-				figure;
-				subplot(2,3,1)
-				matDiff = matCond1 - matCond2;
-				vecMuD = mean(matDiff,2);
-				vecSeD = std(matDiff,[],2)/sqrt(size(matDiff,2));
-				plot(vecT,vecMuD);
-				hold on
-				plot(vecT,vecMuD-vecSeD,'--','color',lines(1));
-				plot(vecT,vecMuD+vecSeD,'--','color',lines(1));
-				hold off
-				xlabel('Time (s)');
-				ylabel('Signal difference');
-				title(sprintf('%s E%d',strSubject,intElectrode));
-				
-				subplot(2,3,2)
-				hold on
-				plot(vecT,clustersPos.tmap);
-				plot(vecT,clustersNeg.tmap);
-				plot(vecT,clustersPos.map);
-				plot(vecT,-clustersNeg.map);
-				plot(vecT([1 end]),1.963*[1 1]);
-				plot(vecT([1 end]),-1.963*[1 1]);
-				hold off
-				title(sprintf('crit-sum=%.3f; +Sum=%.3f,p=%.3f; -Sum=%.3f,p=%.3f',clustersNeg.cluscrit,clustersPos.clustsum,clustersPos.p,clustersNeg.clustsum,clustersNeg.p));
-				xlim([0 dblUseMaxDur]);
-				xlabel('Time (s)');
-				ylabel('t-tstatistic per 1 ms bin');
-				maxfig;fixfig;
-				export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('Clust%s_E%02d',strSubject,intElectrode) '.png']));
-				export_fig(fullpath(strFigPath,['EEG_examples\ExampleEEG_' sprintf('Clust%s_E%02d',strSubject,intElectrode) '.pdf']));
-				
+			else
+				matZetaZ_faces(:,2) = cell2vec({sMultiZF.dblZETA});
+				matZetaZ_houses(:,2) = cell2vec({sMultiZH.dblZETA});
+				matZetaZ_diff(:,2) = cell2vec({sMultiZ2.dblZETA});
+				matTtestZ_faces(:,2) = cell2vec({sMultiZF.dblMeanZ});
+				matTtestZ_houses(:,2) = cell2vec({sMultiZH.dblMeanZ});
+				matTtestZ_diff(:,2) = cell2vec({sMultiZ2.dblMeanZ});
+				matClustZ_diff(:,2) = vecClustZ_diff;
+				matR2_faces(:,2) = vecR2_faces';
+				matR2_houses(:,2) = vecR2_houses';
 			end
 		end
-		
-		%plot electrode responsiveness in 3d
-		vecR2_faces = vecR2_faces';
-		vecR2_houses = vecR2_houses';
-		vecZetaZ_faces = cell2vec({sMultiZF.dblZETA});
-		vecZetaZ_houses = cell2vec({sMultiZH.dblZETA});
-		vecZetaZ_diff = cell2vec({sMultiZ2.dblZETA});
-		vecTtestZ_faces = cell2vec({sMultiZF.dblMeanZ});
-		vecTtestZ_houses = cell2vec({sMultiZH.dblMeanZ});
-		vecTtestZ_diff = cell2vec({sMultiZ2.dblMeanZ});
-		
 		matAllCoords = cat(1,matAllCoords,matCoords);
 		matAllCoordsT = cat(1,matAllCoordsT,matCoordsTransformed);
-		vecAllZetaZ_faces = cat(1,vecAllZetaZ_faces,vecZetaZ_faces);
-		vecAllZetaZ_houses = cat(1,vecAllZetaZ_houses,vecZetaZ_houses);
-		vecAllZetaZ_diff = cat(1,vecAllZetaZ_diff,vecZetaZ_diff);
-		vecAllTtestZ_faces = cat(1,vecAllTtestZ_faces,vecTtestZ_faces);
-		vecAllTtestZ_houses = cat(1,vecAllTtestZ_houses,vecTtestZ_houses);
-		vecAllTtestZ_diff = cat(1,vecAllTtestZ_diff,vecTtestZ_diff);
-		vecAllClustZ_diff = cat(1,vecAllClustZ_diff,vecClustZ_diff);
-		vecAllR2_faces = cat(1,vecAllR2_faces,vecR2_faces);
-		vecAllR2_houses = cat(1,vecAllR2_houses,vecR2_houses);
-		vecAllSubject = cat(1,vecAllSubject,intSubject*ones(size(vecZetaZ_diff)));
+		matAllZetaZ_faces = cat(1,matAllZetaZ_faces,matZetaZ_faces);
+		matAllZetaZ_houses = cat(1,matAllZetaZ_houses,matZetaZ_houses);
+		matAllZetaZ_diff = cat(1,matAllZetaZ_diff,matZetaZ_diff);
+		matAllTtestZ_faces = cat(1,matAllTtestZ_faces,matTtestZ_faces);
+		matAllTtestZ_houses = cat(1,matAllTtestZ_houses,matTtestZ_houses);
+		matAllTtestZ_diff = cat(1,matAllTtestZ_diff,matTtestZ_diff);
+		matAllClustZ_diff = cat(1,matAllClustZ_diff,matClustZ_diff);
+		matAllR2_faces = cat(1,matAllR2_faces,matR2_faces);
+		matAllR2_houses = cat(1,matAllR2_houses,matR2_houses);
+		matAllSubject = cat(1,matAllSubject,intSubject*ones(size(matZetaZ_diff)));
 	end
 	% save
 	sZetaEEG=struct;
 	sZetaEEG.matAllCoords = matAllCoords;
 	sZetaEEG.matAllCoordsT = matAllCoordsT;
-	sZetaEEG.vecAllZetaZ_faces =vecAllZetaZ_faces;
-	sZetaEEG.vecAllZetaZ_houses = vecAllZetaZ_houses;
-	sZetaEEG.vecAllZetaZ_diff = vecAllZetaZ_diff;
-	sZetaEEG.vecAllTtestZ_faces = vecAllTtestZ_faces;
-	sZetaEEG.vecAllTtestZ_houses = vecAllTtestZ_houses;
-	sZetaEEG.vecAllTtestZ_diff = vecAllTtestZ_diff;
-	sZetaEEG.vecAllClustZ_diff = vecAllClustZ_diff;
-	sZetaEEG.vecAllR2_faces = vecAllR2_faces;
-	sZetaEEG.vecAllR2_houses = vecAllR2_houses;
-	sZetaEEG.vecAllSubject = vecAllSubject;
+	sZetaEEG.matAllZetaZ_faces =matAllZetaZ_faces;
+	sZetaEEG.matAllZetaZ_houses = matAllZetaZ_houses;
+	sZetaEEG.matAllZetaZ_diff = matAllZetaZ_diff;
+	sZetaEEG.matAllTtestZ_faces = matAllTtestZ_faces;
+	sZetaEEG.matAllTtestZ_houses = matAllTtestZ_houses;
+	sZetaEEG.matAllTtestZ_diff = matAllTtestZ_diff;
+	sZetaEEG.matAllClustZ_diff = matAllClustZ_diff;
+	sZetaEEG.matAllR2_faces = matAllR2_faces;
+	sZetaEEG.matAllR2_houses = matAllR2_houses;
+	sZetaEEG.matAllSubject = matAllSubject;
 	save(fullpath(strDataPath,'ZetaEEG'),'sZetaEEG');
 end
 
@@ -313,45 +345,55 @@ end
 hFigAll = figure;maxfig;
 hAx1=subplot(2,3,1);hold on;
 dblSize = 20;
-scatter(hAx1,vecAllR2_houses,vecAllZetaZ_houses,dblSize,lines(1),'o','filled','markerfacealpha',0.8);
-scatter(hAx1,vecAllR2_houses,vecAllTtestZ_houses,dblSize,[0.2 0.2 0.2],'o','filled','markerfacealpha',0.8);
-title(sprintf('Houses-signif, Z: %d%%, T: %d%%, R: %d%%',...
-	round(sum(vecAllZetaZ_houses>1.96)/numel(vecAllZetaZ_houses)*100),...
-	round(sum(vecAllTtestZ_houses>1.96)/numel(vecAllTtestZ_houses)*100),...
-	round(sum(vecAllR2_houses>0.05)/numel(vecAllR2_houses)*100)...
+scatter(hAx1,matAllR2_houses(:,1),matAllZetaZ_houses(:,1),dblSize,lines(1),'o','filled','markerfacealpha',0.8);
+scatter(hAx1,matAllR2_houses(:,1),matAllTtestZ_houses(:,1),dblSize,[0.2 0.2 0.2],'o','filled','markerfacealpha',0.8);
+title(sprintf('Houses-signif, Z: %d%%/%d%%, T: %d%%/%d%%, R: %d%%/%d%%',...
+	round(sum(matAllZetaZ_houses(:,1)>1.96)/numel(matAllZetaZ_houses(:,1))*100),...
+	round(sum(matAllZetaZ_houses(:,2)>1.96)/numel(matAllZetaZ_houses(:,2))*100),...
+	round(sum(matAllTtestZ_houses(:,1)>1.96)/numel(matAllTtestZ_houses(:,1))*100),...
+	round(sum(matAllTtestZ_houses(:,2)>1.96)/numel(matAllTtestZ_houses(:,2))*100),...
+	round(sum(matAllR2_houses(:,1)>0.05)/numel(matAllR2_houses(:,1))*100),...
+	round(sum(matAllR2_houses(:,2)>0.05)/numel(matAllR2_houses(:,2))*100)...
 	))
 legend({'ZETA','T-test'},'location','best');
 ylabel('ZETA/t-test significance (\sigma)');
 xlabel('Signal predictability (R^2)');
 
 hAx2=subplot(2,3,2);hold on;
-scatter(hAx2,vecAllR2_faces,vecAllZetaZ_faces,dblSize,lines(1),'o','filled','markerfacealpha',0.8);
-scatter(hAx2,vecAllR2_faces,vecAllTtestZ_faces,dblSize,[0.2 0.2 0.2],'o','filled','markerfacealpha',0.8);
-title(sprintf('Faces-signif, Z: %d%%, T: %d%%, R: %d%%',...
-	round(sum(vecAllZetaZ_faces>1.96)/numel(vecAllZetaZ_faces)*100),...
-	round(sum(vecAllTtestZ_faces>1.96)/numel(vecAllTtestZ_faces)*100),...
-	round(sum(vecAllR2_faces>0.05)/numel(vecAllR2_faces)*100)...
+scatter(hAx2,matAllR2_faces(:,1),matAllZetaZ_faces(:,1),dblSize,lines(1),'o','filled','markerfacealpha',0.8);
+scatter(hAx2,matAllR2_faces(:,1),matAllTtestZ_faces(:,1),dblSize,[0.2 0.2 0.2],'o','filled','markerfacealpha',0.8);
+title(sprintf('Faces-signif, Z: %d%%/%d%%, T: %d%%/%d%%, R: %d%%/%d%%',...
+	round(sum(matAllZetaZ_faces(:,1)>1.96)/numel(matAllZetaZ_faces(:,1))*100),...
+	round(sum(matAllZetaZ_faces(:,2)>1.96)/numel(matAllZetaZ_faces(:,2))*100),...
+	round(sum(matAllTtestZ_faces(:,1)>1.96)/numel(matAllTtestZ_faces(:,1))*100),...
+	round(sum(matAllTtestZ_faces(:,2)>1.96)/numel(matAllTtestZ_faces(:,2))*100),...
+	round(sum(matAllR2_faces(:,1)>0.05)/numel(matAllR2_faces(:,1))*100),...
+	round(sum(matAllR2_faces(:,2)>0.05)/numel(matAllR2_faces(:,2))*100)...
 	))
 legend({'ZETA','T-test'},'location','best');
 ylabel('ZETA/t-test Significance (\sigma)');
 xlabel('Signal predictability (R^2)');
 
 hAx3=subplot(2,3,3);cla(hAx3);hold on;
-vecAllClustZ_diff(isinf(vecAllClustZ_diff))=0;
-vecAllClustZ_diff = abs(vecAllClustZ_diff);
-[pBino2,z]=bino2test(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff),sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
+vecRealC = matAllClustZ_diff(:,1);
+vecRealZ = matAllZetaZ_diff(:,1);
+vecRealC(isinf(vecRealC))=0;
+vecRealC = abs(vecRealC);
+[pBino2,z]=bino2test(sum(vecRealZ>1.96),numel(vecRealZ),sum(vecRealC>1.96),numel(vecRealC));
 dblZTS = 1.96;
-ind00 = vecAllZetaZ_diff<dblZTS & vecAllClustZ_diff<dblZTS;
-ind01 = vecAllZetaZ_diff<dblZTS & vecAllClustZ_diff>=dblZTS;
-ind10 = vecAllZetaZ_diff>=dblZTS & vecAllClustZ_diff<dblZTS;
-ind11 = vecAllZetaZ_diff>=dblZTS & vecAllClustZ_diff>=dblZTS;
-scatter(hAx3,vecAllClustZ_diff(ind00),vecAllZetaZ_diff(ind00),dblSize,[0.5 0.5 0.5],'o','filled','markerfacealpha',0.8);
-scatter(hAx3,vecAllClustZ_diff(ind01),vecAllZetaZ_diff(ind01),dblSize,[1 0 0],'o','filled','markerfacealpha',0.8);
-scatter(hAx3,vecAllClustZ_diff(ind10),vecAllZetaZ_diff(ind10),dblSize,[0 1 0],'o','filled','markerfacealpha',0.8);
-scatter(hAx3,vecAllClustZ_diff(ind11),vecAllZetaZ_diff(ind11),dblSize,[0 0 1],'o','filled','markerfacealpha',0.8);
-title(sprintf('Diff-signif, Z: %d%%, C: %d%%; bino2-p=%.3f',...
-	round(sum(vecAllZetaZ_diff>1.96)/numel(vecAllZetaZ_diff)*100),...
-	round(sum(vecAllClustZ_diff>1.96)/numel(vecAllClustZ_diff)*100),pBino2...
+ind00 = vecRealZ<dblZTS & vecRealC<dblZTS;
+ind01 = vecRealZ<dblZTS & vecRealC>=dblZTS;
+ind10 = vecRealZ>=dblZTS & vecRealC<dblZTS;
+ind11 = vecRealZ>=dblZTS & vecRealC>=dblZTS;
+scatter(hAx3,vecRealC(ind00),vecRealZ(ind00),dblSize,[0.5 0.5 0.5],'o','filled','markerfacealpha',0.8);
+scatter(hAx3,vecRealC(ind01),vecRealZ(ind01),dblSize,[1 0 0],'o','filled','markerfacealpha',0.8);
+scatter(hAx3,vecRealC(ind10),vecRealZ(ind10),dblSize,[0 1 0],'o','filled','markerfacealpha',0.8);
+scatter(hAx3,vecRealC(ind11),vecRealZ(ind11),dblSize,[0 0 1],'o','filled','markerfacealpha',0.8);
+title(sprintf('Diff-signif, Z: %d%%/%d%%, C: %d%%/%d%%; bino2-p=%.3f',...
+	round(sum(vecRealZ>1.96)/numel(vecRealZ)*100),...
+	round(sum(matAllZetaZ_diff(:,2)>1.96)/numel(matAllZetaZ_diff(:,2))*100),...
+	round(sum(vecRealC>1.96)/numel(vecRealC)*100),...
+	round(sum(matAllClustZ_diff(:,2)>1.96)/numel(matAllClustZ_diff(:,2))*100),pBino2...
 	))
 xlabel('Clustering test significance (\sigma)');
 ylabel('ZETA significance (\sigma)');
@@ -362,9 +404,9 @@ hAx4=subplot(2,3,4);hold on;
 hAx5=subplot(2,3,5);hold on;
 hAx6=subplot(2,3,6);hold on;
 
-matCol = cat(2,vecAllZetaZ_faces,zeros(size(vecAllZetaZ_houses)),vecAllZetaZ_houses);
+matCol = cat(2,matAllZetaZ_faces(:,1),zeros(size(matAllZetaZ_houses(:,1))),matAllZetaZ_houses(:,1));
 matCol = matCol./max(matCol(:));
-vecOpacity = (vecAllZetaZ_houses+vecAllZetaZ_faces);
+vecOpacity = (matAllZetaZ_houses(:,1)+matAllZetaZ_faces(:,1));
 vecOpacity = vecOpacity/max(vecOpacity(:));
 vecSize = 60;
 %{
@@ -379,7 +421,7 @@ xlim([-75 75]);
 ylim([-100 50]);
 %}
 axes(hAx4);
-scatter3(matAllCoords(:,1),matAllCoords(:,2),matAllCoords(:,3),(vecAllZetaZ_faces/max(vecAllZetaZ_faces))*vecSize,vecAllZetaZ_faces,'filled');
+scatter3(matAllCoords(:,1),matAllCoords(:,2),matAllCoords(:,3),(matAllZetaZ_faces(:,1)/max(matAllZetaZ_faces(:,1)))*vecSize,matAllZetaZ_faces(:,1),'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -396,7 +438,7 @@ for intArea=1:numel(cellUniqueNames)
 end
 
 axes(hAx5);
-scatter(matAllCoords(:,1),matAllCoords(:,2),(vecAllZetaZ_houses/max(vecAllZetaZ_houses))*vecSize,vecAllZetaZ_houses,'filled');
+scatter(matAllCoords(:,1),matAllCoords(:,2),(matAllZetaZ_houses(:,1)/max(matAllZetaZ_houses(:,1)))*vecSize,matAllZetaZ_houses(:,1),'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -406,8 +448,8 @@ xlim([-100 100]);
 ylim([-100 100]);
 
 axes(hAx6);
-dblMaxZ = max(max(vecAllZetaZ_diff),max(vecAllClustZ_diff));
-scatter(matAllCoords(:,1),matAllCoords(:,2),(vecAllZetaZ_diff/dblMaxZ)*vecSize,vecAllZetaZ_diff,'filled');
+dblMaxZ = max(max(matAllZetaZ_diff(:,1)),max(matAllClustZ_diff(:,1)));
+scatter(matAllCoords(:,1),matAllCoords(:,2),(matAllZetaZ_diff(:,1)/dblMaxZ)*vecSize,matAllZetaZ_diff(:,1),'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -424,7 +466,7 @@ export_fig(fullpath(strFigPath,'ZetaEEG.pdf'));
 %%
 figure;maxfig
 subplot(2,3,1)
-scatter(matAllCoords(:,1),matAllCoords(:,2),(vecAllR2_houses/max(vecAllR2_houses))*vecSize,vecAllR2_houses,'filled');
+scatter(matAllCoords(:,1),matAllCoords(:,2),(matAllR2_houses/max(matAllR2_houses))*vecSize,matAllR2_houses,'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -434,7 +476,7 @@ xlim([-100 100]);
 ylim([-100 100]);
 
 subplot(2,3,2)
-scatter(matAllCoords(:,1),matAllCoords(:,2),(vecAllR2_faces/max(vecAllR2_faces))*vecSize,vecAllR2_faces,'filled');
+scatter(matAllCoords(:,1),matAllCoords(:,2),(matAllR2_faces/max(matAllR2_faces))*vecSize,matAllR2_faces,'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -453,7 +495,7 @@ xlim([-100 100]);
 ylim([-100 100]);
 
 subplot(2,3,4)
-vecRespDiff = vecAllZetaZ_diff-max(vecAllZetaZ_faces,vecAllZetaZ_houses);
+vecRespDiff = matAllZetaZ_diff-max(matAllZetaZ_faces,matAllZetaZ_houses);
 vecRespDiff(vecRespDiff<0)=0;
 vecPlotSize = (0.1+imnorm(vecRespDiff))*vecSize;
 scatter(matAllCoords(:,1),matAllCoords(:,2),vecPlotSize,vecRespDiff,'filled');
@@ -466,8 +508,8 @@ xlim([-100 100]);
 ylim([-100 100]);
 
 subplot(2,3,5)
-vecPlotSize = (abs(vecAllZetaZ_faces-vecAllZetaZ_houses)/max(abs(vecAllZetaZ_faces-vecAllZetaZ_houses)))*vecSize;
-scatter(matAllCoords(:,1),matAllCoords(:,2),vecPlotSize,vecAllZetaZ_faces-vecAllZetaZ_houses,'filled');
+vecPlotSize = 0.1+(abs(matAllZetaZ_faces-matAllZetaZ_houses)/max(abs(matAllZetaZ_faces-matAllZetaZ_houses)))*vecSize;
+scatter(matAllCoords(:,1),matAllCoords(:,2),vecPlotSize,matAllZetaZ_faces-matAllZetaZ_houses,'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -476,9 +518,9 @@ title('Zf-Zh');
 xlim([-100 100]);
 ylim([-100 100]);
 
-vecAllClustZ_diff = abs(vecAllClustZ_diff);
+matAllClustZ_diff = abs(matAllClustZ_diff);
 subplot(2,3,6)
-scatter(matAllCoords(:,1),matAllCoords(:,2),0.1+(vecAllClustZ_diff/dblMaxZ)*vecSize,vecAllClustZ_diff,'filled');
+scatter(matAllCoords(:,1),matAllCoords(:,2),0.1+(matAllClustZ_diff/dblMaxZ)*vecSize,matAllClustZ_diff,'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -496,12 +538,12 @@ export_fig(fullpath(strFigPath,'ZetaEEG2.pdf'));
 figure;maxfig;
 %houses
 subplot(2,3,1);hold on;
-[pZR,z]=bino2test(sum(vecAllZetaZ_houses>1.96),numel(vecAllZetaZ_houses),sum(vecAllR2_houses>0.05),numel(vecAllR2_houses));
-[pZT,z]=bino2test(sum(vecAllZetaZ_houses>1.96),numel(vecAllZetaZ_houses),sum(vecAllTtestZ_houses>1.96),numel(vecAllTtestZ_houses));
-[pTR,z]=bino2test(sum(vecAllTtestZ_houses>1.96),numel(vecAllTtestZ_houses),sum(vecAllR2_houses>0.05),numel(vecAllR2_houses));
-[dblZ,vecZ_ci]=binofit(sum(vecAllZetaZ_houses>1.96),numel(vecAllZetaZ_houses));
-[dblT,vecT_ci]=binofit(sum(vecAllTtestZ_houses>1.96),numel(vecAllTtestZ_houses));
-[dblR,vecR_ci]=binofit(sum(vecAllR2_houses>0.05),numel(vecAllR2_houses));
+[pZR,z]=bino2test(sum(matAllZetaZ_houses>1.96),numel(matAllZetaZ_houses),sum(matAllR2_houses>0.05),numel(matAllR2_houses));
+[pZT,z]=bino2test(sum(matAllZetaZ_houses>1.96),numel(matAllZetaZ_houses),sum(matAllTtestZ_houses>1.96),numel(matAllTtestZ_houses));
+[pTR,z]=bino2test(sum(matAllTtestZ_houses>1.96),numel(matAllTtestZ_houses),sum(matAllR2_houses>0.05),numel(matAllR2_houses));
+[dblZ,vecZ_ci]=binofit(sum(matAllZetaZ_houses>1.96),numel(matAllZetaZ_houses));
+[dblT,vecT_ci]=binofit(sum(matAllTtestZ_houses>1.96),numel(matAllTtestZ_houses));
+[dblR,vecR_ci]=binofit(sum(matAllR2_houses>0.05),numel(matAllR2_houses));
 
 errorbar(1,dblZ,dblZ-vecZ_ci(1),dblZ-vecZ_ci(2),'x','color',lines(1));
 errorbar(2,dblT,dblT-vecT_ci(1),dblT-vecT_ci(2),'x','color','k');
@@ -515,12 +557,12 @@ title(sprintf('houses, Bino2-p; Z-R=%.1e;Z-T=%.1e;T-R=%.1e',pZR,pZT,pTR));
 
 %faces
 subplot(2,3,2);hold on;
-[pZR,z]=bino2test(sum(vecAllZetaZ_faces>1.96),numel(vecAllZetaZ_faces),sum(vecAllR2_faces>0.05),numel(vecAllR2_faces));
-[pZT,z]=bino2test(sum(vecAllZetaZ_faces>1.96),numel(vecAllZetaZ_faces),sum(vecAllTtestZ_faces>1.96),numel(vecAllTtestZ_faces));
-[pTR,z]=bino2test(sum(vecAllTtestZ_faces>1.96),numel(vecAllTtestZ_faces),sum(vecAllR2_faces>0.05),numel(vecAllR2_faces));
-[dblZ,vecZ_ci]=binofit(sum(vecAllZetaZ_faces>1.96),numel(vecAllZetaZ_faces));
-[dblT,vecT_ci]=binofit(sum(vecAllTtestZ_faces>1.96),numel(vecAllTtestZ_faces));
-[dblR,vecR_ci]=binofit(sum(vecAllR2_faces>0.05),numel(vecAllR2_faces));
+[pZR,z]=bino2test(sum(matAllZetaZ_faces>1.96),numel(matAllZetaZ_faces),sum(matAllR2_faces>0.05),numel(matAllR2_faces));
+[pZT,z]=bino2test(sum(matAllZetaZ_faces>1.96),numel(matAllZetaZ_faces),sum(matAllTtestZ_faces>1.96),numel(matAllTtestZ_faces));
+[pTR,z]=bino2test(sum(matAllTtestZ_faces>1.96),numel(matAllTtestZ_faces),sum(matAllR2_faces>0.05),numel(matAllR2_faces));
+[dblZ,vecZ_ci]=binofit(sum(matAllZetaZ_faces>1.96),numel(matAllZetaZ_faces));
+[dblT,vecT_ci]=binofit(sum(matAllTtestZ_faces>1.96),numel(matAllTtestZ_faces));
+[dblR,vecR_ci]=binofit(sum(matAllR2_faces>0.05),numel(matAllR2_faces));
 
 errorbar(1,dblZ,dblZ-vecZ_ci(1),dblZ-vecZ_ci(2),'x','color',lines(1));
 errorbar(2,dblT,dblT-vecT_ci(1),dblT-vecT_ci(2),'x','color','k');
@@ -534,14 +576,14 @@ title(sprintf('faces, Bino2; Z-R=%.1e;Z-T=%.1e;T-R=%.1e',pZR,pZT,pTR));
 
 %diff
 subplot(2,3,3);hold on;
-vecAllClustZ_diff(isinf(vecAllClustZ_diff))=0;
-vecAllClustZ_diff = abs(vecAllClustZ_diff);
-[pZC,z]=bino2test(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff),sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
-[pZT,z]=bino2test(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff),sum(vecAllTtestZ_diff>1.96),numel(vecAllTtestZ_diff));
-[pTC,z]=bino2test(sum(vecAllTtestZ_diff>1.96),numel(vecAllTtestZ_diff),sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
-[dblZ,vecZ_ci]=binofit(sum(vecAllZetaZ_diff>1.96),numel(vecAllZetaZ_diff));
-[dblT,vecT_ci]=binofit(sum(vecAllTtestZ_diff>1.96),numel(vecAllTtestZ_diff));
-[dblC,vecC_ci]=binofit(sum(vecAllClustZ_diff>1.96),numel(vecAllClustZ_diff));
+matAllClustZ_diff(isinf(matAllClustZ_diff))=0;
+matAllClustZ_diff = abs(matAllClustZ_diff);
+[pZC,z]=bino2test(sum(matAllZetaZ_diff>1.96),numel(matAllZetaZ_diff),sum(matAllClustZ_diff>1.96),numel(matAllClustZ_diff));
+[pZT,z]=bino2test(sum(matAllZetaZ_diff>1.96),numel(matAllZetaZ_diff),sum(matAllTtestZ_diff>1.96),numel(matAllTtestZ_diff));
+[pTC,z]=bino2test(sum(matAllTtestZ_diff>1.96),numel(matAllTtestZ_diff),sum(matAllClustZ_diff>1.96),numel(matAllClustZ_diff));
+[dblZ,vecZ_ci]=binofit(sum(matAllZetaZ_diff>1.96),numel(matAllZetaZ_diff));
+[dblT,vecT_ci]=binofit(sum(matAllTtestZ_diff>1.96),numel(matAllTtestZ_diff));
+[dblC,vecC_ci]=binofit(sum(matAllClustZ_diff>1.96),numel(matAllClustZ_diff));
 
 errorbar(1,dblZ,dblZ-vecZ_ci(1),dblZ-vecZ_ci(2),'x','color',lines(1));
 errorbar(2,dblT,dblT-vecT_ci(1),dblT-vecT_ci(2),'x','color','k');

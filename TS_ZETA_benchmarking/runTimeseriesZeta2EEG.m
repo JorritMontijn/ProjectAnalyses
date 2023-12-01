@@ -45,10 +45,10 @@ cellSubjects = cellFiles(~contains(cellFiles,'.'));
 strOldPath = cd(strMasterPath);
 boolMakeAllPlots = false;
 if boolMakeAllPlots,intPlotZ = 4;else,intPlotZ=0;end
-dblUseMaxDur = 0.5;
+dblUseMaxDur = 0.6;
 			
 try
-	load(fullpath(strDataPath,'ZetaEEG_0.5s.mat'),'sZetaEEG');
+	load(fullpath(strDataPath,'ZetaEEG_0.6s.mat'),'sZetaEEG');
 	
 	cellFields = fieldnames(sZetaEEG);
 	for intField=1:numel(cellFields)
@@ -185,7 +185,7 @@ catch
 				%cluster analysis
 				matCond1 = sZETA2.matDataPerTrial1;
 				matCond2 = sZETA2.matDataPerTrial2;
-				[dblClustP,sClustPos,sClustNeg] = clustertest(matCond1,matCond2);
+				[dblClustP,sClustPos,sClustNeg] = clustertest(matCond1,matCond2,1000);
 				vecClustZ_diff(intElectrode) = -norminv(dblClustP/2);
 				
 				%% plot
@@ -264,14 +264,14 @@ catch
 					
 					subplot(2,3,2)
 					hold on
-					plot(vecT,clustersPos.tmap);
-					plot(vecT,clustersNeg.tmap);
-					plot(vecT,clustersPos.map);
-					plot(vecT,-clustersNeg.map);
+					plot(vecT,sClustPos.tmap);
+					plot(vecT,sClustNeg.tmap);
+					plot(vecT,sClustPos.map);
+					plot(vecT,-sClustNeg.map);
 					plot(vecT([1 end]),1.963*[1 1]);
 					plot(vecT([1 end]),-1.963*[1 1]);
 					hold off
-					title(sprintf('crit-sum=%.3f; +Sum=%.3f,p=%.3f; -Sum=%.3f,p=%.3f',clustersNeg.cluscrit,clustersPos.clustsum,clustersPos.p,clustersNeg.clustsum,clustersNeg.p));
+					title(sprintf('crit-sum=%.3f; +Sum=%.3f,p=%.3f; -Sum=%.3f,p=%.3f',sClustNeg.cluscrit,sClustPos.clustsum,sClustPos.p,sClustNeg.clustsum,sClustNeg.p));
 					xlim([0 dblUseMaxDur]);
 					xlabel('Time (s)');
 					ylabel('t-tstatistic per 1 ms bin');

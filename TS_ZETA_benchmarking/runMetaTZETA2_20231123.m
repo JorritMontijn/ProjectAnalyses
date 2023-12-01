@@ -17,7 +17,7 @@ boolDirectQuantile = false;
 %% prep
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-strTest = 'TsZeta2';
+strTest = 'TsZeta3';
 cellRunRand = {...
 	'',...Rand 1
 	'-Rand',...Rand 2
@@ -40,7 +40,7 @@ cellAnovaP = [];
 
 matZetaP = [];
 matMeanP = [];
-
+matClustP = [];
 for intRandType=1:2
 	if intRandType == 1
 		sDir = sDirReal;
@@ -56,9 +56,10 @@ for intRandType=1:2
 		cellMeanP{intRandType}{intFile} = sLoad.vecTtestP;
 		cellZetaP{intRandType}{intFile} = sLoad.vecTsZetaP;
 		cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;
+		cellClustP{intRandType}{intFile} = sLoad.vecClustP;matClustP
 	end
 end
-
+return
 %% check if recording is above chance
 vecRandMeanP = cell2vec(cellMeanP{2});
 vecRealMeanP = cell2vec(cellMeanP{1});
@@ -241,6 +242,9 @@ for intTest=vecRunTests
 	elseif intTest == 3
 		matData = matMeanP;
 		cellLegend(end+1) = {'T-test'};
+	elseif intTest == 4
+		matData = matClustP;
+		cellLegend(end+1) = {'Clust'};
 	end
 	vecRandSorted = sort(matData(2,:));
 	vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
@@ -263,7 +267,7 @@ xlim([1e-3 1]);
 ylim([1e-3 1]);
 fixfig;
 drawnow;
-
+return
 %% save
 export_fig(fullpath(strFigPath,[strTest strComp strQ strR '.tif']));
 export_fig(fullpath(strFigPath,[strTest strComp strQ strR '.pdf']));

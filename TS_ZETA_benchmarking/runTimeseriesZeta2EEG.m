@@ -183,13 +183,9 @@ catch
 				end
 				
 				%cluster analysis
-				matCond1 = sZETA2.matDataPerTrial1';
-				matCond2 = sZETA2.matDataPerTrial2';
-				clustersPos = ez_clusterstat_time(matCond1,matCond2,1000);
-				clustersNeg = ez_clusterstat_time(matCond2,matCond1,1000);
-				vecPosP = cell2vec({clustersPos.p});
-				vecNegP = cell2vec({clustersNeg.p});
-				dblClustP=min(1,min(bonf_holm([min(vecPosP) min(vecNegP)])));
+				matCond1 = sZETA2.matDataPerTrial1;
+				matCond2 = sZETA2.matDataPerTrial2;
+				[dblClustP,sClustPos,sClustNeg] = clustertest(matCond1,matCond2);
 				vecClustZ_diff(intElectrode) = -norminv(dblClustP/2);
 				
 				%% plot

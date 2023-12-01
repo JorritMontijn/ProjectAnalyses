@@ -48,6 +48,7 @@ for intCompType=1
 	matTsZetaP = nan(2,intNeurons);
 	matTtestP = nan(2,intNeurons);
 	matAnovaP = nan(2,intNeurons);
+	matClustP = nan(2,intNeurons);
 	
 	%% analyze
 	hTic = tic;
@@ -182,6 +183,10 @@ for intCompType=1
 			%one-sample diff
 			matAnovaP(intRandType,intNeuron1) = dblAnova2P;
 			
+			%cluster
+			[dblClustP,sClustPos,sClustNeg] = clustertest(matTracePerTrial1,matTracePerTrial2);
+			matClustP(intRandType,intNeuron1) = dblClustP;
+			
 		end
 	end
 	%% save data
@@ -190,14 +195,15 @@ for intCompType=1
 		vecAnovaP = matAnovaP(intRandType,:);
 		vecTsZetaP = matTsZetaP(intRandType,:);
 		vecTtestP = matTtestP(intRandType,:);
+		vecClustP = matClustP(intRandType,:);
 		if intRandType == 1
 			strRandType = '';
 		elseif intRandType ==2
 			strRandType = 'Rand';
 		end
 		if boolSave
-			save([strDataPath 'TsZeta2_' strCompType '_Q' num2str(boolDirectQuantile) '_' strRandType 'Resamp' num2str(intResampNum) '.mat' ],...
-				'vecAnovaP','vecTsZetaP','vecTtestP','strRandType');
+			save([strDataPath 'TsZeta3_' strCompType '_Q' num2str(boolDirectQuantile) '_' strRandType 'Resamp' num2str(intResampNum) '.mat' ],...
+				'vecClustP','vecAnovaP','vecTsZetaP','vecTtestP','strRandType');
 		end
 	end
 end

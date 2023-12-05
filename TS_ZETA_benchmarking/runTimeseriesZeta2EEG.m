@@ -462,7 +462,8 @@ export_fig(fullpath(strFigPath,'ZetaEEG.pdf'));
 %%
 figure;maxfig
 subplot(2,3,1)
-scatter(matAllCoords(:,1),matAllCoords(:,2),(matAllR2_houses/max(matAllR2_houses))*vecSize,matAllR2_houses,'filled');
+vecR2size = 0.01+imnorm(matAllR2_houses(:,1));
+scatter(matAllCoords(:,1),matAllCoords(:,2),vecR2size*vecSize,matAllR2_houses(:,1),'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -472,7 +473,7 @@ xlim([-100 100]);
 ylim([-100 100]);
 
 subplot(2,3,2)
-scatter(matAllCoords(:,1),matAllCoords(:,2),(matAllR2_faces/max(matAllR2_faces))*vecSize,matAllR2_faces,'filled');
+scatter(matAllCoords(:,1),matAllCoords(:,2),(matAllR2_faces(:,1)/max(matAllR2_faces(:,1)))*vecSize,matAllR2_faces(:,1),'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -491,7 +492,7 @@ xlim([-100 100]);
 ylim([-100 100]);
 
 subplot(2,3,4)
-vecRespDiff = matAllZetaZ_diff-max(matAllZetaZ_faces,matAllZetaZ_houses);
+vecRespDiff = matAllZetaZ_diff(:,1)-max(matAllZetaZ_faces(:,1),matAllZetaZ_houses(:,1));
 vecRespDiff(vecRespDiff<0)=0;
 vecPlotSize = (0.1+imnorm(vecRespDiff))*vecSize;
 scatter(matAllCoords(:,1),matAllCoords(:,2),vecPlotSize,vecRespDiff,'filled');
@@ -504,8 +505,8 @@ xlim([-100 100]);
 ylim([-100 100]);
 
 subplot(2,3,5)
-vecPlotSize = 0.1+(abs(matAllZetaZ_faces-matAllZetaZ_houses)/max(abs(matAllZetaZ_faces-matAllZetaZ_houses)))*vecSize;
-scatter(matAllCoords(:,1),matAllCoords(:,2),vecPlotSize,matAllZetaZ_faces-matAllZetaZ_houses,'filled');
+vecPlotSize = 0.1+(abs(matAllZetaZ_faces(:,1)-matAllZetaZ_houses(:,1))/max(abs(matAllZetaZ_faces(:,1)-matAllZetaZ_houses(:,1))))*vecSize;
+scatter(matAllCoords(:,1),matAllCoords(:,2),vecPlotSize,matAllZetaZ_faces(:,1)-matAllZetaZ_houses(:,1),'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -514,9 +515,9 @@ title('Zf-Zh');
 xlim([-100 100]);
 ylim([-100 100]);
 
-matAllClustZ_diff = abs(matAllClustZ_diff);
+matAllClustZ_diff = abs(matAllClustZ_diff(:,1));
 subplot(2,3,6)
-scatter(matAllCoords(:,1),matAllCoords(:,2),0.1+(matAllClustZ_diff/dblMaxZ)*vecSize,matAllClustZ_diff,'filled');
+scatter(matAllCoords(:,1),matAllCoords(:,2),0.1+(matAllClustZ_diff(:,1)/dblMaxZ)*vecSize,matAllClustZ_diff(:,1),'filled');
 colorbar
 xlabel('ML? coords')
 ylabel('AP? coords')
@@ -534,12 +535,12 @@ export_fig(fullpath(strFigPath,'ZetaEEG2.pdf'));
 figure;maxfig;
 %houses
 subplot(2,3,1);hold on;
-[pZR,z]=bino2test(sum(matAllZetaZ_houses>1.96),numel(matAllZetaZ_houses),sum(matAllR2_houses>0.05),numel(matAllR2_houses));
-[pZT,z]=bino2test(sum(matAllZetaZ_houses>1.96),numel(matAllZetaZ_houses),sum(matAllTtestZ_houses>1.96),numel(matAllTtestZ_houses));
-[pTR,z]=bino2test(sum(matAllTtestZ_houses>1.96),numel(matAllTtestZ_houses),sum(matAllR2_houses>0.05),numel(matAllR2_houses));
-[dblZ,vecZ_ci]=binofit(sum(matAllZetaZ_houses>1.96),numel(matAllZetaZ_houses));
-[dblT,vecT_ci]=binofit(sum(matAllTtestZ_houses>1.96),numel(matAllTtestZ_houses));
-[dblR,vecR_ci]=binofit(sum(matAllR2_houses>0.05),numel(matAllR2_houses));
+[pZR,z]=bino2test(sum(matAllZetaZ_houses(:,1)>1.96),numel(matAllZetaZ_houses(:,1)),sum(matAllR2_houses(:,1)>0.05),numel(matAllR2_houses(:,1)));
+[pZT,z]=bino2test(sum(matAllZetaZ_houses(:,1)>1.96),numel(matAllZetaZ_houses(:,1)),sum(matAllTtestZ_houses(:,1)>1.96),numel(matAllTtestZ_houses(:,1)));
+[pTR,z]=bino2test(sum(matAllTtestZ_houses(:,1)>1.96),numel(matAllTtestZ_houses(:,1)),sum(matAllR2_houses(:,1)>0.05),numel(matAllR2_houses(:,1)));
+[dblZ,vecZ_ci]=binofit(sum(matAllZetaZ_houses(:,1)>1.96),numel(matAllZetaZ_houses(:,1)));
+[dblT,vecT_ci]=binofit(sum(matAllTtestZ_houses(:,1)>1.96),numel(matAllTtestZ_houses(:,1)));
+[dblR,vecR_ci]=binofit(sum(matAllR2_houses(:,1)>0.05),numel(matAllR2_houses(:,1)));
 
 errorbar(1,dblZ,dblZ-vecZ_ci(1),dblZ-vecZ_ci(2),'x','color',lines(1));
 errorbar(2,dblT,dblT-vecT_ci(1),dblT-vecT_ci(2),'x','color','k');
@@ -553,12 +554,12 @@ title(sprintf('houses, Bino2-p; Z-R=%.1e;Z-T=%.1e;T-R=%.1e',pZR,pZT,pTR));
 
 %faces
 subplot(2,3,2);hold on;
-[pZR,z]=bino2test(sum(matAllZetaZ_faces>1.96),numel(matAllZetaZ_faces),sum(matAllR2_faces>0.05),numel(matAllR2_faces));
-[pZT,z]=bino2test(sum(matAllZetaZ_faces>1.96),numel(matAllZetaZ_faces),sum(matAllTtestZ_faces>1.96),numel(matAllTtestZ_faces));
-[pTR,z]=bino2test(sum(matAllTtestZ_faces>1.96),numel(matAllTtestZ_faces),sum(matAllR2_faces>0.05),numel(matAllR2_faces));
-[dblZ,vecZ_ci]=binofit(sum(matAllZetaZ_faces>1.96),numel(matAllZetaZ_faces));
-[dblT,vecT_ci]=binofit(sum(matAllTtestZ_faces>1.96),numel(matAllTtestZ_faces));
-[dblR,vecR_ci]=binofit(sum(matAllR2_faces>0.05),numel(matAllR2_faces));
+[pZR,z]=bino2test(sum(matAllZetaZ_faces(:,1)>1.96),numel(matAllZetaZ_faces(:,1)),sum(matAllR2_faces(:,1)>0.05),numel(matAllR2_faces(:,1)));
+[pZT,z]=bino2test(sum(matAllZetaZ_faces(:,1)>1.96),numel(matAllZetaZ_faces(:,1)),sum(matAllTtestZ_faces(:,1)>1.96),numel(matAllTtestZ_faces(:,1)));
+[pTR,z]=bino2test(sum(matAllTtestZ_faces(:,1)>1.96),numel(matAllTtestZ_faces(:,1)),sum(matAllR2_faces(:,1)>0.05),numel(matAllR2_faces(:,1)));
+[dblZ,vecZ_ci]=binofit(sum(matAllZetaZ_faces(:,1)>1.96),numel(matAllZetaZ_faces(:,1)));
+[dblT,vecT_ci]=binofit(sum(matAllTtestZ_faces(:,1)>1.96),numel(matAllTtestZ_faces(:,1)));
+[dblR,vecR_ci]=binofit(sum(matAllR2_faces(:,1)>0.05),numel(matAllR2_faces(:,1)));
 
 errorbar(1,dblZ,dblZ-vecZ_ci(1),dblZ-vecZ_ci(2),'x','color',lines(1));
 errorbar(2,dblT,dblT-vecT_ci(1),dblT-vecT_ci(2),'x','color','k');
@@ -574,12 +575,12 @@ title(sprintf('faces, Bino2; Z-R=%.1e;Z-T=%.1e;T-R=%.1e',pZR,pZT,pTR));
 subplot(2,3,3);hold on;
 matAllClustZ_diff(isinf(matAllClustZ_diff))=0;
 matAllClustZ_diff = abs(matAllClustZ_diff);
-[pZC,z]=bino2test(sum(matAllZetaZ_diff>1.96),numel(matAllZetaZ_diff),sum(matAllClustZ_diff>1.96),numel(matAllClustZ_diff));
-[pZT,z]=bino2test(sum(matAllZetaZ_diff>1.96),numel(matAllZetaZ_diff),sum(matAllTtestZ_diff>1.96),numel(matAllTtestZ_diff));
-[pTC,z]=bino2test(sum(matAllTtestZ_diff>1.96),numel(matAllTtestZ_diff),sum(matAllClustZ_diff>1.96),numel(matAllClustZ_diff));
-[dblZ,vecZ_ci]=binofit(sum(matAllZetaZ_diff>1.96),numel(matAllZetaZ_diff));
-[dblT,vecT_ci]=binofit(sum(matAllTtestZ_diff>1.96),numel(matAllTtestZ_diff));
-[dblC,vecC_ci]=binofit(sum(matAllClustZ_diff>1.96),numel(matAllClustZ_diff));
+[pZC,z]=bino2test(sum(matAllZetaZ_diff(:,1)>1.96),numel(matAllZetaZ_diff(:,1)),sum(matAllClustZ_diff(:,1)>1.96),numel(matAllClustZ_diff(:,1)));
+[pZT,z]=bino2test(sum(matAllZetaZ_diff(:,1)>1.96),numel(matAllZetaZ_diff(:,1)),sum(matAllTtestZ_diff(:,1)>1.96),numel(matAllTtestZ_diff(:,1)));
+[pTC,z]=bino2test(sum(matAllTtestZ_diff(:,1)>1.96),numel(matAllTtestZ_diff(:,1)),sum(matAllClustZ_diff(:,1)>1.96),numel(matAllClustZ_diff(:,1)));
+[dblZ,vecZ_ci]=binofit(sum(matAllZetaZ_diff(:,1)>1.96),numel(matAllZetaZ_diff(:,1)));
+[dblT,vecT_ci]=binofit(sum(matAllTtestZ_diff(:,1)>1.96),numel(matAllTtestZ_diff(:,1)));
+[dblC,vecC_ci]=binofit(sum(matAllClustZ_diff(:,1)>1.96),numel(matAllClustZ_diff(:,1)));
 
 errorbar(1,dblZ,dblZ-vecZ_ci(1),dblZ-vecZ_ci(2),'x','color',lines(1));
 errorbar(2,dblT,dblT-vecT_ci(1),dblT-vecT_ci(2),'x','color','k');

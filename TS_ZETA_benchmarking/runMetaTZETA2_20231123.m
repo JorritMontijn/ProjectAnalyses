@@ -9,7 +9,7 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 intResamps = 501; %Q1R10000T64 / Q0R250T64
-strComp = 'DiffNeurons';%DiffNeurons, DiffStims, PeakHeight, PeakTime
+strComp = 'PeakTime';%DiffNeurons, DiffStims, PeakHeight, PeakTime
 boolDirectQuantile = false;
 
 
@@ -271,7 +271,7 @@ xlim([1e-3 1]);
 ylim([1e-3 1]);
 fixfig;
 drawnow;
-return
+
 %% save
 export_fig(fullpath(strFigPath,[strTest strComp strQ strR '.tif']));
 export_fig(fullpath(strFigPath,[strTest strComp strQ strR '.pdf']));

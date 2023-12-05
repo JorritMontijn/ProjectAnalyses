@@ -74,6 +74,7 @@ for intCompType=1:2
 			vecTsZetaP = nan(1,intNeurons);
 			vecTtestP = nan(1,intNeurons);
 			vecAnovaP = nan(1,intNeurons);
+			vecClustP = nan(1,intNeurons);
 			vecAnovaDur = nan(1,intNeurons);
 			vecZetaDur = nan(1,intNeurons);
 			
@@ -171,7 +172,6 @@ for intCompType=1:2
 				matTrialT2(:,1) = vecStimOnTime2;
 				matTrialT2(:,2) = vecStimOffTime2;
 				
-				
 				%% run tests
 				boolDirectQuantile=0;
 				intPlot = 0;
@@ -188,7 +188,6 @@ for intCompType=1:2
 					pause
 				end
 				
-				vecTtestP(intNeuron1) = sZETA.dblMeanP;
 				vecTsZetaP(intNeuron1) = dblZeta2P;
 				
 				%ANOVA
@@ -211,10 +210,20 @@ for intCompType=1:2
 				%one-sample diff
 				vecAnovaP(intNeuron1) = dblAnova2P;
 				
+				%t-test
+				vecMu1 = mean(matTracePerTrial1,2);
+				vecMu2 = mean(matTracePerTrial2,2);
+				[h,dblMeanP]=ttest2(vecMu1,vecMu2);
+				vecTtestP(intNeuron1) = dblMeanP;
+				
+				%cluster
+				[dblClustP,sClustPos,sClustNeg] = clustertest(matTracePerTrial1,matTracePerTrial2);
+				vecClustP(intNeuron1) = dblClustP;
+			
 			end
 			if boolSave
-				save([strDataPath 'TsZeta2_' strCompType '_Q' num2str(boolDirectQuantile) '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
-					'vecAnovaP','vecTsZetaP','vecTtestP','strRunType','strRecIdx');
+				save([strDataPath 'TsZeta3_' strCompType '_Q' num2str(boolDirectQuantile) '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
+					'vecClustP','vecAnovaP','vecTsZetaP','vecTtestP','strRunType','strRecIdx');
 			end
 		end
 	end

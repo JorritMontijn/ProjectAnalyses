@@ -9,7 +9,7 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 intResamps = 501; %Q1R10000T64 / Q0R250T64
-strComp = 'PeakHeight';%DiffNeurons, DiffStims, PeakHeight, PeakTime
+strComp = 'DiffNeurons';%DiffNeurons, DiffStims, PeakHeight, PeakTime
 boolDirectQuantile = false;
 
 
@@ -22,7 +22,7 @@ cellRunRand = {...
 	'',...Rand 1
 	'-Rand',...Rand 2
 	};
-vecRunTests = [1:3];
+vecRunTests = [1:4];
 if contains(strComp,'Diff')
 	sDirAll1=dir([strDataPath strTest '_' strComp '*' strQ '*ses' strR '.mat']);
 	sDirAll2=dir([strDataPath strTest '_' strComp '*' strQ '*ses-Rand' strR '.mat']);
@@ -56,10 +56,10 @@ for intRandType=1:2
 		cellMeanP{intRandType}{intFile} = sLoad.vecTtestP;
 		cellZetaP{intRandType}{intFile} = sLoad.vecTsZetaP;
 		cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;
-		cellClustP{intRandType}{intFile} = sLoad.vecClustP;matClustP
+		cellClustP{intRandType}{intFile} = sLoad.vecClustP;
 	end
 end
-return
+
 %% check if recording is above chance
 vecRandMeanP = cell2vec(cellMeanP{2});
 vecRealMeanP = cell2vec(cellMeanP{1});
@@ -67,14 +67,18 @@ vecRandZetaP = cell2vec(cellZetaP{2});
 vecRealZetaP = cell2vec(cellZetaP{1});
 vecRandAnovaP = cell2vec(cellAnovaP{2});
 vecRealAnovaP = cell2vec(cellAnovaP{1});
+vecRandClustP = cell2vec(cellClustP{2});
+vecRealClustP = cell2vec(cellClustP{1});
 
 matMeanP = cat(2,vecRealMeanP,vecRandMeanP)';
 matZetaP = cat(2,vecRealZetaP,vecRandZetaP)';
 matAnovaP = cat(2,vecRealAnovaP,vecRandAnovaP)';
+matClustP = cat(2,vecRealClustP,vecRandClustP)';
 
 matMeanZ = cat(2,-norminv(vecRealMeanP/2),-norminv(vecRandMeanP/2))';
 matZetaZ = cat(2,-norminv(vecRealZetaP/2),-norminv(vecRandZetaP/2))';
 matAnovaZ = cat(2,-norminv(vecRealAnovaP/2),-norminv(vecRandAnovaP/2))';
+matClustZ = cat(2,-norminv(vecRealClustP/2),-norminv(vecRandClustP/2))';
 
 %remove nans
 indRem = any(isnan(matZetaP),1) | any(isnan(matMeanP),1) | any(isnan(matAnovaZ),1);
@@ -163,7 +167,7 @@ cellColor = {lines(1),'r','k','b','m'};
 subplot(2,3,3)
 maxfig;
 hold on;
-cellNames = {'TZETA2','ANOVA','T-test','ZETA','ANOVA-b'};
+cellNames = {'TZETA2','ANOVA','T-test','Clust','ANOVA-b'};
 cellLegendAuc = {};
 
 for intTest=vecRunTests
@@ -174,7 +178,7 @@ for intTest=vecRunTests
 	elseif intTest == 3
 		matData = matMeanP;
 	elseif intTest == 4
-		matData = matZetaP;
+		matData = matClustP;
 	end
 	intCells = size(matData,2);
 	vecBothData = cat(2,matData(1,:),matData(2,:));

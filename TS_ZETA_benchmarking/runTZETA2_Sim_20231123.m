@@ -36,7 +36,7 @@ sIndicatorProps.dblTimescale = dblTau;
 sIndicatorProps.dblNoise = dblNoise;
 
 %% load data
-for intCompType=1
+for intCompType=2
 	if intCompType == 1
 		strCompType = 'PeakHeight';
 	else

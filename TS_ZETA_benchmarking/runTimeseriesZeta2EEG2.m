@@ -305,6 +305,8 @@ matAllClustZ_diff = sLoad.sZetaEEG.matAllClustZ_diff;
 %remove nans
 vecClusterAlphas = sClustEEG.vecCutOffs;
 intAlphaNum = numel(vecClusterAlphas);
+matClustTPRs = nan(3,intAlphaNum);
+matClustFPRs = nan(3,intAlphaNum);
 matColor = parula(intAlphaNum);
 figure;maxfig;
 hAx1=subplot(2,3,1);hold on;
@@ -317,6 +319,8 @@ for intAlphaIdx=1:intAlphaNum
 	[dblTPR,vecTPRci] = binofit(sum(matP(:,1)<0.05),intN);
 	[dblFPR,vecFPRci] = binofit(sum(matP(:,2)<0.05),intN);
 	dblSensitivity = dblTPR/dblFPR;
+	matClustTPRs(:,intAlphaIdx) = cat(1,dblTPR,vecTPRci');
+	matClustFPRs(:,intAlphaIdx) = cat(1,dblFPR,vecFPRci');
 	
 	%% plot
 	% AUCs
@@ -424,4 +428,19 @@ plot([dblMinVal 1],[dblMinVal 1],'k--');
 hold off;
 xlim([1e-2 1]);
 ylim([1e-2 1]);
+
+
+%plot inclusions/fprs
+hAx2=subplot(2,3,2);hold on
+hAx5=subplot(2,3,5);hold on
+	axes(hAx2);
+	plot(vecClusterAlphas,matClustTPRs(1,:),'Color',matColor(intAlphaIdx,:));
+	plot(vecClusterAlphas,matClustTPRs(2,:),'--','Color',matColor(intAlphaIdx,:));
+	plot(vecClusterAlphas,matClustTPRs(3,:),'--','Color',matColor(intAlphaIdx,:));
+	set(hAx2,'xscale','log')
+	axes(hAx5);
+	plot(vecClusterAlphas,matClustFPRs(1,:),'Color',matColor(intAlphaIdx,:));
+	plot(vecClusterAlphas,matClustFPRs(2,:),'--','Color',matColor(intAlphaIdx,:));
+	plot(vecClusterAlphas,matClustFPRs(3,:),'--','Color',matColor(intAlphaIdx,:));
+set(hAx5,'xscale','log')
 fixfig([],[],2,16)

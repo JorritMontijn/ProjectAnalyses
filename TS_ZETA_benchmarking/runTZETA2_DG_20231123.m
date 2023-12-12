@@ -20,7 +20,7 @@ intSuperResFactor = 1; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 
 %% load data
-for intCompType=1:2
+for intCompType=1%:2
 	if intCompType == 1
 		strCompType = 'DiffNeurons';
 	else
@@ -55,7 +55,7 @@ for intCompType=1:2
 			vecOrientation = ses.structStim.Orientation;
 			matResp = getRespMatSes(ses);
 			sOut = getTuningCurves(matResp,vecOrientation);
-			dblCutOff = 0.05;
+			dblCutOff = inf;%0.05
 			indUseNeurons = sOut.vecFitP < dblCutOff;
 			ses.neuron(~indUseNeurons) = [];
 			intNeurons = numel(ses.neuron);

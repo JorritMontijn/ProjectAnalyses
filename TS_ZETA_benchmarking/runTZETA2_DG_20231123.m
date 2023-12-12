@@ -18,9 +18,11 @@ dblUseDur = 8;
 boolDirectQuantile = false;
 intSuperResFactor = 1; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
+vecCutOffs = 0.05./(2.^(6:-2:-4));%0.0008    0.0031    0.0125    0.0500    0.2000    0.8000
+intReps = 1500;
 
 %% load data
-for intCompType=1%:2
+for intCompType=2%:2
 	if intCompType == 1
 		strCompType = 'DiffNeurons';
 	else
@@ -74,7 +76,7 @@ for intCompType=1%:2
 			vecTsZetaP = nan(1,intNeurons);
 			vecTtestP = nan(1,intNeurons);
 			vecAnovaP = nan(1,intNeurons);
-			vecClustP = nan(1,intNeurons);
+			matClustP = nan(1,intNeurons);
 			vecAnovaDur = nan(1,intNeurons);
 			vecZetaDur = nan(1,intNeurons);
 			
@@ -216,14 +218,17 @@ for intCompType=1%:2
 				[h,dblMeanP]=ttest2(vecMu1,vecMu2);
 				vecTtestP(intNeuron1) = dblMeanP;
 				
-				%cluster
-				[dblClustP,sClustPos,sClustNeg] = clustertest(matTracePerTrial1,matTracePerTrial2);
-				vecClustP(intNeuron1) = dblClustP;
-			
+				%cluster analysis
+				for intCutOffIdx=1:numel(vecCutOffs)
+					dblCutOff = vecCutOffs(intCutOffIdx);
+					[dblClustP,sClustPos,sClustNeg] = clustertest(matTracePerTrial1,matTracePerTrial2,intReps,[],dblCutOff);
+					matClustP(intNeuron1,intCutOffIdx) = dblClustP;
+				end
+				
 			end
 			if boolSave
-				save([strDataPath 'TsZeta3_' strCompType '_Q' num2str(boolDirectQuantile) '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
-					'vecClustP','vecAnovaP','vecTsZetaP','vecTtestP','strRunType','strRecIdx');
+				save([strDataPath 'TsZeta2_' strCompType '_Q' num2str(boolDirectQuantile) '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
+					'matClustP','vecAnovaP','vecTsZetaP','vecTtestP','strRunType','strRecIdx');
 			end
 		end
 	end

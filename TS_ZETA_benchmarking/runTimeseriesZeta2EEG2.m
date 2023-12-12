@@ -300,8 +300,11 @@ end
 %load zeta
 sLoad=load(fullpath(strDataPath,'ZetaEEG.mat'),'sZetaEEG');
 matAllZetaZ_diff = sLoad.sZetaEEG.matAllZetaZ_diff;
+intN = size(matAllZetaZ_diff,1);
+matAllZetaP_diff = 2-2*normcdf(matAllZetaZ_diff);
 matAllClustZ_diff = sLoad.sZetaEEG.matAllClustZ_diff;
-
+[dblTPR_Z,vecTPR_Z] = binofit( sum(matAllZetaP_diff(:,1)<0.05),intN);
+[dblFPR_Z,vecFPR_Z] = binofit( sum(matAllZetaP_diff(:,2)<0.05),intN);
 %remove nans
 vecClusterAlphas = sClustEEG.vecCutOffs;
 intAlphaNum = numel(vecClusterAlphas);
@@ -315,7 +318,6 @@ for intAlphaIdx=1:intAlphaNum
 	dblAlpha = vecClusterAlphas(intAlphaIdx);
 	matZ = squeeze(sClustEEG.matAllClustZ_diff(:,intAlphaIdx,:));
 	matP = 2-2*normcdf(matZ);
-	intN = size(matZ,1);
 	[dblTPR,vecTPRci] = binofit(sum(matP(:,1)<0.05),intN);
 	[dblFPR,vecFPRci] = binofit(sum(matP(:,2)<0.05),intN);
 	dblSensitivity = dblTPR/dblFPR;
@@ -433,14 +435,16 @@ ylim([1e-2 1]);
 %plot inclusions/fprs
 hAx2=subplot(2,3,2);hold on
 hAx5=subplot(2,3,5);hold on
-	axes(hAx2);
-	plot(vecClusterAlphas,matClustTPRs(1,:),'Color',matColor(intAlphaIdx,:));
-	plot(vecClusterAlphas,matClustTPRs(2,:),'--','Color',matColor(intAlphaIdx,:));
-	plot(vecClusterAlphas,matClustTPRs(3,:),'--','Color',matColor(intAlphaIdx,:));
-	set(hAx2,'xscale','log')
-	axes(hAx5);
-	plot(vecClusterAlphas,matClustFPRs(1,:),'Color',matColor(intAlphaIdx,:));
-	plot(vecClusterAlphas,matClustFPRs(2,:),'--','Color',matColor(intAlphaIdx,:));
-	plot(vecClusterAlphas,matClustFPRs(3,:),'--','Color',matColor(intAlphaIdx,:));
+[dblTPR_Z,vecTPR_Z] = binofit( sum(matAllZetaP_diff(:,1)<0.05),intN);
+[dblFPR_Z,vecFPR_Z] = binofit( sum(matAllZetaP_diff(:,2)<0.05),intN);
+axes(hAx2);
+plot(vecClusterAlphas,matClustTPRs(1,:),'Color','r');
+plot(vecClusterAlphas,matClustTPRs(2,:),'--','Color','r');
+plot(vecClusterAlphas,matClustTPRs(3,:),'--','Color','r');
+set(hAx2,'xscale','log')
+axes(hAx5);
+plot(vecClusterAlphas,matClustFPRs(1,:),'Color','r');
+plot(vecClusterAlphas,matClustFPRs(2,:),'--','Color','r');
+plot(vecClusterAlphas,matClustFPRs(3,:),'--','Color','r');
 set(hAx5,'xscale','log')
 fixfig([],[],2,16)

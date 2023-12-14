@@ -27,7 +27,7 @@ intMakePlots =0; %0=none, 1=normal plot, 2=including raster
 vecRandTypes = [1 2];%[1 2];%1=normal,2=rand
 vecRestrictRange = [0 inf];
 boolSave = true;
-vecResamples = 250;%250;%10:10:90;%[10:10:100];
+vecResamples = 500;%250;%10:10:90;%[10:10:100];
 intUseGenN = 10000;
 vecRunAreas = 8;%[1 8]
 cellRunStim = {'','RunDriftingGratings','RunNaturalMovie'};
@@ -333,7 +333,7 @@ for intArea=vecRunAreas
 					intGetLatencies = 0;
 					intPlot = 0;
 					hTic1 = tic;
-					dblZetaP_old = zetatestb(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,[],[],[],true);
+					dblZetaP_old = getZeta(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot);
 					dblZetaDur_old = toc(hTic1);
 					intJitterDistro = 2;
 					dblZetaP_UniStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,[],[],[],true);

@@ -58,7 +58,7 @@ matNumCells = [];
 intIdxNpx = 0;
 
 
-intResamps = 250;
+intResamps = 500;
 boolDirectQuantile = false;
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
@@ -137,7 +137,7 @@ for intArea=8%[1:4 8]%8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 				cellLinStitchP{intIdx,intRandType} = sLoad.vecZetaP_LinStitch;
 				cellLinNoStitchP{intIdx,intRandType} = sLoad.vecZetaP_LinNoStitch;
 				
-				cellAnovaP{intIdx,intRandType} = sLoad.vecAnovaP;
+				cellAnovaP{intIdx,intRandType} = sLoad.vecAnovaP_optimal;
 			end
 		end
 		

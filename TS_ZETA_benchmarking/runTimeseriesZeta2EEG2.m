@@ -431,20 +431,30 @@ hold off;
 xlim([1e-2 1]);
 ylim([1e-2 1]);
 
-
+%%
 %plot inclusions/fprs
-hAx2=subplot(2,3,2);hold on
-hAx5=subplot(2,3,5);hold on
+subplot(2,3,2);hold on;
 [dblTPR_Z,vecTPR_Z] = binofit( sum(matAllZetaP_diff(:,1)<0.05),intN);
 [dblFPR_Z,vecFPR_Z] = binofit( sum(matAllZetaP_diff(:,2)<0.05),intN);
-axes(hAx2);
 plot(vecClusterAlphas,matClustTPRs(1,:),'Color','r');
 plot(vecClusterAlphas,matClustTPRs(2,:),'--','Color','r');
 plot(vecClusterAlphas,matClustTPRs(3,:),'--','Color','r');
-set(hAx2,'xscale','log')
-axes(hAx5);
+plot(vecClusterAlphas([1 end]),dblTPR_Z*[1 1],'Color',lines(1));
+plot(vecClusterAlphas([1 end]),vecTPR_Z(1)*[1 1],'--','Color',lines(1));
+plot(vecClusterAlphas([1 end]),vecTPR_Z(2)*[1 1],'--','Color',lines(1));
+set(gca,'xscale','log');
+xlim([5e-4 1]);
+%ylim([0 0.3]);
+set(gca,'xtick',[1e-3 1e-2 1e-1 1e0]);
+subplot(2,3,5);hold on;
 plot(vecClusterAlphas,matClustFPRs(1,:),'Color','r');
 plot(vecClusterAlphas,matClustFPRs(2,:),'--','Color','r');
 plot(vecClusterAlphas,matClustFPRs(3,:),'--','Color','r');
-set(hAx5,'xscale','log')
+plot(vecClusterAlphas([1 end]),dblFPR_Z*[1 1],'Color',lines(1));
+plot(vecClusterAlphas([1 end]),vecFPR_Z(1)*[1 1],'--','Color',lines(1));
+plot(vecClusterAlphas([1 end]),vecFPR_Z(2)*[1 1],'--','Color',lines(1));
+set(gca,'xscale','log')
+xlim([5e-4 1]);
+%ylim([0 0.1]);
+set(gca,'xtick',[1e-3 1e-2 1e-1 1e0]);
 fixfig([],[],2,16)

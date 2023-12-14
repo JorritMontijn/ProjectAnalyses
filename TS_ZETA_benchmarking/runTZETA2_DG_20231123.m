@@ -228,7 +228,7 @@ for intCompType=2%:2
 			end
 			if boolSave
 				save([strDataPath 'TsZeta2_' strCompType '_Q' num2str(boolDirectQuantile) '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
-					'matClustP','vecAnovaP','vecTsZetaP','vecTtestP','strRunType','strRecIdx');
+					'vecCutOffs','matClustP','vecAnovaP','vecTsZetaP','vecTtestP','strRunType','strRecIdx');
 			end
 		end
 	end

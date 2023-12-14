@@ -86,13 +86,13 @@ cellColor = {lines(1),'r','k'};
 subplot(2,3,6)
 hold on;
 for intTest=1:3
-    if intTest == 1
-        matData = matAggZetaP;
-    elseif intTest == 2
-        matData = matAggAnovaP;
-    elseif intTest == 3
-        matData = matAggTtestP;
-    end
+	if intTest == 1
+		matData = matAggZetaP;
+	elseif intTest == 2
+		matData = matAggAnovaP;
+	elseif intTest == 3
+		matData = matAggTtestP;
+	end
 	
 	vecRandSorted = sort(matData(:,2)');
 	vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
@@ -136,8 +136,10 @@ for intTest=1:3
 	
 	plot(vecFP,vecTP,'Color',cellColor{intTest});
 	
-	[dblAUC,Aci] = getAuc(vecShuffP,vecRealP);
+	[dblAUC,Aci,Ase] = getAuc(vecShuffP,vecRealP);
 	vecAUC(intTest) = dblAUC;
+	vecAUC_se(intTest) = Ase;
+	
 end
 hold off;
 xlabel('False positive fraction');
@@ -145,6 +147,32 @@ ylabel('Inclusion fraction');
 legend({sprintf('T-test, AUC=%.4f',vecAUC(1)),sprintf('ANOVA, AUC=%.4f',vecAUC(2)),sprintf('TS-ZETA-test, AUC=%.4f',vecAUC(3))},'location','best','interpreter','none');
 fixfig;
 
+
+%% run tests on aucs
+AUC_T = vecAUC(1) ;
+AUC_A = vecAUC(2);
+AUC_Z = vecAUC(3);
+Ase_T = vecAUC_se(1) ;
+Ase_A = vecAUC_se(2);
+Ase_Z = vecAUC_se(3);
+
+%t vs a
+m0 = AUC_T - AUC_A;
+s0 = (Ase_T + Ase_A)/2;
+zTA = abs(m0/s0);
+AUC_pTA = normcdf(zTA,'upper')*2;
+
+%t v z
+m0 = AUC_T - AUC_Z;
+s0 = (Ase_T + Ase_Z)/2;
+zTZ = abs(m0/s0);
+AUC_pTZ = normcdf(zTZ,'upper')*2;
+
+%a vs z
+m0 = AUC_A - AUC_Z;
+s0 = (Ase_A + Ase_Z)/2;
+zAZ = abs(m0/s0);
+AUC_pAZ = normcdf(zAZ,'upper')*2;
 
 %% save
 drawnow;

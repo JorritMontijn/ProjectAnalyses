@@ -37,10 +37,10 @@ for intCase=1:4
 		sLoad = load(strFile);
 		matMeanP = sLoad.matTtest2';
 		matZetaP = sLoad.matZeta2';
-		matAnovaP = sLoad.matAnova2_unbalanced';
+		matAnovaP = sLoad.matAnova2_optimal';
 	elseif intCase==4
 		%2-sample ts-zeta
-		[matMeanP,matZetaP,matAnovaP] = loadTsZeta2(strIndicator);
+		[matMeanP,matZetaP,matAnovaP] = loadTsZeta2('');
 	end
 	%remove nans
 	indRem = any(isnan(matMeanP) | isnan(matZetaP) | isnan(matAnovaP),1);

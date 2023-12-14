@@ -1,4 +1,4 @@
-function [matMeanP,matZetawrP,matAnovaP] = loadTsZeta2(strIndicator)
+function [matMeanP,matZetaP,matAnovaP] = loadTsZeta2(strIndicator)
 	%UNTITLED2 Summary of this function goes here
 	%   Detailed explanation goes here
 	
@@ -11,8 +11,8 @@ function [matMeanP,matZetawrP,matAnovaP] = loadTsZeta2(strIndicator)
 	strDataPath = fullfile(strPath,'\Data\');
 	strFigPath = fullfile(strPath,'\Figs\');
 	
-	sDirAll1=dir([strDataPath 'TsZeta2' strIndicator '*Q0*sesResamp1001.mat']);
-	sDirAll2=dir([strDataPath 'TsZeta2' strIndicator '*Q0*ses-RandResamp1001.mat']);
+	sDirAll1=dir([strDataPath 'TsZeta3' strIndicator '*Q0*sesResamp1001.mat']);
+	sDirAll2=dir([strDataPath 'TsZeta3' strIndicator '*Q0*ses-RandResamp1001.mat']);
 	
 	sDirAll = cat(1,sDirAll1,sDirAll2);
 	vecRand = contains({sDirAll.name},'Rand');
@@ -42,7 +42,7 @@ function [matMeanP,matZetawrP,matAnovaP] = loadTsZeta2(strIndicator)
 			cellMeanP{intRandType}{intFile} = sLoad.vecTtestP;
 			cellZetaP{intRandType}{intFile} = sLoad.vecTsZetaP;
 			cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;
-			cellZetaP_wr{intRandType}{intFile} = sLoad.vecTsZetaP_wr;
+			%cellZetaP_wr{intRandType}{intFile} = sLoad.vecTsZetaP_wr;
 		end
 	end
 	
@@ -58,8 +58,8 @@ function [matMeanP,matZetawrP,matAnovaP] = loadTsZeta2(strIndicator)
 	cellZetaP{2}(indRemRecs) = [];
 	cellAnovaP{1}(indRemRecs) = [];
 	cellAnovaP{2}(indRemRecs) = [];
-	cellZetaP_wr{1}(indRemRecs) = [];
-	cellZetaP_wr{2}(indRemRecs) = [];
+	%cellZetaP_wr{1}(indRemRecs) = [];
+	%cellZetaP_wr{2}(indRemRecs) = [];
 	
 	vecRandMeanP = cell2vec(cellMeanP{2});
 	vecRealMeanP = cell2vec(cellMeanP{1});
@@ -67,19 +67,19 @@ function [matMeanP,matZetawrP,matAnovaP] = loadTsZeta2(strIndicator)
 	vecRealZetaP = cell2vec(cellZetaP{1});
 	vecRandAnovaP = cell2vec(cellAnovaP{2});
 	vecRealAnovaP = cell2vec(cellAnovaP{1});
-	vecRandZetawrP = cell2vec(cellZetaP_wr{2});
-	vecRealZetawrP = cell2vec(cellZetaP_wr{1});
+	%vecRandZetawrP = cell2vec(cellZetaP_wr{2});
+	%vecRealZetawrP = cell2vec(cellZetaP_wr{1});
 	
 	matMeanP = cat(2,vecRealMeanP,vecRandMeanP)';
 	matZetaP = cat(2,vecRealZetaP,vecRandZetaP)';
 	matAnovaP = cat(2,vecRealAnovaP,vecRandAnovaP)';
-	matZetawrP = cat(2,vecRealZetawrP,vecRandZetawrP)';
+	%matZetawrP = cat(2,vecRealZetawrP,vecRandZetawrP)';
 	
 	%remove nans
 	indRem = any(isnan(matZetaP),1) | any(isnan(matMeanP),1);
 	matMeanP(:,indRem)=[];
 	matZetaP(:,indRem)=[];
 	matAnovaP(:,indRem)=[];
-	matZetawrP(:,indRem)=[];
+	%matZetawrP(:,indRem)=[];
 end
 

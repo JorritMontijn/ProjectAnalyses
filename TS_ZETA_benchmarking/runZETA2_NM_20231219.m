@@ -269,6 +269,6 @@ end
 
 %% save
 if boolSave
-	save([strDataPath 'Zeta2Data' strArea 'Resamp' num2str(intResampNum) strQ '.mat' ],...
+	save([strDataTargetPath 'Zeta2Data' strArea 'Resamp' num2str(intResampNum) strQ '.mat' ],...
 		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_optimal','matAnova2_unbalanced');
 end

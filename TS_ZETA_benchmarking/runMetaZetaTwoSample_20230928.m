@@ -11,12 +11,11 @@ else
 end
 strDataTargetPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
-vecRunTypes = [1 2];
 boolSave = true;
 vecRunTests = [1:3];
 
 %% prep
-intPlotType = 1;
+intPlotType = 5;
 if intPlotType == 1
 	%strArea = 'ShiftRespV1RunDriftingGratings';
 	strArea = 'AnovaPrimary visual';
@@ -38,6 +37,11 @@ elseif intPlotType == 4
 	strBalanced = 'B0';
 	strQ = '';
 	intResamps = 500;
+elseif intPlotType == 5
+	strArea = 'V1RunNaturalMovie';
+	strBalanced = '';
+	strQ = 'Q0';
+	intResamps = 500;
 end
 strR = ['R' num2str(intResamps)];
 strFileSearch = ['Zeta2Data' strArea strBalanced 'Resamp' num2str(intResamps) strQ '.mat'];
@@ -53,6 +57,13 @@ matMeanP = sLoad.matTtest2;
 matZetaP = sLoad.matZeta2; %with replacement
 
 %% plot
+%remove empties
+indRem = any(matZetaP==1,2) | any(matMeanP==1,2) | any(matAnovaP==1,2);
+matAnovaP_b(indRem,:) = [];
+matAnovaP(indRem,:) = [];
+matMeanP(indRem,:) = [];
+matZetaP(indRem,:) = [];
+
 %flatten
 matMeanZ = -norminv(matMeanP/2);
 matZetaZ = -norminv(matZetaP/2); %with replacement
@@ -141,7 +152,7 @@ if size(matMeanZ,1) >= 1
 	%vecH(intResampNpx) = subplot(4,3,intResampNpx);
 	subplot(2,3,3)
 	hold on;
-	cellNames = {'ZETA','ANOVA','T-test','ZETA-nr','ANOVA-b'};
+	cellNames = {'ZETA2','ANOVA','T-test','ZETA-nr','ANOVA-b'};
 	cellLegend = {};
 	for intTest=vecRunTests
 		if intTest == 1

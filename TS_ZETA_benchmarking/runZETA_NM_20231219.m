@@ -128,8 +128,8 @@ for intIdx=1:intNeurons%26
 	dblDur2 = median(vecTransition3-vecTransition2);
 	dblDur3 = median(vecTransition4-vecTransition3);
 	dblDur4 = median(vecStimOffTime-vecTransition4);
-	dblShiftBy = 0;
-	dblUseMaxDur = 3;
+	dblShiftBy = -0.5;
+	dblUseMaxDur = 1.5;
 	
 	%% get visual responsiveness
 	%get trial dur
@@ -154,7 +154,8 @@ for intIdx=1:intNeurons%26
 		% 			matTrialT2 = matTrialTS2;
 		% 		end
 		
-		matEventTimes = cat(2,vecTransition2(:),vecTransition3(:));
+		matEventTimes = cat(2,vecTransition4(:),vecStimOffTime(:));
+		%matEventTimes = cat(2,vecTransition2(:),vecTransition3(:));
 		if intRandType == 2
 			dblDur = dblUseMaxDur;
 			vecJitter = (2*dblDur*rand([numel(vecTransition2) 1])-dblDur);
@@ -238,8 +239,8 @@ for intIdx=1:intNeurons%26
 	end
 end
 if boolSave
-	save([strDataTargetPath 'ZetaData' strArea 'Resamp' num2str(intResampNum) strQ  '.mat' ],...
-		'cellNeuron','matNumSpikes','matZetaP_Old',...
+	save([strDataTargetPath 'ZetaData' strArea 'Resamp' num2str(intResampNum)  '.mat' ],...
+		'cellNeuron','matNumSpikes','dblShiftBy','dblUseMaxDur','matZetaP_Old',...
 		'matZetaP_Stitch','matZetaP_NoStitch',...
 		'matAnovaP','matAnovaP_optimal','matTtestP');
 end

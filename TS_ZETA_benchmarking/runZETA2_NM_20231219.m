@@ -126,19 +126,20 @@ for intIdx=1:intNeurons%26
 	dblDur2 = median(vecTransition3-vecTransition2);
 	dblDur3 = median(vecTransition4-vecTransition3);
 	dblDur4 = median(vecStimOffTime-vecTransition4);
-	dblShiftBy = 0;
-	dblUseMaxDur = 3;
+	dblShiftBy = -0.5;
+	dblDur = min(dblDur2,dblDur4);
+	dblUseMaxDur = 1.5;%dblDur-dblShiftBy;
 	
 	%stim 1
 	matTrialTS1 = [];
-	matTrialTS1(:,1) = vecTransition2;
-	matTrialTS1(:,2) = vecTransition2+dblUseMaxDur;
+	matTrialTS1(:,1) = vecTransition2+dblShiftBy;
+	matTrialTS1(:,2) = vecTransition2+dblUseMaxDur+dblShiftBy;
 	intTrialsS1 = numel(vecTransition2);
 	
 	%stim 2
 	matTrialTS2 = [];
-	matTrialTS2(:,1) = vecTransition4;
-	matTrialTS2(:,2) = vecTransition4+dblUseMaxDur;
+	matTrialTS2(:,1) = vecTransition4+dblShiftBy;
+	matTrialTS2(:,2) = vecTransition4+dblUseMaxDur+dblShiftBy;
 	intTrialsS2 = numel(vecTransition4);
 	
 	%% get visual responsiveness
@@ -165,7 +166,7 @@ for intIdx=1:intNeurons%26
 		
 		dblBinW = dblFrameDur;
 		[vecMean,vecSEM,vecWindowBinCenters,matPET] = ...
-			doPEP(vecSpikeTimes,[dblShiftBy:dblBinW:(dblShiftBy+3*dblUseMaxDur)],matTrialT1(:,1));
+			doPEP(vecSpikeTimes,[0:dblBinW:dblUseMaxDur],matTrialT1(:,1));
 		intSpikesInWindow = sum(matPET(:)*dblBinW);
 		
 		if intSpikesInWindow < 10,continue;end
@@ -270,5 +271,5 @@ end
 %% save
 if boolSave
 	save([strDataTargetPath 'Zeta2Data' strArea 'Resamp' num2str(intResampNum) strQ '.mat' ],...
-		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_optimal','matAnova2_unbalanced');
+		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_optimal','matAnova2_unbalanced','dblShiftBy','dblUseMaxDur');
 end

@@ -328,6 +328,22 @@ for intArea=vecRunAreas
 					%pause 
 					%continue;
 					
+					%check if plot
+					if 0
+						[dblZetaP,sZETA]=zetatest(vecSpikeTimes,matEventTimes,dblUseMaxDur,intResampleNum,0);
+						if dblZetaP < 0.001 && sZETA.dblMeanP > 0.1
+							[dblZetaP,sZETA]=zetatest(vecSpikeTimes,matEventTimes(1:480,:),dblUseMaxDur,intResampleNum,4);
+							strTitle = [strMouse 'D' strDate 'C' num2str(intSU)];
+							title(strTitle)
+							pause;
+							
+							if 0
+								export_fig(['F:\Drive\MontijnHeimel_TimeseriesZeta\Figs\ExampleZETA_' strTitle '.pdf']);
+								export_fig(['F:\Drive\MontijnHeimel_TimeseriesZeta\Figs\ExampleZETA_' strTitle '.jpg']);
+							end
+						end
+					end
+					
 					%if size(matEventTimes,1) > 0,continue;end
 					%%{
 					intGetLatencies = 0;

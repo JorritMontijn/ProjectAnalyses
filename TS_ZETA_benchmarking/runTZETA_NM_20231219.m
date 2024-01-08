@@ -119,7 +119,9 @@ for intRandType=vecRunTypes
 			dblDur4 = median(vecStimOffTime-vecTransition4);
 			dblShiftBy = -1;
 			dblUseMaxDur = 6;
-			
+			vecUseDur = [dblUseMaxDur 10];
+			dblJitterSize = 1;
+				
 			matEventTimes = cat(2,vecTransition4(:),vecStimOffTime(:));
 			%matEventTimes = cat(2,vecTransition2(:),vecTransition3(:));
 			if intRandType == 2

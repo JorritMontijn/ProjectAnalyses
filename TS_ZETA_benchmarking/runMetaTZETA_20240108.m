@@ -8,27 +8,27 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
-intResamps = 1001; %Q1R10000T64 / Q0R250T64
-strComp = '';%DiffNeurons, DiffStims, PeakHeight, PeakTime, 
+intResamps = 500; %Q1R10000T64 / Q0R250T64
+strComp = '_DiffStims';%_DiffNeurons, _DiffStims, _PeakHeight, _PeakTime, 
 boolDirectQuantile = false;
-
 
 
 %% prep
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-strTest = 'TsZeta2NM'; %'TsZeta2' 'TsZeta2NM'
+strTest = 'TsZetaNM'; %'TsZeta2' 'TsZeta2NM'
+if contains(strTest,'NM'),strComp='';end
 cellRunRand = {...
 	'',...Rand 1
 	'-Rand',...Rand 2
 	};
-vecRunTests = [1:4];
+vecRunTests = [1:3];
 if contains(strComp,'Diff') || isempty(strComp)
-	sDirAll1=dir([strDataPath strTest '_' strComp '*ses' strR '.mat']);
-	sDirAll2=dir([strDataPath strTest '_' strComp '*ses-Rand' strR '.mat']);
+	sDirAll1=dir([strDataPath strTest strComp '*ses' strR '.mat']);
+	sDirAll2=dir([strDataPath strTest strComp '*ses-Rand' strR '.mat']);
 else
-	sDirAll1=dir([strDataPath strTest '_' strComp '_' strR '.mat']);
-	sDirAll2=dir([strDataPath strTest '_' strComp '_Rand' strR '.mat']);
+	sDirAll1=dir([strDataPath strTest strComp '_' strR '.mat']);
+	sDirAll2=dir([strDataPath strTest strComp '_Rand' strR '.mat']);
 end
 sDirAll = cat(1,sDirAll1,sDirAll2);
 vecRand = contains({sDirAll.name},'Rand');
@@ -37,12 +37,9 @@ sDirRand = sDirAll(vecRand);
 cellMeanP = [];
 cellZetaP = [];
 cellAnovaP = [];
-cellClustP = [];
 
 matZetaP = [];
 matMeanP = [];
-matClustP = [];
-cellAggClustP = cellfill(cell(1,2),[1,6]);
 for intRandType=1:2
 	if intRandType == 1
 		sDir = sDirReal;
@@ -55,16 +52,9 @@ for intRandType=1:2
 	for intFile=1:intFiles
 		strFile = sDir(intFile).name;
 		sLoad=load([strDataPath strFile]);
-		cellMeanP{intRandType}{intFile} = sLoad.vecTtestP;
-		cellZetaP{intRandType}{intFile} = sLoad.vecTsZetaP;
+		cellMeanP{intRandType}{intFile} = sLoad.vecMeanP;%vecWilcoxP
+		cellZetaP{intRandType}{intFile} = sLoad.vecZetaP;%vecKsP
 		cellAnovaP{intRandType}{intFile} = sLoad.vecAnovaP;
-		if isfield(sLoad,'vecClustP')
-			cellClustP{intRandType}{intFile} = sLoad.vecClustP;
-		elseif isfield(sLoad,'matClustP')
-			for intClust=1:6
-				cellAggClustP{intClust}{intRandType} = cat(1,cellAggClustP{intClust}{intRandType},sLoad.matClustP(:,intClust));
-			end
-		end
 	end
 end
 
@@ -75,37 +65,13 @@ vecRandZetaP = cell2vec(cellZetaP{2});
 vecRealZetaP = cell2vec(cellZetaP{1});
 vecRandAnovaP = cell2vec(cellAnovaP{2});
 vecRealAnovaP = cell2vec(cellAnovaP{1});
-matRandClustP = [];
-matRealClustP = [];
-vecCutOffs = 0.05./(2.^(6:-2:-4));%0.0008    0.0031    0.0125    0.0500    0.2000    0.8000
-intAlphaNum = numel(vecCutOffs);
-if isempty(cellClustP)
-	matClustTPRs = nan(3,intAlphaNum);
-	matClustFPRs = nan(3,intAlphaNum);
-	for intClust=1:intAlphaNum
-		matRandClustP(intClust,:) = cellAggClustP{intClust}{2};
-		matRealClustP(intClust,:) = cellAggClustP{intClust}{1};
-		[dblTPR,vecTPRci] = binofit(sum(matRealClustP(intClust,:)<0.05),numel(matRealClustP(intClust,:)));
-		[dblFPR,vecFPRci] = binofit(sum(matRandClustP(intClust,:)<0.05),numel(matRandClustP(intClust,:)));
-		matClustTPRs(:,intClust) = cat(1,dblTPR,vecTPRci');
-		matClustFPRs(:,intClust) = cat(1,dblFPR,vecFPRci');
-	end
-	vecRandClustP = matRandClustP(4,:)';
-	vecRealClustP = matRealClustP(4,:)';
-	matAggClustP = cat(3,matRealClustP,matRandClustP);
-else
-	vecRandClustP = cell2vec(cellClustP{2});
-	vecRealClustP = cell2vec(cellClustP{1});
-end
 matMeanP = cat(2,vecRealMeanP,vecRandMeanP)';
 matZetaP = cat(2,vecRealZetaP,vecRandZetaP)';
 matAnovaP = cat(2,vecRealAnovaP,vecRandAnovaP)';
-matClustP = cat(2,vecRealClustP,vecRandClustP)';
 
 matMeanZ = cat(2,-norminv(vecRealMeanP/2),-norminv(vecRandMeanP/2))';
 matZetaZ = cat(2,-norminv(vecRealZetaP/2),-norminv(vecRandZetaP/2))';
 matAnovaZ = cat(2,-norminv(vecRealAnovaP/2),-norminv(vecRandAnovaP/2))';
-matClustZ = cat(2,-norminv(vecRealClustP/2),-norminv(vecRandClustP/2))';
 
 %remove nans
 indRem = any(isnan(matZetaP),1) | any(isnan(matMeanP),1) | any(isnan(matAnovaZ),1);
@@ -194,7 +160,7 @@ cellColor = {lines(1),'r','k','b','m'};
 subplot(2,3,3)
 maxfig;
 hold on;
-cellNames = {'TZETA2','ANOVA','T-test','Clust','ANOVA-b'};
+cellNames = {'TZETA','ANOVA','T-test'};
 cellLegendAuc = {};
 
 for intTest=vecRunTests
@@ -204,8 +170,6 @@ for intTest=vecRunTests
 		matData = matAnovaP;
 	elseif intTest == 3
 		matData = matMeanP;
-	elseif intTest == 4
-		matData = matClustP;
 	end
 	intCells = size(matData,2);
 	vecBothData = cat(2,matData(1,:),matData(2,:));
@@ -266,16 +230,13 @@ hold on;
 for intTest=vecRunTests
 	if intTest == 1
 		matData = matZetaP;
-		cellLegend(end+1) = {'TZETA2'};
+		cellLegend(end+1) = {'TZETA'};
 	elseif intTest == 2
 		matData = matAnovaP;
 		cellLegend(end+1) = {'ANOVA'};
 	elseif intTest == 3
 		matData = matMeanP;
 		cellLegend(end+1) = {'T-test'};
-	elseif intTest == 4
-		matData = matClustP;
-		cellLegend(end+1) = {'Clust'};
 	end
 	vecRandSorted = sort(matData(2,:));
 	vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
@@ -302,154 +263,3 @@ drawnow;
 %% save
 export_fig(fullpath(strFigPath,[strTest strComp strQ strR '.tif']));
 export_fig(fullpath(strFigPath,[strTest strComp strQ strR '.pdf']));
-
-%% cluster plots
-intN = size(matZetaP,2);
-
-%remove nans
-vecClusterAlphas = vecCutOffs;
-intAlphaNum = numel(vecClusterAlphas);
-matColor = redblack(intAlphaNum);
-figure;maxfig;
-hAx1=subplot(2,3,1);hold on;
-hAx4=subplot(2,3,4);hold on;
-cellLegend2 = {};
-for intAlphaIdx=1:intAlphaNum
-	dblAlpha = vecClusterAlphas(intAlphaIdx);
-	matP = squeeze(matAggClustP(intAlphaIdx,:,:));
-	cellLegend2 = cat(1,cellLegend2,{num2str(dblAlpha)});
-
-	% AUCs
-	axes(hAx1);
-	vecCol=matColor(intAlphaIdx,:);
-	
-	intCells = size(matP,1);
-	vecBothData = cat(1,matP(:,1),matP(:,2));
-	vecBothLabels = cat(1,zeros(size(matP(:,1))),ones(size(matP(:,1))));
-	vecThresholds = sort(vecBothData);
-	vecThresholds(isnan(vecThresholds))=1;
-	vecRealP = matP(:,1);
-	vecShuffP = matP(:,2);
-	%remove if both==1
-	indRem = vecRealP==1 & vecShuffP==1;
-	vecRealP(indRem)=[];
-	vecShuffP(indRem)=[];
-	
-	
-	vecRealSorted = sort(matP(:,1));
-	vecQuantile = linspace(1/numel(vecRealSorted),1,numel(vecRealSorted));
-	%plot(vecQuantile,vecRandSorted,'Color',cellColor{intTest});
-	vecAlphas = (1:numel(vecRealSorted))/numel(vecRealSorted);
-	vecTPR = sum(vecRealSorted<vecAlphas)/numel(vecRealSorted);
-	plot(vecAlphas,vecTPR,'Color',vecCol);
-	
-	%fprs
-	axes(hAx4);
-	
-	vecRandSorted = sort(matP(:,2));
-	vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
-	%plot(vecQuantile,vecRandSorted,'Color',cellColor{intTest});
-	vecAlphas = (1:numel(vecRandSorted))/numel(vecRandSorted);
-	vecFPR = sum(vecRandSorted<vecAlphas)/numel(vecRandSorted);
-	plot(vecAlphas,vecFPR,'Color',vecCol);
-	
-	
-end
-
-%finish
-axes(hAx1);
-matZ_P = matZetaP';
-matC_P = matClustP';
-
-%zeta
-vecRealSorted = sort(matZ_P(:,1));
-vecQuantile = linspace(1/numel(vecRealSorted),1,numel(vecRealSorted));
-vecAlphas = (1:numel(vecRealSorted))/numel(vecRealSorted);
-vecFPR = sum(vecRealSorted<vecAlphas)/numel(vecRealSorted);
-plot(vecAlphas,vecFPR,'Color',lines(1));
-%clust
-vecRealSorted = sort(matC_P(:,1));
-vecQuantile = linspace(1/numel(vecRealSorted),1,numel(vecRealSorted));
-vecAlphas = (1:numel(vecRealSorted))/numel(vecRealSorted);
-vecFPR = sum(vecRealSorted<vecAlphas)/numel(vecRealSorted);
-%plot(vecAlphas,vecFPR,'Color','r');
-
-
-%finish
-xlabel(sprintf('Significance level %s',getGreek('alpha')));
-ylabel(sprintf('Fraction of included cells'));
-set(gca,'xscale','log');%,'yscale','log');
-dblMinVal = max(get(gca,'xlim'),get(gca,'ylim'));
-hold off;
-xlim([1e-2 1]);
-%ylim([1e-2 1]);
-legend(cellLegend2,'location','best');
-
-%fprs
-axes(hAx4);
-%zeta
-vecRandSorted = sort(matZ_P(:,2));
-vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
-vecAlphas = (1:numel(vecRandSorted))/numel(vecRandSorted);
-vecFPR = sum(vecRandSorted<vecAlphas)/numel(vecRandSorted);
-plot(vecAlphas,vecFPR,'Color',lines(1));
-%clust
-vecRandSorted = sort(matC_P(:,2));
-vecQuantile = linspace(1/numel(vecRandSorted),1,numel(vecRandSorted));
-vecAlphas = (1:numel(vecRandSorted))/numel(vecRandSorted);
-vecFPR = sum(vecRandSorted<vecAlphas)/numel(vecRandSorted);
-%plot(vecAlphas,vecFPR,'Color','r');
-
-
-%finish
-xlabel(sprintf('Significance level %s',getGreek('alpha')));
-ylabel(sprintf('Fraction of false positives'));
-set(gca,'xscale','log','yscale','log');
-dblMinVal = max(get(gca,'xlim'),get(gca,'ylim'));
-plot([dblMinVal 1],[dblMinVal 1],'k--');
-hold off;
-xlim([1e-2 1]);
-ylim([1e-2 1]);
-
-boolPatch = false;
-%plot inclusions/fprs
-intN = size(matZetaP,2);
-subplot(2,3,2);hold on;
-colormap(redblack);
-[dblTPR_Z,vecTPR_Z] = binofit( sum(matZetaP(1,:)<0.05),intN);
-[dblFPR_Z,vecFPR_Z] = binofit( sum(matZetaP(2,:)<0.05),intN);
-cline(vecCutOffs,matClustTPRs(1,:),1:6,boolPatch);
-cline(vecCutOffs,matClustTPRs(2,:),1:6,boolPatch);
-cline(vecCutOffs,matClustTPRs(3,:),1:6,boolPatch);
-plot(vecCutOffs([1 end]),dblTPR_Z*[1 1],'Color',lines(1));
-plot(vecCutOffs([1 end]),vecTPR_Z(1)*[1 1],'--','Color',lines(1));
-plot(vecCutOffs([1 end]),vecTPR_Z(2)*[1 1],'--','Color',lines(1));
-set(gca,'xscale','log');
-xlim([5e-4 1]);
-ylim([0 0.3]);
-set(gca,'xtick',[1e-3 1e-2 1e-1 1e0]);
-title('Alpha=0.05');
-xlabel(sprintf('Cluster threshold'));
-ylabel(sprintf('Fraction of included cells'));
-
-
-subplot(2,3,5);hold on;
-cline(vecCutOffs,matClustFPRs(1,:),1:6,boolPatch);
-cline(vecCutOffs,matClustFPRs(2,:),1:6,boolPatch);
-cline(vecCutOffs,matClustFPRs(3,:),1:6,boolPatch);
-plot(vecCutOffs([1 end]),dblFPR_Z*[1 1],'Color',lines(1));
-plot(vecCutOffs([1 end]),vecFPR_Z(1)*[1 1],'--','Color',lines(1));
-plot(vecCutOffs([1 end]),vecFPR_Z(2)*[1 1],'--','Color',lines(1));
-set(gca,'xscale','log')
-xlim([5e-4 1]);
-ylim([0 0.3]);
-set(gca,'xtick',[1e-3 1e-2 1e-1 1e0]);
-title('Alpha=0.05');
-xlabel(sprintf('Cluster threshold'));
-ylabel(sprintf('False positive fraction'));
-
-fixfig([],[],2,16)
-
-%% save
-export_fig(fullpath(strFigPath,[strTest strComp strQ strR 'ClustTest.tif']));
-export_fig(fullpath(strFigPath,[strTest strComp strQ strR 'ClustTest.pdf']));

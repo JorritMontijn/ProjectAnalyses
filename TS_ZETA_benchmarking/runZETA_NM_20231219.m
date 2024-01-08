@@ -129,7 +129,7 @@ for intIdx=1:intNeurons%26
 	dblDur3 = median(vecTransition4-vecTransition3);
 	dblDur4 = median(vecStimOffTime-vecTransition4);
 	dblShiftBy = -0.5;
-	dblUseMaxDur = 1.5;
+	dblUseMaxDur = 3;
 	
 	%% get visual responsiveness
 	%get trial dur
@@ -138,24 +138,7 @@ for intIdx=1:intNeurons%26
 	%set derivative params
 	
 	for intRandType=vecRandTypes
-		% 		%% randomize
-		% 		if intRandType == 2
-		% 			%if random, use 50% of trials from s1 and 50 from s2 for both sets
-		% 			vecUseS1for1 = randperm(intTrialsS1,round(intTrialsS1/2));
-		% 			vecUseS2for1 = randperm(intTrialsS2,round(intTrialsS2/2));
-		% 			vecUseS1for2 = find(~ismember(1:intTrialsS1,vecUseS1for1));
-		% 			vecUseS2for2 = find(~ismember(1:intTrialsS2,vecUseS2for1));
-		%
-		% 			matTrialT1 = cat(1,matTrialTS1(vecUseS1for1,:),matTrialTS2(vecUseS2for1,:));
-		% 			matTrialT2 = cat(1,matTrialTS1(vecUseS1for2,:),matTrialTS2(vecUseS2for2,:));
-		% 		else
-		% 			%if not random, use normal data
-		% 			matTrialT1 = matTrialTS1;
-		% 			matTrialT2 = matTrialTS2;
-		% 		end
-		
 		matEventTimes = cat(2,vecTransition4(:),vecStimOffTime(:));
-		%matEventTimes = cat(2,vecTransition2(:),vecTransition3(:));
 		if intRandType == 2
 			dblDur = dblUseMaxDur;
 			vecJitter = (2*dblDur*rand([numel(vecTransition2) 1])-dblDur);

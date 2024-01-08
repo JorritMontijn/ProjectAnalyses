@@ -128,7 +128,7 @@ for intIdx=1:intNeurons%26
 	dblDur4 = median(vecStimOffTime-vecTransition4);
 	dblShiftBy = -0.5;
 	dblDur = min(dblDur2,dblDur4);
-	dblUseMaxDur = 1.5;%dblDur-dblShiftBy;
+	dblUseMaxDur = 3;%dblDur-dblShiftBy;
 	
 	%stim 1
 	matTrialTS1 = [];
@@ -270,6 +270,6 @@ end
 
 %% save
 if boolSave
-	save([strDataTargetPath 'Zeta2Data' strArea 'Resamp' num2str(intResampNum) strQ '.mat' ],...
+	save([strDataTargetPath 'Zeta2Data' strArea 'Resamp' num2str(intResampNum) '.mat' ],...
 		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_optimal','matAnova2_unbalanced','dblShiftBy','dblUseMaxDur');
 end

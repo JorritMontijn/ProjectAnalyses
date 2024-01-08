@@ -40,7 +40,7 @@ elseif intPlotType == 4
 elseif intPlotType == 5
 	strArea = 'V1RunNaturalMovie';
 	strBalanced = '';
-	strQ = 'Q0';
+	strQ = '';
 	intResamps = 500;
 end
 strR = ['R' num2str(intResamps)];

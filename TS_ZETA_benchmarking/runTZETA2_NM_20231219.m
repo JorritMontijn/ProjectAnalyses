@@ -99,6 +99,7 @@ for intRandType=vecRandTypes
 			vecdFoF = cellData{intNeuron};
 			vecTraceT = (1:numel(vecdFoF)) ./ ses.samplingFreq;
 			vecTraceAct = vecdFoF;
+			if all(isnan(vecTraceAct)),continue;end
 			vecStimOnTime = vecOn(:) ./ ses.samplingFreq;
 			vecStimOffTime = vecOff(:) ./ ses.samplingFreq;
 			

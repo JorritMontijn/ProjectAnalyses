@@ -135,8 +135,8 @@ for intTrialNumIdx=2%19:intRunTrialNums
 				
 				%save
 				drawnow;
-				export_fig(fullpath(strFigPath,sprintf('TZETA2_KS2_T%dExample.tif',intTrialNum)));
-				export_fig(fullpath(strFigPath,sprintf('TZETA2_KS2_T%dExample.pdf',intTrialNum)));
+				export_fig(fullpath(strFigPath,sprintf('ZETA2_KS2_T%dExample.tif',intTrialNum)));
+				export_fig(fullpath(strFigPath,sprintf('ZETA2_KS2_T%dExample.pdf',intTrialNum)));
 				return
 			end
 			%%

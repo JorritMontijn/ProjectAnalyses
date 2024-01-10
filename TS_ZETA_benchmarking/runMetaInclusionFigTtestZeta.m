@@ -136,7 +136,7 @@ for intCase=1:4
 		'linestyle','none','color',vecColA,'capsize',5);
 	
 end
-xlabel('FPR deviation from norm (WLOR)');
+xlabel('FPR deviation from norm (KS)');
 ylabel('Cell inclusion fraction');
 title(sprintf('Alpha=%.3f',dblAlpha));
 legend({'T-test','ZETA','ANOVA'},'location','best');
@@ -144,7 +144,7 @@ ylim([0 1]);
 %xlim([0 1]);
 fixfig([],[],2,16);
 
-saveas(gcf,fullpath(strFigPath,'SummaryTPFP.tif'));
+saveas(gcf,fullpath(strFigPath,'SummaryTPFP.jpg'));
 saveas(gcf,fullpath(strFigPath,'SummaryTPFP.pdf'));
 
 

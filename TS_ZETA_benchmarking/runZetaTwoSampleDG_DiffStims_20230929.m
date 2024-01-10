@@ -103,6 +103,24 @@ for intIdx = 1:intRunNum
 	end
 	intStimNum = numel(unique(vecStimTypes));
 	
+% 		%check shift
+% 		matAllEvents = cat(2,vecStimOnTime',vecStimOffTime');
+% 		matT1 = matAllEvents(1:480,:);
+% 		matT2 = matAllEvents(481:960,:);
+% 		dblShift = -0.25;
+% 		
+% 		dblZeta2P1 = zetatest2(vecSpikeTimes,matT1,vecSpikeTimes,matT2,dblUseMaxDur,intResampNum,4,boolDirectQuantile);
+% 		dblZeta2P2 = zetatest2(vecSpikeTimes,matT1,vecSpikeTimes,matT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+% 		dblZeta2P3 = zetatest2(vecSpikeTimes,matT1,vecSpikeTimes,matT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+% 		
+% 		dblZeta2P1b = zetatest2(vecSpikeTimes,matT1+dblShift,vecSpikeTimes,matT2+dblShift,dblUseMaxDur,intResampNum,4,boolDirectQuantile);
+% 		dblZeta2P2b = zetatest2(vecSpikeTimes,matT1+dblShift,vecSpikeTimes,matT2+dblShift,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+% 		dblZeta2P3b = zetatest2(vecSpikeTimes,matT1+dblShift,vecSpikeTimes,matT2+dblShift,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+% 		
+% 		dblZeta2P1c = zetatest2(vecSpikeTimes,matT1-dblShift,vecSpikeTimes,matT2-dblShift,dblUseMaxDur,intResampNum,4,boolDirectQuantile);
+% 		dblZeta2P2c = zetatest2(vecSpikeTimes,matT1-dblShift,vecSpikeTimes,matT2-dblShift,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+% 		dblZeta2P3c = zetatest2(vecSpikeTimes,matT1-dblShift,vecSpikeTimes,matT2-dblShift,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+% 		
 	%check which stim to use
 	%vecDur = vecStimOffTime-vecStimOnTime;
 	%vecSpikeCounts = getSpikeCounts(vecSpikeTimes,vecStimOnTime,vecStimOffTime)./vecDur;
@@ -147,9 +165,18 @@ for intIdx = 1:intRunNum
 			matTrialT2 = matTrialTS2;
 		end
 		
-		%% run tests
+		%% zeta
 		intPlot = 0;
 		dblZeta2P = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+		
+		%% plot?
+		if 0
+			if dblZeta2P < 0.001 %190? 267? 279?
+				dblZeta2P = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,4,boolDirectQuantile);
+				pause;close
+			end
+			continue;
+		end
 		
 		%% ANOVA
 		%if balanced
@@ -246,6 +273,6 @@ end
 
 %% save
 if boolSave
-	save([strDataPath 'Zeta2DataStimDiff' strArea 'Resamp' num2str(intResampNum) strQ '.mat' ],...
+	save([strDataPath 'Zeta2DataStimDiffNoMS' strArea 'Resamp' num2str(intResampNum) '.mat' ],...
 		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_optimal','matAnova2_unbalanced');
 end

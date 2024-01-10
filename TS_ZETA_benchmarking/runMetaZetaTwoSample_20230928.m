@@ -15,7 +15,7 @@ boolSave = true;
 vecRunTests = [1:3];
 
 %% prep
-intPlotType = 3;
+intPlotType = 6;
 if intPlotType == 1
 	%strArea = 'ShiftRespV1RunDriftingGratings';
 	strArea = 'AnovaPrimary visual';
@@ -41,6 +41,11 @@ elseif intPlotType == 5
 	strArea = 'V1RunNaturalMovie';
 	strBalanced = '';
 	strQ = '';
+	intResamps = 500;
+elseif intPlotType == 6
+	strArea = 'StimDiffNoMSV1RunDriftingGratings';
+	strBalanced = '';
+	strQ = '';%Q1
 	intResamps = 500;
 end
 strR = ['R' num2str(intResamps)];
@@ -222,7 +227,7 @@ fixfig;
 dblWLOR_Z = getWeightedLogOddsRatio(matZetaP(:,2)); %fractional logarithmic divergence integral
 dblWLOR_T = getWeightedLogOddsRatio(matMeanP(:,2));
 dblWLOR_A = getWeightedLogOddsRatio(matAnovaP(:,2));
-return
+
 %% save
 drawnow;
 export_fig(fullpath(strFigPath,['Zeta2' strQ strR strArea '.png']));

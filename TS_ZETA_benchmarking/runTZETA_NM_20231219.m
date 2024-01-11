@@ -100,6 +100,7 @@ for intRandType=vecRunTypes
 			vecOn = ses.structStim.FrameOn(1:intUseTrials);
 			vecOff = ses.structStim.FrameOff(1:intUseTrials);
 			vecdFoF = cellData{intNeuron};
+			if all(isnan(vecdFoF)),continue;end
 			vecTraceT = (1:numel(vecdFoF)) ./ ses.samplingFreq;
 			vecTraceAct = vecdFoF;
 			vecStimOnTime = vecOn(:) ./ ses.samplingFreq;
@@ -121,12 +122,16 @@ for intRandType=vecRunTypes
 			dblUseMaxDur = 6;
 			vecUseDur = [dblUseMaxDur 10];
 			dblJitterSize = 1;
-				
-			matEventTimes = cat(2,vecTransition4(:),vecStimOffTime(:));
+			
+			matEventTimes = cat(2,vecTransition1(:),vecTransition2(:));
+			dblMaxJitterFirstEvent = matEventTimes(1)-vecTraceT(1);
 			%matEventTimes = cat(2,vecTransition2(:),vecTransition3(:));
 			if intRandType == 2
 				dblDur = dblUseMaxDur;
 				vecJitter = (2*dblDur*rand([numel(vecTransition2) 1])-dblDur);
+				while vecJitter(1) < -dblMaxJitterFirstEvent
+					vecJitter(1) = 2*dblDur*rand(1)-dblDur;
+				end
 				matEventTimes = bsxfun(@plus,matEventTimes,vecJitter);
 			else
 				matEventTimes = matEventTimes;

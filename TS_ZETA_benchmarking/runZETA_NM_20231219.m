@@ -138,10 +138,10 @@ for intIdx=1:intNeurons%26
 	%set derivative params
 	
 	for intRandType=vecRandTypes
-		matEventTimes = cat(2,vecTransition4(:),vecStimOffTime(:));
+		matEventTimes = cat(2,vecTransition3(:),vecStimOffTime(:));
 		if intRandType == 2
 			dblDur = dblUseMaxDur;
-			vecJitter = (2*dblDur*rand([numel(vecTransition2) 1])-dblDur);
+			vecJitter = (2*dblDur*rand([numel(vecStimOnTime) 1])-dblDur);
 			matEventTimes = bsxfun(@plus,matEventTimes,vecJitter);
 		else
 			matEventTimes = matEventTimes;

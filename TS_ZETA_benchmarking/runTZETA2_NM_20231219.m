@@ -123,15 +123,15 @@ for intRandType=vecRandTypes
 			
 			%stim 1
 			matTrialTS1 = [];
-			matTrialTS1(:,1) = vecTransition2+dblShiftBy;
-			matTrialTS1(:,2) = vecTransition2+dblUseMaxDur+dblShiftBy;
-			intTrialsS1 = numel(vecTransition2);
+			matTrialTS1(:,1) = vecTransition1+dblShiftBy;
+			matTrialTS1(:,2) = vecTransition1+dblUseMaxDur+dblShiftBy;
+			intTrialsS1 = numel(vecTransition1);
 
 			%stim 2
 			matTrialTS2 = [];
-			matTrialTS2(:,1) = vecTransition4+dblShiftBy;
-			matTrialTS2(:,2) = vecTransition4+dblUseMaxDur+dblShiftBy;
-			intTrialsS2 = numel(vecTransition4);
+			matTrialTS2(:,1) = vecTransition3+dblShiftBy;
+			matTrialTS2(:,2) = vecTransition3+dblUseMaxDur+dblShiftBy;
+			intTrialsS2 = numel(vecTransition3);
 			
 			%% randomize
 			if intRandType == 2

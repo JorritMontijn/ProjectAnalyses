@@ -15,7 +15,7 @@ boolSave = true;
 vecRunTests = [1:3];
 
 %% prep
-intPlotType = 6;
+intPlotType = 5;
 if intPlotType == 1
 	%strArea = 'ShiftRespV1RunDriftingGratings';
 	strArea = 'AnovaPrimary visual';
@@ -230,5 +230,5 @@ dblWLOR_A = getWeightedLogOddsRatio(matAnovaP(:,2));
 
 %% save
 drawnow;
-export_fig(fullpath(strFigPath,['Zeta2' strQ strR strArea '.png']));
+export_fig(fullpath(strFigPath,['Zeta2' strQ strR strArea '.jpg']));
 export_fig(fullpath(strFigPath,['Zeta2' strQ strR strArea '.pdf']));

@@ -8,7 +8,7 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
-intResamps = 1001; %Q1R10000T64 / Q0R250T64
+intResamps = 500; %Q1R10000T64 / Q0R250T64
 strComp = '';%DiffNeurons, DiffStims, PeakHeight, PeakTime, 
 boolDirectQuantile = false;
 

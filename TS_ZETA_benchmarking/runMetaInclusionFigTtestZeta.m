@@ -94,7 +94,8 @@ for intCase=1:4
 		100*[dblTPRA-vecTPRAci(1)],...
 		100*[dblTPRA-vecTPRAci(2)],'linestyle','none','color',vecColA,'capsize',20);
 	%xlim([0 4]);
-	%ylim([0 100]);
+	vecLimY = [100 100 50 50];
+	ylim([0 vecLimY(intCase)]);
 	title(sprintf('%s, +%d%%, +%d%%',cellTests{intCase},round((dblTPRZ/dblTPRT - 1)*100),round((dblTPRZ/dblTPRA - 1)*100)));
 	ylabel('Cell inclusion fraction (%)');%,'Color',[0 0.7 0]);
 	ax = gca;
@@ -134,9 +135,9 @@ for intCase=1:4
 		[dblTPRA-vecTPRAci(1)],...
 		[dblTPRA-vecTPRAci(2)],...
 		'linestyle','none','color',vecColA,'capsize',5);
-	
 end
-xlabel('FPR deviation from norm (KS)');
+
+xlabel('FPR deviation from norm (WLORt)');
 ylabel('Cell inclusion fraction');
 title(sprintf('Alpha=%.3f',dblAlpha));
 legend({'T-test','ZETA','ANOVA'},'location','best');
@@ -153,5 +154,5 @@ figure(hFig);
 fixfig([],[],2,16);
 
 
-saveas(gcf,fullpath(strFigPath,'SummaryTtestZeta.tif'));
+saveas(gcf,fullpath(strFigPath,'SummaryTtestZeta.jpg'));
 saveas(gcf,fullpath(strFigPath,'SummaryTtestZeta.pdf'));

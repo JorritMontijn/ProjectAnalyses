@@ -18,7 +18,7 @@ cellTests = {'Neuropixels','GCaMP6f','Two-sample Npx','Two-sample GCaMP6f'};
 figure;hAx0=axes;hold on;%plot([dblAlpha dblAlpha],[0 1],'--','color',[0.5 0.5 0.5]);
 hFig=figure;maxfig;
 vecBinoP = nan(1,4);
-for intCase=1:4
+for intCase=1:3
 	if intCase==1
 		%zeta
 		strFile=fullpath(strDataPath, 'ZetaDataAnovaPrimary visualRunDriftingGratingsResamp500.mat');

@@ -16,7 +16,7 @@ boolDirectQuantile = false;
 %% prep
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-strTest = 'TsZetaNM'; %'TsZeta2' 'TsZeta2NM'
+strTest = 'TsZeta'; %'TsZeta2' 'TsZeta2NM'
 if contains(strTest,'NM'),strComp='';end
 cellRunRand = {...
 	'',...Rand 1

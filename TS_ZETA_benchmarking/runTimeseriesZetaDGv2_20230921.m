@@ -12,11 +12,11 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRunTypes = [1 2];
-intResampNum = 250;
+intResampNum = 500;
 boolSave = true;%true;
 dblUseDur = 8;
 boolDirectQuantile = false;
-intUseTrials = 80; %limit number of used trials to reduce performance saturation
+intUseTrials = inf; %limit number of used trials to reduce performance saturation
 dblSuperResFactor = 100; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 

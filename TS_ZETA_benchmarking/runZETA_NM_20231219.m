@@ -166,6 +166,13 @@ for intIdx=1:intNeurons%26
 		dblZetaP_old = getZeta(vecSpikeTimes,matEventTimes+dblShiftBy,dblUseMaxDur,intResampNum,intPlot);
 		dblZetaP_Stitch=zetatest(vecSpikeTimes,matEventTimes+dblShiftBy,dblUseMaxDur,intResampNum,intPlot,[],[],[],true);
 		dblZetaP_NoStitch=zetatest(vecSpikeTimes,matEventTimes+dblShiftBy,dblUseMaxDur,intResampNum,intPlot,[],[],[],false);
+		if 0
+			if dblZetaP_NoStitch < 0.01
+				doPEP(vecSpikeTimes,-0.5:0.1:dblUseMaxDur,matEventTimes(:,1));
+				pause;
+			end
+			continue;
+		end
 		
 		%% ANOVA optimal
 		hTic2 = tic;

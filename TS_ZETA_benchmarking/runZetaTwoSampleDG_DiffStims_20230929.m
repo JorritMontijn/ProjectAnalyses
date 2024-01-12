@@ -72,7 +72,7 @@ optHigh = 1e3;
 %% get neuronal data
 hTicN = tic;
 vecRunNeurons = sort(randperm(intNeurons,intRunNum));
-for intIdx = 1:intRunNum
+for intIdx = 279:intRunNum %285
 	%% message
 	if toc(hTicN) > 5
 		fprintf('Processing neuron %d/%d [%s]\n',intIdx,intRunNum,getTime);
@@ -167,14 +167,23 @@ for intIdx = 1:intRunNum
 		
 		%% zeta
 		intPlot = 0;
-		dblZeta2P = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
+		[dblZeta2P,sZETA2] = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
 		
 		%% plot?
-		if 0
-			if dblZeta2P < 0.001 %190? 267? 279?
+		if 1
+			if dblZeta2P < 0.01 && dblZeta2P < sZETA2.dblMeanP %190? 267? 279?
 				dblZeta2P = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,4,boolDirectQuantile);
 				pause;close
 			end
+			
+			subplot(2,3,5);
+			boxplot(cat(2,sZETA2.vecMu1,sZETA2.vecMu2),cat(2,0*sZETA2.vecMu1,0*sZETA2.vecMu2+1));
+			
+			
+			subplot(2,3,6);
+			cla;bplot(sZETA2.vecMu1,1,'outliers');
+			hold on;
+			bplot(sZETA2.vecMu2,2,'outliers');
 			continue;
 		end
 		
@@ -270,7 +279,7 @@ for intIdx = 1:intRunNum
 		matAnova2_optimal(intIdx,intRandType) = dblAnova2P_optimal;
 	end
 end
-
+return
 %% save
 if boolSave
 	save([strDataPath 'Zeta2DataStimDiffNoMS' strArea 'Resamp' num2str(intResampNum) '.mat' ],...

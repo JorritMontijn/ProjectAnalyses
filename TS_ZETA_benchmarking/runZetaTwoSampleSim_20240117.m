@@ -83,16 +83,9 @@ for intNeuron=1:intNeurons
 	matTrialT1 = cat(2,vecTrialStart1',vecTrialStart1'+dblStimDur);
 	
 	%balanced or unbalanced?
-	if boolUnbalanced
-		strUb = 'B0';
-		vecTrialStart2 =  10 + (dblPreBaseDur:dblTrialDur:(dblTrialDur*(intTrials/2)+eps));
-		matTrialT2 = cat(2,vecTrialStart2',vecTrialStart2'+dblStimDur);
-		vecTrialAngles2 = vecTrialAngles1(1:size(matTrialT2,1));
-	else
-		strUb = 'B1';
-		matTrialT2 = matTrialT1;
-		vecTrialAngles2 = vecTrialAngles1;
-	end
+	vecTrialStart2 =  10 + (dblPreBaseDur:dblTrialDur:(dblTrialDur*(intTrials/2)+eps));
+	matTrialT2 = cat(2,vecTrialStart2',vecTrialStart2'+dblStimDur);
+	vecTrialAngles2 = vecTrialAngles1(1:size(matTrialT2,1));
 	
 	%% generate data
 	% generate peak
@@ -237,6 +230,6 @@ end
 
 %% save
 if boolSave
-	save([strDataTargetPath 'Zeta2DataAnova' strArea strUb 'Resamp' num2str(intResampNum) '.mat' ],...
+	save([strDataTargetPath 'Zeta2DataAnova' strArea 'Resamp' num2str(intResampNum) '.mat' ],...
 		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_unbalanced','matAnova2_optimal');
 end

@@ -47,13 +47,6 @@ cellRepStr = {...
 	'Dentate gyrus','H-DG';...
 	'Retrosplenial','RetSpl';...
 	};
-vecTrialNum = [];
-%set var
-if boolDirectQuantile
-	strQ = 'Q1';
-else
-	strQ = 'Q0';
-end
 
 %% load data
 strName = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));

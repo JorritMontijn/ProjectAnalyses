@@ -45,10 +45,10 @@ for intRandType=vecRandTypes
 	%reset vars
 	
 	if intRandType == 1
-		strRunType = 'TI2Z';
+		strRunType = 'TI2Zlbs';
 		fprintf('Prepping normal... [%s]\n',getTime);
 	elseif intRandType ==2
-		strRunType = 'TI2Z-Rand';
+		strRunType = 'TI2Zlbs-Rand';
 		fprintf('Prepping random... [%s]\n',getTime);
 	end
 	
@@ -108,8 +108,8 @@ for intRandType=vecRandTypes
 			
 			%save
 drawnow;
-export_fig(fullpath(strFigPath,sprintf('ZETA2_TimeShiftWithMuS%.2f.jpg',dblTimeShift)));
-export_fig(fullpath(strFigPath,sprintf('ZETA2_TimeShiftWithMuS%.2f.pdf',dblTimeShift)));
+%export_fig(fullpath(strFigPath,sprintf('ZETA2lbs_TimeShiftWithMuS%.2f.jpg',dblTimeShift)));
+%export_fig(fullpath(strFigPath,sprintf('ZETA2lbs_TimeShiftWithMuS%.2f.pdf',dblTimeShift)));
 
 			%%
 			% assign data
@@ -123,6 +123,6 @@ export_fig(fullpath(strFigPath,sprintf('ZETA2_TimeShiftWithMuS%.2f.pdf',dblTimeS
 end
 
 if boolSave
-	save([strDataTargetPath 'Zeta2TimeInvariance.mat' ],...
+	save([strDataTargetPath 'Zeta2lbsTimeInvariance.mat' ],...
 		'cellNeuron','matNumSpikes','matTtest2P','matZeta2P','vecTimeShifts');
 end

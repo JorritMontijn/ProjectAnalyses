@@ -45,11 +45,6 @@ cellRepStr = {...
 	'Dentate gyrus','H-DG';...
 	'Retrosplenial','RetSpl';...
 	};
-if boolDirectQuantile
-	strQ = 'Q1';
-else
-	strQ = 'Q0';
-end
 
 %% load data
 strName = replace([lower(strArea) strRunStim],lower(cellRepStr(:,1)),cellRepStr(:,2));
@@ -72,7 +67,7 @@ optHigh = 1e3;
 %% get neuronal data
 hTicN = tic;
 vecRunNeurons = sort(randperm(intNeurons,intRunNum));
-for intIdx = 279:intRunNum %285
+for intIdx = 1:intRunNum %285
 	%% message
 	if toc(hTicN) > 5
 		fprintf('Processing neuron %d/%d [%s]\n',intIdx,intRunNum,getTime);
@@ -170,7 +165,7 @@ for intIdx = 279:intRunNum %285
 		[dblZeta2P,sZETA2] = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,intPlot,boolDirectQuantile);
 		
 		%% plot?
-		if 1
+		if 0
 			if dblZeta2P < 0.01 && dblZeta2P < sZETA2.dblMeanP %190? 267? 279?
 				dblZeta2P = zetatest2(vecSpikeTimes,matTrialT1,vecSpikeTimes,matTrialT2,dblUseMaxDur,intResampNum,4,boolDirectQuantile);
 				pause;close
@@ -279,9 +274,9 @@ for intIdx = 279:intRunNum %285
 		matAnova2_optimal(intIdx,intRandType) = dblAnova2P_optimal;
 	end
 end
-return
+
 %% save
 if boolSave
-	save([strDataPath 'Zeta2DataStimDiffNoMS' strArea 'Resamp' num2str(intResampNum) '.mat' ],...
+	save([strDataPath 'Zeta2DataStimDiff' strArea 'Resamp' num2str(intResampNum) '.mat' ],...
 		'cellNeuron','matTtest2','matZeta2','matAnova2','matAnova2_optimal','matAnova2_unbalanced');
 end

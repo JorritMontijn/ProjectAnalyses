@@ -18,7 +18,7 @@ cellTests = {'Neuropixels','GCaMP6f','Two-sample Npx','Two-sample GCaMP6f'};
 figure;hAx0=axes;hold on;%plot([dblAlpha dblAlpha],[0 1],'--','color',[0.5 0.5 0.5]);
 hFig=figure;maxfig;
 vecBinoP = nan(1,4);
-for intCase=1:3
+for intCase=1:4
 	if intCase==1
 		%zeta
 		strFile=fullpath(strDataPath, 'ZetaDataAnovaPrimary visualRunDriftingGratingsResamp500.mat');
@@ -62,13 +62,17 @@ for intCase=1:3
 	[dblFPRT,vecFPRTci] = binofit(sum(matMeanP(2,:)<dblAlpha),intN);
 	[dblFPRA,vecFPRAci] = binofit(sum(matAnovaP(2,:)<dblAlpha),intN);
 	
-	dblWLOR_Z = getWeightedLogOddsRatio(matZetaP(2,:)); %fractional logarithmic divergence integral
+	%dblWLOR_Z = getWeightedLogOddsRatio(matZetaP(2,:)); %fractional logarithmic divergence integral
+	dblWLOR_Z = getLiberalness(matZetaP(2,:)); %fractional logarithmic divergence integral
+	
 	vecFPRZci = [0.9 1.1]*dblWLOR_Z;
 	dblFPRZ = dblWLOR_Z;
-	dblWLOR_T = getWeightedLogOddsRatio(matMeanP(2,:));
+	%dblWLOR_T = getWeightedLogOddsRatio(matMeanP(2,:));
+	dblWLOR_T = getLiberalness(matMeanP(2,:));
 	vecFPRTci = [0.9 1.1]*dblWLOR_T;
 	dblFPRT = dblWLOR_T;
-	dblWLOR_A = getWeightedLogOddsRatio(matAnovaP(2,:));
+	%dblWLOR_A = getWeightedLogOddsRatio(matAnovaP(2,:));
+	dblWLOR_A = getLiberalness(matAnovaP(2,:));
 	vecFPRAci = [0.9 1.1]*dblWLOR_A;
 	dblFPRA = dblWLOR_A;
 
@@ -136,12 +140,13 @@ for intCase=1:3
 		[dblTPRA-vecTPRAci(2)],...
 		'linestyle','none','color',vecColA,'capsize',5);
 end
-
-xlabel('FPR deviation from norm (WLORt)');
+%set(gca,'xscale','log');
+%xlabel('FPR deviation from norm (WLORt)');
+xlabel('liberalness');
 ylabel('Cell inclusion fraction');
 title(sprintf('Alpha=%.3f',dblAlpha));
 legend({'T-test','ZETA','ANOVA'},'location','best');
-ylim([0 1]);
+%ylim([0 1]);
 %xlim([0 1]);
 fixfig([],[],2,16);
 

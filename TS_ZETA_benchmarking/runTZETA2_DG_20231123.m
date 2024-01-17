@@ -12,7 +12,7 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 vecRunTypes = [1 2];
-intResampNum = 1001;
+intResampNum = 500;
 boolSave = true;%true;
 dblUseDur = 8;
 boolDirectQuantile = false;
@@ -227,7 +227,7 @@ for intCompType=2%:2
 				
 			end
 			if boolSave
-				save([strDataPath 'TsZeta2_' strCompType '_Q' num2str(boolDirectQuantile) '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
+				save([strDataPath 'TsZeta2_' strCompType '_' strRunType 'Resamp' num2str(intResampNum) '.mat' ],...
 					'vecCutOffs','matClustP','vecAnovaP','vecTsZetaP','vecTtestP','strRunType','strRecIdx');
 			end
 		end

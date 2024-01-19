@@ -36,7 +36,7 @@ for intCase=1:4
 	elseif intCase==3
 		%2-sample zeta
 		%strFile = 'Zeta2DataAnovaV1RunDriftingGratingsResamp500.mat';
-		strFile = 'Zeta2DataStimDiffV1RunDriftingGratingsResamp500Q0.mat';
+		strFile = 'Zeta2DataStimDiffV1RunDriftingGratingsResamp500.mat';
 		%strFile = 'Zeta2DataShiftRespV1RunDriftingGratingsResamp500Q0.mat';
 		[matMeanP,matZetaP,matAnovaP] = loadZeta2(strFile);
 		matMeanP = matMeanP';
@@ -146,12 +146,12 @@ xlabel('liberalness');
 ylabel('Cell inclusion fraction');
 title(sprintf('Alpha=%.3f',dblAlpha));
 legend({'T-test','ZETA','ANOVA'},'location','best');
-%ylim([0 1]);
+ylim([0 1]);
 %xlim([0 1]);
 fixfig([],[],2,16);
 
-saveas(gcf,fullpath(strFigPath,'SummaryTPFP.jpg'));
-saveas(gcf,fullpath(strFigPath,'SummaryTPFP.pdf'));
+saveas(gcf,fullpath(strFigPath,'SummaryExcessError_0_0.5.jpg'));
+saveas(gcf,fullpath(strFigPath,'SummaryExcessError_0_0.5.pdf'));
 
 
 %%

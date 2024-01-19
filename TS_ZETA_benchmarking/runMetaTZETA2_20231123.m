@@ -8,8 +8,8 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
-intResamps = 500; %Q1R10000T64 / Q0R250T64
-strComp = '';%DiffNeurons, DiffStims, PeakHeight, PeakTime, 
+intResamps = 1001; %Q1R10000T64 / Q0R250T64
+strComp = 'DiffStims';%DiffNeurons, DiffStims, PeakHeight, PeakTime, 
 boolDirectQuantile = false;
 
 
@@ -17,7 +17,7 @@ boolDirectQuantile = false;
 %% prep
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-strTest = 'TsZeta2NM'; %'TsZeta2' 'TsZeta2NM'
+strTest = 'TsZeta3'; %'TsZeta2' 'TsZeta2NM'
 cellRunRand = {...
 	'',...Rand 1
 	'-Rand',...Rand 2
@@ -96,6 +96,7 @@ if isempty(cellClustP)
 else
 	vecRandClustP = cell2vec(cellClustP{2});
 	vecRealClustP = cell2vec(cellClustP{1});
+	matAggClustP = cat(3,matRealClustP,matRandClustP);
 end
 matMeanP = cat(2,vecRealMeanP,vecRandMeanP)';
 matZetaP = cat(2,vecRealZetaP,vecRandZetaP)';
@@ -227,9 +228,11 @@ for intTest=vecRunTests
 end
 
 %% run tests on aucs
+AUC_C = vecAUC(4) ;
 AUC_T = vecAUC(3) ;
 AUC_A = vecAUC(2);
 AUC_Z = vecAUC(1);
+Ase_C = vecAUC_se(4) ;
 Ase_T = vecAUC_se(3) ;
 Ase_A = vecAUC_se(2);
 Ase_Z = vecAUC_se(1);
@@ -251,6 +254,24 @@ m0 = AUC_A - AUC_Z;
 s0 = (Ase_A + Ase_Z)/2;
 zAZ = abs(m0/s0);
 AUC_pAZ = normcdf(zAZ,'upper')*2;
+
+%c vs t
+m0 = AUC_C - AUC_T;
+s0 = (Ase_C + Ase_T)/2;
+zCT = abs(m0/s0);
+AUC_pCT = normcdf(zCT,'upper')*2;
+
+%c v z
+m0 = AUC_C - AUC_Z;
+s0 = (Ase_C + Ase_Z)/2;
+zCZ = abs(m0/s0);
+AUC_pCZ = normcdf(zCZ,'upper')*2;
+
+%c vs a
+m0 = AUC_C - AUC_A;
+s0 = (Ase_C + Ase_A)/2;
+zCA = abs(m0/s0);
+AUC_pCA = normcdf(zCA,'upper')*2;
 
 
 %plot
@@ -292,8 +313,9 @@ plot([dblMinVal 1],[dblMinVal 1],'k--');
 cellLegend(end+1) = {'Theoretical norm'};
 hold off;
 legend(cellLegend,'location','best');
-title(sprintf('MW AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;',...
-	AUC_pTA,AUC_pTZ,AUC_pAZ));
+title(sprintf(['MW AUC tests; T vs A,p=%.1e; T vs Z,p=%.1e; A vs Z,p=%.1e;\n'...
+	'C vs T,p=%.1e; C vs Z,p=%.1e; C vs A,p=%.1e'],...
+	AUC_pTA,AUC_pTZ,AUC_pAZ,AUC_pCT,AUC_pCZ,AUC_pCA));
 xlim([1e-3 1]);
 ylim([1e-3 1]);
 fixfig;

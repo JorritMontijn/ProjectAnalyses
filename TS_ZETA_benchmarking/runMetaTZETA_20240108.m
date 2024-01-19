@@ -9,14 +9,14 @@ strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
 intResamps = 500; %Q1R10000T64 / Q0R250T64
-strComp = '_DiffStims';%_DiffNeurons, _DiffStims, _PeakHeight, _PeakTime, 
+strComp = '';%_DiffNeurons, _DiffStims, _PeakHeight, _PeakTime, 
 boolDirectQuantile = false;
 
 
 %% prep
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-strTest = 'TsZeta'; %'TsZeta2' 'TsZeta2NM'
+strTest = 'TsZetaGCaMP'; %'TsZeta' 'TsZetaNM'
 if contains(strTest,'NM'),strComp='';end
 cellRunRand = {...
 	'',...Rand 1

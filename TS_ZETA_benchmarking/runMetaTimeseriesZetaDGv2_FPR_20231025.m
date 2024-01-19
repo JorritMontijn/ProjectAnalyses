@@ -8,7 +8,7 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 dblSuperResFactor = 100;
-intResamps = 250; %Q1R10000T64 / Q0R250T64
+intResamps = 500; %Q1R10000T64 / Q0R250T64
 intT = 80;
 boolDirectQuantile = false;
 strT = ['T' num2str(intT) ];
@@ -32,15 +32,16 @@ strStim = 'RunDriftingGratings';
 
 hMegaFig = figure;maxfig;
 
-for boolDoOGB = false%[false true]
+for boolDoOGB = true%false%[false true]
 	%% load data
 	if boolDoOGB
-		strIndicator = 'OGB';
+		strIndicator = 'NM';
+		strT = '';
 	else
 		strIndicator = 'GCaMP';
 	end
-	sDirAll1=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*sesDur*' strT strR strSR '.mat']);
-	sDirAll2=dir([strDataPath 'TsZeta' strIndicator '*' strQ '*ses-RandDur*' strT strR strSR '.mat']);
+	sDirAll1=dir([strDataPath 'TsZeta' strIndicator '*ses' strT strR strSR '.mat']);
+	sDirAll2=dir([strDataPath 'TsZeta' strIndicator '*ses-Rand' strT strR strSR '.mat']);
 	sDirAll = cat(1,sDirAll1,sDirAll2);
 	vecRand = contains({sDirAll.name},'Rand');
 	sDirReal = sDirAll(~vecRand);

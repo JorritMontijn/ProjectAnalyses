@@ -15,7 +15,7 @@ boolSave = true;
 vecRunTests = [1:3];
 
 %% prep
-intPlotType = 5;
+intPlotType = 4;
 if intPlotType == 1
 	%strArea = 'ShiftRespV1RunDriftingGratings';
 	strArea = 'AnovaPrimary visual';
@@ -24,7 +24,7 @@ if intPlotType == 1
 	intResamps = 500;
 elseif intPlotType == 2
 	strArea = 'AnovaPoissonPeakHeight';
-	strBalanced = 'B0';
+	strBalanced = '';
 	strQ = '';
 	intResamps = 500;
 elseif intPlotType == 3
@@ -34,7 +34,7 @@ elseif intPlotType == 3
 	intResamps = 500;
 elseif intPlotType == 4
 	strArea = 'AnovaPoissonDoublePeak';
-	strBalanced = 'B0';
+	strBalanced = '';
 	strQ = '';
 	intResamps = 500;
 elseif intPlotType == 5

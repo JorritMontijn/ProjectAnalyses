@@ -30,7 +30,7 @@ elseif intPlotType == 2
 elseif intPlotType == 3
 	strArea = 'StimDiffV1RunDriftingGratings';
 	strBalanced = '';
-	strQ = 'Q0';%Q1
+	strQ = '';%Q1
 	intResamps = 500;
 elseif intPlotType == 4
 	strArea = 'AnovaPoissonDoublePeak';

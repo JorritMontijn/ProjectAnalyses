@@ -129,7 +129,7 @@ for boolDoOGB = false%[false true]
 				vecTraceT(indRemoveEntries) = [];
 				vecTraceAct(indRemoveEntries) = [];
 				intTrials = numel(vecEventStarts);
-				
+				return
 				%% get visual responsiveness
 				%set derivative params
 				if contains(strRunType,'Rand')

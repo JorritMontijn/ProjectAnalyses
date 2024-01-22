@@ -32,7 +32,7 @@ strStim = 'RunDriftingGratings';
 
 hMegaFig = figure;maxfig;
 
-for boolDoOGB = true%false%[false true]
+for boolDoOGB = false%false%[false true]
 	%% load data
 	if boolDoOGB
 		strIndicator = 'NM';

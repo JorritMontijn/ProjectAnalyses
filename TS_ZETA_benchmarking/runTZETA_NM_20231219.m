@@ -15,7 +15,7 @@ vecRunTypes = [1 2];
 intResampNum = 500;
 boolSave = true;%true;
 boolDirectQuantile = false;
-intUseTrials = 80; %limit number of used trials to reduce performance saturation
+intUseTrials = inf; %limit number of used trials to reduce performance saturation
 dblSuperResFactor = 100; %1 or 100
 warning('off','zetatstest:InsufficientDataLength');
 
@@ -118,8 +118,10 @@ for intRandType=vecRunTypes
 			dblDur2 = median(vecTransition3-vecTransition2);
 			dblDur3 = median(vecTransition4-vecTransition3);
 			dblDur4 = median(vecStimOffTime-vecTransition4);
-			dblShiftBy = -1;
-			dblUseMaxDur = 6;
+			%dblShiftBy = -1;
+			%dblUseMaxDur = 6;
+			dblShiftBy = 0;
+			dblUseMaxDur = dblTotDur;
 			vecUseDur = [dblUseMaxDur 10];
 			dblJitterSize = 1;
 			

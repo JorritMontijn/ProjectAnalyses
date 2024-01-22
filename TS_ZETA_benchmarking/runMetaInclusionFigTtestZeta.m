@@ -100,7 +100,7 @@ for intCase=1:4
 	%xlim([0 4]);
 	vecLimY = [100 100 50 50];
 	ylim([0 vecLimY(intCase)]);
-	title(sprintf('%s, +%d%%, +%d%%',cellTests{intCase},round((dblTPRZ/dblTPRT - 1)*100),round((dblTPRZ/dblTPRA - 1)*100)));
+	title(sprintf('%s, n=%d, +%d%%, +%d%%',cellTests{intCase},size(matMeanP(1,:),2),round((dblTPRZ/dblTPRT - 1)*100),round((dblTPRZ/dblTPRA - 1)*100)));
 	ylabel('Cell inclusion fraction (%)');%,'Color',[0 0.7 0]);
 	ax = gca;
 	set(ax,'xtick',[1 2 3]);

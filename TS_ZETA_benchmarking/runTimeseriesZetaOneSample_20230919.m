@@ -5,16 +5,13 @@ close all;
 clear all;
 
 vecRunTypes = [1 2];
-intResampNum = 100;%[100 200 500 1000 2000];
+intResampNum = 500;%[100 200 500 1000 2000];
 boolSave = true;
 
 if isfolder('F:\Drive\MontijnHeimel_TimeseriesZeta')
 	strPath = 'F:\Drive\MontijnHeimel_TimeseriesZeta\';
-	strDataSourcePath = 'D:\Data\Processed\PlaidsAndGratings\Gratings\';
 else
 	strPath = 'C:\Drive\MontijnHeimel_TimeseriesZeta\';
-	strDataSourcePath = '';
-	
 end
 strFigPath = [strPath 'Figs\'];
 strDataTargetPath = [strPath 'Data\'];
@@ -28,8 +25,7 @@ dblNoise = 0.025;
 dblSamplingFreq = 25;
 dblSamplingInterval = 1/dblSamplingFreq;
 boolQuick = false;
-intJitterDistro = 1;
-strRec = sprintf('SimOneSample1TsZetaN%dR%d',intNeurons,intResampNum);
+strRec = sprintf('TsZetaQuadriPhasicN%dR%d',intNeurons,intResampNum);
 boolDirectQuantile = false;
         
 %set indicator properties
@@ -41,8 +37,7 @@ sIndicatorProps.dblNoise = dblNoise;
 matTtest = nan(intNeurons,2);
 matTsZeta = nan(intNeurons,2);
 matAnova = nan(intNeurons,2);
-strPath1 = 'F:\Code\Toolboxes\zetatest\dependencies\';
-strPath2 = 'F:\Code\Acquisition\UniversalProbeFinder\zetatest\dependencies\';
+matZeta_sp = nan(intNeurons,2);
 
 %% generate data
 hTicN = tic;
@@ -96,7 +91,6 @@ for intNeuron=1:intNeurons
 		dblBinWidth = median(diff(vecRefT2));
 		dblAnovaP=anova1(matTracePerTrial,[],'off');
 		dblAnovaDur = toc(hTicA);
-		matAnova(intNeuron,intRunType) = dblAnovaP;
 		
 		%TS-ZETA new
 		%zetatstest
@@ -113,12 +107,14 @@ for intNeuron=1:intNeurons
 		dblMeanZ = -norminv(dblMeanP/2);
 		dblZetaZ = sZETA.dblZETA;
 		matTsZeta(intNeuron,intRunType) = dblZetaP;
+		matZeta_sp(intNeuron,intRunType) = dblZetaP_sp;
 		matTtest(intNeuron,intRunType) = dblMeanP;
+		matAnova(intNeuron,intRunType) = dblAnovaP;
 	end
 end
 
 %% save
 if boolSave
-	save([strDataTargetPath strRec 'Q' num2str(boolDirectQuantile) '.mat' ],...
-		'matAnova','matTtest','matTsZeta','strRec');
+	save([strDataTargetPath strRec '.mat' ],...
+		'matAnova','matZeta_sp','matTtest','matTsZeta','strRec');
 end

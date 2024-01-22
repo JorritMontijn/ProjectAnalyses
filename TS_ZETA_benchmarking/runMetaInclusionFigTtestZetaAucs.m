@@ -18,30 +18,32 @@ figure;maxfig;
 for intCase=1:4
 	if intCase==1
 		%zeta
-		strFile=fullpath(strDataPath, 'ZetaDataAnovaPrimary visualRunDriftingGratingsResamp250.mat');
+		strFile=fullpath(strDataPath, 'ZetaDataAnovaPrimary visualRunDriftingGratingsResamp500.mat');
+		%strFile=fullpath(strDataPath, 'ZetaDataDevPrimary visualRunDriftingGratingsResamp250.mat');
 		sLoad = load(strFile);
-		strFile=fullpath(strDataPath, 'ZetaDataAnovaPrimary visual-RandRunDriftingGratingsResamp250.mat');
+		strFile=fullpath(strDataPath, 'ZetaDataAnovaPrimary visual-RandRunDriftingGratingsResamp500.mat');
+		%strFile=fullpath(strDataPath, 'ZetaDataDevPrimary visual-RandRunDriftingGratingsResamp250.mat');
 		sLoadRand = load(strFile);
 		matMeanP = cat(1,sLoad.vecTtestP,sLoadRand.vecTtestP);
-		matZetaP = cat(1,sLoad.vecZetaP_UniNoStitch,sLoadRand.vecZetaP_UniNoStitch); %with replacement
+		matZetaP = cat(1,sLoad.vecZetaP_UniStitch,sLoadRand.vecZetaP_UniStitch); %with replacement
 		matAnovaP = cat(1,sLoad.vecAnovaP_optimal,sLoadRand.vecAnovaP_optimal);
 	elseif intCase==2
 		%ts-zeta
 		[matMeanP,matZetaP,matAnovaP] = loadTsZeta(strIndicator);
 	elseif intCase==3
 		%2-sample zeta
-		%strFile = fullpath(strDataPath, 'Zeta2DataAnovaV1RunDriftingGratingsResamp500.mat');
-		strFile = fullpath(strDataPath, 'Zeta2DataStimDiffV1RunDriftingGratingsResamp500Q0.mat');
-		%strFile = fullpath(strDataPath, 'Zeta2DataShiftRespV1RunDriftingGratingsResamp500Q0.mat');
-		
-		sLoad = load(strFile);
-		matMeanP = sLoad.matTtest2';
-		matZetaP = sLoad.matZeta2';
-		matAnovaP = sLoad.matAnova2_optimal';
+		%strFile = 'Zeta2DataAnovaV1RunDriftingGratingsResamp500.mat';
+		strFile = 'Zeta2DataStimDiffV1RunDriftingGratingsResamp500.mat';
+		%strFile = 'Zeta2DataShiftRespV1RunDriftingGratingsResamp500Q0.mat';
+		[matMeanP,matZetaP,matAnovaP] = loadZeta2(strFile);
+		matMeanP = matMeanP';
+		matZetaP = matZetaP';
+		matAnovaP = matAnovaP';
 	elseif intCase==4
 		%2-sample ts-zeta
 		[matMeanP,matZetaP,matAnovaP] = loadTsZeta2('');
 	end
+	
 	%remove nans
 	indRem = any(isnan(matMeanP) | isnan(matZetaP) | isnan(matAnovaP),1);
 	matMeanP(:,indRem)=[];

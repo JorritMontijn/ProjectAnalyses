@@ -16,7 +16,7 @@ boolDirectQuantile = false;
 %% prep
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-strTest = 'TsZetaGCaMP'; %'TsZeta' 'TsZetaNM'
+strTest = 'TsZetaNM'; %'TsZetaGCaMP' 'TsZetaNM'
 if contains(strTest,'NM'),strComp='';end
 cellRunRand = {...
 	'',...Rand 1
@@ -24,12 +24,13 @@ cellRunRand = {...
 	};
 vecRunTests = [1:3];
 if contains(strComp,'Diff') || isempty(strComp)
-	sDirAll1=dir([strDataPath strTest strComp '*ses' strR '.mat']);
-	sDirAll2=dir([strDataPath strTest strComp '*ses-Rand' strR '.mat']);
+	sDirAll1=dir([strDataPath strTest strComp '*ses*' strR '.mat']);
+	sDirAll2=dir([strDataPath strTest strComp '*ses-Rand*' strR '.mat']);
 else
 	sDirAll1=dir([strDataPath strTest strComp '_' strR '.mat']);
 	sDirAll2=dir([strDataPath strTest strComp '_Rand' strR '.mat']);
 end
+sDirAll1(contains({sDirAll1.name},'Rand')) = [];
 sDirAll = cat(1,sDirAll1,sDirAll2);
 vecRand = contains({sDirAll.name},'Rand');
 sDirReal = sDirAll(~vecRand);
@@ -74,6 +75,7 @@ matZetaZ = cat(2,-norminv(vecRealZetaP/2),-norminv(vecRandZetaP/2))';
 matAnovaZ = cat(2,-norminv(vecRealAnovaP/2),-norminv(vecRandAnovaP/2))';
 
 %remove nans
+%indRem = any(isnan(matMeanP) | isnan(matZetaP) | isnan(matAnovaP),1);
 indRem = any(isnan(matZetaP),1) | any(isnan(matMeanP),1) | any(isnan(matAnovaZ),1);
 matMeanP(:,indRem)=[];
 matMeanZ(:,indRem)=[];

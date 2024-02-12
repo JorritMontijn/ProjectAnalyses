@@ -10,7 +10,7 @@ strFigPath = fullfile(strPath,'\Figs\');
 
 %% prep
 %strFileSearch = ['SimOneSample1TsZetaQ0.mat'];
-strFileSearch = ['SimOneSample1TsZetaN10000R100Q0.mat'];
+strFileSearch = ['TsZetaQuadriPhasicN10000Resamp500.mat'];
 sDir = dir(fullpath(strDataPath,strFileSearch));
 strFile = sDir(1).name;
 sLoad = load(fullpath(sDir(1).folder,strFile));

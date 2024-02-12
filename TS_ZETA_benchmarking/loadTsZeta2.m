@@ -1,4 +1,4 @@
-function [matMeanP,matZetaP,matAnovaP] = loadTsZeta2(strIndicator)
+function [matMeanP,matZetaP,matAnovaP] = loadTsZeta2(strType)
 	%UNTITLED2 Summary of this function goes here
 	%   Detailed explanation goes here
 	
@@ -11,8 +11,8 @@ function [matMeanP,matZetaP,matAnovaP] = loadTsZeta2(strIndicator)
 	strDataPath = fullfile(strPath,'\Data\');
 	strFigPath = fullfile(strPath,'\Figs\');
 	
-	sDirAll1=dir([strDataPath 'TsZeta3' strIndicator '*Q0*sesResamp1001.mat']);
-	sDirAll2=dir([strDataPath 'TsZeta3' strIndicator '*Q0*ses-RandResamp1001.mat']);
+	sDirAll1=dir([strDataPath strType '*sesResamp*.mat']);
+	sDirAll2=dir([strDataPath strType '*ses-RandResamp*.mat']);
 	
 	sDirAll = cat(1,sDirAll1,sDirAll2);
 	vecRand = contains({sDirAll.name},'Rand');

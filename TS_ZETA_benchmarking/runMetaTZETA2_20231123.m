@@ -8,16 +8,26 @@ end
 strDataPath = fullfile(strPath,'\Data\');
 strFigPath = fullfile(strPath,'\Figs\');
 
-intResamps = 1001; %Q1R10000T64 / Q0R250T64
-strComp = 'DiffStims';%DiffNeurons, DiffStims, PeakHeight, PeakTime, 
+strComp = 'PeakTime';%DiffNeurons, DiffStims, PeakHeight, PeakTime, NM
 boolDirectQuantile = false;
 
 
 
 %% prep
+
+if strcmp(strComp,'DiffStims')
+	intResamps = 1001; %Q1R10000T64 / Q0R250T64
+	strTest = 'TsZeta2'; %'TsZeta2' 'TsZeta2NM'
+elseif strcmp(strComp,'NM')
+	intResamps = 500; %Q1R10000T64 / Q0R250T64
+	strComp = '';
+	strTest = 'TsZeta2NM'; %'TsZeta2' 'TsZeta2NM'
+else
+	intResamps = 500; %Q1R10000T64 / Q0R250T64
+	strTest = 'TsZeta2'; %'TsZeta2' 'TsZeta2NM'
+end
 strQ = ['Q' num2str(boolDirectQuantile) ];
 strR = ['Resamp' num2str(intResamps)];
-strTest = 'TsZeta3'; %'TsZeta2' 'TsZeta2NM'
 cellRunRand = {...
 	'',...Rand 1
 	'-Rand',...Rand 2

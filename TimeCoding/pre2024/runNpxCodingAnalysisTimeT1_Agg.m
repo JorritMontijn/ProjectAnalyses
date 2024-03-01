@@ -129,29 +129,58 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 				indRem = (vecT > dblStopEpoch) | (vecT < dblStartEpoch);
 				cellUseSpikeTimes{intN} = vecT(~indRem);
 			end
-			%add data
-			sAllSpike = struct;
-			sAllSpike.vecAllSpikeTime = vecAllSpikeTime;
-			sAllSpike.vecAllSpikeNeuron = vecAllSpikeNeuron;
-			sAllSpike.dblStartEpoch = dblStartEpoch;
-			sAllSpike.dblEpochDur = dblEpochDur;
-
-			%set params and run pop event detection
-			dblCutOff = 0.65;
-			sPeakOpts = struct;
-			sPeakOpts.intLag = intLag;
-			sPeakOpts.dblThreshZ = dblThreshZ;
-			sPeakOpts.dblInfluence = dblInfluence;
-			[sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR] = getPopEvents(vecIFR,vecTime,vecOrigStimOnTime,sPeakOpts,sAllSpike,dblCutOff);
 			
-			%extract
-			vecPopEventTimes = [sPopEvents.Time];
-			vecPopEventLocs = [sPopEvents.Loc];
-			vecPopEventLocsIFR = [sPopEvents.LocIFR];
-			vecMergedPopEventTimes = [sMergedPopEvents.Time];
-			vecMergedPopEventLocs = [sMergedPopEvents.Loc];
-			vecMergedPopEventLocsIFR = [sMergedPopEvents.LocIFR];
-			vecPeakHeight = vecStimIFR(vecMergedPopEventLocsIFR);
+			%mean-subtraction
+			[signals,avgFilter,stdFilter] = detectpeaks(vecIFR,intLag,dblThreshZ,dblInfluence);
+			%vecIFR = (vecIFR - avgFilter)./stdFilter;
+			vecNormIFR = (vecIFR - avgFilter)./avgFilter;
+			indRem = isinf(vecNormIFR);
+			vecNormIFR(indRem) = [];
+			vecNormIFR = vecNormIFR + (1e-10)*rand(size(vecNormIFR)); %break identical values
+			vecNormTime = vecTime(~indRem);
+			
+			% peaks
+			indStimSpikes = vecNormTime>(vecOrigStimOnTime(1)-dblStimDur) & vecNormTime<(vecOrigStimOnTime(end)+dblStimDur);
+			vecStimIFR_Raw = vecIFR(indStimSpikes);
+			vecStimIFR = vecNormIFR(indStimSpikes);
+			vecStimTime = vecNormTime(indStimSpikes);
+			[vecPeakHeight,vecPeakLocs,w,p] = findpeaks(vecStimIFR);
+			
+			%remove peaks with identical subsequent values
+			%vecPeakLocs(vecStimIFR(vecPeakLocs)==vecStimIFR(vecPeakLocs+1))=[];
+			
+			%threshold peaks
+			dblCutOff = 0.65;
+			vecStimPeakLocs = vecPeakLocs(vecPeakHeight>dblCutOff);
+			
+			%retain only stim epoch
+			indStimEpoch = vecAllSpikeTime > dblStartEpoch & vecAllSpikeTime < (dblStartEpoch + dblEpochDur);
+			vecPopSpikeTime = vecAllSpikeTime(indStimEpoch);
+			vecPopNeuronId = vecAllSpikeNeuron(indStimEpoch);
+			
+			%get raw pop events
+			vecPopEventTimes = vecStimTime(vecStimPeakLocs);
+			intPopEventNum = numel(vecPopEventTimes);
+			vecPopEventLocs = nan(1,intPopEventNum);
+			vecPopEventLocsIFR = nan(1,intPopEventNum);
+			parfor intEvent=1:intPopEventNum
+				[dummy,vecPopEventLocs(intEvent)] = min(abs(vecPopEventTimes(intEvent)-vecPopSpikeTime));
+				[dummy,vecPopEventLocsIFR(intEvent)] = min(abs(vecPopEventTimes(intEvent)-vecStimTime));
+			end
+			
+			%merged peaks
+			matPeakDomain = mergepeaks(vecStimTime,vecStimIFR,vecStimPeakLocs);
+			vecMergedPeakLocs = matPeakDomain(:,1);
+			
+			%get merged pop events
+			vecMergedPopEventTimes = vecStimTime(vecMergedPeakLocs);
+			intMergedPopEventNum = numel(vecMergedPopEventTimes);
+			vecMergedPopEventLocs = nan(1,intMergedPopEventNum);
+			vecMergedPopEventLocsIFR = nan(1,intMergedPopEventNum);
+			parfor intEvent=1:intMergedPopEventNum
+				[dummy,vecMergedPopEventLocs(intEvent)] = min(abs(vecMergedPopEventTimes(intEvent)-vecPopSpikeTime));
+				[dummy,vecMergedPopEventLocsIFR(intEvent)] = min(abs(vecMergedPopEventTimes(intEvent)-vecStimTime));
+			end
 			
 			%% plot
 			if 0

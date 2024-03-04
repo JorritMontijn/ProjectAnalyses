@@ -13,7 +13,7 @@ strFigPath = fullfile(strPath,'\Figs\');
 
 vecRunTypes = [1 2];
 intResampNum = 500;
-boolSave = true;%true;
+boolSave = false;%true;
 boolDirectQuantile = false;
 intUseTrials = inf; %limit number of used trials to reduce performance saturation
 dblSuperResFactor = 100; %1 or 100
@@ -32,10 +32,12 @@ for i=1:numel(vecCheck)
 	cellRecs = sLoad.cellRecNatMovs{intEntry};
 	cellRunRecs{i} = cellRecs{floor(numel(cellRecs)/2)};
 end
-
-for intRandType=vecRunTypes
+intRandType=2
+dblAnovaP = 1
+%for intRandType=2%vecRunTypes
+while dblAnovaP > 0.05 || dblKwP > 0.05
 	%% load data
-	for intFile=1:numel(cellRunRecs)
+	for intFile=1%:numel(cellRunRecs)
 		strFile = cellRunRecs{intFile};
 		[dummy,strRec,strExt]=fileparts(strFile);
 		sLoad = load([strDataSourcePath strFile]);
@@ -76,7 +78,7 @@ for intRandType=vecRunTypes
 		
 		%% analyze
 		hTic = tic;
-		for intNeuron=1:intNeurons%[1:intNeurons]%43%1:27, 2:69
+		for intNeuron=1%:intNeurons%[1:intNeurons]%43%1:27, 2:69
 			%% message
 			if toc(hTic) > 5
 				fprintf('Processing neuron %d/%d [%s]\n',intNeuron,intNeurons,getTime);
@@ -175,8 +177,8 @@ for intRandType=vecRunTypes
 			
 			%kruskal-wallis
 			hTicK = tic;
-			dblKsP = kruskalwallis(matTracePerTrial,[],'off');
-			vecKsP(intNeuron) = dblKsP;
+			dblKwP = kruskalwallis(matTracePerTrial,[],'off');
+			vecKsP(intNeuron) = dblKwP;
 			vecKsDur(intNeuron) = toc(hTicK);
 			
 			%wilcoxon ranksum
@@ -185,11 +187,13 @@ for intRandType=vecRunTypes
 				vecWilcoxP(intNeuron) = ranksum(sZETA.vecMu_Dur,sZETA.vecMu_Pre);
 				vecWilcoxDur(intNeuron) = toc(hTicW);
 			end
-			
-			if 0%dblZetaZ > 3 && dblMeanZ < 1.5
+			dblKwP
+			if dblAnovaP < 0.05 && dblKwP < 0.05%dblZetaZ > 3 && dblMeanZ < 1.5
 				[dblZetaP,sZETA] = zetatstest(vecTraceT,vecTraceAct,matEventTimes,vecUseDur,intResampNum,2,boolDirectQuantile,dblJitterSize,dblSuperResFactor); %16
 				
-				subplot(2,3,5)
+				title(sprintf('ANOVA-p=%.3f, KW-p=%.3f, Wilcox-p=%.3f',dblAnovaP,dblKwP,vecWilcoxP(intNeuron)));
+				%{
+				drawnow;
 				hold on
 				h1=bplot(sZETA.vecMu_Pre,1);
 				h2=bplot(sZETA.vecMu_Dur,2);
@@ -197,11 +201,11 @@ for intRandType=vecRunTypes
 				set(gca,'xtick',[1 2],'xticklabel',{'Base','Stim'});
 				title(sprintf('%s - neuron %d',strRec,intNeuron),'interpreter','none');fixfig;
 				pause
-				
-				if 0
+				%}
+				if 1
 					%%
-					export_fig(fullpath(strFigPath,sprintf('Example_%s_Cell%d.tif',strRec,intNeuron)));
-					export_fig(fullpath(strFigPath,sprintf('Example_%s_Cell%d.pdf',strRec,intNeuron)));
+					export_fig(fullpath(strFigPath,sprintf('Example_%s_Cell%d.tif',strRunType,intNeuron)));
+					export_fig(fullpath(strFigPath,sprintf('Example_%s_Cell%d.pdf',strRunType,intNeuron)));
 					
 				end
 			end

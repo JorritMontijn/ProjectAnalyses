@@ -1,6 +1,6 @@
-function [sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR] = getPopEvents(vecIFR,vecTime,vecOrigStimOnTime,sPeakOpts,sAllSpike,dblCutOff)
+function [sPopEvents,sMergedPopEvents,vecStimTime_Filt,vecStimIFR_Filt,vecStimIFR_Raw] = getPopEvents(vecIFR,vecTime,vecOrigStimOnTime,sPeakOpts,sAllSpike,dblCutOff)
 	%getPopEvents Summary of this function goes here
-	%   [sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR] = getPopEvents(vecIFR,vecTime,vecOrigStimOnTime,sPeakOpts,sAllSpike,dblCutOff)
+	%   [sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR,vecStimIFR_Raw] = getPopEvents(vecIFR,vecTime,vecOrigStimOnTime,sPeakOpts,sAllSpike,dblCutOff)
 	
 	%get params
 	intLag = sPeakOpts.intLag;
@@ -14,25 +14,26 @@ function [sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR] = getPopEvents(vec
 	%mean-subtraction
 	[signals,avgFilter,stdFilter] = detectpeaks(vecIFR,intLag,dblThreshZ,dblInfluence);
 	%vecIFR = (vecIFR - avgFilter)./stdFilter;
-	vecNormIFR = (vecIFR - avgFilter)./avgFilter;
-	indRem = isinf(vecNormIFR);
-	vecNormIFR(indRem) = [];
-	vecNormIFR = vecNormIFR + (1e-10)*rand(size(vecNormIFR)); %break identical values
-	vecNormTime = vecTime(~indRem);
+	vecFiltIFR = (vecIFR - avgFilter)./avgFilter;
+	indRem = isinf(vecFiltIFR);
+	vecIFR(indRem) = [];
+	vecFiltIFR(indRem) = [];
+	vecFiltIFR = vecFiltIFR + (1e-10)*rand(size(vecFiltIFR)); %break identical values
+	vecFiltTime = vecTime(~indRem);
 	
 	% peaks
 	dblStimDur = min(diff(vecOrigStimOnTime));
-	indStimSpikes = vecNormTime>(vecOrigStimOnTime(1)-dblStimDur) & vecNormTime<(vecOrigStimOnTime(end)+dblStimDur);
+	indStimSpikes = vecFiltTime>(vecOrigStimOnTime(1)-dblStimDur) & vecFiltTime<(vecOrigStimOnTime(end)+dblStimDur);
 	vecStimIFR_Raw = vecIFR(indStimSpikes);
-	vecStimIFR = vecNormIFR(indStimSpikes);
-	vecStimTime = vecNormTime(indStimSpikes);
-	[vecPeakHeight,vecPeakLocs,w,p] = findpeaks(vecStimIFR);
+	vecStimIFR_Filt = vecFiltIFR(indStimSpikes);
+	vecStimTime_Filt = vecFiltTime(indStimSpikes);
+	[vecPeakHeight,vecPeakLocs,w,p] = findpeaks(vecStimIFR_Filt);
 	
 	%remove peaks with identical subsequent values
 	%vecPeakLocs(vecStimIFR(vecPeakLocs)==vecStimIFR(vecPeakLocs+1))=[];
 	
 	%threshold peaks
-	vecStimPeakLocs = vecPeakLocs(vecPeakHeight>dblCutOff);
+	vecCulledPeakLocs = vecPeakLocs(vecPeakHeight>dblCutOff);
 	
 	%retain only stim epoch
 	indStimEpoch = vecAllSpikeTime > dblStartEpoch & vecAllSpikeTime < (dblStartEpoch + dblEpochDur);
@@ -40,37 +41,31 @@ function [sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR] = getPopEvents(vec
 	vecPopNeuronId = vecAllSpikeNeuron(indStimEpoch);
 	
 	%get raw pop events
-	vecPopEventTimes = vecStimTime(vecStimPeakLocs);
+	vecPopEventTimes = vecStimTime_Filt(vecCulledPeakLocs);
 	intPopEventNum = numel(vecPopEventTimes);
 	vecPopEventLocs = nan(1,intPopEventNum);
-	vecPopEventLocsIFR = nan(1,intPopEventNum);
 	parfor intEvent=1:intPopEventNum
-		[dummy,vecPopEventLocs(intEvent)] = min(abs(vecPopEventTimes(intEvent)-vecPopSpikeTime));
-		[dummy,vecPopEventLocsIFR(intEvent)] = min(abs(vecPopEventTimes(intEvent)-vecStimTime));
+		[dummy,vecPopEventLocs(intEvent)] = min(abs(vecPopEventTimes(intEvent)-vecStimTime_Filt));
 	end
 	
 	%merged peaks
-	matPeakDomain = mergepeaks(vecStimTime,vecStimIFR,vecStimPeakLocs);
+	matPeakDomain = mergepeaks(vecStimTime_Filt,vecStimIFR_Filt,vecCulledPeakLocs);
 	vecMergedPeakLocs = matPeakDomain(:,1);
 	
 	%get merged pop events
-	vecMergedPopEventTimes = vecStimTime(vecMergedPeakLocs);
+	vecMergedPopEventTimes = vecStimTime_Filt(vecMergedPeakLocs);
 	intMergedPopEventNum = numel(vecMergedPopEventTimes);
 	vecMergedPopEventLocs = nan(1,intMergedPopEventNum);
-	vecMergedPopEventLocsIFR = nan(1,intMergedPopEventNum);
 	parfor intEvent=1:intMergedPopEventNum
-		[dummy,vecMergedPopEventLocs(intEvent)] = min(abs(vecMergedPopEventTimes(intEvent)-vecPopSpikeTime));
-		[dummy,vecMergedPopEventLocsIFR(intEvent)] = min(abs(vecMergedPopEventTimes(intEvent)-vecStimTime));
+		[dummy,vecMergedPopEventLocs(intEvent)] = min(abs(vecMergedPopEventTimes(intEvent)-vecStimTime_Filt));
 	end
 	
 	%assign output to structs
 	sPopEvents = struct;
 	sPopEvents.Time = vecPopEventTimes;
 	sPopEvents.Loc = vecPopEventLocs;
-	sPopEvents.LocIFR = vecPopEventLocsIFR;
 	sMergedPopEvents = struct;
 	sMergedPopEvents.Time = vecMergedPopEventTimes;
 	sMergedPopEvents.Loc = vecMergedPopEventLocs;
-	sMergedPopEvents.LocIFR = vecMergedPopEventLocsIFR;
 end
 

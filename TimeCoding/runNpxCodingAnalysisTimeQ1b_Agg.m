@@ -23,23 +23,11 @@ on binning size? What is the optimal time window?
 %}
 %% define qualifying areas
 clear all;
+runHeaderPopTimeCoding;
 cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
 	};
-boolHome = false;
-if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
-	strDataPath = 'F:\Data\Processed\Neuropixels\';
-	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
-	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
-	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
-else
-	strDataPath = 'E:\DataPreProcessed\';
-	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
-	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
-	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
-end
-
 
 %% select all neurons in LP and drifting grating stimuli
 if ~exist('sAggStim','var') || isempty(sAggStim) || isempty(sAggNeuron)
@@ -50,14 +38,9 @@ fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),s
 sAggNeuron(indRemDBA) = [];
 
 %% pre-allocate matrices
-cellTypes = {'Real', 'UniformTrial', 'ShuffTid', 'PoissGain'};
+cellTypes = {'Real', 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 intNumTypes = numel(cellTypes);
 intAreas = numel(cellUseAreas);
-matR_PP_All = nan(intAreas,intAreas,numel(sAggStim),2,intNumTypes);
-matR_OP_All = nan(intAreas,intAreas,numel(sAggStim),2,intNumTypes);
-matR_OO_All = nan(intAreas,intAreas,numel(sAggStim),2,intNumTypes);
-matR_PO_All = nan(intAreas,intAreas,numel(sAggStim),2,intNumTypes);
-mat_xR_All = nan(intAreas,intAreas,numel(sAggStim),2,intNumTypes);
 
 %% go through recordings
 tic
@@ -68,11 +51,11 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	
 	%prep grating data
 	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
+	if isempty(sUseNeuron),continue;end
 	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 	intTrialNum = numel(vecStimOnTime);
 	intStimNum = numel(unique(vecOrientation));
 	intRepNum = intTrialNum/intStimNum;
-	numel(sUseNeuron)
 	
 	%% select area 1
 	for intArea=1:intAreas
@@ -112,47 +95,36 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		%types: Real, UniformTrial, ShuffTid, PoissGain
 		for intType=1:numel(cellTypes)
-			matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblStimDur);
+			strType = cellTypes{intType};
 			for intN=1:intNumN
 				vecRepCounter = zeros(1,intOriNum);
 				[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime-dblPreTime,dblMaxDur);
+				vecRandTrials = randperm(intTrialNum);
 				for intTrial=1:intTrialNum
+					if strcmp(strType,'Real')
+						%do nothing
+						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+					elseif strcmp(strType,'UniformTrial')
+						%make spike times uniform in trial
+						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+						vecSpikeT = sort(rand(size(vecSpikeT))*range(vecSpikeT)+min(vecSpikeT));
+					elseif strcmp(strType,'ShuffTid')
+						%shuffle trial ids for each neuron independently
+						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==vecRandTrials(intTrial));
+					elseif strcmp(strType,'PoissGain')
+						error not done yet
+					end
+					
 					intTrialOriIdx = vecOriIdx(intTrial);
 					vecRepCounter(intTrialOriIdx) = vecRepCounter(intTrialOriIdx) + 1;
 					intRep = vecRepCounter(intTrialOriIdx);
-					vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
 					vecSpikeC = histcounts(vecSpikeT,vecBinEdges);
 					if any(isnan(vecSpikeC))
 						error
 					end
 					matBNSR(:,intN,intTrialOriIdx,intRep) = vecSpikeC;
 					matBNT(:,intN,intTrial) = vecSpikeC;
-					%matBNT_shifted(:,intN,intTrial) = vecSpikeC;
-					%matBNT_shifted(indStimBins,intN,intTrial) = circshift(matBNT_shifted(indStimBins,intN,intTrial),-round(intBinNum*vecDelayTimeBy(intTrial)));
 				end
-				
-				%plot
-				if 0
-					clf;
-					subplot(4,1,2:4)
-					matR = squeeze(matBNT(:,intN,:))'./dblBinWidth;
-					imagesc(vecStimTime,1:intTrialNum,matR);
-					xlabel('Time (s)');
-					ylabel('Trial #');
-					title(sprintf('%s - N%d',strRec,intN),'interpreter','none');
-					%colormap(redwhite)
-					
-					subplot(4,1,1)
-					plot(vecStimTime,mean(matR,1));
-					xlabel('Time (s)');
-					ylabel('Mean rate (spike count)');
-					vecRate1 = matData(intN,:);
-					vecRate2 = mean(matR(:,indStimBins),2);
-					title(sprintf('%s - N%d; mean rate: %.3f - %.3f',strRec,intN,mean(vecRate1),mean(vecRate2)),'interpreter','none');
-					pause
-				end
-				
-				%close;
 			end
 			
 			%% time progression
@@ -186,8 +158,9 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 				%	doCrossValidatedDecoding(matTrainData,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
 				
 				%do old logistic regression
+				intVerbose = 0;
 				[dblPerformanceCV,vecDecodedIndexCV,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
-					doCrossValidatedDecodingLR(matTrainData,vecOri180,intTypeCV,vecPriorDistribution,dblLambda);
+					doCrossValidatedDecodingLR(matTrainData,vecOri180,intTypeCV,vecPriorDistribution,dblLambda,intVerbose);
 				
 				vecDecCorr(intBinIdx) = dblPerformanceCV;
 				vecConf = nan(size(vecDecodedIndexCV));
@@ -246,7 +219,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			hold on
 			plot([vecStimTime(1) vecStimTime(end)],[dblChance dblChance],'--','color',[0.5 0.5 0.5]);
 			hold off
-			title(sprintf('Dec perf; %s',strArea))
+			title(sprintf('Dec perf; %s',strType))
 			xlabel('Time after onset (s)');
 			ylabel('Fraction correct decoded');
 			fixfig;
@@ -256,13 +229,6 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			title('Spikes per bin')
 			xlabel('Time after onset (s)');
 			ylabel('Binned population spiking rate (Hz)');
-			fixfig;
-			
-			subplot(2,3,3)
-			plot(vecStimTime,(vecDecPerf(:,end)./dblChance)'./(vecSpikesPerBin./dblBinWidth))
-			title('Dec perf / spike')
-			xlabel('Time after onset (s)');
-			ylabel('Performance/spike');
 			fixfig;
 			
 			hS=subplot(2,3,4);
@@ -294,12 +260,11 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			%matDecConfPerTrial(intBinIdx,:)=vecConf;
 			
 			%%
-			export_fig(fullpath(strFigurePathSR,sprintf('A1_PopActDynamics_%s.tif',strRec)));
-			export_fig(fullpath(strFigurePathSR,sprintf('A1_PopActDynamics_%s.pdf',strRec)));
+			export_fig(fullpath(strFigurePathSR,sprintf('A1b_PopActDynamics_%s_%s.tif',strRec,strType)));
+			export_fig(fullpath(strFigurePathSR,sprintf('A1b_PopActDynamics_%s_%s.pdf',strRec,strType)));
 			
-		end
 			%% save data
-			save(fullpath(strTargetDataPath,sprintf('Q1Data_%s',strRec)),...
+			save(fullpath(strTargetDataPath,sprintf('Q1bData_%s_%s',strRec,strType)),...
 				'vecBinEdges',...
 				'vecOri180',...
 				'matAcrossTimeDecoder',...
@@ -308,7 +273,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 				'vecDecConf',...
 				'vecDecCorr',...
 				'vecStimTime');
-		
+		end
 	end
 	close all;
 end

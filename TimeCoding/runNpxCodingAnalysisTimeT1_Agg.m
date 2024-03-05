@@ -41,7 +41,7 @@ intAreas = numel(cellUseAreas);
 
 %% go through recordings
 tic
-for intRec=8:numel(sAggStim) %19 || weird: 11
+for intRec=1:numel(sAggStim) %19 || weird: 11
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
 	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
@@ -82,6 +82,8 @@ for intRec=8:numel(sAggStim) %19 || weird: 11
 	sShuffTid = struct;
 	sPoiss = struct;
 	sPoissGain = struct;
+	
+	%%
 	for intType=1:numel(cellRunTypes)
 		%% load prepro T0 data
 		% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all
@@ -237,6 +239,7 @@ for intRec=8:numel(sAggStim) %19 || weird: 11
 			ylabel('Trial #');
 			colorbar;
 			axis xy
+			set(gca,'clim',[0 1500]);
 			
 			fixfig;
 			h0.LineWidth = 1;

@@ -81,7 +81,14 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			for intN=1:intNumN
 				vecRepCounter = zeros(1,intOriNum);
 				[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime-dblPreTime,dblMaxDur);
-				vecRandTrials = randperm(intTrialNum);
+				%shuffle trials within stim type
+				vecRandTrials = nan(size(vecOriIdx));
+				for intStimType=1:intStimNum
+					vecOrigTrials = find(vecOriIdx==intStimType);
+					vecShuffTrials = vecOrigTrials(randperm(numel(vecOrigTrials)));
+					vecRandTrials(vecOrigTrials) = vecShuffTrials;
+				end
+				
 				for intTrial=1:intTrialNum
 					if strcmp(strType,'Real')
 						%do nothing
@@ -89,7 +96,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 					elseif strcmp(strType,'UniformTrial')
 						%make spike times uniform in trial
 						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
-						vecSpikeT = sort(rand(size(vecSpikeT))*range(vecSpikeT)+min(vecSpikeT));
+						vecSpikeT = sort(rand(size(vecSpikeT)).*range(vecSpikeT)+min(vecSpikeT));
 					elseif strcmp(strType,'ShuffTid')
 						%shuffle trial ids for each neuron independently
 						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==vecRandTrials(intTrial));

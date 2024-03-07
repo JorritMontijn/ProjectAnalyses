@@ -22,8 +22,9 @@ fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),s
 sAggNeuron(indRemDBA) = [];
 
 %% pre-allocate matrices
-cellTypes = {'Real'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
+cellTypes = {'Real','ShuffTid'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 intNumTypes = numel(cellTypes);
+boolFixSpikeGroupSize = true;
 
 %% go through recordings
 tic
@@ -50,7 +51,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	%% prep data
 	%get data matrix
 	cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
-	[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,vecStimOnStitched,vecNonStat,dblBC,dblMaxDevFrac] = ...
+	[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial] = ...
 		NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 	intTunedN = sum(indTuned);
 	intNumN = size(matData,1);
@@ -65,15 +66,43 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	dblPreTime = 0.3;%10*dblBinWidth;
 	dblPostTime = 0;%30*dblBinWidth;
 	dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
-	intSpikeGroupSize = 20;
+	if mean(sum(matData)) < 90
+		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strRec);
+		continue;
+	end
+	if boolFixSpikeGroupSize
+		intSpikeGroupSize = 10;
+		strSGS = ['Fixed' num2str(intSpikeGroupSize)];
+	else
+		intSpikeGroupSize = ceil(mean(sum(matData))/30); %20
+		strSGS = ['Var' num2str(intSpikeGroupSize)];
+	end
 	
 	%types: Real, UniformTrial, ShuffTid, PoissGain
 	for intType=1:numel(cellTypes)
 		strType = cellTypes{intType};
-				
+		
+		%% randomize spikes (or not)
+		if strcmp(strType,'ShuffTid')
+			%shuffle across repetitions per neuron
+			cellUseSpikeTimesPerCellPerTrial = cell(size(cellSpikeTimesPerCellPerTrial));
+			for intStimType=1:intOriNum
+				vecOrigTrials = find(vecOriIdx==intStimType);
+				for intN=1:intNumN
+					vecShuffTrials = vecOrigTrials(randperm(numel(vecOrigTrials)));
+					cellUseSpikeTimesPerCellPerTrial(intN,vecShuffTrials) = cellSpikeTimesPerCellPerTrial(intN,vecOrigTrials);
+				end
+			end
+		elseif strcmp(strType,'Real')
+			%do nothing
+			cellUseSpikeTimesPerCellPerTrial = cellSpikeTimesPerCellPerTrial;
+		else
+			error no type
+		end
+		
 		%% go through pop spikes and group into sets of 20
 		%throw away spikes not in stimulus period and assign all spikes
-		intTotalSpikeNum = sum(sum(cellfun(@numel,cellSpikeTimesPerCellPerTrial)));
+		intTotalSpikeNum = sum(sum(cellfun(@numel,cellUseSpikeTimesPerCellPerTrial)));
 		matSpikeGroupData = nan(floor(intTotalSpikeNum/intSpikeGroupSize),intNumN);
 		vecSpikeGroupDuration = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
 		vecSpikeGroupLatency = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
@@ -81,8 +110,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecSpikeGroupTrialNumber = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
 		vecTrialType = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
 		intSpikeGroupCounter = 0;
-		for intTrial=1:size(cellSpikeTimesPerCellPerTrial,2)
-			cellSpikesInTrial = cellSpikeTimesPerCellPerTrial(:,intTrial);
+		for intTrial=1:size(cellUseSpikeTimesPerCellPerTrial,2)
+			cellSpikesInTrial = cellUseSpikeTimesPerCellPerTrial(:,intTrial);
 			intSpikesInTrial = sum(sum(cellfun(@numel,cellSpikesInTrial)));
 			vecSpikeTimes = nan(1,intSpikesInTrial);
 			vecSpikeNeuron= nan(1,intSpikesInTrial);
@@ -163,7 +192,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		%make example
 		intPlotTrial = 10;
-		cellSpikesInTrial = cellSpikeTimesPerCellPerTrial(:,intPlotTrial);
+		cellSpikesInTrial = cellUseSpikeTimesPerCellPerTrial(:,intPlotTrial);
 		intSpikesInTrial = sum(sum(cellfun(@numel,cellSpikesInTrial)));
 		vecSpikeTimes = nan(1,intSpikesInTrial);
 		vecSpikeNeuron= nan(1,intSpikesInTrial);
@@ -206,7 +235,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		[vecT,vecR]=getIFR(vecSpikeTimes,0,1);
 		plot(vecT,vecR,'color',[0.5 0.5 0.5]);
 		hold on
-		title(sprintf('%s, trial %d',strRec,intPlotTrial),'interpreter','none');
+		title(sprintf('%s, %s, trial %d',strRec,strType,intPlotTrial),'interpreter','none');
 		xlabel('Time after stim onset (s)');
 		ylabel('Pop IFR');		
 		ylim([0 max(get(gca,'ylim'))]);
@@ -289,7 +318,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		hold off
 		ylim([0 1]);
 		xlim([0 200]);
-		xlabel('20-spike block duration (ms)');
+		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
 		ylabel('Decoder confidence');
 		
 		subplot(2,4,6)
@@ -312,7 +341,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		hold on
 		errorbar(vecBinsC*1000,vecMeans*100,(vecSDs*100)./sqrt(intSperBin),'color',lines(1));
 		hold off
-		xlabel('20-spike block duration (ms)');
+		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
 		ylabel('Decoder accuracy (%)');
 		title(sprintf('r=%.3f, p=%.3f',r2,p2));
 		ylim([0 max(get(gca,'ylim'))]);
@@ -325,7 +354,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		hold on
 		errorbar(vecBinsC*1000,vecMeans,vecSDs./sqrt(intSperBin),'color',lines(1));
 		hold off
-		xlabel('20-spike block duration (ms)');
+		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
 		ylabel('Decoder confidence');
 		title(sprintf('r=%.3f, p=%.3f',r,p));
 		ylim([0 max(get(gca,'ylim'))]);
@@ -341,7 +370,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		hold on
 		errorbar(vecMeanDur*1000,vecMeanCorr*100,(vecMeanCorr-matCiCorr(1,:))*100,(vecMeanCorr-matCiCorr(2,:))*100,vecSemDur,vecSemDur,'color',lines(1));
 		hold off
-		xlabel('20-spike block duration (ms)');
+		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
 		ylabel('Decoder accuracy (%)');
 		title(sprintf('Deciles, ANOVA, p=%.1e',pA));
 		ylim([0 max(get(gca,'ylim'))]);
@@ -359,7 +388,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		hold on
 		errorbar(vecMeanDur*1000,vecMeanConf,vecSemConf,vecSemConf,vecSemDur,vecSemDur,'color',lines(1));
 		hold off
-		xlabel('20-spike block duration (ms)');
+		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
 		ylabel('Decoder confidence');
 		title(sprintf('Deciles, ANOVA, p=%.1e',pA2));
 		ylim([0 max(get(gca,'ylim'))]);
@@ -367,15 +396,16 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		fixfig;
 		
 		%%
-		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s.tif',strRec,strType)));
-		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s.pdf',strRec,strType)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s.tif',strRec,strType,strSGS)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s.pdf',strRec,strType,strSGS)));
 		
 		%% save data
-		save(fullpath(strTargetDataPath,sprintf('Q1cData_%s_%s',strRec,strType)),...
+		save(fullpath(strTargetDataPath,sprintf('Q1cData_%s_%s_SGS%s',strRec,strType,strSGS)),...
 			'vecStimOnTime',...
 			'vecStimOffTime',...
 			'vecOrientation',...
 			'vecOri180',...
+			'intSpikeGroupSize',...
 			'strRec',...
 			'strType',...
 			'sSpikeGroup');

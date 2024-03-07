@@ -22,7 +22,7 @@ on binning size? What is the optimal time window?
 
 %}
 %% define qualifying areas
-clear all;close all;
+clear all;%close all;
 cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
@@ -40,13 +40,44 @@ else
 end
 
 %% load data
-sFiles = dir ([strTargetDataPath 'Q1cData*.mat']);
 strArea = 'V1';
-intRecNum = numel(sFiles);
-
+strType = 'ShuffTid'; %'Real' 'ShuffTid'
+boolFixedSpikeGroupSize = true;
 intQuantiles = 10;
+vecBinsDur = 0:0.01:1;
+vecBinsDurC = vecBinsDur(2:end) - diff(vecBinsDur(1:2))/2;
+vecColGrey = [0.7 0.7 0.7];
+
+if boolFixedSpikeGroupSize
+	sFiles = dir ([strTargetDataPath 'Q1cData*' strType '*Fixed*.mat']);
+	strSGS = 'FixedSGS';
+else
+	sFiles = dir ([strTargetDataPath 'Q1cData*' strType '*Var*.mat']);
+	strSGS = 'VarSGS';
+end
+
+intRecNum = numel(sFiles);
 cellQuantileDur = cell(intRecNum,intQuantiles);
 cellQuantileConf = cell(intRecNum,intQuantiles);
+matLatConf = nan(intRecNum,numel(vecBinsDurC));
+vecSpikeGroupSize= nan(intRecNum,1);
+
+%% plot
+figure;maxfig;
+h1=subplot(2,3,2);
+h2=subplot(2,3,1);
+h3=subplot(2,3,3);
+vecColChance = [0.3 0.3 0.3];
+plot(h1,[0 100],([1 1]./12),'--','color',vecColChance);
+hold(h1,'on')
+
+plot(h2,[0 1],([1 1]./12),'--','color',vecColChance);
+hold(h2,'on')
+title(h2,sprintf('%s, %s',strType,strSGS));
+
+%plot(h3,[0 10],([1 1]./12),'--','color',vecColChance);
+hold(h3,'on')
+
 for intFile=1:intRecNum
 	%% load
 	sLoad=load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
@@ -57,6 +88,7 @@ for intFile=1:intRecNum
 	vecOrientation = sLoad.vecOrientation;
 	vecStimOffTime = sLoad.vecStimOffTime;
 	vecStimOnTime = sLoad.vecStimOnTime;
+	intSpikeGroupSize = sLoad.intSpikeGroupSize;
 	
 	%% create derived variables
 	%put confidence in deciles per recording
@@ -65,69 +97,100 @@ for intFile=1:intRecNum
 	vecSpikeGroupConfidence = [sSpikeGroup.Confidence];
 	vecSpikeGroupLatency = [sSpikeGroup.Latency];
 	
-		%sort
-		[vecSortedDur,vecSort]=sort(vecSpikeGroupDuration);
-		vecSortedCorr = vecSpikeGroupCorrect(vecSort);
-		vecSortedConf = vecSpikeGroupConfidence(vecSort);
-		vecSortedLat = vecSpikeGroupLatency(vecSort);
-		%remove long durs
-		%indRem = vecSortedDur > 0.05;
-		%indRem = vecSortedLat < 0.15 | vecSortedDur > 0.05;
-		indRem = [];
-		vecSortedDur(indRem) = [];
-		vecSortedCorr(indRem) = [];
-		vecSortedConf(indRem) = [];
-		vecSortedLat(indRem) = [];
+	%sort
+	[vecSortedDur,vecSort]=sort(vecSpikeGroupDuration);
+	vecSortedCorr = vecSpikeGroupCorrect(vecSort);
+	vecSortedConf = vecSpikeGroupConfidence(vecSort);
+	vecSortedLat = vecSpikeGroupLatency(vecSort);
+	%remove long durs
+	%indRem = vecSortedDur > 0.05;
+	%indRem = vecSortedLat < 0.15 | vecSortedDur > 0.05;
+	indRem = [];
+	vecSortedDur(indRem) = [];
+	vecSortedCorr(indRem) = [];
+	vecSortedConf(indRem) = [];
+	vecSortedLat(indRem) = [];
+	
+	%calculate fraction correct and confidence per bin of equal size
+	intBins = 10;
+	intOriNum = numel(unique(vecOri180));
+	intSperBin = floor(numel(vecSortedDur)/intBins);
+	cellValsDur = cell(1,intBins);
+	vecMeanDur = nan(1,intBins);
+	vecSemDur = nan(1,intBins);
+	vecMeanCorr = nan(1,intBins);
+	matCiCorr = nan(2,intBins);
+	cellValsCorr = cell(1,intBins);
+	vecMeanConf = nan(1,intBins);
+	vecSemConf = nan(1,intBins);
+	cellValsConf = cell(1,intBins);
+	vecSampleGroup = zeros(size(vecSortedDur));
+	for intBin=1:intBins
+		intEndS = intSperBin*intBin;
+		vecSamples = (intEndS-intSperBin+1):intEndS;
 		
-		%calculate fraction correct and confidence per bin of equal size
-		intBins = 10;
-		intSperBin = floor(numel(vecSortedDur)/intBins);
-		cellValsDur = cell(1,intBins);
-		vecMeanDur = nan(1,intBins);
-		vecSemDur = nan(1,intBins);
-		vecMeanCorr = nan(1,intBins);
-		matCiCorr = nan(2,intBins);
-		cellValsCorr = cell(1,intBins);
-		vecMeanConf = nan(1,intBins);
-		vecSemConf = nan(1,intBins);
-		cellValsConf = cell(1,intBins);
-		vecSampleGroup = zeros(size(vecSortedDur));
-		for intBin=1:intBins
-			intEndS = intSperBin*intBin;
-			vecSamples = (intEndS-intSperBin+1):intEndS;
-			
-			cellValsDur{intBin} = vecSortedDur(vecSamples);
-			vecMeanDur(intBin) = mean(vecSortedDur(vecSamples));
-			vecSemDur(intBin) = std(vecSortedDur(vecSamples))./sqrt(intSperBin);
-			
-			[phat,pci] = binofit(sum(vecSortedCorr(vecSamples)),intSperBin);
-			vecMeanCorr(intBin) = phat;
-			matCiCorr(:,intBin) = pci;
-			cellValsCorr{intBin} = vecSortedCorr(vecSamples);
-			
-			vecMeanConf(intBin) = mean(vecSortedConf(vecSamples));
-			vecSemConf(intBin) = std(vecSortedConf(vecSamples))./sqrt(intSperBin);
-			cellValsConf{intBin} = vecSortedConf(vecSamples);
-			vecSampleGroup(vecSamples) = intBin;
-		end
+		cellValsDur{intBin} = vecSortedDur(vecSamples);
+		vecMeanDur(intBin) = mean(vecSortedDur(vecSamples));
+		vecSemDur(intBin) = std(vecSortedDur(vecSamples))./sqrt(intSperBin);
 		
+		[phat,pci] = binofit(sum(vecSortedCorr(vecSamples)),intSperBin);
+		vecMeanCorr(intBin) = phat;
+		matCiCorr(:,intBin) = pci;
+		cellValsCorr{intBin} = vecSortedCorr(vecSamples);
+		
+		vecMeanConf(intBin) = mean(vecSortedConf(vecSamples));
+		vecSemConf(intBin) = std(vecSortedConf(vecSamples))./sqrt(intSperBin);
+		cellValsConf{intBin} = vecSortedConf(vecSamples);
+		vecSampleGroup(vecSamples) = intBin;
+	end
+	
+	%conf with dur
+	errorbar(h1,vecMeanDur*1000,vecMeanConf,vecSemConf,vecSemConf,vecSemDur,vecSemDur,'color',lines(1));
+	
+	%conf with time
+	[vecCounts,vecMeans,vecSDs]=makeBins(vecSpikeGroupLatency,vecSpikeGroupConfidence,vecBinsDur);
+	plot(h2,vecBinsDurC,vecMeans,'color',vecColGrey);%,vecSDs./sqrt(vecCounts),vecSDs./sqrt(vecCounts),'color',lines(1));
+	
 	%% save data
 	cellQuantileDur(intFile,:) = cellValsDur;
 	cellQuantileConf(intFile,:) = cellValsConf;
+	matLatConf(intFile,:) = vecMeans;
+	vecSpikeGroupSize(intFile) = intSpikeGroupSize;
 end
+hold(h1,'off');
+xlabel(h1,'Duration of n-spike block (ms)');
+ylabel(h1,'Decoder confidence');
+title(h1,sprintf('Deciles'));
+ylim(h1,[0 max(get(h1,'ylim'))]);
 
-%% plot mean over recordings
-figure;maxfig;
-
-		subplot(2,4,3)
-		plot(vecMeanDur*1000,(ones(size(vecMeanDur))/intOriNum),'--','color',[0.5 0.5 0.5]);
-		hold on
-		errorbar(vecMeanDur*1000,vecMeanConf,vecSemConf,vecSemConf,vecSemDur,vecSemDur,'color',lines(1));
-		hold off
-		xlabel('20-spike block duration (ms)');
-		ylabel('Decoder confidence');
-		title(sprintf('Deciles, ANOVA, p=%.1e',pA2));
-		ylim([0 max(get(gca,'ylim'))]);
-		
+plot(h2,vecBinsDurC,mean(matLatConf,1),'color',lines(1));%,vecSDs./sqrt(vecCounts),vecSDs./sqrt(vecCounts),'color',lines(1));
+hold(h2,'off')
+xlabel(h2,'Latency of n-spike block after stim onset (s)');
+ylabel(h2,'Decoder confidence');
+ylim(h2,[0 max(get(h2,'ylim'))]);
 
 
+%%
+matQuantDur = cellfun(@mean,cellQuantileDur);
+matQuantConf = cellfun(@mean,cellQuantileConf);
+matQuantConf = zscore(matQuantConf,[],2);
+matX = repmat(1:10,[intRecNum 1]);
+mdl = fitlm(matX(:),matQuantConf(:));
+r=mdl.Coefficients.Estimate(2);
+p=mdl.Coefficients.pValue(2);
+
+hold(h3,'on')
+plot(h3,matX',matQuantConf','color',vecColGrey);
+plot(h3,mean(matX,1),mean(matQuantConf,1),'color',lines(1));
+hold(h3,'off')
+xlabel(h3,'Duration decile of n-spike block');
+ylabel(h3,sprintf('Decoder confidence, z-scored per rec (%s)',getGreek('sigma')));
+%ylim(h3,[0 max(get(h3,'ylim'))]);
+title(h3,sprintf('Lin reg, r=%.3f %s/decile, p=%.3e',r,getGreek('sigma'),p));
+fixfig;
+
+
+drawnow;
+export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockDecoding%s%s.tif',strType,strSGS)));
+export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockDecoding%s%s.pdf',strType,strSGS)));
+	

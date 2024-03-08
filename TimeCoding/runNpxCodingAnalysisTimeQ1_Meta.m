@@ -22,7 +22,7 @@ on binning size? What is the optimal time window?
 
 %}
 %% define qualifying areas
-clear all;close all;
+clear all;%close all;
 cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
@@ -41,12 +41,13 @@ end
 
 %% load data
 sFiles = dir ([strTargetDataPath 'Q1Data*.mat']);
+boolSinglePlots = false;
 strArea = 'V1';
 intRecNum = numel(sFiles);
 intBinNum = 300;
 vecDecP = nan(1,intRecNum);
 matDecPerf = nan(intBinNum,intRecNum);
-matRate = nan(intBinNum,intRecNum);
+matRateRaw = nan(intBinNum,intRecNum);
 matAcrossTimeDecoderAgg = nan(intBinNum,intBinNum,intRecNum);
 for intFile=1:intRecNum
 	%% load
@@ -63,6 +64,7 @@ for intFile=1:intRecNum
 	vecDecP(intFile) = dblP;
 	matAcrossTimeDecoder(tril(true(size(matAcrossTimeDecoder))) & triu(true(size(matAcrossTimeDecoder)))) = vecDec;
 	
+	if boolSinglePlots
 	%% plot
 	figure;maxfig;
 	subplot(2,3,1)
@@ -117,10 +119,10 @@ for intFile=1:intRecNum
 	drawnow;
 	export_fig(fullpath(strFigurePathSR,sprintf('Q1%s.tif',strRec)));
 	export_fig(fullpath(strFigurePathSR,sprintf('Q1%s.pdf',strRec)));
-	
+	end
 	%% save data
 	matDecPerf(:,intFile) = vecDec;
-	matRate(:,intFile) = (vecSpikesPerBin./dblBinWidth);
+	matRateRaw(:,intFile) = (vecSpikesPerBin./dblBinWidth);
 	matAcrossTimeDecoderAgg(:,:,intFile) = matAcrossTimeDecoder;
 end
 
@@ -129,41 +131,48 @@ vecCorrP = bonf_holm(vecDecP);
 vecAvgPerf=mean(matDecPerf(indUseForTest,:),1);
 indUseRecs = vecCorrP<0.01 & vecAvgPerf>0.09;
 
-matRateZ = matRate(:,indUseRecs);
-matPerfZ = matDecPerf(:,indUseRecs);
-matConfZ = matAcrossTimeDecoderAgg(:,:,indUseRecs);
-vecMeanRateZ = mean(matRateZ,2);
-vecMeanPerfZ = mean(matPerfZ,2);
-matMeanConfZ = mean(matConfZ,3);
-intUseRecs = size(matRateZ,2);
+matRate = matRateRaw(:,indUseRecs);
+matPerf = matDecPerf(:,indUseRecs);
+matConf = matAcrossTimeDecoderAgg(:,:,indUseRecs);
+matConfOverTime = nan(size(matPerf));
+intB = size(matConfOverTime,1);
+for i=1:size(matConf,3)
+	matSq = matAcrossTimeDecoderAgg(:,:,i);
+	matConfOverTime(:,i) = matSq(diag(diag(true(intB))));
+end
+vecMeanRate = mean(matRate,2);
+vecMeanPerf = mean(matPerf,2);
+vecMeanConf = mean(matConfOverTime,2);
+matMeanConf = mean(matConf,3);
+intUseRecs = size(matRate,2);
 
 figure;maxfig;
 %avg rate/decoding/confusion matrix
 
 
 subplot(2,3,1)
-plot(vecStimTime,vecMeanRateZ);
+plot(vecStimTime,vecMeanRate);
 title(sprintf('Average spiking per %.1f ms bin, n=%d recs',dblBinWidth*1000,intUseRecs))
 xlabel('Time after onset (s)');
 ylabel('Binned population spiking rate (Hz)');
 fixfig;
 
 subplot(2,3,2)
-plot(vecStimTime,vecMeanPerfZ,'color','k');
+plot(vecStimTime,vecMeanPerf,'color','k');
 hold on
 plot([vecStimTime(1) vecStimTime(end)],[dblChance dblChance],'--','color',[0.5 0.5 0.5]);
 hold off
 title(sprintf('Dec perf'),'interpreter','none')
 xlabel('Time after onset (s)');
-ylabel('Fraction correct decoded');
+ylabel('Decoder accuracy');
 fixfig;
 
 
 hS2=subplot(2,3,3);
 colormap(hS2,parula);
-imagesc(vecStimTime,vecStimTime,matMeanConfZ);
+imagesc(vecStimTime,vecStimTime,matMeanConf);
 hB2=colorbar;
-hB2.Label.String = 'Decoding performance';
+hB2.Label.String = 'Decoder confidence';
 axis xy
 xlabel('Training bin');
 ylabel('Testing bin');
@@ -179,8 +188,8 @@ hold on
 for intRec=1:intUseRecs
 	%vecH(intRec)=plot([matRateZ(:,intRec); matRateZ(1,intRec)],[matPerfZ(:,intRec); matPerfZ(1,intRec)],'color',[0.5 0.5 0.5]);
 end
-h=cline([vecMeanRateZ],[vecMeanPerfZ],[vecStimTime(:)],[vecStimTime(:)]);
-plot([min(vecMeanRateZ) max(vecMeanRateZ)],[dblChance dblChance],'--','color',[0.3 0.3 0.3]);
+h=cline([vecMeanRate],[vecMeanPerf],[vecStimTime(:)],[vecStimTime(:)]);
+plot([min(vecMeanRate) max(vecMeanRate)],[dblChance dblChance],'--','color',[0.3 0.3 0.3]);
 set(h,'LineWidth',2);
 hold off
 hB.Label.String = 'Time (s)';
@@ -194,30 +203,30 @@ fixfig;
 %get baseline
 indBase = vecStimTime<0;
 indPeak = vecStimTime>0 & vecStimTime<0.1;
-vecBaseRate = mean(matRateZ(indBase,:),1);
-matPeakRate = bsxfun(@rdivide,bsxfun(@minus,matRateZ(indPeak,:),vecBaseRate),std(matRateZ));
-matPeakPerf = bsxfun(@rdivide,bsxfun(@minus,matPerfZ(indPeak,:),dblChance),std(matPerfZ));
+vecBaseRate = mean(matRate(indBase,:),1);
+matPeakRateZ = bsxfun(@rdivide,bsxfun(@minus,matRate(indPeak,:),vecBaseRate),std(matRate));
+matPeakPerfZ = bsxfun(@rdivide,bsxfun(@minus,matPerf(indPeak,:),dblChance),std(matPerf));
 %matPeakPerf = matPerfZ(indPeak,:);
 vecPeakT = vecStimTime(indPeak);
-intUsePoints = size(matPeakRate,1);
+intUsePoints = size(matPeakRateZ,1);
 hS=subplot(2,3,5);
 cMap=colormap(hS,parula(intUsePoints));
 hB=colorbar;
 set(gca,'clim',[min(vecPeakT) max(vecPeakT)]);
 hold on
 vecH = [];
-h=cline(mean(matPeakRate,2),[mean(matPeakPerf,2)],[vecPeakT(:)],[vecPeakT(:)]);
+h=cline(mean(matPeakRateZ,2),[mean(matPeakPerfZ,2)],[vecPeakT(:)],[vecPeakT(:)]);
 vecRateP = nan(1,intUsePoints);
 vecPerfP = nan(1,intUsePoints);
 vecDiffP = nan(1,intUsePoints);
 for intP=1:intUsePoints
-	errorbar(mean(matPeakRate(intP,:),2),mean(matPeakPerf(intP,:),2),...
-		std(matPeakPerf(intP,:),[],2)./sqrt(intUseRecs),std(matPeakPerf(intP,:),[],2)./sqrt(intUseRecs),...
-		std(matPeakRate(intP,:),[],2)./sqrt(intUseRecs),std(matPeakRate(intP,:),[],2)./sqrt(intUseRecs),'color',cMap(intP,:));
+	errorbar(mean(matPeakRateZ(intP,:),2),mean(matPeakPerfZ(intP,:),2),...
+		std(matPeakPerfZ(intP,:),[],2)./sqrt(intUseRecs),std(matPeakPerfZ(intP,:),[],2)./sqrt(intUseRecs),...
+		std(matPeakRateZ(intP,:),[],2)./sqrt(intUseRecs),std(matPeakRateZ(intP,:),[],2)./sqrt(intUseRecs),'color',cMap(intP,:));
 	
-	[h,pR]=ttest(matPeakRate(intP,:));
-	[h,pP]=ttest(matPeakPerf(intP,:));
-	[h,pD]=ttest(matPeakRate(intP,:),matPeakPerf(intP,:));
+	[h,pR]=ttest(matPeakRateZ(intP,:));
+	[h,pP]=ttest(matPeakPerfZ(intP,:));
+	[h,pD]=ttest(matPeakRateZ(intP,:),matPeakPerfZ(intP,:));
 	vecRateP(intP) = pR;
 	vecPerfP(intP) = pP;
 	vecDiffP(intP) = pD;
@@ -231,6 +240,14 @@ fixfig;
 vecRateSigma = -norminv(vecRateP/2);
 vecPerfSigma = -norminv(vecPerfP/2);
 vecDiffSigma = -norminv(vecDiffP/2);
+
+%real vals
+vecRateSigma = imnorm(mean(matRate(indPeak,:),2));
+vecPerfSigma = imnorm(mean(matPerf(indPeak,:),2));
+vecDiffSigma = imnorm(vecDiffSigma);
+
+%matConfOverTime
+
 subplot(2,3,6);
 hold on
 colororder(gca,{'k'});

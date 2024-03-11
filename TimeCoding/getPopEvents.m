@@ -62,10 +62,15 @@ function [sPopEvents,sMergedPopEvents,vecStimTime_Filt,vecStimIFR_Filt,vecStimIF
 	
 	%assign output to structs
 	sPopEvents = struct;
-	sPopEvents.Time = vecPopEventTimes;
-	sPopEvents.Loc = vecPopEventLocs;
+	for i=numel(vecPopEventTimes):-1:1
+		sPopEvents(i).Time = vecPopEventTimes(i);
+		sPopEvents(i).Loc = vecPopEventLocs(i);
+	end
+	
 	sMergedPopEvents = struct;
-	sMergedPopEvents.Time = vecMergedPopEventTimes;
-	sMergedPopEvents.Loc = vecMergedPopEventLocs;
+	for i=numel(vecMergedPopEventTimes):-1:1
+		sMergedPopEvents(i).Time = vecMergedPopEventTimes(i);
+		sMergedPopEvents(i).Loc = vecMergedPopEventLocs(i);
+	end
 end
 

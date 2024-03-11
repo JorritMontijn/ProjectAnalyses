@@ -128,45 +128,27 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 				indRem = (vecT > dblStopEpoch) | (vecT < dblStartEpoch);
 				cellUseSpikeTimes{intN} = vecT(~indRem);
 			end
+			%add data
+			sAllSpike = struct;
+			sAllSpike.vecAllSpikeTime = vecAllSpikeTime;
+			sAllSpike.vecAllSpikeNeuron = vecAllSpikeNeuron;
+			sAllSpike.dblStartEpoch = dblStartEpoch;
+			sAllSpike.dblEpochDur = dblEpochDur;
 			
-			%mean-subtraction
-			[signals,avgFilter,stdFilter] = detectpeaks(vecIFR,intLag,dblThreshZ,dblInfluence);
-			%vecIFR = (vecIFR - avgFilter)./stdFilter;
-			vecNormIFR = (vecIFR - avgFilter)./avgFilter;
-			indRem = isinf(vecNormIFR);
-			vecNormIFR(indRem) = [];
-			vecNormIFR = vecNormIFR + (1e-10)*rand(size(vecNormIFR)); %break identical values
-			vecNormTime = vecTime(~indRem);
-			
-			% peaks
-			indStimSpikes = vecNormTime>dblStartEpoch & vecNormTime<dblStopEpoch;
-			vecStimIFR_Raw = vecIFR(indStimSpikes);
-			vecStimIFR = vecNormIFR(indStimSpikes);
-			vecStimTime = vecNormTime(indStimSpikes);
-			[vecPeakHeight,vecPeakLocs,w,p] = findpeaks(vecStimIFR);
-			
-			%threshold peaks
+			%set params and run pop event detection
 			dblCutOff = 0.65;
-			vecStimPeakLocs = vecPeakLocs(vecPeakHeight>dblCutOff);
+			sPeakOpts = struct;
+			sPeakOpts.intLag = intLag;
+			sPeakOpts.dblThreshZ = dblThreshZ;
+			sPeakOpts.dblInfluence = dblInfluence;
+			[sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR,vecStimIFR_Raw] = getPopEvents(vecIFR,vecTime,vecOrigStimOnTime,sPeakOpts,sAllSpike,dblCutOff);
 			
-			%retain only stim epoch
-			indStimEpoch = vecAllSpikeTime > dblStartEpoch & vecAllSpikeTime < (dblStartEpoch + dblEpochDur);
-			vecPopSpikeTime = vecAllSpikeTime(indStimEpoch);
-			vecPopNeuronId = vecAllSpikeNeuron(indStimEpoch);
-			
-			%merged peaks
-			matPeakDomain = mergepeaks(vecStimTime,vecStimIFR,vecStimPeakLocs);
-			vecMergedPeakLocs = matPeakDomain(:,1);
-			
-			%get merged pop events
-			vecMergedPopEventTimes = vecStimTime(vecMergedPeakLocs);
-			intMergedPopEventNum = numel(vecMergedPopEventTimes);
-			vecMergedPopEventLocs = nan(1,intMergedPopEventNum);
-			vecMergedPopEventLocsIFR = nan(1,intMergedPopEventNum);
-			parfor intEvent=1:intMergedPopEventNum
-				[dummy,vecMergedPopEventLocs(intEvent)] = min(abs(vecMergedPopEventTimes(intEvent)-vecPopSpikeTime));
-				[dummy,vecMergedPopEventLocsIFR(intEvent)] = min(abs(vecMergedPopEventTimes(intEvent)-vecStimTime));
-			end
+			%extract
+			vecPopEventTimes = [sPopEvents.Time];
+			vecPopEventLocs = [sPopEvents.Loc];
+			vecMergedPopEventTimes = [sMergedPopEvents.Time];
+			vecMergedPopEventLocs = [sMergedPopEvents.Loc];
+			vecPeakHeight = vecStimIFR(vecMergedPopEventLocs);
 			
 			%% what does peak look like? plot PSTH
 			dblStep = (1/50);

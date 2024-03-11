@@ -12,8 +12,8 @@ q2: How precise are spike times in the natural movie repetitions?
 %}
 
 %% define qualifying data
-%strRunType = 'Npx'; %ABI or Npx?
-%strRunStim = 'NM';%DG or NM?
+strRunType = 'Npx'; %ABI or Npx?
+strRunStim = 'DG';%DG or NM?
 
 runHeaderPopTimeCoding;
 if strcmp(strRunType,'ABI')
@@ -40,17 +40,17 @@ for intRec=1:intRecNum
 	
 	%events
 	dblStartEpoch = vecStimOnTime(1)-10;
-	dblStopEpoch = vecOrigStimOnTime(end)+dblStimDur+10;
+	dblStopEpoch = vecStimOnTime(end)+dblStimDur+10;
 	dblEpochDur = dblStopEpoch - dblStartEpoch;
 	intNumN = numel(cellSpikeTimesReal);
-
+	
 	%remove spikes outside epoch
 	for intN=1:intNumN
 		vecT = cellSpikeTimesReal{intN};
 		indRem = (vecT > dblStopEpoch) | (vecT < dblStartEpoch);
 		cellSpikeTimesReal{intN} = unique(vecT(~indRem));
 	end
-
+	
 	%% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all spikes at pop level
 	cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain'};
 	for intType=[5:-1:1]
@@ -75,32 +75,72 @@ for intRec=1:intRecNum
 				vecSpikeT = dblT0+cumsum(vecISI)-vecISI(1);
 				cellSpikeTimes{intN} = vecSpikeT(vecSpikeT<dblTN);
 			end
-
+			
 		elseif strcmp(strType,'ShuffTid')
-			%shuffle trial ids
-			cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
-			for intN=1:intNumN
-				%real
-				[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimesReal{intN},vecOrigStimOnTime,dblStimDur);
-				for intTrial=1:intOrigTrialNum
-					vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
-					cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
+			cellSpikeTimes = cell(1,intNumN);
+			if strcmp(strRunStim,'NM')
+				
+				%shuffle trial ids
+				cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
+				for intN=1:intNumN
+					%real
+					[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimesReal{intN},vecOrigStimOnTime,dblStimDur);
+					for intTrial=1:intOrigTrialNum
+						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+						cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
+					end
+					
+					%get beginning & end vectors
+					vecStartSpikes = cellSpikeTimesReal{intN}(cellSpikeTimesReal{intN}<vecOrigStimOnTime(1));
+					vecEndSpikes = cellSpikeTimesReal{intN}(cellSpikeTimesReal{intN}>(vecOrigStimOnTime(end)+dblStimDur));
+					
+					%shuffle trial id
+					vecRandTrialIds = randperm(intOrigTrialNum);
+					cellShuffTidTrials = cellSpikeTimesPerCellPerTrial(intN,:);
+					for intTrial=1:intOrigTrialNum
+						dblRandStart = vecOrigStimOnTime(vecRandTrialIds(intTrial));
+						cellShuffTidTrials{intTrial} = cellShuffTidTrials{intTrial}+dblRandStart;
+					end
+					cellSpikeTimes{intN} = unique(sort([vecStartSpikes;cell2vec(cellShuffTidTrials);vecEndSpikes]));
 				end
-
+					
+			elseif strcmp(strRunStim,'DG')
+				%create normal data
+				cellSpikeTimesPerCellPerTrial = cell(intNumN,intTrialNum);
+				cellStartSpikes = cell(intNumN,1);
+				cellEndSpikes = cell(intNumN,1);
+				
 				%get beginning & end vectors
-				vecStartSpikes = cellSpikeTimesReal{intN}(cellSpikeTimesReal{intN}<vecOrigStimOnTime(1));
-				vecEndSpikes = cellSpikeTimesReal{intN}(cellSpikeTimesReal{intN}>(vecOrigStimOnTime(end)+dblStimDur));
-
-				%shuffle trial id
-				vecRandTrialIds = randperm(intOrigTrialNum);
-				cellShuffTidTrials = cellSpikeTimesPerCellPerTrial(intN,:);
-				for intTrial=1:intOrigTrialNum
-					dblRandStart = vecOrigStimOnTime(vecRandTrialIds(intTrial));
-					cellShuffTidTrials{intTrial} = cellShuffTidTrials{intTrial}+dblRandStart;
+				for intN=1:intNumN
+					%real
+					[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimesReal{intN},vecStimOnTime,dblStimDur);
+					for intTrial=1:intTrialNum
+						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+						cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
+					end
+					cellStartSpikes{intN} = cellSpikeTimesReal{intN}(cellSpikeTimesReal{intN}<vecStimOnTime(1));
+					cellEndSpikes{intN} = cellSpikeTimesReal{intN}(cellSpikeTimesReal{intN}>(vecStimOnTime(end)+dblStimDur));
 				end
-				cellSpikeTimes{intN} = unique(sort([vecStartSpikes;cell2vec(cellShuffTidTrials);vecEndSpikes]));
+				
+				%shuffle trial ids only within stim type if DG
+				cellUseSpikeTimesPerCellPerTrial = cell(size(cellSpikeTimesPerCellPerTrial));
+				for intStimType=1:intStimNum
+					vecOrigTrials = find(vecStimIdx==intStimType);
+					for intN=1:intNumN
+						vecShuffTrials = vecOrigTrials(randperm(numel(vecOrigTrials)));
+						cellUseSpikeTimesPerCellPerTrial(intN,vecShuffTrials) = cellSpikeTimesPerCellPerTrial(intN,vecOrigTrials);
+					end
+				end
+				
+				%compile
+				for intN=1:intNumN
+					cellSpikeTimes{intN} = unique(sort([cellStartSpikes{intN};...
+						cell2vec(cellUseSpikeTimesPerCellPerTrial(intN,:));...
+						cellEndSpikes{intN}]));
+				end
+			else
+				error
 			end
-
 		elseif strcmp(strType,'Shuff')
 			%shuffled ISI per neuron
 			for intN=1:intNumN
@@ -115,7 +155,7 @@ for intRec=1:intRecNum
 			dblWindow = 1; %secs
 			vecGainE = dblStartEpoch:dblWindow:dblStopEpoch;
 			vecGainT = vecGainE(2:end) - dblWindow/2;
-
+			
 			matSpikeCounts = zeros(intNumN,numel(vecGainT));
 			for intN=1:intNumN
 				matSpikeCounts(intN,:) = histcounts(cellSpikeTimesReal{intN},vecGainE);
@@ -123,7 +163,7 @@ for intRec=1:intRecNum
 			vecGainAx = mean(matSpikeCounts,2);
 			vecGain=getProjOnLine(matSpikeCounts,vecGainAx)';
 			vecGain = vecGain./norm(vecGainAx);
-
+			
 			%poisson process
 			cellSpikeTimes = cell(1,intNumN);
 			for intN=1:intNumN
@@ -149,7 +189,7 @@ for intRec=1:intRecNum
 				cellSpikeTimes{intN} = vecSpikeT(vecSpikeT<dblTN);
 			end
 		end
-
+		
 		%get spikes per trial per neuron
 		intTotS = sum(cellfun(@numel,cellSpikeTimes));
 		vecAllSpikeTime = nan(1,intTotS);
@@ -163,20 +203,20 @@ for intRec=1:intRecNum
 			vecAllSpikeNeuron(intS:(intS+intThisS-1)) = intN;
 			intS = intS + intThisS;
 		end
-
+		
 		%remove spikes outside epoch
 		indRem = (vecAllSpikeTime > dblStopEpoch) | (vecAllSpikeTime < dblStartEpoch);
 		vecAllSpikeNeuron(indRem) = [];
 		vecAllSpikeTime(indRem) = [];
-
+		
 		%sort
 		[vecAllSpikeTime,vecReorder] = sort(vecAllSpikeTime);
 		vecAllSpikeNeuron = vecAllSpikeNeuron(vecReorder);
 		[vecTime,vecIFR] = getIFR(vecAllSpikeTime,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
 		vecTime = vecTime + dblStartEpoch(1);
-
+		
 		%% save intermediate data
-		save(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s',strRunType,strRec,strRunStim,strType)),...
+		save(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s',strRec,strRunType,strRunStim,strType)),...
 			...%epoch
 			'dblStartEpoch',...
 			'dblEpochDur',...

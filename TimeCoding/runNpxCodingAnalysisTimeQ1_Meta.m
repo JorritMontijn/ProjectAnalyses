@@ -242,9 +242,9 @@ vecPerfSigma = -norminv(vecPerfP/2);
 vecDiffSigma = -norminv(vecDiffP/2);
 
 %real vals
-vecRateSigma = imnorm(mean(matRate(indPeak,:),2));
-vecPerfSigma = imnorm(mean(matPerf(indPeak,:),2));
-vecDiffSigma = imnorm(vecDiffSigma);
+%vecRateSigma = imnorm(mean(matRate(indPeak,:),2));
+%vecPerfSigma = imnorm(mean(matPerf(indPeak,:),2));
+%vecDiffSigma = imnorm(vecDiffSigma);
 
 %matConfOverTime
 

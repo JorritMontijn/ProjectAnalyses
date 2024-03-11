@@ -32,9 +32,11 @@ if strcmp(strRunStim,'DG')
 	intTunedN = sum(indTuned);
 	intRespN = size(matMeanRate,1);
 	dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
-	dblPreTime = -dblStartT;%0.3;
+	dblPreTime = 0;%0.3;
 	dblPostTime = 0;%0.3;
 	dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
+	intTrialNum = numel(vecStimOnTime);
+	
 elseif strcmp(strRunStim,'NM')
 	%to do
 	%prep move data

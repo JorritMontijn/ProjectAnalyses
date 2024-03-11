@@ -22,6 +22,8 @@ fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),s
 sAggNeuron(indRemDBA) = [];
 
 %% pre-allocate matrices
+strRunType = 'Npx';
+strRunStim = 'DG';
 cellTypes = {'Real','ShuffTid'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 intNumTypes = numel(cellTypes);
 boolFixSpikeGroupSize = true;
@@ -84,8 +86,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		% spikes at pop level, detect peaks, and split into trials.
 		%get spikes per trial per neuron
 		strType = cellTypes{intType};
-		sSource = load(fullpath(strTargetDataPath,sprintf('T0Data_%s%s',strRec,strType)));
-		
+		sSource = load(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s',strRec,strRunType,strRunStim,strType)));
+
 		%% detect peaks
 		% filter
 		%real
@@ -98,8 +100,8 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		%% transform time indices
 		%events
-		dblStartEpoch = vecOrigStimOnTime(1)-dblStimDur;
-		dblEpochDur = vecOrigStimOnTime(end)-vecOrigStimOnTime(1)+dblStimDur;
+		dblStartEpoch = vecStimOnTime(1)-dblStimDur;
+		dblEpochDur = vecStimOnTime(end)-vecStimOnTime(1)+dblStimDur;
 		dblStopEpoch = dblStartEpoch + dblEpochDur;
 		
 		%% plot
@@ -138,7 +140,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		sPeakOpts.intLag = intLag;
 		sPeakOpts.dblThreshZ = dblThreshZ;
 		sPeakOpts.dblInfluence = dblInfluence;
-		[sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR,vecStimIFR_Raw] = getPopEvents(vecIFR,vecTime,vecOrigStimOnTime,sPeakOpts,sAllSpike,dblCutOff);
+		[sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR,vecStimIFR_Raw] = getPopEvents(vecIFR,vecTime,vecStimOnTime,sPeakOpts,sAllSpike,dblCutOff);
 		
 		%extract
 		vecPopEventTimes = [sPopEvents.Time];

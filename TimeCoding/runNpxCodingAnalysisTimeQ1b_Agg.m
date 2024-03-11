@@ -96,7 +96,14 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 					elseif strcmp(strType,'UniformTrial')
 						%make spike times uniform in trial
 						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
-						vecSpikeT = sort(rand(size(vecSpikeT)).*range(vecSpikeT)+min(vecSpikeT));
+						%save pre- and post-spikes
+						dblStimDur = vecStimOffTime(intTrial) - vecStimOnTime(intTrial);
+						indPrepost = (vecSpikeT < dblPreTime) | (vecSpikeT > (dblPreTime + dblStimDur));
+					
+						%randomize during-spikes
+						vecSpikeT_prepost = vecSpikeT(indPrepost);
+						vecSpikeT_unirand = rand(sum(~indPrepost),1)*dblStimDur+dblPreTime;
+						vecSpikeT = sort(cat(1,vecSpikeT_unirand,vecSpikeT_prepost));
 					elseif strcmp(strType,'ShuffTid')
 						%shuffle trial ids for each neuron independently
 						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==vecRandTrials(intTrial));

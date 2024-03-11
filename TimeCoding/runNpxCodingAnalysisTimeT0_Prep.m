@@ -212,7 +212,14 @@ for intRec=1:intRecNum
 		%sort
 		[vecAllSpikeTime,vecReorder] = sort(vecAllSpikeTime);
 		vecAllSpikeNeuron = vecAllSpikeNeuron(vecReorder);
-		[vecTime,vecIFR] = getIFR(vecAllSpikeTime,dblStartEpoch,dblEpochDur,0,[],[],0); %takes about 1 minute
+		vecSpikeTimes = vecAllSpikeTime;
+		vecEventStarts = dblStartEpoch;
+		dblUseMaxDur = dblEpochDur;
+		intSmoothSd = 0;
+		dblMinScale = [];
+		dblBase = [];
+		boolUseParallel = 0;
+		[vecTime,vecIFR] = getIFR(vecSpikeTimes,vecEventStarts,dblUseMaxDur,intSmoothSd,dblMinScale,dblBase,boolUseParallel); %takes about 1 minute
 		vecTime = vecTime + dblStartEpoch(1);
 		
 		%% save intermediate data

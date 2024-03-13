@@ -32,7 +32,7 @@ for intRec=1:intRecNum
 	elseif strcmp(strRunType,'Npx')
 		runRecPrepNpx;
 	end
-	if intNeuronsInArea == 0 || intNeuronNum < 25
+	if intNeuronsInArea == 0% || intNeuronNum < 25
 		fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronNum,strRecOrig,getTime);
 		continue;
 	end
@@ -43,6 +43,7 @@ for intRec=1:intRecNum
 	dblStopEpoch = vecStimOnTime(end)+dblStimDur+10;
 	dblEpochDur = dblStopEpoch - dblStartEpoch;
 	intNumN = numel(cellSpikeTimesReal);
+	dblTrialDur = median(vecStimOnTime(2:end)-vecStimOnTime(1:(end-1)));
 	
 	%remove spikes outside epoch
 	for intN=1:intNumN
@@ -77,6 +78,7 @@ for intRec=1:intRecNum
 			end
 			
 		elseif strcmp(strType,'ShuffTid')
+			%%
 			cellSpikeTimes = cell(1,intNumN);
 			if strcmp(strRunStim,'NM')
 				
@@ -107,19 +109,29 @@ for intRec=1:intRecNum
 			elseif strcmp(strRunStim,'DG')
 				%create normal data
 				cellSpikeTimesPerCellPerTrial = cell(intNumN,intTrialNum);
-				cellStartSpikes = cell(intNumN,1);
-				cellEndSpikes = cell(intNumN,1);
+				cellOtherSpikes = cell(intNumN,1);
 				
 				%get beginning & end vectors
 				for intN=1:intNumN
 					%real
-					[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimesReal{intN},vecStimOnTime,dblStimDur);
+					[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimesReal{intN},vecStimOnTime);
 					for intTrial=1:intTrialNum
 						vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+						vecSpikeT(vecSpikeT>dblTrialDur)=[];
 						cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
 					end
-					cellStartSpikes{intN} = cellSpikeTimesReal{intN}(cellSpikeTimesReal{intN}<vecStimOnTime(1));
-					cellEndSpikes{intN} = cellSpikeTimesReal{intN}(cellSpikeTimesReal{intN}>(vecStimOnTime(end)+dblStimDur));
+					
+					vecSpikes = cellSpikeTimesReal{intN};
+					indUsedSpikes = false(size(vecSpikes));
+					for intTrial=intTrialNum:-1:1
+						%get spikes
+						indTrialSpikes = ~indUsedSpikes & (vecSpikes >= vecStimOnTime(intTrial)) & vecSpikes < (vecStimOnTime(intTrial)+ dblTrialDur);
+						indUsedSpikes(indTrialSpikes) = true;
+						vecTheseSpikes = vecSpikes(indTrialSpikes);
+						vecTheseSpikes = vecTheseSpikes - vecStimOnTime(intTrial);
+						cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecTheseSpikes;
+					end
+					cellOtherSpikes{intN} = vecSpikes(~indUsedSpikes);
 				end
 				
 				%shuffle trial ids only within stim type if DG
@@ -132,11 +144,19 @@ for intRec=1:intRecNum
 					end
 				end
 				
+				%re-add trial onsets
+				vecOrigTrials = find(vecStimIdx==intStimType);
+				for intTrial=1:intTrialNum
+					dblOnset = vecStimOnTime(intTrial);
+					for intN=1:intNumN
+						cellUseSpikeTimesPerCellPerTrial{intN,intTrial} = cellUseSpikeTimesPerCellPerTrial{intN,intTrial} + dblOnset;
+					end
+				end
+				
 				%compile
 				for intN=1:intNumN
-					cellSpikeTimes{intN} = unique(sort([cellStartSpikes{intN};...
-						cell2vec(cellUseSpikeTimesPerCellPerTrial(intN,:));...
-						cellEndSpikes{intN}]));
+					cellSpikeTimes{intN} = unique(sort([cellOtherSpikes{intN};...
+						cell2vec(cellUseSpikeTimesPerCellPerTrial(intN,:))]));
 				end
 			else
 				error

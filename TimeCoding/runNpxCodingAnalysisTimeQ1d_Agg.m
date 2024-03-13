@@ -27,9 +27,12 @@ strRunStim = 'DG';
 cellTypes = {'Real','ShuffTid'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 intNumTypes = numel(cellTypes);
 boolFixSpikeGroupSize = true;
+dblRemOnset = 0.25; %remove onset period in seconds
 
 %% go through recordings
 tic
+for boolFixSpikeGroupSize = [true false]
+for dblRemOnset = [0 0.25] %remove onset period in seconds
 for intRec=1:numel(sAggStim) %19 || weird: 11
 	% get matching recording data
 	strRec = sAggStim(intRec).Exp;
@@ -51,12 +54,18 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	sArea1Neurons = sUseNeuron(indArea1Neurons);
 	
 	%% prep data
+	%remove first x ms
+	vecStimOnTime = vecStimOnTime + dblRemOnset;
+	
 	%get data matrix
 	cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
 	[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial] = ...
 		NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 	intTunedN = sum(indTuned);
 	intNumN = size(matData,1);
+	dblAvgRate = sum(sum(cellfun(@numel,cellSpikeTimesPerCellPerTrial),1))/sum(vecStimOffTime-vecStimOnTime);
+	dblDur = median(vecStimOffTime-vecStimOnTime);
+	boolDiscardEdges = true;
 	
 	%get ori vars
 	vecOri180 = mod(vecOrientation,180)*2;
@@ -64,10 +73,6 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	intOriNum = numel(vecUnique);
 	intRepNum = min(vecPriorDistribution);
 	dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
-	dblBinWidth = 5/1000;%/32
-	dblPreTime = 0.3;%10*dblBinWidth;
-	dblPostTime = 0;%30*dblBinWidth;
-	dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
 	if mean(sum(matData)) < 90
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strRec);
 		continue;
@@ -80,14 +85,15 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		strSGS = ['Var' num2str(intSpikeGroupSize)];
 	end
 	
-	for intType=1%:numel(cellRunTypes)
+	for intType=1:numel(cellTypes)
 		%% load prepro T0 data
 		% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all
 		% spikes at pop level, detect peaks, and split into trials.
 		%get spikes per trial per neuron
 		strType = cellTypes{intType};
+		fprintf('Running rec %d/%d for %s, %s, %s, Rem %.3f s; %s [%s]\n',intRec,numel(sAggStim),strRunType,strRunStim,strType,dblRemOnset,strRec,getTime);
 		sSource = load(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s',strRec,strRunType,strRunStim,strType)));
-
+		
 		%% detect peaks
 		% filter
 		%real
@@ -109,7 +115,6 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecIFR = sSource.vecIFR;
 		vecAllSpikeTime = sSource.vecAllSpikeTime;
 		vecAllSpikeNeuron = sSource.vecAllSpikeNeuron;
-		intNumN = max(vecAllSpikeNeuron);
 		
 		%% replace IFR with binned rates?
 		if 0
@@ -119,55 +124,20 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			vecTime = vecBins(2:end)-dblBinDur/2;
 		end
 		
-		%% run analyses
-		%remove spikes outside epoch & build shuffled array
-		cellUseSpikeTimes = cell(1,intNumN);
-		for intN=1:intNumN
-			vecT = vecAllSpikeTime(vecAllSpikeNeuron==intN);
-			indRem = (vecT > dblStopEpoch) | (vecT < dblStartEpoch);
-			cellUseSpikeTimes{intN} = vecT(~indRem);
-		end
-		%add data
-		sAllSpike = struct;
-		sAllSpike.vecAllSpikeTime = vecAllSpikeTime;
-		sAllSpike.vecAllSpikeNeuron = vecAllSpikeNeuron;
-		sAllSpike.dblStartEpoch = dblStartEpoch;
-		sAllSpike.dblEpochDur = dblEpochDur;
-		
-		%set params and run pop event detection
-		dblCutOff = 0.65;
-		sPeakOpts = struct;
-		sPeakOpts.intLag = intLag;
-		sPeakOpts.dblThreshZ = dblThreshZ;
-		sPeakOpts.dblInfluence = dblInfluence;
-		[sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR,vecStimIFR_Raw] = getPopEvents(vecIFR,vecTime,vecStimOnTime,sPeakOpts,sAllSpike,dblCutOff);
-		
-		%extract
-		vecPopEventTimes = [sPopEvents.Time];
-		vecPopEventLocs = [sPopEvents.Loc];
-		vecMergedPopEventTimes = [sMergedPopEvents.Time];
-		vecMergedPopEventLocs = [sMergedPopEvents.Loc];
-		vecPeakHeight = vecStimIFR(vecMergedPopEventLocs);
-		
-		%% are spikes in first half of peaks more tuned than spikes in second half of peak?
-		dblAvgRate = sum(cellfun(@numel,cellUseSpikeTimes))/dblEpochDur;
-		if boolFixSpikeGroupSize
-			intSpikeGroupSize = 10;
-			strSGS = ['Fixed' num2str(intSpikeGroupSize)];
-		else
-			intSpikeGroupSize = ceil(dblAvgRate/30); %20
-			strSGS = ['Var' num2str(intSpikeGroupSize)];
-		end
-
 		%% randomize spikes (or not)
 		if strcmp(strType,'ShuffTid')
 			%shuffle across repetitions per neuron
 			cellUseSpikeTimesPerCellPerTrial = cell(size(cellSpikeTimesPerCellPerTrial));
-			for intStimType=1:intOriNum
-				vecOrigTrials = find(vecOriIdx==intStimType);
-				for intN=1:intNumN
-					vecShuffTrials = vecOrigTrials(randperm(numel(vecOrigTrials)));
-					cellUseSpikeTimesPerCellPerTrial(intN,vecShuffTrials) = cellSpikeTimesPerCellPerTrial(intN,vecOrigTrials);
+			for intN=1:intNumN
+				% build pseudo data, stitching stimulus periods
+				vecSpikeNeuron = vecAllSpikeTime(vecAllSpikeNeuron==intN);
+				[vecPseudoSpikeTimes,vecPseudoEventT] = getPseudoSpikeVectors(vecSpikeNeuron,vecStimOnTime,dblDur,boolDiscardEdges);
+				
+				%real
+				[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecPseudoSpikeTimes,vecPseudoEventT,dblDur);
+				for intTrial=1:intTrialNum
+					vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+					cellUseSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
 				end
 			end
 		elseif strcmp(strType,'Real')
@@ -176,18 +146,26 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		else
 			error no type
 		end
-		
+
 		%% go through pop spikes and group into sets of 20
+		fprintf('   Collecting n-spike groups and decoding [%s]\n',getTime);
 		%throw away spikes not in stimulus period and assign all spikes
 		intTotalSpikeNum = sum(sum(cellfun(@numel,cellUseSpikeTimesPerCellPerTrial)));
 		matSpikeGroupData = nan(floor(intTotalSpikeNum/intSpikeGroupSize),intNumN);
+		vecSpikeGroupStartIdx = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
+		vecSpikeGroupStopIdx = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
 		vecSpikeGroupDuration = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
+		vecSpikeGroupRateChange = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
+		vecSpikeGroupAvgRate = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
 		vecSpikeGroupLatency = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
 		vecSpikeGroupTrialType = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
 		vecSpikeGroupTrialNumber = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
 		vecTrialType = nan(floor(intTotalSpikeNum/intSpikeGroupSize),1);
 		intSpikeGroupCounter = 0;
+		intGlobalSpikeEntry = 1;
+		intTotSpikeNumIFR = numel(vecTime);
 		for intTrial=1:size(cellUseSpikeTimesPerCellPerTrial,2)
+			dblTrialStart = vecStimOnTime(intTrial);
 			cellSpikesInTrial = cellUseSpikeTimesPerCellPerTrial(:,intTrial);
 			intSpikesInTrial = sum(sum(cellfun(@numel,cellSpikesInTrial)));
 			vecSpikeTimes = nan(1,intSpikesInTrial);
@@ -212,15 +190,35 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			for intGroup=1:intAssignGroups
 				%get data
 				intEndSpike = intGroup*intSpikeGroupSize;
-				vecUseSpikes = (intEndSpike-intSpikeGroupSize+1):intEndSpike;
+				intStartSpike = intEndSpike-intSpikeGroupSize+1;
+				vecUseSpikes = intStartSpike:intEndSpike;
 				vecT = vecSpikeTimes(vecUseSpikes);
 				vecN = vecSpikeNeuron(vecUseSpikes);
 				vecCounts = accumarray(vecN(:),1,[intNumN 1]);
 				
+				%get entry in global time
+				dblGlobalTimeStart = vecT(1) + dblTrialStart;
+				dblGlobalTimeStop = vecT(end) + dblTrialStart;
+				intStartEntry = [];
+				intStopEntry = [];
+				for intGlobalSpikeEntry=intGlobalSpikeEntry:intTotSpikeNumIFR
+					if isempty(intStartEntry) && vecTime(intGlobalSpikeEntry) >= dblGlobalTimeStart
+						intStartEntry = intGlobalSpikeEntry;
+					end
+					if vecTime(intGlobalSpikeEntry) >= dblGlobalTimeStop
+						intStopEntry = intGlobalSpikeEntry;
+						break;
+					end
+				end
+				
 				%assign
 				intAssignTo = intGroup + intSpikeGroupCounter;
 				matSpikeGroupData(intAssignTo,:) = vecCounts;
+				vecSpikeGroupStartIdx(intAssignTo) = intStartEntry;
+				vecSpikeGroupStopIdx(intAssignTo) = intStopEntry;
 				vecSpikeGroupDuration(intAssignTo) = range(vecT);
+				vecSpikeGroupRateChange(intAssignTo) = vecIFR(intStopEntry) - vecIFR(intStartEntry);
+				vecSpikeGroupAvgRate(intAssignTo) = mean(vecIFR(intStartEntry:intStopEntry));
 				vecSpikeGroupLatency(intAssignTo) = mean(vecT);
 				vecSpikeGroupTrialType(intAssignTo) = vecOriIdx(intTrial);
 				vecSpikeGroupTrialNumber(intAssignTo) = intTrial;
@@ -231,7 +229,11 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%remove trailing entries
 		intSpikeGroupNum = intSpikeGroupCounter;
 		matSpikeGroupData = matSpikeGroupData(1:intSpikeGroupNum,:);
+		vecSpikeGroupStartIdx = vecSpikeGroupStartIdx(1:intSpikeGroupNum);
+		vecSpikeGroupStopIdx = vecSpikeGroupStopIdx(1:intSpikeGroupNum);
 		vecSpikeGroupDuration = vecSpikeGroupDuration(1:intSpikeGroupNum);
+		vecSpikeGroupRateChange = vecSpikeGroupRateChange(1:intSpikeGroupNum);
+		vecSpikeGroupAvgRate = vecSpikeGroupAvgRate(1:intSpikeGroupNum);
 		vecSpikeGroupLatency = vecSpikeGroupLatency(1:intSpikeGroupNum);
 		vecSpikeGroupTrialType = vecSpikeGroupTrialType(1:intSpikeGroupNum);
 		vecSpikeGroupTrialNumber = vecSpikeGroupTrialNumber(1:intSpikeGroupNum);
@@ -240,7 +242,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		dblLambda = 1;
 		intTypeCV = 0;
 		
-		%do old logistic regression
+		%do logistic regression
 		vecPriorDistribution = accumarray(vecSpikeGroupTrialType(:),1,[intOriNum 1]);
 		intVerbose = 1;
 		[dblPerformanceCV,vecSpikeGroupDecodedTrial,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights] = ...
@@ -262,8 +264,68 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			sSpikeGroup(intSpikeGroup).DecodedType = vecSpikeGroupDecodedTrial(intSpikeGroup);
 			sSpikeGroup(intSpikeGroup).Correct = vecSpikeGroupCorrect(intSpikeGroup);
 			sSpikeGroup(intSpikeGroup).Confidence = vecSpikeGroupConfidence(intSpikeGroup);
+			sSpikeGroup(intSpikeGroup).StartIdx = vecSpikeGroupStartIdx(intSpikeGroup);
+			sSpikeGroup(intSpikeGroup).StopIdx = vecSpikeGroupStopIdx(intSpikeGroup);
+			sSpikeGroup(intSpikeGroup).RateChange = vecSpikeGroupRateChange(intSpikeGroup);
+			sSpikeGroup(intSpikeGroup).AvgRate = vecSpikeGroupAvgRate(intSpikeGroup);
 		end
-		return
+		
+		%is confidence correlated with rate change?
+		vecRateChanges = [sSpikeGroup.RateChange]';
+		vecConfidence = [sSpikeGroup.Confidence]';
+		vecCorrect = [sSpikeGroup.Correct]';
+		vecAvgRate = [sSpikeGroup.AvgRate]';
+		vecEdgesX = linspace(min(vecRateChanges),max(vecRateChanges),100);
+		vecEdgesY = linspace(min(vecAvgRate),max(vecAvgRate),100);
+		vecBinsX = vecEdgesX(2:end) - diff(vecEdgesX(1:2))/2;
+		vecBinsY = vecEdgesY(2:end) - diff(vecEdgesY(1:2))/2;
+		[matCounts,matValMeans,matValSDs,cellVals,cellIDs] = makeBins2(vecRateChanges,vecAvgRate,vecConfidence,vecEdgesX,vecEdgesY);
+		
+		%% calc deciles
+		fprintf('   Separating into quantiles [%s]\n',getTime);
+		[vecSortedDeltaRate,vecSort] = sort(vecRateChanges);
+		vecSortedConfidence = vecConfidence(vecSort);
+		vecSortedCorrect = vecCorrect(vecSort);
+		vecSortedNormConfidence = zscore(vecSortedConfidence);
+		
+		%calculate fraction correct and confidence per bin of equal size
+		intBins = 10;
+		intSperBin = floor(numel(vecSortedDeltaRate)/intBins);
+		vecMeanDeltaR = nan(1,intBins);
+		vecSemDeltaR = nan(1,intBins);
+		vecMeanCorrect = nan(1,intBins);
+		matCiCorrect = nan(2,intBins);
+		cellValsCorrect = cell(1,intBins);
+		vecMeanConf = nan(1,intBins);
+		vecSemConf = nan(1,intBins);
+		cellValsConf = cell(1,intBins);
+		vecMeanNormConf = nan(1,intBins);
+		vecSemNormConf = nan(1,intBins);
+		cellValsNormConf = cell(1,intBins);
+		vecSampleGroup = zeros(size(vecSortedDeltaRate));
+		for intBin=1:intBins
+			intEndS = intSperBin*intBin;
+			vecSamples = (intEndS-intSperBin+1):intEndS;
+			
+			vecMeanDeltaR(intBin) = mean(vecSortedDeltaRate(vecSamples));
+			vecSemDeltaR(intBin) = std(vecSortedDeltaRate(vecSamples))./sqrt(intSperBin);
+			
+			[phat,pci] = binofit(sum(vecSortedCorrect(vecSamples)),intSperBin);
+			vecMeanCorrect(intBin) = phat;
+			matCiCorrect(:,intBin) = pci;
+			cellValsCorrect{intBin} = vecSortedCorrect(vecSamples);
+			
+			vecMeanConf(intBin) = mean(vecSortedConfidence(vecSamples));
+			vecSemConf(intBin) = std(vecSortedConfidence(vecSamples))./sqrt(intSperBin);
+			cellValsConf{intBin} = vecSortedConfidence(vecSamples);
+			
+			vecMeanNormConf(intBin) = mean(vecSortedNormConfidence(vecSamples));
+			vecSemNormConf(intBin) = std(vecSortedNormConfidence(vecSamples))./sqrt(intSperBin);
+			cellValsNormConf{intBin} = vecSortedNormConfidence(vecSamples);
+			
+			vecSampleGroup(vecSamples) = intBin;
+		end
+		
 		%% plot
 		figure;maxfig;
 		
@@ -310,12 +372,13 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%make plot
 		h1=subplot(3,4,1);
 		[vecT,vecR]=getIFR(vecSpikeTimes,0,1);
-		plot(vecT,vecR,'color',[0.5 0.5 0.5]);
+		plot(vecT+dblRemOnset,vecR,'color',[0.5 0.5 0.5]);
 		hold on
 		title(sprintf('%s, %s, trial %d',strRec,strType,intPlotTrial),'interpreter','none');
 		xlabel('Time after stim onset (s)');
 		ylabel('Pop IFR');		
 		ylim([0 max(get(gca,'ylim'))]);
+		xlim([0 max(get(gca,'xlim'))]);
 		
 		matCol = [0 0 0; lines(intAssignGroups)];
 		colormap(matCol);
@@ -324,20 +387,22 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		hold on
 		plot([vecGroupStart(1) vecGroupStop(end)],[1 1]*(1/intOriNum),'--','color',[0.5 0.5 0.5]);
 		for intGroup=1:intAssignGroups
-			plot(h2,[vecGroupStart(intGroup) vecGroupStop(intGroup)],[1 1]*vecSpikeGroupConfidence(vecGlobalGroups(intGroup)),'color',matCol(intGroup+1,:));
+			plot(h2,dblRemOnset+[vecGroupStart(intGroup) vecGroupStop(intGroup)],[1 1]*vecSpikeGroupConfidence(vecGlobalGroups(intGroup)),'color',matCol(intGroup+1,:));
 			intSp1 = find(vecT>=vecGroupStart(intGroup),1);
 			intSp2 = find(vecT>=vecGroupStop(intGroup),1);
-			plot(h1,vecT(intSp1:intSp2),vecR(intSp1:intSp2),'color',matCol(intGroup+1,:));
+			plot(h1,dblRemOnset+vecT(intSp1:intSp2),vecR(intSp1:intSp2),'color',matCol(intGroup+1,:));
 		end
 		hold(h1,'off');
 		hold(h2,'off');
 		xlabel('Time after stim onset (s)');
 		ylabel('Decoder confidence');		
-
+		xlim([0 max(get(gca,'xlim'))]);
+		
 		subplot(3,4,9);
-		scatter(vecSpikeTimes,vecSpikeNeuron,[],vecSpikeGroup,'o','filled')
+		scatter(dblRemOnset+vecSpikeTimes,vecSpikeNeuron,[],vecSpikeGroup,'o','filled')
 		xlabel('Time after stim onset (s)');
 		ylabel('Neuron ID');		
+		xlim([0 max(get(gca,'xlim'))]);
 		
 		% plot groups of whole recording
 		%sort
@@ -359,9 +424,9 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		intSperBin = floor(numel(vecSortedDur)/intBins);
 		vecMeanDur = nan(1,intBins);
 		vecSemDur = nan(1,intBins);
-		vecMeanCorr = nan(1,intBins);
-		matCiCorr = nan(2,intBins);
-		cellValsCorr = cell(1,intBins);
+		vecMeanCorrect = nan(1,intBins);
+		matCiCorrect = nan(2,intBins);
+		cellValsCorrect = cell(1,intBins);
 		vecMeanConf = nan(1,intBins);
 		vecSemConf = nan(1,intBins);
 		cellValsConf = cell(1,intBins);
@@ -374,9 +439,9 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			vecSemDur(intBin) = std(vecSortedDur(vecSamples))./sqrt(intSperBin);
 			
 			[phat,pci] = binofit(sum(vecSortedCorr(vecSamples)),intSperBin);
-			vecMeanCorr(intBin) = phat;
-			matCiCorr(:,intBin) = pci;
-			cellValsCorr{intBin} = vecSortedCorr(vecSamples);
+			vecMeanCorrect(intBin) = phat;
+			matCiCorrect(:,intBin) = pci;
+			cellValsCorrect{intBin} = vecSortedCorr(vecSamples);
 			
 			vecMeanConf(intBin) = mean(vecSortedConf(vecSamples));
 			vecSemConf(intBin) = std(vecSortedConf(vecSamples))./sqrt(intSperBin);
@@ -400,27 +465,32 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		subplot(2,4,6)
 		hold on
-		h=scatter(vecSpikeGroupLatency,vecSpikeGroupConfidence,100,[0.2 0.2 0.2],'.');
+		h=scatter(dblRemOnset+vecSpikeGroupLatency,vecSpikeGroupConfidence,100,[0.2 0.2 0.2],'.');
 		h.MarkerFaceAlpha = 0.1;
 		h.MarkerEdgeAlpha = 0.1;
-		h2=scatter(vecSpikeGroupLatency(vecGlobalGroups),vecSpikeGroupConfidence(vecGlobalGroups),200,matCol(2:end,:),'.');
+		h2=scatter(dblRemOnset+vecSpikeGroupLatency(vecGlobalGroups),vecSpikeGroupConfidence(vecGlobalGroups),200,matCol(2:end,:),'.');
 		hold off
-		xlim([0 1]);
+		xlim([0 max(get(gca,'xlim'))]);
 		ylim([0 1]);
 		xlabel('Time after stim onset (s)');
 		ylabel('Decoder confidence');
 		
-		subplot(2,4,8)
-		vecBinsE = 0:0.002:max(vecSortedDur);
-		vecBinsC = vecBinsE(2:end)-diff(vecBinsE(1:2))/2;
-		[vecCounts,vecMeans,vecSDs] = makeBins(vecSortedDur,vecSortedCorr,vecBinsE);
-		plot(vecBinsC*1000,(ones(size(vecBinsC))/intOriNum)*100,'--','color',[0.5 0.5 0.5]);
+		
+		%dur/confidence
+		indRemS = vecSampleGroup==0;
+		vecSampleGroup(indRemS) = [];
+		vecSampleConf = vecSortedConf(~indRemS);
+		[pA2,table2,stats2] = anova1(vecSampleConf,vecSampleGroup,'off');
+		[c2,~,~,gnames2] = multcompare(stats2,'CType','bonferroni','display','off');
+		
+		subplot(2,4,3)
+		plot(vecMeanDur*1000,(ones(size(vecMeanDur))/intOriNum),'--','color',[0.5 0.5 0.5]);
 		hold on
-		errorbar(vecBinsC*1000,vecMeans*100,(vecSDs*100)./sqrt(intSperBin),'color',lines(1));
+		errorbar(vecMeanDur*1000,vecMeanConf,vecSemConf,vecSemConf,vecSemDur,vecSemDur,'color',lines(1));
 		hold off
 		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
-		ylabel('Decoder accuracy (%)');
-		title(sprintf('r=%.3f, p=%.3f',r2,p2));
+		ylabel('Decoder confidence');
+		title(sprintf('Deciles, ANOVA, p=%.1e',pA2));
 		ylim([0 max(get(gca,'ylim'))]);
 		
 		subplot(2,4,4)
@@ -436,48 +506,41 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		title(sprintf('r=%.3f, p=%.3f',r,p));
 		ylim([0 max(get(gca,'ylim'))]);
 		
-		%anova corr
-		indRemS = vecSampleGroup==0;
-		vecSampleGroup(indRemS) = [];
-		vecSampleCorr = vecSortedCorr(~indRemS);
-		[pA,table,stats] = anova1(vecSampleCorr,vecSampleGroup,'off');
-		[c,~,~,gnames] = multcompare(stats,'CType','bonferroni','display','off');
+		
+		%delta-r/confidence
 		subplot(2,4,7)
-		plot(vecMeanDur*1000,(ones(size(vecMeanDur))/intOriNum)*100,'--','color',[0.5 0.5 0.5]);
+		plot(vecMeanDeltaR,(zeros(size(vecMeanDeltaR))/intOriNum),'--','color',[0.5 0.5 0.5]);
 		hold on
-		errorbar(vecMeanDur*1000,vecMeanCorr*100,(vecMeanCorr-matCiCorr(1,:))*100,(vecMeanCorr-matCiCorr(2,:))*100,vecSemDur,vecSemDur,'color',lines(1));
+		errorbar(vecMeanDeltaR,vecMeanNormConf,vecSemNormConf,vecSemNormConf,vecSemDeltaR,vecSemDeltaR,'color',lines(1));
 		hold off
-		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
-		ylabel('Decoder accuracy (%)');
-		title(sprintf('Deciles, ANOVA, p=%.1e',pA));
-		ylim([0 max(get(gca,'ylim'))]);
+		xlabel(sprintf('Rate change during spike block (Hz)'));
+		ylabel('Relative decoder confidence (z-score)');
+		ylim([-1 1]*max(abs(get(gca,'ylim'))));
 		
+		subplot(2,4,8)
+		vecEdgesX = -500:10:500;
+		vecCenterX = vecEdgesX(2:end) - diff(vecEdgesX(1:2))/2;
+		[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecRateChanges,vecConfidence,vecEdgesX);
 		
-		%anova conf
-		indRemS = vecSampleGroup==0;
-		vecSampleGroup(indRemS) = [];
-		vecSampleConf = vecSortedConf(~indRemS);
-		[pA2,table2,stats2] = anova1(vecSampleConf,vecSampleGroup,'off');
-		[c2,~,~,gnames2] = multcompare(stats,'CType','bonferroni','display','off');
-		
-		subplot(2,4,3)
-		plot(vecMeanDur*1000,(ones(size(vecMeanDur))/intOriNum),'--','color',[0.5 0.5 0.5]);
+		[r,p]=corr(vecRateChanges,vecConfidence);
+		plot(vecCenterX,(ones(size(vecCenterX))/intOriNum),'--','color',[0.5 0.5 0.5]);
 		hold on
-		errorbar(vecMeanDur*1000,vecMeanConf,vecSemConf,vecSemConf,vecSemDur,vecSemDur,'color',lines(1));
+		errorbar(vecCenterX,vecMeans,vecSDs./sqrt(vecCounts),'color',lines(1));
 		hold off
-		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
+		xlabel(sprintf('Rate change during spike block (Hz)'));
 		ylabel('Decoder confidence');
-		title(sprintf('Deciles, ANOVA, p=%.1e',pA2));
 		ylim([0 max(get(gca,'ylim'))]);
+		title(sprintf('Pearson r=%.3f, p=%.3f',r,p));
 		
 		fixfig;
 		
 		%%
-		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s.tif',strRec,strType,strSGS)));
-		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s.pdf',strRec,strType,strSGS)));
+		strRemDur = sprintf('%.0f',dblRemOnset*1000);
+		export_fig(fullpath(strFigurePathSR,sprintf('A1d_PopActDynamics_%s_%s_SGS%s_%s_%s_Onset%s.tif',strRec,strType,strSGS,strRunType,strRunStim,strRemDur)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1d_PopActDynamics_%s_%s_SGS%s_%s_%s_Onset%s.pdf',strRec,strType,strSGS,strRunType,strRunStim,strRemDur)));
 		
 		%% save data
-		save(fullpath(strTargetDataPath,sprintf('Q1cData_%s_%s_SGS%s',strRec,strType,strSGS)),...
+		save(fullpath(strTargetDataPath,sprintf('Q1dData_%s_%s_SGS%s_%s_%s_Onset%s',strRec,strType,strSGS,strRunType,strRunStim,strRemDur)),...
 			'vecStimOnTime',...
 			'vecStimOffTime',...
 			'vecOrientation',...
@@ -485,8 +548,137 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			'intSpikeGroupSize',...
 			'strRec',...
 			'strType',...
+			'strSGS',...
+			'strRunType',...
+			'dblRemOnset',...
 			'sSpikeGroup');
 	end
 	close all;
 end
+end
+end
 toc
+%{
+%% detect peaks
+		%remove spikes outside epoch & build shuffled array
+		cellUseSpikeTimes = cell(1,intNumN);
+		for intN=1:intNumN
+			vecT = vecAllSpikeTime(vecAllSpikeNeuron==intN);
+			indRem = (vecT > dblStopEpoch) | (vecT < dblStartEpoch);
+			cellUseSpikeTimes{intN} = vecT(~indRem);
+		end
+		%add data
+		sAllSpike = struct;
+		sAllSpike.vecAllSpikeTime = vecAllSpikeTime;
+		sAllSpike.vecAllSpikeNeuron = vecAllSpikeNeuron;
+		sAllSpike.dblStartEpoch = dblStartEpoch;
+		sAllSpike.dblEpochDur = dblEpochDur;
+		
+		%set params and run pop event detection
+		fprintf('   Detecting peaks [%s]\n',getTime);
+		dblCutOff = 0.65;
+		sPeakOpts = struct;
+		sPeakOpts.intLag = intLag;
+		sPeakOpts.dblThreshZ = dblThreshZ;
+		sPeakOpts.dblInfluence = dblInfluence;
+		[sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR,vecStimIFR_Raw] = getPopEvents(vecIFR,vecTime,vecStimOnTime,sPeakOpts,sAllSpike,dblCutOff);
+		
+		%extract
+		vecPopEventTimes = [sPopEvents.Time];
+		vecPopEventLocs = [sPopEvents.Loc];
+		vecMergedPopEventTimes = [sMergedPopEvents.Time];
+		vecMergedPopEventLocs = [sMergedPopEvents.Loc];
+		vecPeakHeight = vecStimIFR(vecMergedPopEventLocs);
+		
+		%% go through peaks and decode leading and lagging spikes
+		intSpikeGroupSize=20
+		intPeakNum = numel(vecMergedPopEventLocs);
+		matPeakGroupData = nan(intPeakNum*2,intNumN);
+		vecPeakGroupTrial = nan(intPeakNum*2,1);
+		vecPeakGroupStimType = nan(intPeakNum*2,1);
+		vecPeakGroupIsPost = nan(intPeakNum*2,1);
+		sPeakGroup = struct;
+		for intPeakGroup = 1:intPeakNum
+			%get trial
+			intGroupCenter = vecMergedPopEventLocs(intPeakGroup);
+			dblGroupTime = vecMergedPopEventTimes(intPeakGroup);
+			intTrial = sum(dblGroupTime>vecStimOnTime);
+			if isempty(intTrial),intTrial=0;end
+			if intTrial==0 || dblGroupTime>vecStimOffTime(intTrial)
+				%iti
+				intStimType = 0;
+				dblTrialStart = dblStartEpoch;
+			else
+				%during
+				intStimType = vecOriIdx(intTrial);
+				dblTrialStart = vecStimOnTime(intTrial);
+			end
+			%pre
+			vecSpikesPre = (intGroupCenter-intSpikeGroupSize):(intGroupCenter-1);
+			vecPreNeurons = vecAllSpikeNeuron(vecSpikesPre);
+			
+			matPeakGroupData(intPeakGroup*2-1,:) = accumarray(vecPreNeurons(:),1,[intNumN 1]);
+			vecPeakGroupTrial(intPeakGroup*2-1) = intTrial;
+			vecPeakGroupStimType(intPeakGroup*2-1) = intStimType;
+			vecPeakGroupIsPost(intPeakGroup*2-1) = 0;
+			
+			%post
+			vecSpikesPost = (intGroupCenter+1):(intGroupCenter+intSpikeGroupSize);
+			vecPostNeurons = vecAllSpikeNeuron(vecSpikesPost);
+			
+			matPeakGroupData(intPeakGroup*2,:) = accumarray(vecPostNeurons(:),1,[intNumN 1]);
+			vecPeakGroupTrial(intPeakGroup*2) = intTrial;
+			vecPeakGroupStimType(intPeakGroup*2) = intStimType;
+			vecPeakGroupIsPost(intPeakGroup*2) = 1;
+		end
+		
+		%reduce data to only events in trials
+		indRem = vecPeakGroupStimType==0;
+		matPeakGroupData(indRem,:)=[];
+		vecPeakGroupTrial(indRem)=[];
+		vecPeakGroupStimType(indRem)=[];
+		vecPeakGroupIsPost(indRem)=[];
+		intDoublePeakGroup = numel(vecPeakGroupIsPost);
+		
+		%do logistic regression
+		vecPriorDistribution = accumarray(vecPeakGroupStimType(:),1,[intOriNum 1]);
+		intVerbose = 1;
+		[dblPeakPerformanceCV,vecPeakGroupDecodedTrial,matPeakPosteriorProbability,dblPeakMeanErrorDegs,matPeakConfusion,matPeakWeights] = ...
+			doCrossValidatedDecodingLR(matPeakGroupData,vecPeakGroupStimType,intTypeCV,[],dblLambda,intVerbose);
+		
+		vecPeakGroupCorrect = vecPeakGroupDecodedTrial(:) == vecPeakGroupStimType;
+		vecPeakGroupConfidence = nan(intDoublePeakGroup,1);
+		for intStimType=1:intOriNum
+			vecPeakGroupConfidence(vecPeakGroupStimType==intStimType) = matPeakPosteriorProbability(intStimType,vecPeakGroupStimType==intStimType);
+		end
+		
+		%
+		% plot histo
+		dblStep = 0.01;
+		dblMax = max(vecPeakGroupConfidence);
+		vecBinsE = 0:dblStep:dblMax;
+		vecConfPre = histcounts(vecPeakGroupConfidence(vecPeakGroupIsPost==0),vecBinsE);
+		vecConfPost = histcounts(vecPeakGroupConfidence(vecPeakGroupIsPost==1),vecBinsE);
+		vecBinsC = vecBinsE(2:end) - dblStep;
+		
+		figure
+		subplot(2,3,1)
+		plot(vecBinsC,vecConfPre,'b');
+		hold on
+		plot(vecBinsC,vecConfPost,'r');
+		hold off
+		
+		%diff
+		subplot(2,3,2)
+		vecPeakGroupConfDiff = vecPeakGroupConfidence(2:2:end) - vecPeakGroupConfidence(1:2:end);
+		[h,p]=ttest(vecPeakGroupConfDiff);
+		dblStep = 0.01;
+		dblMax = 0.3;%max(abs(vecPeakGroupConfDiff));
+		vecBinsE = -dblMax:dblStep:dblMax;
+		vecBinsC = vecBinsE(2:end) - dblStep;
+		vecConfDiffCount = histcounts(vecPeakGroupConfDiff,vecBinsE);
+		plot(vecBinsC,vecConfDiffCount,'k');
+		title(sprintf('%d, mu=%.3f, p=%.3f',intSpikeGroupSize,mean(vecPeakGroupConfDiff),p));
+		
+		return
+%}

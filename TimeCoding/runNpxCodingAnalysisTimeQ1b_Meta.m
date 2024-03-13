@@ -41,7 +41,7 @@ end
 
 %% load data
 cellTypes = {'Real', 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
-intRunType = 2;
+intRunType = 3;
 strRunType = cellTypes{intRunType};
 sFiles = dir ([strTargetDataPath 'Q1bData*' strRunType '.mat']);
 boolSinglePlots = false;

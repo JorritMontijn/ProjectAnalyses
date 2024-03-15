@@ -20,7 +20,7 @@ fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),s
 sAggNeuron(indRemDBA) = [];
 
 %% pre-allocate matrices
-cellTypes = {'Real', 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
+cellTypes = {'UniformTrial'};%{'Real', 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 intNumTypes = numel(cellTypes);
 intAreas = numel(cellUseAreas);
 

@@ -27,7 +27,7 @@ if strcmp(strRunStim,'DG')
 	cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
 	vecOri180 = mod(vecOrientation,180)*2;
 	vecStimIdx = vecOri180;
-	[matMeanRate,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,vecStimOnStitched,vecNonStat,dblBC,dblMaxDevFrac] = ...
+	[matMeanRate,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,vecStimOnStitched,vecNonStat,dblBC,dblMaxDevFrac,indResp] = ...
 		NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 	intTunedN = sum(indTuned);
 	intRespN = size(matMeanRate,1);

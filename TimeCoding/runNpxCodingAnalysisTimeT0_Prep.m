@@ -22,6 +22,7 @@ else
 	runLoadNpx;
 end
 intAreas = numel(cellUseAreas{1});
+cellSupraGranuInfra = {'Supragranular','Granular','Infragranular'};
 
 %% go through recordings
 tic
@@ -36,6 +37,22 @@ for intRec=1:intRecNum
 		fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronNum,strRecOrig,getTime);
 		continue;
 	end
+	
+	%% get cortical depth per cell
+	cellSpikeTimesOrig = cellSpikeTimes;
+	sArea1Neurons = sUseNeuron(indArea1Neurons);
+	sRespNeurons = sArea1Neurons(indResp); %FR above 0.1 Hz
+	cellAreas = {sRespNeurons.Area};
+	vecCorticalLayer = cellfun(@(x) str2double(x(regexp(x,'layer.*')+6)),cellAreas);
+	vecDepth = [sRespNeurons.DepthBelowIntersect];
+	vecSupraGranuInfra = double(vecCorticalLayer < 4) + 2*double(vecCorticalLayer == 4) + 3*double(vecCorticalLayer > 4);
+	%scatter(vecSupraGranuInfra,vecDepth)
+	%hold on
+	%text(vecSupraGranuInfra,vecDepth,cellAreas)
+	for intCortLayer = 1:3
+	indUseNeurons = vecSupraGranuInfra(:)==intCortLayer & indTuned;
+	strLayer = cellSupraGranuInfra{intCortLayer};
+	cellSpikeTimes = cellSpikeTimesOrig(indUseNeurons);
 	cellSpikeTimesReal = cellSpikeTimes;
 	
 	%events
@@ -243,12 +260,13 @@ for intRec=1:intRecNum
 		vecTime = vecTime + dblStartEpoch(1);
 		
 		%% save intermediate data
-		save(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s',strRec,strRunType,strRunStim,strType)),...
+		save(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s%s',strRec,strRunType,strRunStim,strType,strLayer)),...
 			...%epoch
 			'dblStartEpoch',...
 			'dblEpochDur',...
 			...%type
 			'strType',...
+			'strLayer',...
 			...%data
 			'vecAllSpikeTime',...
 			'vecAllSpikeNeuron',...
@@ -256,6 +274,7 @@ for intRec=1:intRecNum
 			'vecIFR',...
 			'strRunStim'...
 			);
+	end
 	end
 end
 toc

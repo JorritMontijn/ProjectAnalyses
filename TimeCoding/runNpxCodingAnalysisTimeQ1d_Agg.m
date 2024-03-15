@@ -28,6 +28,7 @@ cellTypes = {'Real','ShuffTid'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; 
 intNumTypes = numel(cellTypes);
 boolFixSpikeGroupSize = true;
 dblRemOnset = 0.25; %remove onset period in seconds
+cellSupraGranuInfra = {'Supragranular','Granular','Infragranular'};
 
 %% go through recordings
 tic
@@ -50,8 +51,19 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	indArea1Neurons = contains({sUseNeuron.Area},strArea,'IgnoreCase',true);
 	if sum(indArea1Neurons) == 0, continue;end
 	
-	%% get orientation responses & single-trial population noise
+	%% get cortical depth per cell
 	sArea1Neurons = sUseNeuron(indArea1Neurons);
+	cellAreas = {sArea1Neurons.Area};
+	vecCorticalLayer = cellfun(@(x) str2double(x(regexp(x,'layer.*')+6)),cellAreas);
+	vecDepth = [sArea1Neurons.DepthBelowIntersect];
+	vecSupraGranuInfra = double(vecCorticalLayer < 4) + 2*double(vecCorticalLayer == 4) + 3*double(vecCorticalLayer > 4);
+	%scatter(vecSupraGranuInfra,vecDepth)
+	%hold on
+	%text(vecSupraGranuInfra,vecDepth,cellAreas)
+	for intCortLayer = 1:3
+	indUseNeurons = vecSupraGranuInfra==intCortLayer;
+	strLayer = cellSupraGranuInfra{intCortLayer};
+	sArea1Neurons = sUseNeuron(indArea1Neurons & indUseNeurons);
 	
 	%% prep data
 	%remove first x ms
@@ -91,8 +103,9 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		% spikes at pop level, detect peaks, and split into trials.
 		%get spikes per trial per neuron
 		strType = cellTypes{intType};
-		fprintf('Running rec %d/%d for %s, %s, %s, Rem %.3f s; %s [%s]\n',intRec,numel(sAggStim),strRunType,strRunStim,strType,dblRemOnset,strRec,getTime);
+		fprintf('Running rec %d/%d for %s, %s, %s, %s, Rem %.3f s; %s [%s]\n',intRec,numel(sAggStim),strRunType,strLayer,strRunStim,strType,dblRemOnset,strRec,getTime);
 		sSource = load(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s',strRec,strRunType,strRunStim,strType)));
+		error also t0
 		
 		%% detect peaks
 		% filter
@@ -536,11 +549,11 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		%%
 		strRemDur = sprintf('%.0f',dblRemOnset*1000);
-		export_fig(fullpath(strFigurePathSR,sprintf('A1d_PopActDynamics_%s_%s_SGS%s_%s_%s_Onset%s.tif',strRec,strType,strSGS,strRunType,strRunStim,strRemDur)));
-		export_fig(fullpath(strFigurePathSR,sprintf('A1d_PopActDynamics_%s_%s_SGS%s_%s_%s_Onset%s.pdf',strRec,strType,strSGS,strRunType,strRunStim,strRemDur)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1d_PopActDynamics_%s_%s_SGS%s_%s_%s_%s_Onset%s.tif',strRec,strType,strSGS,strRunType,strRunStim,strLayer,strRemDur)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1d_PopActDynamics_%s_%s_SGS%s_%s_%s_%s_Onset%s.pdf',strRec,strType,strSGS,strRunType,strRunStim,strLayer,strRemDur)));
 		
 		%% save data
-		save(fullpath(strTargetDataPath,sprintf('Q1dData_%s_%s_SGS%s_%s_%s_Onset%s',strRec,strType,strSGS,strRunType,strRunStim,strRemDur)),...
+		save(fullpath(strTargetDataPath,sprintf('Q1dData_%s_%s_SGS%s_%s_%s_%s_Onset%s',strRec,strType,strSGS,strRunType,strRunStim,strLayer,strRemDur)),...
 			'vecStimOnTime',...
 			'vecStimOffTime',...
 			'vecOrientation',...
@@ -554,6 +567,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			'sSpikeGroup');
 	end
 	close all;
+end
 end
 end
 end

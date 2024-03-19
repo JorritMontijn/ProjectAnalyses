@@ -41,7 +41,7 @@ end
 
 %% load data
 strArea = 'V1';
-strType = 'ShuffTid'; %'Real' 'ShuffTid'
+strType = 'Real'; %'Real' 'ShuffTid'
 boolFixedSpikeGroupSize = true;
 intQuantiles = 10;
 vecBinsDur = 0:0.01:1;
@@ -60,7 +60,27 @@ intRecNum = numel(sFiles);
 cellQuantileDur = cell(intRecNum,intQuantiles);
 cellQuantileConf = cell(intRecNum,intQuantiles);
 matLatConf = nan(intRecNum,numel(vecBinsDurC));
-vecSpikeGroupSize= nan(intRecNum,1);
+vecSpikeGroupSize = nan(intRecNum,1);
+
+vecR_Num_Conf = nan(intRecNum,1);
+vecR_Rate_Conf = nan(intRecNum,1);
+vecR_Tune_Conf = nan(intRecNum,1);
+vecR_IFR_Conf = nan(intRecNum,1);
+
+vecR_CombConf_CellNum = nan(intRecNum,1);
+vecR_CombConf_Rate = nan(intRecNum,1);
+vecR_CombConf_Tune = nan(intRecNum,1);
+vecR_CombConf_IFR = nan(intRecNum,1);
+
+
+vecR_Num_IFR = nan(intRecNum,1);
+vecR_Rate_IFR = nan(intRecNum,1);
+vecR_Tune_IFR = nan(intRecNum,1);
+
+vecR_CombIFR_Rate = nan(intRecNum,1);
+vecR_CombIFR_Tune = nan(intRecNum,1);
+
+vecR_Group_Rate_Tune = nan(intRecNum,1);
 
 %% plot
 figure;maxfig;
@@ -89,13 +109,23 @@ for intFile=1:intRecNum
 	vecStimOffTime = sLoad.vecStimOffTime;
 	vecStimOnTime = sLoad.vecStimOnTime;
 	intSpikeGroupSize = sLoad.intSpikeGroupSize;
+	rSpike_IFR_Rate = sLoad.rSpike_IFR_Rate;
+	pSpike_IFR_Rate = sLoad.pSpike_IFR_Rate;
+	rSpike_IFR_Tune = sLoad.rSpike_IFR_Tune;
+	pSpike_IFR_Tune = sLoad.pSpike_IFR_Tune;
+	vecTuningPerCell = sLoad.vecTuningPerCell;
+	vecRatePerCell = sLoad.vecRatePerCell;
 	
 	%% create derived variables
 	%put confidence in deciles per recording
-	vecSpikeGroupDuration = [sSpikeGroup.Duration];
-	vecSpikeGroupCorrect = [sSpikeGroup.Correct];
-	vecSpikeGroupConfidence = [sSpikeGroup.Confidence];
-	vecSpikeGroupLatency = [sSpikeGroup.Latency];
+	vecSpikeGroupDuration = [sSpikeGroup.Duration]';
+	vecSpikeGroupCorrect = [sSpikeGroup.Correct]';
+	vecSpikeGroupConfidence = [sSpikeGroup.Confidence]';
+	vecSpikeGroupLatency = [sSpikeGroup.Latency]';
+	vecSpikeGroupNumOfCells = [sSpikeGroup.NumOfCells]';
+	vecSpikeGroupAvgRateOfCells = [sSpikeGroup.AvgRateOfCells]';
+	vecSpikeGroupAvgTuningOfCells = [sSpikeGroup.AvgTuningOfCells]';
+	vecSpikeGroupAvgIFR = [sSpikeGroup.AvgRate]';
 	
 	%sort
 	[vecSortedDur,vecSort]=sort(vecSpikeGroupDuration);
@@ -151,7 +181,51 @@ for intFile=1:intRecNum
 	[vecCounts,vecMeans,vecSDs]=makeBins(vecSpikeGroupLatency,vecSpikeGroupConfidence,vecBinsDur);
 	plot(h2,vecBinsDurC,vecMeans,'color',vecColGrey);%,vecSDs./sqrt(vecCounts),vecSDs./sqrt(vecCounts),'color',lines(1));
 	
-	%% save data
+	%%
+	%predict conf
+	[r_Num_Conf,p_Num_Conf]=corr(vecSpikeGroupNumOfCells,vecSpikeGroupConfidence);
+	[r_Rate_Conf,p_Rate_Conf]=corr(vecSpikeGroupAvgRateOfCells,vecSpikeGroupConfidence);
+	[r_Tune_Conf,p_Tune_Conf]=corr(vecSpikeGroupAvgTuningOfCells,vecSpikeGroupConfidence);
+	[r_IFR_Conf,p_IFR_Conf]=corr(vecSpikeGroupAvgIFR,vecSpikeGroupConfidence);
+	
+	tbl = table(vecSpikeGroupNumOfCells,vecSpikeGroupAvgRateOfCells,vecSpikeGroupAvgTuningOfCells,vecSpikeGroupAvgIFR,vecSpikeGroupConfidence,...
+		'VariableNames',{'CellNumber','AvgCellRate','AvgCellTuning','AvgPopIFR','Conf'});
+	mdl_predconf = fitlm(tbl,'linear');
+	
+	%predict ifr
+	[r_Num_IFR,p_Num_IFR]=corr(vecSpikeGroupNumOfCells,vecSpikeGroupAvgIFR);
+	[r_Rate_IFR,p_Rate_IFR]=corr(vecSpikeGroupAvgRateOfCells,vecSpikeGroupAvgIFR);
+	[r_Tune_IFR,p_Tune_IFR]=corr(vecSpikeGroupAvgTuningOfCells,vecSpikeGroupAvgIFR);
+	tbl = table(vecSpikeGroupAvgRateOfCells,vecSpikeGroupAvgTuningOfCells,vecSpikeGroupAvgIFR,...
+		'VariableNames',{'AvgCellRate','AvgCellTuning','AvgPopIFR'});
+	mdl_predifr = fitlm(tbl,'linear');
+	
+	%rate vs tuning
+	[rGroup_Rate_Tune,pGroup_Rate_Tune]=corr(vecTuningPerCell,vecRatePerCell);
+	
+	%% save
+	%result: during high ifr epochs, cells with low firing rate and low tuning are also active,
+	%while during low ifr epochs, only cells with high firing rate or high tuning are active
+	vecR_Num_Conf(intFile) = r_Num_Conf;
+	vecR_Rate_Conf(intFile) = r_Rate_Conf;
+	vecR_Tune_Conf(intFile) = r_Tune_Conf;
+	vecR_IFR_Conf(intFile) = r_IFR_Conf;
+	
+	vecR_CombConf_CellNum(intFile) = table2array(mdl_predconf.Coefficients(2,1));
+	vecR_CombConf_Rate(intFile) = table2array(mdl_predconf.Coefficients(3,1));
+	vecR_CombConf_Tune(intFile) = table2array(mdl_predconf.Coefficients(4,1));
+	vecR_CombConf_IFR(intFile) = table2array(mdl_predconf.Coefficients(5,1));
+	
+	
+	vecR_Num_IFR(intFile) = r_Num_IFR;
+	vecR_Rate_IFR(intFile) = r_Rate_IFR;
+	vecR_Tune_IFR(intFile) = r_Tune_IFR;
+	
+	vecR_CombIFR_Rate(intFile) = table2array(mdl_predifr.Coefficients(2,1));
+	vecR_CombIFR_Tune(intFile) = table2array(mdl_predifr.Coefficients(3,1));
+	
+	vecR_Group_Rate_Tune(intFile) = rGroup_Rate_Tune;
+	
 	cellQuantileDur(intFile,:) = cellValsDur;
 	cellQuantileConf(intFile,:) = cellValsConf;
 	matLatConf(intFile,:) = vecMeans;
@@ -189,8 +263,27 @@ ylabel(h3,sprintf('Decoder confidence, z-scored per rec (%s)',getGreek('sigma'))
 title(h3,sprintf('Lin reg, r=%.3f %s/decile, p=%.3e',r,getGreek('sigma'),p));
 fixfig;
 
+%% plot corrs
+subplot(2,3,4)
+hold on
+vecX = ones(size(vecR_Num_Conf));
+swarmchart(1*vecX,vecR_Num_Conf);
+swarmchart(2*vecX,vecR_Rate_Conf);
+swarmchart(3*vecX,vecR_Tune_Conf);
+swarmchart(4*vecX,vecR_IFR_Conf);
+ 
 
+
+
+
+
+vecR_Num_IFR
+vecR_Rate_IFR
+vecR_Tune_IFR
+
+
+%%
+return
 drawnow;
 export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockDecoding%s%s.tif',strType,strSGS)));
 export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockDecoding%s%s.pdf',strType,strSGS)));
-	

@@ -30,6 +30,7 @@ function [matMeanRate,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial
 	cellSpikeTimesPerCellPerTrial = cell(intRespN,intTrialNum);
 	vecNonStat = nan(1,intRespN);
 	boolDiscardEdges = true;
+	vecPseudoEventT = [];
 	for intN=1:intRespN
 		% build pseudo data, stitching stimulus periods
 		[vecPseudoSpikeTimes,vecPseudoEventT] = getPseudoSpikeVectors(cellSpikeTimes{intN},vecStimOnTime,dblDur,boolDiscardEdges);
@@ -53,8 +54,13 @@ function [matMeanRate,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial
 	vecFilt = normpdf(-4:4,0,1)/sum(normpdf(-4:4,0,1));
 	vecFiltM = imfilt(vecMeanZ,vecFilt);
 	
+	if intRespN > 0
 	%calc metrics
-	[h,pKS,ksstat,cv] = kstest(vecFiltM);
-	[BF, dblBC] = bimodalitycoeff(vecFiltM);
-	dblMaxDevFrac = max(abs(vecFiltM));
-	
+		[h,pKS,ksstat,cv] = kstest(vecFiltM);
+		[BF, dblBC] = bimodalitycoeff(vecFiltM);
+		dblMaxDevFrac = max(abs(vecFiltM));
+	else
+		dblBC = nan;
+		dblMaxDevFrac = nan;
+	end
+end

@@ -42,10 +42,13 @@ end
 %% load data
 strArea = 'V1';
 cellTypes = {'Real','ShuffTid'};
+cellSupraGranuInfra = {'Supragranular','Granular','Infragranular'};
+for intLayer=1:numel(cellSupraGranuInfra)
 for intType=1:numel(cellTypes)
-for boolFixedSpikeGroupSize = [true false]
+for boolFixedSpikeGroupSize = false%[true false]
 for dblOnset = [0 0.25]
 strType = cellTypes{intType};
+strLayer = cellSupraGranuInfra{intLayer};
 intQuantiles = 10;
 vecBinsDur = 0:0.01:1;
 vecBinsDurC = vecBinsDur(2:end) - diff(vecBinsDur(1:2))/2;
@@ -55,10 +58,10 @@ vecColGrey = [0.7 0.7 0.7];
 
 strOnset = sprintf('%.0f',dblOnset*1000);
 if boolFixedSpikeGroupSize
-	sFiles = dir ([strTargetDataPath 'Q1cData*' strType '*Fixed*_Npx_DG_Onset' strOnset '*']);
+	sFiles = dir ([strTargetDataPath 'Q1dData*' strType '*Fixed*_Npx_DG_' strLayer '_Onset' strOnset '*']);
 	strSGS = 'FixedSGS';
 else
-	sFiles = dir ([strTargetDataPath 'Q1cData*' strType '*Var*_Npx_DG_Onset' strOnset '*']);
+	sFiles = dir ([strTargetDataPath 'Q1dData*' strType '*Var*_Npx_DG_' strLayer '_Onset' strOnset '*']);
 	strSGS = 'VarSGS';
 end
 [strPath,strName,strExt] = fileparts(sFiles(1).name);
@@ -290,6 +293,7 @@ drawnow;
 strType = strrep(strRunType,',','_');
 export_fig(fullpath(strFigurePath,sprintf('Q1d_SpikeBlockDecoding%s.tif',strType)));
 export_fig(fullpath(strFigurePath,sprintf('Q1d_SpikeBlockDecoding%s.pdf',strType)));
+end
 end
 end
 end

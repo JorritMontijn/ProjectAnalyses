@@ -340,33 +340,24 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecSortedConf(indRem) = [];
 		vecSortedLat(indRem) = [];
 		
-		%calculate fraction correct and confidence per bin of equal size
-		intBins = 10;
-		intSperBin = floor(numel(vecSortedDur)/intBins);
-		vecMeanDur = nan(1,intBins);
-		vecSemDur = nan(1,intBins);
-		vecMeanCorr = nan(1,intBins);
-		matCiCorr = nan(2,intBins);
-		cellValsCorr = cell(1,intBins);
-		vecMeanConf = nan(1,intBins);
-		vecSemConf = nan(1,intBins);
-		cellValsConf = cell(1,intBins);
+		%calculate confidence per bin of equal size
+		intQuantileNum = 10;
+		[vecMeanDur,vecSemDur,vecMeanConf,vecSemConf,vecQuantile]=getQuantiles(vecSortedDur,vecSortedConf,intQuantileNum);
+
+		%calculate accuracy per bin of equal size
+		intSperBin = floor(numel(vecSortedDur)/intQuantileNum);
+		vecMeanCorr = nan(1,intQuantileNum);
+		matCiCorr = nan(2,intQuantileNum);
+		cellValsCorr = cell(1,intQuantileNum);
 		vecSampleGroup = zeros(size(vecSortedDur));
-		for intBin=1:intBins
+		for intBin=1:intQuantileNum
 			intEndS = intSperBin*intBin;
 			vecSamples = (intEndS-intSperBin+1):intEndS;
-			
-			vecMeanDur(intBin) = mean(vecSortedDur(vecSamples));
-			vecSemDur(intBin) = std(vecSortedDur(vecSamples))./sqrt(intSperBin);
 			
 			[phat,pci] = binofit(sum(vecSortedCorr(vecSamples)),intSperBin);
 			vecMeanCorr(intBin) = phat;
 			matCiCorr(:,intBin) = pci;
 			cellValsCorr{intBin} = vecSortedCorr(vecSamples);
-			
-			vecMeanConf(intBin) = mean(vecSortedConf(vecSamples));
-			vecSemConf(intBin) = std(vecSortedConf(vecSamples))./sqrt(intSperBin);
-			cellValsConf{intBin} = vecSortedConf(vecSamples);
 			vecSampleGroup(vecSamples) = intBin;
 		end
 		[r,p]=corr(vecSortedDur,vecSortedConf);

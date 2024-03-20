@@ -483,10 +483,10 @@ matQuantDur = cellfun(@mean,cellQuantileDur_Dur);
 figure;maxfig;
 cellVars = {'Conf','Num','Rate','Tune','IFR'};
 hSummary=subplot(2,3,6);
-cla
-hold on;
-plot([0 10],[0 0],'--','color',[0.5 0.5 0.5]);
-title('Bonferroni-corrected p & CI');
+cla(hSummary);
+hold(hSummary,'on');
+plot(hSummary,[0 10],[0 0],'--','color',[0.5 0.5 0.5]);
+title(hSummary,sprintf('%s, Bonferroni-corrected p & CI',strType));
 for i=1:5
 	if i == 1
 		cellY = cellQuantileConf_Dur;
@@ -528,6 +528,7 @@ hold(hSummary,'off');
 set(hSummary,'xtick',[1:2:9],'xticklabel',cellVars);
 xtickangle(hSummary,45);
 ylabel(hSummary,sprintf('Lin reg slope, mean +/- 95 CI (%s/decile)',getGreek('sigma')));
+ylim(hSummary,[-0.4 0.4]);
 fixfig;
 
 if boolSaveFig
@@ -540,10 +541,10 @@ end
 matQuantConf = cellfun(@mean,cellQuantileConf_Conf);
 figure;maxfig;
 hSummary=subplot(2,3,6);
-cla
-hold on;
-plot([0 10],[0 0],'--','color',[0.5 0.5 0.5]);
-title('Bonferroni-corrected p & CI');
+cla(hSummary);
+hold(hSummary,'on');
+plot(hSummary,[0 10],[0 0],'--','color',[0.5 0.5 0.5]);
+title(hSummary,sprintf('%s, Bonferroni-corrected p & CI',strType));
 for i=1:5
 	if i == 1
 		continue;
@@ -585,6 +586,7 @@ hold(hSummary,'off');
 set(hSummary,'xtick',[1:2:9],'xticklabel',cellVars);
 xtickangle(hSummary,45);
 ylabel(hSummary,sprintf('Lin reg slope, mean +/- 95 CI (%s/decile)',getGreek('sigma')));
+ylim(hSummary,[-0.4 0.4]);
 fixfig;
 
 %%
@@ -597,10 +599,10 @@ end
 matQuantIFR = cellfun(@mean,cellQuantileIFR_IFR);
 figure;maxfig;
 hSummary=subplot(2,3,6);
-cla
-hold on;
-plot([0 10],[0 0],'--','color',[0.5 0.5 0.5]);
-title('Bonferroni-corrected p & CI');
+cla(hSummary);
+hold(hSummary,'on');
+plot(hSummary,[0 10],[0 0],'--','color',[0.5 0.5 0.5]);
+title(hSummary,sprintf('%s, Bonferroni-corrected p & CI',strType));
 for i=1:4
 	if i == 1
 		cellY = cellQuantileConf_IFR;
@@ -640,6 +642,7 @@ hold(hSummary,'off');
 set(hSummary,'xtick',[1:2:9],'xticklabel',cellVars);
 xtickangle(hSummary,45);
 ylabel(hSummary,sprintf('Lin reg slope, mean +/- 95 CI (%s/decile)',getGreek('sigma')));
+ylim(hSummary,[-0.4 0.4]);
 fixfig;
 
 %%

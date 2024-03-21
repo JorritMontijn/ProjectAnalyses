@@ -27,8 +27,14 @@ strRunStim = 'DG';
 cellTypes = {'Real','ShuffTid'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 intNumTypes = numel(cellTypes);
 boolFixSpikeGroupSize = false;
+dblRemOnset = 0.25; %remove onset period in seconds
 
 %% go through recordings
+if dblRemOnset == 0
+	strOnset = '';
+else
+	strOnset = sprintf('%.2f',dblRemOnset);
+end
 tic
 for intRec=1:numel(sAggStim) %19 || weird: 11
 	% get matching recording data
@@ -51,6 +57,9 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	sArea1Neurons = sUseNeuron(indArea1Neurons);
 	
 	%% prep data
+	%remove first x ms
+	vecStimOnTime = vecStimOnTime + dblRemOnset;
+	
 	%get data matrix
 	cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
 	[matData,indTuned,cellSpikeTimes,sTuning24,cellSpikeTimesPerCellPerTrial] = ...
@@ -64,11 +73,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 	sTuning = getTuningCurves(matData,vecOri180,0);
 	intOriNum = numel(vecUnique);
 	intRepNum = min(vecPriorDistribution);
-	dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
-	dblBinWidth = 5/1000;%/32
-	dblPreTime = 0.3;%10*dblBinWidth;
-	dblPostTime = 0;%30*dblBinWidth;
-	dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
+	dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),2,'ceil');
 	if mean(sum(matData)) < 90
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strRec);
 		continue;
@@ -245,10 +250,10 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%while during low ifr epochs, only cells with high firing rate or high tuning are active
 		
 		%% run single-spike analysis
-		vecSpikeCellTuning = vecTuningPerCell(vecAllSpikeNeuron);
-		vecSpikeCellRate = vecRatePerCell(vecAllSpikeNeuron);
-		[rSpike_IFR_Rate,pSpike_IFR_Rate]=corr(vecIFR,vecSpikeCellRate);
-		[rSpike_IFR_Tune,pSpike_IFR_Tune]=corr(vecIFR,vecSpikeCellTuning);
+		%vecSpikeCellTuning = vecTuningPerCell(vecAllSpikeNeuron);
+		%vecSpikeCellRate = vecRatePerCell(vecAllSpikeNeuron);
+		%[rSpike_IFR_Rate,pSpike_IFR_Rate]=corr(vecIFR,vecSpikeCellRate);
+		%[rSpike_IFR_Tune,pSpike_IFR_Tune]=corr(vecIFR,vecSpikeCellTuning);
 		
 		%% plot
 		figure;maxfig;
@@ -292,13 +297,13 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%match local groups to global groups
 		vecGlobalGroups = find(vecSpikeGroupTrialNumber==intPlotTrial);
 		
-		% plot example trial
+		%% plot example trial
 		%make plot
 		h1=subplot(3,4,1);
 		[vecT,vecR]=getIFR(vecSpikeTimes,0,1);
-		plot(vecT,vecR,'color',[0.5 0.5 0.5]);
+		plot(dblRemOnset+vecT,vecR,'color',[0.5 0.5 0.5]);
 		hold on
-		title(sprintf('%s, %s, trial %d',strRec,strType,intPlotTrial),'interpreter','none');
+		title(sprintf('%s, %s, %s trial %d',strRec,strType,strOnset,intPlotTrial),'interpreter','none');
 		xlabel('Time after stim onset (s)');
 		ylabel('Pop IFR');
 		ylim([0 max(get(gca,'ylim'))]);
@@ -308,20 +313,23 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		h2=subplot(3,4,5);
 		hold on
-		plot([vecGroupStart(1) vecGroupStop(end)],[1 1]*(1/intOriNum),'--','color',[0.5 0.5 0.5]);
+		plot(dblRemOnset+[vecGroupStart(1) vecGroupStop(end)],[1 1]*(1/intOriNum),'--','color',[0.5 0.5 0.5]);
 		for intGroup=1:intAssignGroups
-			plot(h2,[vecGroupStart(intGroup) vecGroupStop(intGroup)],[1 1]*vecSpikeGroupConfidence(vecGlobalGroups(intGroup)),'color',matCol(intGroup+1,:));
+			plot(h2,dblRemOnset+[vecGroupStart(intGroup) vecGroupStop(intGroup)],[1 1]*vecSpikeGroupConfidence(vecGlobalGroups(intGroup)),'color',matCol(intGroup+1,:));
 			intSp1 = find(vecT>=vecGroupStart(intGroup),1);
 			intSp2 = find(vecT>=vecGroupStop(intGroup),1);
-			plot(h1,vecT(intSp1:intSp2),vecR(intSp1:intSp2),'color',matCol(intGroup+1,:));
+			plot(h1,dblRemOnset+vecT(intSp1:intSp2),vecR(intSp1:intSp2),'color',matCol(intGroup+1,:));
 		end
 		hold(h1,'off');
 		hold(h2,'off');
+		xlim(h1,[0 max(get(h1,'xlim'))]);
+		xlim(h2,[0 max(get(h2,'xlim'))]);
 		xlabel('Time after stim onset (s)');
 		ylabel('Decoder confidence');
 		
 		subplot(3,4,9);
-		scatter(vecSpikeTimes,vecSpikeNeuron,[],vecSpikeGroup,'o','filled')
+		scatter(dblRemOnset+vecSpikeTimes,vecSpikeNeuron,[],vecSpikeGroup,'o','filled')
+		xlim([0 max(get(gca,'xlim'))]);
 		xlabel('Time after stim onset (s)');
 		ylabel('Neuron ID');
 		
@@ -377,10 +385,10 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		subplot(2,4,6)
 		hold on
-		h=scatter(vecSpikeGroupLatency,vecSpikeGroupConfidence,100,[0.2 0.2 0.2],'.');
+		h=scatter(dblRemOnset+vecSpikeGroupLatency,vecSpikeGroupConfidence,100,[0.2 0.2 0.2],'.');
 		h.MarkerFaceAlpha = 0.1;
 		h.MarkerEdgeAlpha = 0.1;
-		h2=scatter(vecSpikeGroupLatency(vecGlobalGroups),vecSpikeGroupConfidence(vecGlobalGroups),200,matCol(2:end,:),'.');
+		h2=scatter(dblRemOnset+vecSpikeGroupLatency(vecGlobalGroups),vecSpikeGroupConfidence(vecGlobalGroups),200,matCol(2:end,:),'.');
 		hold off
 		xlim([0 1]);
 		ylim([0 1]);
@@ -450,11 +458,11 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		fixfig;
 		
 		%%
-		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s.tif',strRec,strType,strSGS)));
-		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s.pdf',strRec,strType,strSGS)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.tif',strRec,strType,strSGS,strOnset)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.pdf',strRec,strType,strSGS,strOnset)));
 		
 		%% save data
-		save(fullpath(strTargetDataPath,sprintf('Q1cData_%s_%s_SGS%s',strRec,strType,strSGS)),...
+		save(fullpath(strTargetDataPath,sprintf('Q1cData_%s_%s_SGS%s%s.mat',strRec,strType,strSGS,strOnset)),...
 			'vecStimOnTime',...
 			'vecStimOffTime',...
 			'vecOrientation',...
@@ -464,10 +472,10 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 			'strType',...
 			'vecTuningPerCell',...
 			'vecRatePerCell',...
-			'rSpike_IFR_Rate',...
-			'pSpike_IFR_Rate',...
-			'rSpike_IFR_Tune',...
-			'pSpike_IFR_Tune',...
+			...'rSpike_IFR_Rate',...
+			...'pSpike_IFR_Rate',...
+			...'rSpike_IFR_Tune',...
+			...'pSpike_IFR_Tune',...
 			'sSpikeGroup');
 		
 	end

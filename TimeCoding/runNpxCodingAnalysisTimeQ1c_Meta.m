@@ -42,21 +42,35 @@ end
 
 %% load data
 strArea = 'V1';
-strType = 'Real'; %'Real' 'ShuffTid'
+strType = 'ShuffTid'; %'Real' 'ShuffTid'
+cellTypes = {'Real','ShuffTid'};
 boolFixedSpikeGroupSize = false;
 intQuantiles = 10;
 intGroupOrDecile = 1;
-	
+dblRemOnset = 0.25; %remove onset period in seconds
+
 vecBinsDur = 0:0.01:1;
 vecBinsDurC = vecBinsDur(2:end) - diff(vecBinsDur(1:2))/2;
 vecColGrey = [0.7 0.7 0.7];
 
+for dblRemOnset=[0 0.25]
+for intType=1:2
+strType = cellTypes{intType};
 if boolFixedSpikeGroupSize
 	sFiles = dir ([strTargetDataPath 'Q1cData*' strType '*Fixed*.mat']);
 	strSGS = 'FixedSGS';
 else
 	sFiles = dir ([strTargetDataPath 'Q1cData*' strType '*Var*.mat']);
 	strSGS = 'VarSGS';
+end
+if dblRemOnset == 0
+	strOnset = '';
+	indWithOnset = cellfun(@(x) strcmp(x((end-7):end),['0.25.mat']), {sFiles.name}');
+	sFiles(indWithOnset) = [];
+else
+	strOnset = sprintf('%.2f',dblRemOnset);
+	indWithOnset = cellfun(@(x) strcmp(x((end-7):end),['0.25.mat']), {sFiles.name}');
+	sFiles(~indWithOnset) = [];
 end
 
 intRecNum = numel(sFiles);
@@ -112,10 +126,10 @@ for intFile=1:intRecNum
 	vecStimOffTime = sLoad.vecStimOffTime;
 	vecStimOnTime = sLoad.vecStimOnTime;
 	intSpikeGroupSize = sLoad.intSpikeGroupSize;
-	rSpike_IFR_Rate = sLoad.rSpike_IFR_Rate;
-	pSpike_IFR_Rate = sLoad.pSpike_IFR_Rate;
-	rSpike_IFR_Tune = sLoad.rSpike_IFR_Tune;
-	pSpike_IFR_Tune = sLoad.pSpike_IFR_Tune;
+	%rSpike_IFR_Rate = sLoad.rSpike_IFR_Rate;
+	%pSpike_IFR_Rate = sLoad.pSpike_IFR_Rate;
+	%rSpike_IFR_Tune = sLoad.rSpike_IFR_Tune;
+	%pSpike_IFR_Tune = sLoad.pSpike_IFR_Tune;
 	vecTuningPerCell = sLoad.vecTuningPerCell;
 	vecRatePerCell = sLoad.vecRatePerCell;
 	
@@ -124,7 +138,7 @@ for intFile=1:intRecNum
 	vecSpikeGroupDuration = [sSpikeGroup.Duration]';
 	vecSpikeGroupCorrect = [sSpikeGroup.Correct]';
 	vecSpikeGroupConfidence = [sSpikeGroup.Confidence]';
-	vecSpikeGroupLatency = [sSpikeGroup.Latency]';
+	vecSpikeGroupLatency = dblRemOnset+[sSpikeGroup.Latency]';
 	vecSpikeGroupNumOfCells = [sSpikeGroup.NumOfCells]';
 	vecSpikeGroupAvgRateOfCells = [sSpikeGroup.AvgRateOfCells]';
 	vecSpikeGroupAvgTuningOfCells = [sSpikeGroup.AvgTuningOfCells]';
@@ -474,8 +488,8 @@ fixfig;
 %%
 if boolSaveFig
 drawnow;
-export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockDecoding%s%s.tif',strType,strSGS)));
-export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockDecoding%s%s.pdf',strType,strSGS)));
+export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockDecoding%s%s%s.tif',strType,strSGS,strOnset)));
+export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockDecoding%s%s%s.pdf',strType,strSGS,strOnset)));
 end
 
 %% plot deciles by dur
@@ -533,11 +547,12 @@ fixfig;
 
 if boolSaveFig
 	%%
-	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithDur%s%s.tif',strType,strSGS)));
-	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithDur%s%s.pdf',strType,strSGS)));
+	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithDur%s%s%s.tif',strType,strSGS,strOnset)));
+	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithDur%s%s%s.pdf',strType,strSGS,strOnset)));
 end
 
 %% plot deciles by conf
+%{
 matQuantConf = cellfun(@mean,cellQuantileConf_Conf);
 figure;maxfig;
 hSummary=subplot(2,3,6);
@@ -591,11 +606,11 @@ fixfig;
 
 %%
 if boolSaveFig
-	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithConf%s%s.tif',strType,strSGS)));
-	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithConf%s%s.pdf',strType,strSGS)));
+	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithConf%s%s%s.tif',strType,strSGS,strOnset)));
+	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithConf%s%s%s.pdf',strType,strSGS,strOnset)));
 end
-
-%% plot deciles by conf
+%}
+%% plot deciles by ifr
 matQuantIFR = cellfun(@mean,cellQuantileIFR_IFR);
 figure;maxfig;
 hSummary=subplot(2,3,6);
@@ -647,6 +662,8 @@ fixfig;
 
 %%
 if boolSaveFig
-	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithIFR%s%s.tif',strType,strSGS)));
-	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithIFR%s%s.pdf',strType,strSGS)));
+	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithIFR%s%s%s.tif',strType,strSGS,strOnset)));
+	export_fig(fullpath(strFigurePath,sprintf('Q1c_SpikeBlockCorrWithIFR%s%s%s.pdf',strType,strSGS,strOnset)));
+end
+end
 end

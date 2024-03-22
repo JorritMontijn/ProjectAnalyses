@@ -49,7 +49,31 @@ function [vecT,vecMapP,matQ,vecMapZ,matMapZ] = getLatency(vecSpikeTimes,vecEvent
 		
 		%% calc p
 		dblISI = dblT-dblLastSpikeTime;
-		i = findfirst(dblISI,vecISI);
+		if dblISI>dblMax
+			i = intNum;
+		elseif dblISI<dblMin
+			i = 1;
+		else
+			%estimate initial position
+			intStart=round(intNum*((dblISI-dblMin)/dblRange));
+			if intStart < 1,intStart=1;end
+			if intStart > intNum,intStart=intNum;end
+			if dblISI>vecISI(intStart)
+				%go up
+				for i=(intStart+1):intNum
+					if dblISI<=vecISI(i)
+						break;
+					end
+				end
+			else
+				%go up
+				for i=intStart:-1:1
+					if dblISI>=vecISI(i)
+						break;
+					end
+				end
+			end
+		end
 		vecSampleQ(intSampleIdx) = vecQ(i);
 	end
 	

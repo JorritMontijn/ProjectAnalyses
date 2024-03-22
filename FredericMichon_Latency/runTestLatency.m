@@ -16,28 +16,6 @@ dblE = mean(vecMaxZ);
 dblV = var(vecMaxZ);
 [vecRealP,vecRealZ,dblMode,dblBeta] = getGumbel(dblE,dblV,vecMapZ);
 
-%calculate statistical significance using empirical quantiles
-vecJitZ = matMapZ(:);
-vecJitZ(isnan(vecJitZ)) = [];
-vecJitZ = sort(vecJitZ);
-%define p-value
-vecQuantiles = nan(size(vecMapZ));
-for i=1:numel(vecMapZ)
-	dblZ = vecMapZ(i);
-	if dblZ < min(vecJitZ) || isnan(dblZ)
-		idx = 0;
-	elseif dblZ > max(vecJitZ) || isinf(dblZ) || numel(vecJitZ) < 3
-		idx = numel(vecJitZ);
-	else
-		idx = findfirst(dblZ,vecJitZ);
-	end
-	vecQuantiles(i) = 1 - (idx/(1+numel(vecJitZ)));
-end
-
-		
-%transform to output z-score
-vecP = -norminv(vecQuantiles/2);
-
 %%
 figure;maxfig;
 subplot(2,3,1)

@@ -21,6 +21,11 @@ function [vecT,vecMapP,matQ,vecMapZ,matMapZ] = getLatency(vecSpikeTimes,vecEvent
 	%% run calc
 	dblEndT = max(vecEventTimes)+dblUseMaxDur;
 	vecISI = sort(diff(sort(vecSpikeTimes)));
+	%reduce
+	intReduceTo = 100;
+	if numel(vecISI)>intReduceTo
+		vecISI = vecISI(unique(round(linspace(1,numel(vecISI),intReduceTo))));
+	end
 	intNumISI = numel(vecISI);
 	vecQ = (1:intNumISI)/(intNumISI+1);
 	vecSampleTimes = 0:dblTempResolutionSecs:dblEndT;
@@ -50,7 +55,7 @@ function [vecT,vecMapP,matQ,vecMapZ,matMapZ] = getLatency(vecSpikeTimes,vecEvent
 		%% calc p
 		dblISI = dblT-dblLastSpikeTime;
 		if dblISI>dblMaxISI
-			i = intNum;
+			i = intNumISI;
 		elseif dblISI<dblMinISI
 			i = 1;
 		else
@@ -66,7 +71,7 @@ function [vecT,vecMapP,matQ,vecMapZ,matMapZ] = getLatency(vecSpikeTimes,vecEvent
 					end
 				end
 			else
-				%go up
+				%go down
 				for i=intStart:-1:1
 					if dblISI>=vecISI(i)
 						break;

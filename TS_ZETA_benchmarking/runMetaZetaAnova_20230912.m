@@ -95,7 +95,9 @@ for intArea=8%[1:4 8]%8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 		%% load data
 		strRunType = [strArea strRand strStim];
 		if ~strcmp(strArea,'V1')
-			strRunType = ['Anova' strRunType];
+			%strRunType = ['Anova' strRunType];
+			%strRunType = ['Dev' strRunType];
+			strRunType = ['JitterSpikes' strRunType];
 		end
 		sDir=dir([strDataPath 'ZetaData' strRunType 'Resamp' num2str(intResamps) '.mat']);
 		intFiles=numel(sDir);

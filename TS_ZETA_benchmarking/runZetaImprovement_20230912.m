@@ -349,14 +349,14 @@ for intArea=vecRunAreas
 					intGetLatencies = 0;
 					intPlot = 0;
 					hTic1 = tic;
-					dblZetaP_old = getZeta(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot);
+					dblZetaP_old = 1;%getZeta(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot);
 					dblZetaDur_old = toc(hTic1);
 					intJitterDistro = 2;
 					dblZetaP_UniStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,[],[],[],true);
 					hTic1b = tic;
-					dblZetaP_UniNoStitch=zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,[],[],[],false);
+					dblZetaP_UniNoStitch=1;%zetatest(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur,intResampleNum,intPlot,[],[],[],false);
 					dblZetaDur_new = toc(hTic1b);
-					
+					%{
 					%% ANOVA optimal
 					hTic2 = tic;
 					[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecSpikeTimes,matEventTimes(:,1),dblUseMaxDur);
@@ -381,7 +381,7 @@ for intArea=vecRunAreas
 						matPSTH(intTrial,:) = histcounts(vecTimePerSpike(vecTrialPerSpike==intTrial),vecBins);
 					end
 					dblAnovaP=anova1(matPSTH,[],'off');
-					
+					%}
 					%% t-test
 					%'vecTtestP','vecTtestTime'
 					hTic3 = tic;
@@ -408,16 +408,16 @@ for intArea=vecRunAreas
 					vecZetaP_UniNoStitch(intNeuron) = dblZetaP_UniNoStitch;
 					vecZetaP_LinStitch(intNeuron) = 1;
 					vecZetaP_LinNoStitch(intNeuron) = 1;
-					vecAnovaP(intNeuron) = dblAnovaP;
-					vecAnovaP_optimal(intNeuron) = dblAnovaP_optimal;
+					vecAnovaP(intNeuron) = 1;
+					vecAnovaP_optimal(intNeuron) = 1;
 					vecZetaTime(intNeuron) = dblZetaDur_new;
-					vecAnovaTime(intNeuron) = dblAnovaDur;
+					vecAnovaTime(intNeuron) = 1;
 					vecTtestP(intNeuron) = dblTtestP;
 					vecTtestTime(intNeuron) = dblTtestDur;
 				end
 				
 				if boolSave
-					save([strDataTargetPath 'ZetaDataDev' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
+					save([strDataTargetPath 'ZetaDataJitterSpikes' strRunType strRunStim 'Resamp' num2str(intResampleNum) '.mat' ],...
 						'cellNeuron','vecNumSpikes','vecZetaP_old',...
 						'vecZetaP_UniStitch','vecZetaP_UniNoStitch','vecZetaP_LinStitch','vecZetaP_LinNoStitch',...
 						'vecAnovaP','vecAnovaP_optimal','vecZetaTime','vecAnovaTime','vecTtestP','vecTtestTime');

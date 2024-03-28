@@ -12,22 +12,23 @@ cellUseAreas = {...
 	...'posteromedial visual area',...
 	};
 strArea = cellUseAreas{1};
-
-%% select all neurons in V1 and drifting grating stimuli
-if ~exist('sAggStim','var') || isempty(sAggStim) || isempty(sAggNeuron)
-	[sAggStim,sAggNeuron]=loadDataNpx(strArea,'driftinggrating',strDataPath);
-end
-indRemDBA = strcmpi({sAggNeuron.SubjectType},'DBA');
-fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),sum(~indRemDBA),getTime);
-sAggNeuron(indRemDBA) = [];
+strRunType = 'Sim'; %Sim or ABI or Npx?
+strRunStim = 'DG';%DG or NM?
 
 %% pre-allocate matrices
-strRunType = 'Npx';
-strRunStim = 'DG';
 cellTypes = {'Real','ShuffTid'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 intNumTypes = numel(cellTypes);
 boolFixSpikeGroupSize = false;
-dblRemOnset = 0.25; %remove onset period in seconds
+dblRemOnset = 0.1; %remove onset period in seconds
+
+if strcmp(strRunType,'ABI')
+	runLoadABI;
+elseif strcmp(strRunType,'Sim')
+	intSelectCells = 100; %how many cells to keep?
+	runLoadSim;
+else
+	runLoadNpx;
+end
 
 %% go through recordings
 if dblRemOnset == 0
@@ -36,36 +37,23 @@ else
 	strOnset = sprintf('%.2f',dblRemOnset);
 end
 tic
-for intRec=1:numel(sAggStim) %19 || weird: 11
-	% get matching recording data
-	strRec = sAggStim(intRec).Exp;
-	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
-	
-	%prep grating data
-	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
-	if isempty(sUseNeuron),continue;end
-	[vecOriIdx,vecUniqueOris,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
-	intTrialNum = numel(vecStimOnTime);
-	intStimNum = numel(unique(vecOrientation));
-	intRepNum = intTrialNum/intStimNum;
-	
-	%% select area
-	indArea1Neurons = contains({sUseNeuron.Area},strArea,'IgnoreCase',true);
-	if sum(indArea1Neurons) == 0, continue;end
-	
-	%% get orientation responses & single-trial population noise
-	sArea1Neurons = sUseNeuron(indArea1Neurons);
-	
-	%% prep data
-	%remove first x ms
-	vecStimOnTime = vecStimOnTime + dblRemOnset;
-	
-	%get data matrix
-	cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
-	[matData,indTuned,cellSpikeTimes,sTuning24,cellSpikeTimesPerCellPerTrial] = ...
-		NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
-	intTunedN = sum(indTuned);
-	intNumN = size(matData,1);
+
+for intRec=1:intRecNum %19 || weird: 11
+	%% prep ABI or Npx data
+	if strcmp(strRunType,'ABI')
+		runRecPrepABI;
+	elseif strcmp(strRunType,'Sim')
+		%not necessary
+		
+		%edit vars
+		strRec = [strRec 'Sub' num2str(intSelectCells)];
+		strDataPathT0=strDataPathSimT0;
+		
+	elseif strcmp(strRunType,'Npx')
+		%prep
+		runRecPrepNpx;
+		strDataPathT0 = strTargetDataPath;
+	end
 	
 	%get ori vars
 	vecOri180 = mod(vecOrientation,180);
@@ -92,7 +80,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		
 		
 		%% load ifr
-		sSource = load(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s%s',strRec,strRunType,strRunStim,strType)));
+		sSource = load(fullpath(strDataPathT0,sprintf('T0Data_%s%s%s%s%s',strRec,strRunType,strRunStim,strType)));
 		vecTime = sSource.vecTime;
 		vecIFR = sSource.vecIFR;
 		vecAllSpikeTime = sSource.vecAllSpikeTime;
@@ -351,7 +339,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		%calculate confidence per bin of equal size
 		intQuantileNum = 10;
 		[vecMeanDur,vecSemDur,vecMeanConf,vecSemConf,vecQuantile]=getQuantiles(vecSortedDur,vecSortedConf,intQuantileNum);
-
+		
 		%calculate accuracy per bin of equal size
 		intSperBin = floor(numel(vecSortedDur)/intQuantileNum);
 		vecMeanCorr = nan(1,intQuantileNum);
@@ -390,7 +378,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		h.MarkerEdgeAlpha = 0.1;
 		h2=scatter(dblRemOnset+vecSpikeGroupLatency(vecGlobalGroups),vecSpikeGroupConfidence(vecGlobalGroups),200,matCol(2:end,:),'.');
 		hold off
-		xlim([0 1]);
+		xlim([0 dblStimDur]);
 		ylim([0 1]);
 		xlabel('Time after stim onset (s)');
 		ylabel('Decoder confidence');

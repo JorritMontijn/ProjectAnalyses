@@ -27,10 +27,10 @@ if strcmp(strRunStim,'DG')
 	cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
 	vecOri180 = mod(vecOrientation,180)*2;
 	vecStimIdx = vecOri180;
-	[matMeanRate,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,vecStimOnStitched,vecNonStat,dblBC,dblMaxDevFrac,indResp] = ...
+	[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,vecStimOnStitched,vecNonStat,dblBC,dblMaxDevFrac,indResp] = ...
 		NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 	intTunedN = sum(indTuned);
-	intRespN = size(matMeanRate,1);
+	intRespN = size(matData,1);
 	dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 	dblPreTime = 0;%0.3;
 	dblPostTime = 0;%0.3;
@@ -71,13 +71,13 @@ elseif strcmp(strRunStim,'NM')
 	dblDur = median(vecStimOffTime-vecStimOnTime);
 	matRawData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur)./dblDur;
 	indResp = sum(matRawData,2)'>(size(matRawData,2)/dblDur)*dblMinRate;
-	matMeanRate = matRawData(indResp,:);
+	matData = matRawData(indResp,:);
 	
 	%% remove non-responsive cells
 	cellSpikeTimes(~indResp)=[];
 	indTuned = indResp;
 	intTrialNum = numel(vecStimIdx);
-	intRespN = size(matMeanRate,1);
+	intRespN = size(matData,1);
 	intStimNum = numel(vecUnique);
 	intRepNum = min(vecRepNum);
 	
@@ -104,7 +104,7 @@ elseif strcmp(strRunStim,'NM')
 		vecNonStat(intN) = (dblAUC - dblLinAUC) / dblLinAUC;
 	end
 	vecStimOnStitched = vecPseudoEventT;
-	matDataZ = zscore(log(1+matMeanRate),[],2);
+	matDataZ = zscore(log(1+matData),[],2);
 	vecMeanZ = mean(matDataZ,1);
 	vecFilt = normpdf(-4:4,0,1)/sum(normpdf(-4:4,0,1));
 	vecFiltM = imfilt(vecMeanZ,vecFilt);
@@ -115,7 +115,7 @@ elseif strcmp(strRunStim,'NM')
 	dblMaxDevFrac = max(abs(vecFiltM));
 	
 	intTunedN = sum(indTuned);
-	intRespN = size(matMeanRate,1);
+	intRespN = size(matData,1);
 	dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 	dblPreTime = 0;%0.3;
 	dblPostTime = 0;%0.3;

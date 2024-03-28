@@ -12,17 +12,20 @@ q2: How precise are spike times in the natural movie repetitions?
 %}
 
 %% define qualifying data
-strRunType = 'Npx'; %ABI or Npx?
+strRunType = 'Sim'; %Sim or ABI or Npx?
 strRunStim = 'DG';%DG or NM?
 
 runHeaderPopTimeCoding;
 if strcmp(strRunType,'ABI')
 	runLoadABI;
+elseif strcmp(strRunType,'Sim')
+	intSelectCells = 100; %how many cells to keep?
+	runLoadSim;
 else
 	runLoadNpx;
 end
 intAreas = numel(cellUseAreas{1});
-cellSupraGranuInfra = {'Supragranular','Granular','Infragranular'};
+cellSupraGranuInfra = {'Supragranular','Granular','Infragranular',''};
 
 %% go through recordings
 tic
@@ -30,8 +33,27 @@ for intRec=1:intRecNum
 	%% prep ABI or Npx data
 	if strcmp(strRunType,'ABI')
 		runRecPrepABI;
+	elseif strcmp(strRunType,'Sim')
+		%not necessary
+		
+		%get layers
+		cellSpikeTimesOrig = cellSpikeTimes;
+		vecSupraGranuInfra = 3*ones(size(cellSpikeTimes));
+		strRec = [strRec 'Sub' num2str(intSelectCells)];
+		strTargetDataPath=strDataPathSimT0;
+		
 	elseif strcmp(strRunType,'Npx')
 		runRecPrepNpx;
+		
+		%get layers
+		cellSpikeTimesOrig = cellSpikeTimes;
+		sArea1Neurons = sUseNeuron(indArea1Neurons);
+		sRespNeurons = sArea1Neurons(indResp); %FR above 0.1 Hz
+		cellAreas = {sRespNeurons.Area};
+		vecCorticalLayer = cellfun(@(x) str2double(x(regexp(x,'layer.*')+6)),cellAreas);
+		vecDepth = [sRespNeurons.DepthBelowIntersect];
+		vecSupraGranuInfra = double(vecCorticalLayer < 4) + 2*double(vecCorticalLayer == 4) + 3*double(vecCorticalLayer > 4);
+		
 	end
 	if intNeuronsInArea == 0% || intNeuronNum < 25
 		fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronNum,strRecOrig,getTime);
@@ -39,19 +61,18 @@ for intRec=1:intRecNum
 	end
 	
 	%% get cortical depth per cell
-	cellSpikeTimesOrig = cellSpikeTimes;
-	sArea1Neurons = sUseNeuron(indArea1Neurons);
-	sRespNeurons = sArea1Neurons(indResp); %FR above 0.1 Hz
-	cellAreas = {sRespNeurons.Area};
-	vecCorticalLayer = cellfun(@(x) str2double(x(regexp(x,'layer.*')+6)),cellAreas);
-	vecDepth = [sRespNeurons.DepthBelowIntersect];
-	vecSupraGranuInfra = double(vecCorticalLayer < 4) + 2*double(vecCorticalLayer == 4) + 3*double(vecCorticalLayer > 4);
 	%scatter(vecSupraGranuInfra,vecDepth)
 	%hold on
 	%text(vecSupraGranuInfra,vecDepth,cellAreas)
-	for intCortLayer = 1:3
-	indUseNeurons = vecSupraGranuInfra(:)==intCortLayer & indTuned;
-	strLayer = cellSupraGranuInfra{intCortLayer};
+	for intCortLayer = 4%1:3
+		if intCortLayer == 4
+		indUseNeurons = indTuned;
+		strLayer = '';
+		else
+		indUseNeurons = vecSupraGranuInfra(:)==intCortLayer & indTuned;
+		strLayer = cellSupraGranuInfra{intCortLayer};
+		end
+	if sum(indUseNeurons) < 5,continue;end
 	cellSpikeTimes = cellSpikeTimesOrig(indUseNeurons);
 	cellSpikeTimesReal = cellSpikeTimes;
 	
@@ -75,7 +96,7 @@ for intRec=1:intRecNum
 		%which type?
 		cellSpikeTimes = cell(1,intNumN);
 		strType = cellTypes{intType};
-		fprintf('Running %s - %s (%d/%d) [%s]\n',strRec,strType,intRec,numel(sAggStim),getTime);
+		fprintf('Running %s - %s (%d/%d) [%s]\n',strRec,strType,intRec,intRecNum,getTime);
 		if strcmp(strType,'Real')
 			%real data
 			cellSpikeTimes = cellSpikeTimesReal;
@@ -152,6 +173,8 @@ for intRec=1:intRecNum
 				end
 				
 				%shuffle trial ids only within stim type if DG
+				vecStimIdx = val2idx(vecStimIdx);
+				intStimNum = numel(unique(vecStimIdx));
 				cellUseSpikeTimesPerCellPerTrial = cell(size(cellSpikeTimesPerCellPerTrial));
 				for intStimType=1:intStimNum
 					vecOrigTrials = find(vecStimIdx==intStimType);
@@ -172,7 +195,7 @@ for intRec=1:intRecNum
 				
 				%compile
 				for intN=1:intNumN
-					cellSpikeTimes{intN} = unique(sort([cellOtherSpikes{intN};...
+					cellSpikeTimes{intN} = unique(sort([cellOtherSpikes{intN}(:);...
 						cell2vec(cellUseSpikeTimesPerCellPerTrial(intN,:))]));
 				end
 			else
@@ -183,7 +206,7 @@ for intRec=1:intRecNum
 			for intN=1:intNumN
 				%real
 				vecSpikeT = cellSpikeTimesReal{intN};
-				vecISI = diff(sort(vecSpikeT));
+				vecISI = diff(sort(vecSpikeT(:)));
 				vecSpikeT_Shuff = cumsum([0;vecISI(randperm(numel(vecISI)))])+vecSpikeT(1);
 				cellSpikeTimes{intN} = vecSpikeT_Shuff;
 			end

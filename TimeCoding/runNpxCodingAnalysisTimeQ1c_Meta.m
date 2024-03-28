@@ -44,6 +44,8 @@ end
 strArea = 'V1';
 strType = 'ShuffTid'; %'Real' 'ShuffTid'
 cellTypes = {'Real','ShuffTid'};
+strRunType = 'Sim'; %Sim or ABI or Npx?
+
 boolFixedSpikeGroupSize = false;
 intQuantiles = 10;
 intGroupOrDecile = 1;

@@ -95,9 +95,9 @@ for intArea=8%[1:4 8]%8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 		%% load data
 		strRunType = [strArea strRand strStim];
 		if ~strcmp(strArea,'V1')
-			%strRunType = ['Anova' strRunType];
-			%strRunType = ['Dev' strRunType];
-			strRunType = ['JitterSpikes' strRunType];
+			strRunType = ['Anova' strRunType];intResamps=500;
+			%strRunType = ['Dev' strRunType];intResamps=250;
+			%strRunType = ['JitterSpikes' strRunType];intResamps=500;
 		end
 		sDir=dir([strDataPath 'ZetaData' strRunType 'Resamp' num2str(intResamps) '.mat']);
 		intFiles=numel(sDir);
@@ -184,7 +184,7 @@ for intArea=8%[1:4 8]%8%[1:4 8]%[1:4]%1:numel(cellUniqueAreas)
 	matAnovaP = 2-2*normcdf(matAnovaZ);
 	
 	%remove nans
-	indRem = any(matMeanZ == 0 | matZetaZ == 0 | matZeta2Z == 0 | matAnovaZ == 0,2);
+	indRem = any(matMeanZ == 0 | matZetaZ);% == 0 | matZeta2Z == 0 | matAnovaZ == 0,2);
 	matMeanP(indRem,:)=[];
 	matZetaP(indRem,:)=[];
 	matAnovaP(indRem,:)=[];

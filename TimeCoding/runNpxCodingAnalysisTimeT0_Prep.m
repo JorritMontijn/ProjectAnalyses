@@ -20,6 +20,9 @@ if strcmp(strRunType,'ABI')
 	runLoadABI;
 elseif strcmp(strRunType,'Sim')
 	intSelectCells = 100; %how many cells to keep?
+	intBatchNr=1;
+	%vecSubSelectIdx = sort(randperm(1200,intSelectCells));
+	vecSubSelectIdx = (intBatchNr-1)*intSelectCells+(1:intSelectCells);
 	runLoadSim;
 else
 	runLoadNpx;
@@ -33,17 +36,23 @@ for intRec=1:intRecNum
 	%% prep ABI or Npx data
 	if strcmp(strRunType,'ABI')
 		runRecPrepABI;
+		strThisRec = strRec;
 	elseif strcmp(strRunType,'Sim')
 		%not necessary
+		
+		%edit vars
+		strThisRec = [strRec 'N' num2str(intSelectCells) 'B' num2str(intBatchNr)];
+		strDataPathT0=strDataPathSimT0;
 		
 		%get layers
 		cellSpikeTimesOrig = cellSpikeTimes;
 		vecSupraGranuInfra = 3*ones(size(cellSpikeTimes));
-		strRec = [strRec 'Sub' num2str(intSelectCells)];
-		strTargetDataPath=strDataPathSimT0;
 		
 	elseif strcmp(strRunType,'Npx')
+		%prep
 		runRecPrepNpx;
+		strThisRec = strRec;
+		strDataPathT0 = strTargetDataPath;
 		
 		%get layers
 		cellSpikeTimesOrig = cellSpikeTimes;
@@ -55,6 +64,7 @@ for intRec=1:intRecNum
 		vecSupraGranuInfra = double(vecCorticalLayer < 4) + 2*double(vecCorticalLayer == 4) + 3*double(vecCorticalLayer > 4);
 		
 	end
+
 	if intNeuronsInArea == 0% || intNeuronNum < 25
 		fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronNum,strRecOrig,getTime);
 		continue;
@@ -283,7 +293,7 @@ for intRec=1:intRecNum
 		vecTime = vecTime + dblStartEpoch(1);
 		
 		%% save intermediate data
-		save(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s%s',strRec,strRunType,strRunStim,strType,strLayer)),...
+		save(fullpath(strTargetDataPath,sprintf('T0Data_%s%s%s%s%s',strThisRec,strRunType,strRunStim,strType,strLayer)),...
 			...%epoch
 			'dblStartEpoch',...
 			'dblEpochDur',...

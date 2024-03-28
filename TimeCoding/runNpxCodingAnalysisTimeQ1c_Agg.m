@@ -19,13 +19,17 @@ strRunStim = 'DG';%DG or NM?
 cellTypes = {'Real','ShuffTid'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 intNumTypes = numel(cellTypes);
 boolFixSpikeGroupSize = false;
-dblRemOnset = 0.1; %remove onset period in seconds
+dblRemOnset = 0; %remove onset period in seconds
 
 if strcmp(strRunType,'ABI')
 	runLoadABI;
 elseif strcmp(strRunType,'Sim')
 	intSelectCells = 100; %how many cells to keep?
-	runLoadSim;
+	intBatchNr=1;
+	%vecSubSelectIdx = sort(randperm(1200,intSelectCells));
+	vecSubSelectIdx = (intBatchNr-1)*intSelectCells+(1:intSelectCells);
+	
+	intRecNum = dir([ 'T0Data_SimSG18N100B1SimDGShuffTid.mat']);
 else
 	runLoadNpx;
 end
@@ -42,13 +46,30 @@ for intRec=1:intRecNum %19 || weird: 11
 	%% prep ABI or Npx data
 	if strcmp(strRunType,'ABI')
 		runRecPrepABI;
+		strThisRec = strRec;
 	elseif strcmp(strRunType,'Sim')
 		%not necessary
+		runLoadSim;
 		
 		%edit vars
-		strRec = [strRec 'Sub' num2str(intSelectCells)];
+		strThisRec = [strRec 'N' num2str(intSelectCells) 'B' num2str(intBatchNr)];
 		strDataPathT0=strDataPathSimT0;
 		
+		%% prep data
+		vecOri180 = mod(vecOrientation,180)*2;
+		vecStimIdx = vecOri180;
+		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,indResp] = ...
+			SimPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
+		intTunedN = sum(indTuned);
+		intRespN = size(matData,1);
+		intNumN = numel(cellSpikeTimes);
+		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
+		dblPreTime = 0;%0.3;
+		dblPostTime = 0;%0.3;
+		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
+		intTrialNum = numel(vecStimOnTime);
+		intRecNum = 1;
+
 		%% move onset
 		%remove first x ms
 		vecStimOnTime = vecStimOnTime + dblRemOnset;
@@ -59,6 +80,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	elseif strcmp(strRunType,'Npx')
 		%prep
 		runRecPrepNpx;
+		strThisRec = strRec;
 		strDataPathT0 = strTargetDataPath;
 		
 		%% move onset
@@ -78,7 +100,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	intRepNum = min(vecPriorDistribution);
 	dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),2,'ceil');
 	if mean(sum(matData)) < 90
-		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strRec);
+		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
 	end
 	if boolFixSpikeGroupSize
@@ -95,7 +117,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		
 		%% load ifr
-		sSource = load(fullpath(strDataPathT0,sprintf('T0Data_%s%s%s%s%s',strRec,strRunType,strRunStim,strType)));
+		sSource = load(fullpath(strDataPathT0,sprintf('T0Data_%s%s%s%s%s',strThisRec,strRunType,strRunStim,strType)));
 		vecTime = sSource.vecTime;
 		vecIFR = sSource.vecIFR;
 		vecAllSpikeTime = sSource.vecAllSpikeTime;
@@ -306,7 +328,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		[vecT,vecR]=getIFR(vecSpikeTimes,0,1);
 		plot(dblRemOnset+vecT,vecR,'color',[0.5 0.5 0.5]);
 		hold on
-		title(sprintf('%s, %s, %s trial %d',strRec,strType,strOnset,intPlotTrial),'interpreter','none');
+		title(sprintf('%s, %s, %s trial %d',strThisRec,strType,strOnset,intPlotTrial),'interpreter','none');
 		xlabel('Time after stim onset (s)');
 		ylabel('Pop IFR');
 		ylim([0 max(get(gca,'ylim'))]);
@@ -461,11 +483,11 @@ for intRec=1:intRecNum %19 || weird: 11
 		fixfig;
 		
 		%%
-		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.tif',strRec,strType,strSGS,strOnset)));
-		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.pdf',strRec,strType,strSGS,strOnset)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.tif',strThisRec,strType,strSGS,strOnset)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.pdf',strThisRec,strType,strSGS,strOnset)));
 		
 		%% save data
-		save(fullpath(strTargetDataPath,sprintf('Q1cData_%s_%s_SGS%s%s.mat',strRec,strType,strSGS,strOnset)),...
+		save(fullpath(strTargetDataPath,sprintf('Q1cData_%s_%s_SGS%s%s.mat',strThisRec,strType,strSGS,strOnset)),...
 			'vecStimOnTime',...
 			'vecStimOffTime',...
 			'vecOrientation',...

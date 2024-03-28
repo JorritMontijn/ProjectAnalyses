@@ -49,10 +49,25 @@ for intRec=1:intRecNum %19 || weird: 11
 		strRec = [strRec 'Sub' num2str(intSelectCells)];
 		strDataPathT0=strDataPathSimT0;
 		
+		%% move onset
+		%remove first x ms
+		vecStimOnTime = vecStimOnTime + dblRemOnset;
+		
+		%get data matrix
+		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,indResp] = ...
+			SimPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 	elseif strcmp(strRunType,'Npx')
 		%prep
 		runRecPrepNpx;
 		strDataPathT0 = strTargetDataPath;
+		
+		%% move onset
+		%remove first x ms
+		vecStimOnTime = vecStimOnTime + dblRemOnset;
+		
+		%get data matrix
+		[matData,indTuned,cellSpikeTimes,sTuning24,cellSpikeTimesPerCellPerTrial] = ...
+			NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 	end
 	
 	%get ori vars

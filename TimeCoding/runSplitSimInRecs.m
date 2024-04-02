@@ -1,5 +1,8 @@
 %define files
-strDataPathSim = 'D:\Data\Processed\PopTimeCoding\';
+strDataPathSim = 'F:\Data\Processed\PopTimeCoding\';
+if ~exist(strDataPathSim,'dir')
+	strDataPathSim = 'D:\Data\Processed\PopTimeCoding\';
+end
 strLoadFile= 'Simulation_xAreaDistributed_SG18_2019-07-04.mat';
 strSimName = 'SimDG18';
 

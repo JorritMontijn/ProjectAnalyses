@@ -24,12 +24,9 @@ dblRemOnset = 0; %remove onset period in seconds
 if strcmp(strRunType,'ABI')
 	runLoadABI;
 elseif strcmp(strRunType,'Sim')
-	intSelectCells = 100; %how many cells to keep?
-	intBatchNr=1;
-	%vecSubSelectIdx = sort(randperm(1200,intSelectCells));
-	vecSubSelectIdx = (intBatchNr-1)*intSelectCells+(1:intSelectCells);
-	
-	intRecNum = dir([ 'T0Data_SimSG18N100B1SimDGShuffTid.mat']);
+	%get prepped sim files
+	sSimRecs = dir(fullpath(strDataPathSim,'SimDG18_MatchedTo*.mat'));
+	intRecNum = numel(sSimRecs);
 else
 	runLoadNpx;
 end
@@ -48,16 +45,20 @@ for intRec=1:intRecNum %19 || weird: 11
 		runRecPrepABI;
 		strThisRec = strRec;
 	elseif strcmp(strRunType,'Sim')
-		%not necessary
-		runLoadSim;
+		%load
+		runRecPrepSim;
 		
 		%edit vars
-		strThisRec = [strRec 'N' num2str(intSelectCells) 'B' num2str(intBatchNr)];
+		strThisRec = strRec;
 		strDataPathT0=strDataPathSimT0;
-		
-		%% prep data
 		vecOri180 = mod(vecOrientation,180)*2;
 		vecStimIdx = vecOri180;
+		
+		%% move onset
+		%remove first x ms
+		vecStimOnTime = vecStimOnTime + dblRemOnset;
+		
+		%get data matrix
 		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,indResp] = ...
 			SimPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 		intTunedN = sum(indTuned);
@@ -68,15 +69,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		dblPostTime = 0;%0.3;
 		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
 		intTrialNum = numel(vecStimOnTime);
-		intRecNum = 1;
-
-		%% move onset
-		%remove first x ms
-		vecStimOnTime = vecStimOnTime + dblRemOnset;
 		
-		%get data matrix
-		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,indResp] = ...
-			SimPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 	elseif strcmp(strRunType,'Npx')
 		%prep
 		runRecPrepNpx;

@@ -4,7 +4,7 @@ clearvars -except strRunType strRunStim sAggABI;
 %set paths
 if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPathABI = '';
-	strDataPathSim = 'Z:\Data\Processed\Simulations\';
+	strDataPathSim = 'F:\Data\Processed\PopTimeCoding\';
 	strDataPathSimT0 = 'F:\Data\Processed\PopTimeCoding\';
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';

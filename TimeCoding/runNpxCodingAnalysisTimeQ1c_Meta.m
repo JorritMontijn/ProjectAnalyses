@@ -44,7 +44,9 @@ end
 strArea = 'V1';
 strType = 'ShuffTid'; %'Real' 'ShuffTid'
 cellTypes = {'Real','ShuffTid'};
-strRunType = 'Sim'; %Sim or ABI or Npx?
+cellRunTypes = {'RecTopo','SimDG18'};
+intRunType = 2;
+strRunType = cellRunTypes{intRunType}; %Sim or ABI or Npx?
 
 boolFixedSpikeGroupSize = false;
 intQuantiles = 10;
@@ -59,10 +61,10 @@ for dblRemOnset=[0 0.25]
 for intType=1:2
 strType = cellTypes{intType};
 if boolFixedSpikeGroupSize
-	sFiles = dir ([strTargetDataPath 'Q1cData*' strType '*Fixed*.mat']);
+	sFiles = dir ([strTargetDataPath 'Q1cData_' strRunType '*' strType '*Fixed*.mat']);
 	strSGS = 'FixedSGS';
 else
-	sFiles = dir ([strTargetDataPath 'Q1cData*' strType '*Var*.mat']);
+	sFiles = dir ([strTargetDataPath 'Q1cData_' strRunType '*' strType '*Var*.mat']);
 	strSGS = 'VarSGS';
 end
 if dblRemOnset == 0

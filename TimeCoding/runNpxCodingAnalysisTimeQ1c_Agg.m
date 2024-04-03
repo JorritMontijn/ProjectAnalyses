@@ -19,7 +19,7 @@ strRunStim = 'DG';%DG or NM?
 cellTypes = {'Real','ShuffTid'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 intNumTypes = numel(cellTypes);
 boolFixSpikeGroupSize = false;
-dblRemOnset = 0; %remove onset period in seconds
+dblRemOnset = 0.125; %remove onset period in seconds
 
 if strcmp(strRunType,'ABI')
 	runLoadABI;
@@ -61,14 +61,10 @@ for intRec=1:intRecNum %19 || weird: 11
 		%get data matrix
 		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,indResp] = ...
 			SimPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
-		intTunedN = sum(indTuned);
-		intRespN = size(matData,1);
-		intNumN = numel(cellSpikeTimes);
-		dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
-		dblPreTime = 0;%0.3;
-		dblPostTime = 0;%0.3;
-		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
-		intTrialNum = numel(vecStimOnTime);
+		
+		%get cell props
+		vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
+		vecNeuronType = [sLoad.sNeuron.Types]; %1=pyr,2=interneuron
 		
 	elseif strcmp(strRunType,'Npx')
 		%prep
@@ -83,15 +79,27 @@ for intRec=1:intRecNum %19 || weird: 11
 		%get data matrix
 		[matData,indTuned,cellSpikeTimes,sTuning24,cellSpikeTimesPerCellPerTrial] = ...
 			NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
+		
+		%get cell props
+		vecNeuronPrefOri = [];
+		vecNeuronType = []; %1=pyr,2=interneuron
+		narrow vs broad not done
 	end
 	
 	%get ori vars
+	intTunedN = sum(indTuned);
+	intRespN = size(matData,1);
+	intNumN = numel(cellSpikeTimes);
+	intTrialNum = numel(vecStimOnTime);
 	vecOri180 = mod(vecOrientation,180);
 	[vecOriIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
 	sTuning = getTuningCurves(matData,vecOri180,0);
+	vecNeuronPrefOri = sTuning.matFittedParams(:,1);
+	vecNeuronBandwidth = real(sTuning.matBandwidth);
+	
 	intOriNum = numel(vecUnique);
 	intRepNum = min(vecPriorDistribution);
-	dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),2,'ceil');
+	dblStimDur = median(vecStimOffTime - vecStimOnTime);
 	if mean(sum(matData)) < 90
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
@@ -105,7 +113,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	end
 	
 	%types: Real, UniformTrial, ShuffTid, PoissGain
-	for intType=1:numel(cellTypes)
+	for intType=2%1:numel(cellTypes)
 		strType = cellTypes{intType};
 		
 		
@@ -132,14 +140,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		%% randomize spikes (or not)
 		if strcmp(strType,'ShuffTid')
 			%shuffle across repetitions per neuron
-			cellUseSpikeTimesPerCellPerTrial = cell(size(cellSpikeTimesPerCellPerTrial));
-			for intStimType=1:intOriNum
-				vecOrigTrials = find(vecOriIdx==intStimType);
-				for intN=1:intNumN
-					vecShuffTrials = vecOrigTrials(randperm(numel(vecOrigTrials)));
-					cellUseSpikeTimesPerCellPerTrial(intN,vecShuffTrials) = cellSpikeTimesPerCellPerTrial(intN,vecOrigTrials);
-				end
-			end
+			[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimes,vecStimOnTime,vecStimIdx,dblStimDur);
 		elseif strcmp(strType,'Real')
 			%do nothing
 			cellUseSpikeTimesPerCellPerTrial = cellSpikeTimesPerCellPerTrial;
@@ -164,7 +165,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		vecSpikeGroupLatency = [sSpikeGroup.Latency]';
 		vecSpikeGroupAvgIFR = [sSpikeGroup.AvgRate]';
 		
-		
 		vecEdgesX = linspace(min(vecRateChanges),max(vecRateChanges),100);
 		vecEdgesY = linspace(min(vecSpikeGroupAvgIFR),max(vecSpikeGroupAvgIFR),100);
 		vecBinsX = vecEdgesX(2:end) - diff(vecEdgesX(1:2))/2;
@@ -183,14 +183,18 @@ for intRec=1:intRecNum %19 || weird: 11
 		vecMaxOriResp = max(sTuning.matMeanResp,[],2);
 		matNormRespPerCellPerOri = sTuning.matMeanResp ./ vecMaxOriResp;
 		vecSpikeGroupAvgTuningOfCells = nan(size(vecSpikeGroupLatency)); %t-statistic
+		vecSpikeGroupAvgBandwidthOfCells = nan(size(vecSpikeGroupLatency)); %t-statistic
 		vecSpikeGroupAvgRateOfCells = nan(size(vecSpikeGroupLatency)); %hz
 		vecSpikeGroupAvgNormRespOfCellsToStim = nan(size(vecSpikeGroupLatency)); %normalized response to stim ori
 		vecSpikeGroupNumOfCells = nan(size(vecSpikeGroupLatency)); %how many cells participate?
+		vecSpikeGroupFractionInterneurons = nan(size(vecSpikeGroupLatency)); %fraction of interneurons
+		vecSpikeGroupAvgPrefDistToStim = nan(size(vecSpikeGroupLatency)); %average distance to stim ori
 		
 		for intSpikeGroup=1:intSpikeGroupNum
 			%get stim
 			intTrial = sSpikeGroup(intSpikeGroup).TrialNumber;
 			intStimIdx = vecOriIdx(intTrial);
+			dblStimRad = deg2rad(vecUnique(intStimIdx));
 			
 			%get cells
 			vecActiveCellSpikes = matSpikeGroupData(intSpikeGroup,:);
@@ -209,11 +213,22 @@ for intRec=1:intRecNum %19 || weird: 11
 			%get avg resp to stim
 			vecSpikeGroupAvgNormRespOfCellsToStim(intSpikeGroup) = mean(matNormRespPerCellPerOri(vecActiveCells,intStimIdx));
 			
+			%get interneurons
+			vecSpikeGroupFractionInterneurons(intSpikeGroup) = mean(vecNeuronType(vecActiveCells));
+			
+			%get avg pref dist to stim
+			vecSpikeGroupAvgPrefDistToStim(intSpikeGroup) = mean(abs(circ_dist(2*vecNeuronPrefOri(vecActiveCells),dblStimRad*2)));
+			vecSpikeGroupAvgBandwidthOfCells(intSpikeGroup) = mean(vecNeuronBandwidth(vecActiveCells));
+			
 			%assign to spike group
 			sSpikeGroup(intSpikeGroup).AvgTuningOfCells = vecSpikeGroupAvgTuningOfCells(intSpikeGroup);
 			sSpikeGroup(intSpikeGroup).AvgRateOfCells = vecSpikeGroupAvgRateOfCells(intSpikeGroup);
 			sSpikeGroup(intSpikeGroup).AvgNormRespOfCellsToStim = vecSpikeGroupAvgNormRespOfCellsToStim(intSpikeGroup);
 			sSpikeGroup(intSpikeGroup).NumOfCells = vecSpikeGroupNumOfCells(intSpikeGroup);
+			
+			sSpikeGroup(intSpikeGroup).FractionInterneurons = vecSpikeGroupFractionInterneurons(intSpikeGroup);
+			sSpikeGroup(intSpikeGroup).AvgPrefDistToStim = vecSpikeGroupAvgPrefDistToStim(intSpikeGroup);
+			sSpikeGroup(intSpikeGroup).AvgBandwidthOfCells = vecSpikeGroupAvgBandwidthOfCells(intSpikeGroup);
 		end
 		
 		%{
@@ -408,7 +423,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		h.MarkerEdgeAlpha = 0.1;
 		h2=scatter(dblRemOnset+vecSpikeGroupLatency(vecGlobalGroups),vecSpikeGroupConfidence(vecGlobalGroups),200,matCol(2:end,:),'.');
 		hold off
-		xlim([0 dblStimDur]);
+		xlim([0 dblStimDur+dblRemOnset]);
 		ylim([0 1]);
 		xlabel('Time after stim onset (s)');
 		ylabel('Decoder confidence');
@@ -419,7 +434,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		[vecCounts,vecMeans,vecSDs] = makeBins(vecSortedDur,vecSortedCorr,vecBinsE);
 		plot(vecBinsC*1000,(ones(size(vecBinsC))/intOriNum)*100,'--','color',[0.5 0.5 0.5]);
 		hold on
-		errorbar(vecBinsC*1000,vecMeans*100,(vecSDs*100)./sqrt(intSperBin),'color',lines(1));
+		errorbar(vecBinsC*1000,vecMeans*100,(vecSDs*100)./sqrt(vecCounts),'color',lines(1));
 		hold off
 		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
 		ylabel('Decoder accuracy (%)');
@@ -432,7 +447,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		[vecCounts,vecMeans,vecSDs] = makeBins(vecSortedDur,vecSortedConf,vecBinsE);
 		plot(vecBinsC*1000,(ones(size(vecBinsC))/intOriNum),'--','color',[0.5 0.5 0.5]);
 		hold on
-		errorbar(vecBinsC*1000,vecMeans,vecSDs./sqrt(intSperBin),'color',lines(1));
+		errorbar(vecBinsC*1000,vecMeans,vecSDs./sqrt(vecCounts),'color',lines(1));
 		hold off
 		xlabel(sprintf('%d-spike block duration (ms)',intSpikeGroupSize));
 		ylabel('Decoder confidence');
@@ -474,7 +489,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		ylim([0 max(get(gca,'ylim'))]);
 		
 		fixfig;
-		
+			
 		%%
 		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.tif',strThisRec,strType,strSGS,strOnset)));
 		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.pdf',strThisRec,strType,strSGS,strOnset)));

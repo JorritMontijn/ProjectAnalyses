@@ -167,59 +167,8 @@ for intRec=1:intRecNum
 					end
 					
 				elseif strcmp(strRunStim,'DG')
-					%create normal data
-					cellSpikeTimesPerCellPerTrial = cell(intNumN,intTrialNum);
-					cellOtherSpikes = cell(intNumN,1);
-					
-					%get beginning & end vectors
-					for intN=1:intNumN
-						%real
-						[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimesReal{intN},vecStimOnTime);
-						for intTrial=1:intTrialNum
-							vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
-							vecSpikeT(vecSpikeT>dblTrialDur)=[];
-							cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
-						end
-						
-						vecSpikes = cellSpikeTimesReal{intN};
-						indUsedSpikes = false(size(vecSpikes));
-						for intTrial=intTrialNum:-1:1
-							%get spikes
-							indTrialSpikes = ~indUsedSpikes & (vecSpikes >= vecStimOnTime(intTrial)) & vecSpikes < (vecStimOnTime(intTrial)+ dblTrialDur);
-							indUsedSpikes(indTrialSpikes) = true;
-							vecTheseSpikes = vecSpikes(indTrialSpikes);
-							vecTheseSpikes = vecTheseSpikes - vecStimOnTime(intTrial);
-							cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecTheseSpikes;
-						end
-						cellOtherSpikes{intN} = vecSpikes(~indUsedSpikes);
-					end
-					
-					%shuffle trial ids only within stim type if DG
-					vecStimIdx = val2idx(vecStimIdx);
-					intStimNum = numel(unique(vecStimIdx));
-					cellUseSpikeTimesPerCellPerTrial = cell(size(cellSpikeTimesPerCellPerTrial));
-					for intStimType=1:intStimNum
-						vecOrigTrials = find(vecStimIdx==intStimType);
-						for intN=1:intNumN
-							vecShuffTrials = vecOrigTrials(randperm(numel(vecOrigTrials)));
-							cellUseSpikeTimesPerCellPerTrial(intN,vecShuffTrials) = cellSpikeTimesPerCellPerTrial(intN,vecOrigTrials);
-						end
-					end
-					
-					%re-add trial onsets
-					vecOrigTrials = find(vecStimIdx==intStimType);
-					for intTrial=1:intTrialNum
-						dblOnset = vecStimOnTime(intTrial);
-						for intN=1:intNumN
-							cellUseSpikeTimesPerCellPerTrial{intN,intTrial} = cellUseSpikeTimesPerCellPerTrial{intN,intTrial} + dblOnset;
-						end
-					end
-					
-					%compile
-					for intN=1:intNumN
-						cellSpikeTimes{intN} = unique(sort([cellOtherSpikes{intN}(:);...
-							cell2vec(cellUseSpikeTimesPerCellPerTrial(intN,:))]));
-					end
+					%create data
+					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur);
 				else
 					error
 				end

@@ -5,9 +5,14 @@ strRec = sAggStim(intRec).Exp;
 strRecOrig = strRec;
 sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
 sThisSource = sAggSources(strcmpi(strRec,{sAggSources(:).Exp}));
-if strcmp(strRunStim,'DG')
-	%prep grating data
-	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
+if strcmp(strRunStim,'DG') || strcmp(strRunType,'SWN')
+	if strcmp(strRunStim,'DG')
+		%prep grating data
+		[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
+	elseif strcmp(strRunType,'SWN')
+		%pretend that whisk stim and no whisk stim are two different orientations
+		[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepWhisking(sAggNeuron,sThisRec,cellUseAreas);
+	end
 	[vecStimIdx,vecUnique,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 	intTrialNum = numel(vecStimOnTime);
 	intOriNum = numel(unique(vecOrientation));
@@ -15,7 +20,8 @@ if strcmp(strRunStim,'DG')
 	intNeuronsInArea = numel(sUseNeuron);
 	intNeuronNum = intNeuronsInArea;
 	if intNeuronsInArea==0,return;end
-
+	intOrigTrialNum = intTrialNum;
+	
 	%% get neurons in this area
 	indArea1Neurons = contains({sUseNeuron.Area},strArea,'IgnoreCase',true);
 	intNeuronsInArea = sum(indArea1Neurons);
@@ -36,7 +42,6 @@ if strcmp(strRunStim,'DG')
 	dblPostTime = 0;%0.3;
 	dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
 	intTrialNum = numel(vecStimOnTime);
-	
 elseif strcmp(strRunStim,'NM')
 	%to do
 	%prep move data

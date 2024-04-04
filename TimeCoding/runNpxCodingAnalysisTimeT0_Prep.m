@@ -11,26 +11,23 @@ q2: How precise are spike times in the natural movie repetitions?
 
 %}
 
-%% define qualifying data
-strRunType = 'Sim'; %Sim or ABI or Npx?
-strRunStim = 'DG';%DG or NM?
 
+%% set parameters
+cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
+intRunDataType = 4;
+strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
+cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
+boolFixSpikeGroupSize = false;
+dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
-if strcmp(strRunType,'ABI')
-	runLoadABI;
-elseif strcmp(strRunType,'Sim')
-	runLoadSim;
-else
-	runLoadNpx;
-end
-
-intAreas = numel(cellUseAreas{1});
-cellSupraGranuInfra = {'Supragranular','Granular','Infragranular',''};
 
 %% go through recordings
+intAreas = numel(cellUseAreas{1});
+cellSupraGranuInfra = {'Supragranular','Granular','Infragranular',''};
 tic
 for intRec=1:intRecNum
 	%% prep ABI or Npx data
+	fprintf('Running rec %d/%d [%s]\n',intRec,intRecNum,getTime);
 	if strcmp(strRunType,'ABI')
 		runRecPrepABI;
 		strThisRec = strRec;
@@ -56,15 +53,26 @@ for intRec=1:intRecNum
 		dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
 		intTrialNum = numel(vecStimOnTime);
 		
+		
+		% move onset
+		vecStimOnTime = vecStimOnTime + dblRemOnset;
+		
 		%get layers
 		cellSpikeTimesOrig = cellSpikeTimes;
 		vecSupraGranuInfra = 3*ones(size(cellSpikeTimes));
 		
-	elseif strcmp(strRunType,'Npx')
+	elseif strcmp(strRunType,'Npx') || strcmp(strRunType,'SWN')
 		%prep
 		runRecPrepNpx;
+		if strcmp(strRunType,'SWN')
+			indTuned = true(size(indTuned));
+		end
 		strThisRec = strRec;
 		strDataPathT0 = strTargetDataPath;
+		
+		
+		% move onset
+		vecStimOnTime = vecStimOnTime + dblRemOnset;
 		
 		%get layers
 		cellSpikeTimesOrig = cellSpikeTimes;
@@ -74,7 +82,6 @@ for intRec=1:intRecNum
 		vecCorticalLayer = cellfun(@(x) str2double(x(regexp(x,'layer.*')+6)),cellAreas);
 		vecDepth = [sRespNeurons.DepthBelowIntersect];
 		vecSupraGranuInfra = double(vecCorticalLayer < 4) + 2*double(vecCorticalLayer == 4) + 3*double(vecCorticalLayer > 4);
-		
 	end
 	
 	if intNeuronsInArea == 0% || intNeuronNum < 25
@@ -94,7 +101,10 @@ for intRec=1:intRecNum
 			indUseNeurons = vecSupraGranuInfra(:)==intCortLayer & indTuned;
 			strLayer = cellSupraGranuInfra{intCortLayer};
 		end
-		if sum(indUseNeurons) < 5,continue;end
+		if sum(indUseNeurons) < 5
+			fprintf('   Number of cells (%d) is too low; skipping\n...',sum(indUseNeurons));
+			continue;
+		end
 		cellSpikeTimes = cellSpikeTimesOrig(indUseNeurons);
 		cellSpikeTimesReal = cellSpikeTimes;
 		
@@ -113,8 +123,8 @@ for intRec=1:intRecNum
 		end
 		
 		%% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all spikes at pop level
-		cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain'};
-		for intType=[5:-1:1]
+		cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
+		for intType=[6:-1:1]
 			%which type?
 			cellSpikeTimes = cell(1,intNumN);
 			strType = cellTypes{intType};
@@ -122,6 +132,8 @@ for intRec=1:intRecNum
 			if strcmp(strType,'Real')
 				%real data
 				cellSpikeTimes = cellSpikeTimesReal;
+			elseif strcmp(strType,'Uniform')
+				[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildUniformSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblStimDur);
 			elseif strcmp(strType,'Poiss')
 				%poisson process neurons
 				cellSpikeTimes = cell(1,intNumN);
@@ -166,7 +178,7 @@ for intRec=1:intRecNum
 						cellSpikeTimes{intN} = unique(sort([vecStartSpikes;cell2vec(cellShuffTidTrials);vecEndSpikes]));
 					end
 					
-				elseif strcmp(strRunStim,'DG')
+				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
 					%create data
 					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur);
 				else
@@ -254,7 +266,7 @@ for intRec=1:intRecNum
 			vecTime = vecTime + dblStartEpoch(1);
 			
 			%% save intermediate data
-			save(fullpath(strDataPathT0,sprintf('T0Data_%s%s%s%s%s',strThisRec,strRunType,strRunStim,strType,strLayer)),...
+			save(fullpath(strDataPathT0,sprintf('T0Data_%s%s%s%s%s%s',strThisRec,strRunType,strRunStim,strType,strLayer,strOnset)),...
 				...%epoch
 				'dblStartEpoch',...
 				'dblEpochDur',...
@@ -264,9 +276,11 @@ for intRec=1:intRecNum
 				...%data
 				'vecAllSpikeTime',...
 				'vecAllSpikeNeuron',...
+				'cellSpikeTimes',...
 				'vecTime',...
 				'vecIFR',...
-				'strRunStim'...
+				'strRunStim',...
+				'dblRemOnset'...
 				);
 		end
 	end

@@ -4,21 +4,37 @@ Decode using sets of 20 spikes; is duration correlated with confidence of correc
 I.e., are codes equally efficient during high and low rate periods?
 %}
 
-%% set parameters
-cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 4;
-strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
-cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
-boolFixSpikeGroupSize = false;
-dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
+%% define qualifying areas
+clear all;
 runHeaderPopTimeCoding;
 
-%% go through recs
+%% pre-allocate matrices
+cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
+intNumTypes = numel(cellTypes);
+boolFixSpikeGroupSize = false;
+dblRemOnset = 0.125; %remove onset period in seconds
+
+if strcmp(strRunType,'ABI')
+	runLoadABI;
+elseif strcmp(strRunType,'Sim')
+	%get prepped sim files
+	sSimRecs = dir(fullpath(strDataPathSim,'SimDG18_MatchedTo*.mat'));
+	intRecNum = numel(sSimRecs);
+else
+	runLoadNpx;
+end
+
+%% go through recordings
+if dblRemOnset == 0
+	strOnset = '';
+else
+	strOnset = sprintf('%.2f',dblRemOnset);
+end
 tic
+
 for intRec=1:intRecNum %19 || weird: 11
 	%% prep ABI or Npx data
 	if strcmp(strRunType,'ABI')
-		error to be updated
 		runRecPrepABI;
 		strThisRec = strRec;
 	elseif strcmp(strRunType,'Sim')
@@ -40,10 +56,10 @@ for intRec=1:intRecNum %19 || weird: 11
 			SimPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 		
 		%get cell props
-		%vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
+		vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
 		vecNeuronType = [sLoad.sNeuron.Types]; %1=pyr,2=interneuron
 		
-	elseif strcmp(strRunType,'Npx') || strcmp(strRunType,'SWN')
+	elseif strcmp(strRunType,'Npx')
 		%prep
 		runRecPrepNpx;
 		strThisRec = strRec;
@@ -58,10 +74,9 @@ for intRec=1:intRecNum %19 || weird: 11
 			NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 		
 		%get cell props
-		vecNeuronType = ones(size(indTuned)); %1=pyr,2=interneuron
-		%narrow vs broad not done
-	else
-		error impossible
+		vecNeuronPrefOri = [];
+		vecNeuronType = []; %1=pyr,2=interneuron
+		narrow vs broad not done
 	end
 	
 	%get ori vars

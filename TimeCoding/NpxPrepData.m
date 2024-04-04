@@ -6,11 +6,10 @@ function [matMeanRate,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial
 	%		NpxPrepData(cellSpikeTimesIn,vecStimOnTime,vecStimOffTime,vecStimTypes)
 	
 	%% set cut-offs
-	dblMinRate = 0.1;
-	
 	%get dur
 	cellSpikeTimes = cellSpikeTimesIn;
 	dblDur = median(vecStimOffTime-vecStimOnTime);
+	dblMinRate = 0.1;%2/(numel(vecStimOnTime)*dblDur);
 	matRawData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur)./dblDur;
 	indResp = sum(matRawData,2)'>(size(matRawData,2)/dblDur)*dblMinRate;
 	matMeanRate = matRawData(indResp,:);

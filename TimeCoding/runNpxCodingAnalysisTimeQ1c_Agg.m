@@ -31,14 +31,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		vecOri180 = mod(vecOrientation,180)*2;
 		vecStimIdx = vecOri180;
 		
-		%% move onset
-		%remove first x ms
-		vecStimOnTime = vecStimOnTime + dblRemOnset;
-		
-		%get data matrix
-		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,indResp] = ...
-			SimPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
-		
 		%get cell props
 		%vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
 		vecNeuronType = [sLoad.sNeuron.Types]; %1=pyr,2=interneuron
@@ -49,13 +41,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		strThisRec = strRec;
 		strDataPathT0 = strTargetDataPath;
 		
-		%% move onset
-		%remove first x ms
-		vecStimOnTime = vecStimOnTime + dblRemOnset;
-		
-		%get data matrix
-		[matData,indTuned,cellSpikeTimes,sTuning24,cellSpikeTimesPerCellPerTrial] = ...
-			NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
 		
 		%get cell props
 		vecNeuronType = ones(size(indTuned)); %1=pyr,2=interneuron
@@ -64,36 +49,48 @@ for intRec=1:intRecNum %19 || weird: 11
 		error impossible
 	end
 	
-	%get ori vars
-	intTunedN = sum(indTuned);
-	intRespN = size(matData,1);
-	intNumN = numel(cellSpikeTimes);
-	intTrialNum = numel(vecStimOnTime);
-	vecOri180 = mod(vecOrientation,180);
-	[vecOriIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
-	sTuning = getTuningCurves(matData,vecOri180,0);
-	vecNeuronPrefOri = sTuning.matFittedParams(:,1);
-	vecNeuronBandwidth = real(sTuning.matBandwidth);
+	%% move onset
+	%remove first x ms
+	vecStimOnTime = vecStimOnTime + dblRemOnset;
 	
-	intOriNum = numel(vecUnique);
-	intRepNum = min(vecPriorDistribution);
-	dblStimDur = median(vecStimOffTime - vecStimOnTime);
+	%% load prepped data
+	strTarget = fullpath(strDataPathT0,[sprintf('T0Data_%s%s%s%s%s',strThisRec,strRunType,strRunStim,'Real') '.mat']);
+	if ~exist(strTarget,'file')
+		fprintf('Prepped T0 file did not exist for %s; skipping...\n',strThisRec);
+		continue;
+	end
+	
+	%check fr
+	sSource = load(strTarget);
+	cellSpikeTimes = sSource.cellSpikeTimes;
+	intNumN = numel(cellSpikeTimes);
+	cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
+	for intN=1:intNumN
+		%real
+		[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime,dblStimDur);
+		for intTrial=1:numel(vecStimOnTime)
+			vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+			cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
+		end
+	end
+	matData = cellfun(@numel,cellSpikeTimesPerCellPerTrial)./dblStimDur;
 	if mean(sum(matData)) < 90%90 / 50
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
 	end
-	if boolFixSpikeGroupSize
-		intSpikeGroupSize = 10;
-		strSGS = ['Fixed' num2str(intSpikeGroupSize)];
-	else
-		intSpikeGroupSize = ceil(mean(sum(matData))/30); %20
-		strSGS = ['Var' num2str(intSpikeGroupSize)];
-	end
+	
+	
+	%% get ori vars
+	intTrialNum = numel(vecStimOnTime);
+	vecOri180 = mod(vecOrientation,180);
+	[vecOriIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
+	intOriNum = numel(vecUnique);
+	intRepNum = min(vecPriorDistribution);
+	dblStimDur = median(vecStimOffTime - vecStimOnTime);
 	
 	%types: Real, UniformTrial, ShuffTid, PoissGain
 	for intType=1:numel(cellTypes)
 		strType = cellTypes{intType};
-		
 		
 		%% load prepped data and ifr
 		sSource = load(fullpath(strDataPathT0,sprintf('T0Data_%s%s%s%s%s',strThisRec,strRunType,strRunStim,strType)));
@@ -102,7 +99,9 @@ for intRec=1:intRecNum %19 || weird: 11
 		vecAllSpikeTime = sSource.vecAllSpikeTime;
 		vecAllSpikeNeuron = sSource.vecAllSpikeNeuron;
 		cellSpikeTimes = sSource.cellSpikeTimes;
-		
+		if numel(cellSpikeTimes) ~= intNumN
+			error('neuron # mismatch!')
+		end
 		if isempty(vecTime),continue;end
 		
 		%% replace IFR with binned rates?
@@ -126,6 +125,19 @@ for intRec=1:intRecNum %19 || weird: 11
 				vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
 				cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
 			end
+		end
+		matData = cellfun(@numel,cellSpikeTimesPerCellPerTrial)./dblStimDur;
+		sTuning = getTuningCurves(matData,vecOri180,0);
+		vecNeuronPrefOri = sTuning.matFittedParams(:,1);
+		vecNeuronBandwidth = real(sTuning.matBandwidth);
+		
+		%% check rates
+		if boolFixSpikeGroupSize
+			intSpikeGroupSize = 10;
+			strSGS = ['Fixed' num2str(intSpikeGroupSize)];
+		else
+			intSpikeGroupSize = ceil(mean(sum(matData))/30); %20
+			strSGS = ['Var' num2str(intSpikeGroupSize)];
 		end
 		
 		%% go through pop spikes and group into sets of 20
@@ -310,10 +322,63 @@ for intRec=1:intRecNum %19 || weird: 11
 		%match local groups to global groups
 		vecGlobalGroups = find(vecSpikeGroupTrialNumber==intPlotTrial);
 		
+		%calc local ifr
+		[vecT,vecR]=getIFR(vecSpikeTimes,0,1);
+		return
+		if 0
+			%% make uncolored example plot
+			%get entry in global time
+			vecTime = sSource.vecTime;
+			vecIFR = sSource.vecIFR;
+			dblGlobalTimeStart = vecStimOnTime(intPlotTrial);
+			dblGlobalTimeStop = dblGlobalTimeStart + dblStimDur;
+			intStartEntry = [];
+			intStopEntry = [];
+			for intGlobalSpikeEntry=1:numel(vecTime)
+				if isempty(intStartEntry) && vecTime(intGlobalSpikeEntry) >= dblGlobalTimeStart
+					intStartEntry = intGlobalSpikeEntry;
+				end
+				if vecTime(intGlobalSpikeEntry) >= dblGlobalTimeStop
+					intStopEntry = intGlobalSpikeEntry;
+					break;
+				end
+			end
+			vecLocalTime = vecTime(intStartEntry:intStopEntry);
+			vecLocalIFR = vecIFR(intStartEntry:intStopEntry);
+			figure
+			
+			subplot(2,3,1);
+			vecRandLoc = randperm(intNumN);
+			scatter(dblRemOnset+vecSpikeTimes,vecSpikeNeuron,[],'k','o','filled')
+			xlim([0 max(get(gca,'xlim'))]);
+			xlabel('Time after stim onset (s)');
+			ylabel('Neuron ID');
+			
+			vecTime = sSource.vecTime;
+			vecIFR = sSource.vecIFR;
+			
+			
+% 			subplot(2,3,2);
+% 			plot(dblRemOnset+vecLocalTime,vecLocalIFR,'color',[0.5 0.5 0.5]);
+% 			hold on
+% 			title(sprintf('%s, %s, %s trial %d',strThisRec,strType,strOnset,intPlotTrial),'interpreter','none');
+% 			xlabel('Time after stim onset (s)');
+% 			ylabel('Pop IFR');
+% 			ylim([0 max(get(gca,'ylim'))]);
+			
+			subplot(2,3,4);
+			plot(dblRemOnset+vecT,vecR,'color',0*[0.5 0.5 0.5]);
+			hold on
+			title(sprintf('%s, %s, %s trial %d',strThisRec,strType,strOnset,intPlotTrial),'interpreter','none');
+			xlabel('Time after stim onset (s)');
+			ylabel('Pop IFR');
+			ylim([0 max(get(gca,'ylim'))]);
+			fixfig
+		end
+		
 		%% plot example trial
 		%make plot
 		h1=subplot(3,4,1);
-		[vecT,vecR]=getIFR(vecSpikeTimes,0,1);
 		plot(dblRemOnset+vecT,vecR,'color',[0.5 0.5 0.5]);
 		hold on
 		title(sprintf('%s, %s, %s trial %d',strThisRec,strType,strOnset,intPlotTrial),'interpreter','none');

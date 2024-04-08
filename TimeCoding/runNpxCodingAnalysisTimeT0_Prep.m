@@ -261,7 +261,7 @@ for intRec=1:intRecNum
 			dblMinScale = [];
 			dblBase = [];
 			boolUseParallel = 0;
-			[vecTime,vecIFR] = getIFR(vecSpikeTimes,vecEventStarts,dblUseMaxDur,intSmoothSd,dblMinScale,dblBase,boolUseParallel); %takes about 1 minute
+			[vecTime,vecIFR] = getIFR(vecSpikeTimes,vecEventStarts,dblUseMaxDur); %takes about 1 minute
 			vecTime = vecTime + dblStartEpoch(1);
 			
 			%% save intermediate data

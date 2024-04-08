@@ -43,7 +43,7 @@ end
 %% load data
 strArea = 'V1';
 strType = 'ShuffTid'; %'Real' 'ShuffTid'
-cellTypes = {'Real','ShuffTid'};
+cellTypes = {'Uniform'};%'Real','ShuffTid'};
 cellRunTypes = {'RecTopo','SimDG18'};
 vecMaxT = [1 0.5];
 vecStimNum = [12 9];

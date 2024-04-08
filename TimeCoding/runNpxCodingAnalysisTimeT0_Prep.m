@@ -14,9 +14,9 @@ q2: How precise are spike times in the natural movie repetitions?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 4;
+intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
-cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
+cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
 boolFixSpikeGroupSize = false;
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
@@ -95,10 +95,10 @@ for intRec=1:intRecNum
 	%text(vecSupraGranuInfra,vecDepth,cellAreas)
 	for intCortLayer = 4%1:3
 		if intCortLayer == 4
-			indUseNeurons = indTuned;
+			indUseNeurons = true(size(indTuned));
 			strLayer = '';
 		else
-			indUseNeurons = vecSupraGranuInfra(:)==intCortLayer & indTuned;
+			indUseNeurons = vecSupraGranuInfra(:)==intCortLayer & true(size(indTuned));
 			strLayer = cellSupraGranuInfra{intCortLayer};
 		end
 		if sum(indUseNeurons) < 5
@@ -123,8 +123,7 @@ for intRec=1:intRecNum
 		end
 		
 		%% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all spikes at pop level
-		cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
-		for intType=[6:-1:1]
+		for intType=[numel(cellTypes):-1:1]
 			%which type?
 			cellSpikeTimes = cell(1,intNumN);
 			strType = cellTypes{intType};

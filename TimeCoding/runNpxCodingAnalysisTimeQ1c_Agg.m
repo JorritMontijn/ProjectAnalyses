@@ -6,7 +6,7 @@ I.e., are codes equally efficient during high and low rate periods?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 4;
+intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 boolFixSpikeGroupSize = false;
@@ -78,7 +78,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	intOriNum = numel(vecUnique);
 	intRepNum = min(vecPriorDistribution);
 	dblStimDur = median(vecStimOffTime - vecStimOnTime);
-	if mean(sum(matData)) < 90
+	if mean(sum(matData)) < 90%90 / 50
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
 	end
@@ -91,7 +91,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	end
 	
 	%types: Real, UniformTrial, ShuffTid, PoissGain
-	for intType=3%1:numel(cellTypes)
+	for intType=1:numel(cellTypes)
 		strType = cellTypes{intType};
 		
 		
@@ -130,7 +130,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%% go through pop spikes and group into sets of 20
 		fprintf('   Collecting n-spike groups and decoding [%s]\n',getTime);
-		[sSpikeGroup,matSpikeGroupData] = getSpikeGroupData(cellUseSpikeTimesPerCellPerTrial,intSpikeGroupSize,vecOriIdx,vecStimOnTime,vecTime,vecIFR);
+		[sSpikeGroup,matSpikeGroupData] = getSpikeGroupData(cellSpikeTimesPerCellPerTrial,intSpikeGroupSize,vecOriIdx,vecStimOnTime,vecTime,vecIFR);
 		intSpikeGroupNum = numel(sSpikeGroup);
 		if intSpikeGroupNum < intTrialNum,continue;end
 		
@@ -158,7 +158,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		%while during low ifr epochs, only cells with high firing rate or high tuning are active
 		
 		
-		vecTuningPerCell = sTuning.vecFitT;
+		vecTuningPerCell = real(sTuning.vecFitT);
 		vecRatePerCell = mean(sTuning.matMeanResp,2);
 		vecMaxOriResp = max(sTuning.matMeanResp,[],2);
 		matNormRespPerCellPerOri = sTuning.matMeanResp ./ vecMaxOriResp;
@@ -273,7 +273,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%make example
 		intPlotTrial = 10;
-		cellSpikesInTrial = cellUseSpikeTimesPerCellPerTrial(:,intPlotTrial);
+		cellSpikesInTrial = cellSpikeTimesPerCellPerTrial(:,intPlotTrial);
 		intSpikesInTrial = sum(sum(cellfun(@numel,cellSpikesInTrial)));
 		vecSpikeTimes = nan(1,intSpikesInTrial);
 		vecSpikeNeuron= nan(1,intSpikesInTrial);

@@ -119,7 +119,7 @@ for intRec=1:intRecNum
 		for intN=1:intNumN
 			vecT = cellSpikeTimesReal{intN};
 			indRem = (vecT > dblStopEpoch) | (vecT < dblStartEpoch);
-			cellSpikeTimesReal{intN} = unique(vecT(~indRem));
+			cellSpikeTimesReal{intN} = getUniqueSpikes(vecT(~indRem));
 		end
 		
 		%% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all spikes at pop level

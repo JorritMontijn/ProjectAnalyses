@@ -22,7 +22,11 @@ else
 	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
 %% define data
-if intRunDataType == 4
+if ~exist('cellDataTypes','var')
+	cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
+	intRunDataType = 1;
+end
+if exist('intRunDataType','var') && intRunDataType == 4
 	%whisking nora s1
 	cellUseAreas = {...
 		'Primary somatosensory area',...
@@ -41,7 +45,12 @@ end
 strRunType = cellDataTypes{intRunDataType};
 
 %% pre-allocate matrices
-intNumTypes = numel(cellTypes);
+if exist('cellTypes','var')
+	intNumTypes = numel(cellTypes);
+end
+if ~exist('dblRemOnset','var')
+	dblRemOnset = 0;
+end
 if strcmp(strRunType,'ABI')
 	runLoadABI;
 elseif strcmp(strRunType,'Sim')

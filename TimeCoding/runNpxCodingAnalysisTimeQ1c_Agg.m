@@ -324,7 +324,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%calc local ifr
 		[vecT,vecR]=getIFR(vecSpikeTimes,0,1);
-		return
+		
 		if 0
 			%% make uncolored example plot
 			%get entry in global time
@@ -557,6 +557,7 @@ for intRec=1:intRecNum %19 || weird: 11
 			'sSpikeGroup');
 		
 	end
+	return
 	close all;
 end
 toc

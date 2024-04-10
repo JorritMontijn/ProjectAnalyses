@@ -77,7 +77,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		continue;
 	end
 	
-	
 	%% get ori vars
 	intTrialNum = numel(vecStimOnTime);
 	vecOri180 = mod(vecOrientation,180);
@@ -88,7 +87,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	%types: Real, UniformTrial, ShuffTid, PoissGain
 	
 	%vecPopActEdges = logspace(-5,-1,100);
-	vecPopActEdges = linspace(1e-5,1e-1,100);
+	vecPopActEdges = linspace(1e-5,5e-2,100);
 	vecISI_Centers = vecPopActEdges(2:end)-diff(vecPopActEdges(1:2))/2;
 	matISIsByType = nan(numel(cellTypes),numel(vecISI_Centers));
 	vecMedianISI = nan(numel(cellTypes),1);
@@ -107,8 +106,15 @@ for intRec=1:intRecNum %19 || weird: 11
 			error('neuron # mismatch!')
 		end
 		if isempty(vecTime),continue;end
-		%%
-		vecAllSpikeT = sort(cell2vec(sSource.cellSpikeTimes));
+		
+		%% take only period during stimuli
+		for i=1:numel(cellSpikeTimes)
+			[vecPseudoSpikeTimes,vecPseudoStartT] = getPseudoSpikeVectors(cellSpikeTimes{i},vecStimOnTime,dblStimDur,true);
+			cellSpikeTimes{i} = vecPseudoSpikeTimes;
+		end
+		
+		%% calculate ISIs
+		vecAllSpikeT = sort(cell2vec(cellSpikeTimes));
 		vecTimeNoise = vecAllSpikeT;% + (1e-5)*rand(size(vecAllSpikeT));
 		vecISIs = diff(vecTimeNoise);
 		vecCounts=histcounts(vecISIs,vecPopActEdges);

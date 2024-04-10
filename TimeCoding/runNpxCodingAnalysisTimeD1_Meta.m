@@ -105,7 +105,9 @@ h.XDisplayLabels = cellTypes;
 h.YDisplayLabels = cellTypes;
 h.MissingDataColor = 'w';
 colorbar;
-colormap(flipud(parula));
+matCol=flipud(parula);
+matCol(end,:) = [0 0 0];
+colormap(matCol);
 title('p-values of Bonferroni-corrected paired t-tests');
 
 fixfig;

@@ -26,7 +26,7 @@ on binning size? What is the optimal time window?
 clear all;%close all;
 cellTypes = {'Real','ShuffTid','Uniform'};%'Real','ShuffTid'};
 cellRunTypes = {'RecTopo','SimDG18'};
-intRunType = 1; %topo or sim
+intRunType = 2; %topo or sim
 
 boolFixedSpikeGroupSize = false;
 intGroupOrDecile = 1;
@@ -647,6 +647,7 @@ for i=1:numel(cellSuffices) %dur, conf, ifr
 		end
 	end
 	%finish
+	cellRealShuff = {'Real','Shuff'};
 	for intRealShuff=1:2
 		hold(hSummary(intRealShuff),'off');
 		set(hSummary(intRealShuff),'xtick',[1:2:(2*numel(cellVars))],'xticklabel',cellVars);
@@ -654,14 +655,14 @@ for i=1:numel(cellSuffices) %dur, conf, ifr
 		ylabel(hSummary(intRealShuff),sprintf('Uniform-norm. r, mean +/- 95 CI (%s/decile)',getGreek('sigma')));
 		ylim(hSummary(intRealShuff),[-0.4 0.4]);
 		strP = cellStrP{intRealShuff};
-		strTitleType = [strRunType '_' strSGS '_O' strOnset];
-		title(hSummary(intRealShuff),sprintf('%s, Bonferroni-corrected p & CI\n%s',strTitleType,strP),'interpreter','none');
+		strTitleType = [strSuffix ', ' cellRealShuff{intRealShuff} ', ' strRunType ', ' strSGS ', O' strOnset];
+		title(hSummary(intRealShuff),sprintf('%s, Bonf-corr p & CI\n%s',strTitleType,strP),'interpreter','none');
 	end
 	fixfig;
 	
 	if boolSaveFig
 		%%
-		export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryUniformNormalized%s%s%s%s%s.tif',strRunType,strSGS,strOnset)));
-		export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryUniformNormalized%s%s%s%s%s.pdf',strRunType,strSGS,strOnset)));
+		export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryUniformNormalized%s%s%s.tif',strRunType,strSGS,strOnset)));
+		export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryUniformNormalized%s%s%s.pdf',strRunType,strSGS,strOnset)));
 	end
 end

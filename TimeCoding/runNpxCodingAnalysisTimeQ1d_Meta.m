@@ -42,11 +42,11 @@ end
 %% load data
 strArea = 'V1';
 cellTypes = {'Real','ShuffTid'};
-cellSupraGranuInfra = {'Supragranular','Granular','Infragranular'};
-for intLayer=1:numel(cellSupraGranuInfra)
+cellSupraGranuInfra = {'Supragranular','Granular','Infragranular',''};
+for intLayer=4%1:numel(cellSupraGranuInfra)
 for intType=1:numel(cellTypes)
 for boolFixedSpikeGroupSize = false%[true false]
-for dblOnset = [0 0.25]
+for dblOnset = 0.25%[0 0.25]
 strType = cellTypes{intType};
 strLayer = cellSupraGranuInfra{intLayer};
 intQuantiles = 10;

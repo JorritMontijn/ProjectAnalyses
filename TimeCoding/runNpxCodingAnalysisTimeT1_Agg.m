@@ -10,127 +10,144 @@ q2: How precise are spike times in the natural movie repetitions?
 
 
 %}
-%% define qualifying areas
-clear all;
-strUseArea = 'Primary visual area';
-if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
-	strDataPath = 'F:\Data\Processed\Neuropixels\';
-	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
-	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
-	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
-else
-	strDataPath = 'E:\DataPreProcessed\';
-	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
-	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
-	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
-end
+%% set parameters
+cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
+intRunDataType = 1;
+strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
+cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
+boolFixSpikeGroupSize = false;
+dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
+runHeaderPopTimeCoding;
 
-
-%% select all neurons
-if ~exist('sAggStim','var') || isempty(sAggStim) || isempty(sAggNeuron)
-	[sAggStim,sAggNeuron]=loadDataNpx('','natural',strDataPath);
-end
-indRemDBA = strcmpi({sAggNeuron.SubjectType},'DBA');
-fprintf('Removing %d cells of DBA animals; %d remaining [%s]\n',sum(indRemDBA),sum(~indRemDBA),getTime);
-sAggNeuron(indRemDBA) = [];
-cellRunTypes = {'Real','Shuff','ShuffTid','Poiss','PoissGain'};
-
-%% pre-allocate matrices
-cellUseAreas = {strUseArea};
-intAreas = numel(cellUseAreas);
-
-%% go through recordings
+%% go through recs
 tic
-for intRec=1:numel(sAggStim) %19 || weird: 11
-	% get matching recording data
-	strRec = sAggStim(intRec).Exp;
-	sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));
+for intRec=1:intRecNum %19 || weird: 11
+	%% prep ABI or Npx data
+	if strcmp(strRunType,'ABI')
+		error to be updated
+		runRecPrepABI;
+		strThisRec = strRec;
+	elseif strcmp(strRunType,'Sim')
+		%load
+		runRecPrepSim;
+		
+		%edit vars
+		strThisRec = strRec;
+		strDataPathT0=strDataPathSimT0;
+		vecOri180 = mod(vecOrientation,180)*2;
+		vecStimIdx = vecOri180;
+		
+		%get cell props
+		%vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
+		vecNeuronType = [sLoad.sNeuron.Types]; %1=pyr,2=interneuron
+		
+	elseif strcmp(strRunType,'Npx') || strcmp(strRunType,'SWN')
+		%prep
+		runRecPrepNpx;
+		strThisRec = strRec;
+		strDataPathT0 = strTargetDataPath;
+		
+		
+		%get cell props
+		vecNeuronType = ones(size(indTuned)); %1=pyr,2=interneuron
+		%narrow vs broad not done
+	else
+		error impossible
+	end
 	
-	%msg
-	fprintf('Running rec %d %d: %s [%s]\n',intRec,numel(sAggStim),strRec,getTime);
+	%% move onset
+	%remove first x ms
+	vecStimOnTime = vecStimOnTime + dblRemOnset;
 	
-	%prep nm data
-	[sUseNeuron,vecStimOnTime,vecStimOffTime,vecStimIdx] = NpxPrepMovies(sAggNeuron,sThisRec,cellUseAreas);
-	[vecFrameIdx,vecUniqueFrames,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecStimIdx);
+	%% load prepped data
+	strTarget = fullpath(strDataPathT0,[sprintf('T0Data_%s%s%s%s%s',strThisRec,strRunType,strRunStim,'Real') '.mat']);
+	if ~exist(strTarget,'file')
+		fprintf('Prepped T0 file did not exist for %s; skipping...\n',strThisRec);
+		continue;
+	end
+	
+	%check fr
+	sSource = load(strTarget);
+	cellSpikeTimes = sSource.cellSpikeTimes;
+	intNumN = numel(cellSpikeTimes);
+	cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
+	for intN=1:intNumN
+		%real
+		[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime,dblStimDur);
+		for intTrial=1:numel(vecStimOnTime)
+			vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+			cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
+		end
+	end
+	matData = cellfun(@numel,cellSpikeTimesPerCellPerTrial)./dblStimDur;
+	if mean(sum(matData)) < 90%90 / 50
+		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
+		continue;
+	end
+	
+	
+	%% get ori vars
 	intTrialNum = numel(vecStimOnTime);
-	intStimNum = numel(unique(vecStimIdx));
-	intRepNum = intTrialNum/intStimNum;
+	vecOri180 = mod(vecOrientation,180);
+	[vecOriIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
+	intOriNum = numel(vecUnique);
+	intRepNum = min(vecPriorDistribution);
+	dblStimDur = median(vecStimOffTime - vecStimOnTime);
 	
-	%original movie time
-	vecOrigStimOnTime = sThisRec.cellBlock{1}.vecStimOnTime;
-	vecOrigStimOffTime = sThisRec.cellBlock{1}.vecStimOffTime;
-	dblStimDur = min(diff(vecOrigStimOnTime));
-	intOrigTrialNum = numel(vecOrigStimOnTime);
-	
-	%select area
-	strArea = strUseArea;
-	indArea1Neurons = contains({sUseNeuron.Area},strArea,'IgnoreCase',true);
-	if sum(indArea1Neurons) == 0, continue;end
-	
-	%% get orientation responses & single-trial population noise
-	sArea1Neurons = sUseNeuron(indArea1Neurons);
-	
-	%% prep data
-	%get data matrix
-	cellSpikeTimesRaw = {sArea1Neurons.SpikeTimes};
-	[matMeanRate,cellSpikeTimesReal] = ...
-		NpxPrepMovieData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecFrameIdx);
-	
-	%% run types
-	sReal = struct;
-	sShuff = struct;
-	sShuffTid = struct;
-	sPoiss = struct;
-	sPoissGain = struct;
-	
-	%%
-	for intType=1:numel(cellRunTypes)
-		%% load prepro T0 data
-		% pool spikes from all neurons, but save the time+id per spike, then calculate IFR over all
-		% spikes at pop level, detect peaks, and split into trials.
-		%get spikes per trial per neuron
-		strType = cellRunTypes{intType};
-		sSource = load(fullpath(strTargetDataPath,sprintf('T0Data_%s%s',strRec,strType)));
+	%types: Real, UniformTrial, ShuffTid, PoissGain
+	for intType=1:numel(cellTypes)
+		strType = cellTypes{intType};
+		
+		%% load prepped data and ifr
+		sSource = load(fullpath(strDataPathT0,sprintf('T0Data_%s%s%s%s%s',strThisRec,strRunType,strRunStim,strType)));
+		vecTime = sSource.vecTime;
+		vecIFR = sSource.vecIFR;
+		vecAllSpikeTime = sSource.vecAllSpikeTime;
+		vecAllSpikeNeuron = sSource.vecAllSpikeNeuron;
+		cellSpikeTimes = sSource.cellSpikeTimes;
+		if numel(cellSpikeTimes) ~= intNumN
+			error('neuron # mismatch!')
+		end
+		if isempty(vecTime),continue;end
+		dblStartEpoch = sSource.dblStartEpoch;
+		dblEpochDur = sSource.dblEpochDur;
+		dblStopEpoch = dblStartEpoch + dblEpochDur;
+		
+		%% build trial-neuron cell matrix
+		cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
+		for intN=1:intNumN
+			%real
+			[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime,dblStimDur);
+			for intTrial=1:intOrigTrialNum
+				vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+				cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
+			end
+		end
+		matData = cellfun(@numel,cellSpikeTimesPerCellPerTrial)./dblStimDur;
+		sTuning = getTuningCurves(matData,vecOri180,0);
+		vecNeuronPrefOri = sTuning.matFittedParams(:,1);
+		vecNeuronBandwidth = real(sTuning.matBandwidth);
+		
+		%% check rates
+		if boolFixSpikeGroupSize
+			intSpikeGroupSize = 10;
+			strSGS = ['Fixed' num2str(intSpikeGroupSize)];
+		else
+			intSpikeGroupSize = ceil(mean(sum(matData))/30); %20
+			strSGS = ['Var' num2str(intSpikeGroupSize)];
+		end
 		
 		%% detect peaks
 		% filter
 		%real
-		intLag = round((numel(sSource.vecIFR)/numel(vecOrigStimOnTime))/2);
+		intLag = round((numel(vecIFR)/numel(vecStimOnTime))/2);
 		if (intLag/2) == round(intLag/2)
 			intLag = intLag - 1;
 		end
 		dblThreshZ = 1;
 		dblInfluence = 0.5;
 		
-		%% transform time indices
-		%events
-		dblStartEpoch = vecOrigStimOnTime(1)-dblStimDur;
-		dblEpochDur = vecOrigStimOnTime(end)-vecOrigStimOnTime(1)+dblStimDur;
-		dblStopEpoch = dblStartEpoch + dblEpochDur;
-		
-		%% plot
-		vecTime = sSource.vecTime;
-		vecIFR = sSource.vecIFR;
-		vecAllSpikeTime = sSource.vecAllSpikeTime;
-		vecAllSpikeNeuron = sSource.vecAllSpikeNeuron;
-		intNumN = max(vecAllSpikeNeuron);
-		
-		%% replace IFR with binned rates?
-		if 0
-			dblBinDur = (5/1000);
-			vecBins=(dblStartEpoch:dblBinDur:dblStopEpoch)';
-			vecIFR = flat(histcounts(vecTime,vecBins)./dblBinDur);
-			vecTime = vecBins(2:end)-dblBinDur/2;
-		end
-		
 		%% run analyses
-		%remove spikes outside epoch & build shuffled array
-		cellUseSpikeTimes = cell(1,intNumN);
-		for intN=1:intNumN
-			vecT = vecAllSpikeTime(vecAllSpikeNeuron==intN);
-			indRem = (vecT > dblStopEpoch) | (vecT < dblStartEpoch);
-			cellUseSpikeTimes{intN} = vecT(~indRem);
-		end
 		%add data
 		sAllSpike = struct;
 		sAllSpike.vecAllSpikeTime = vecAllSpikeTime;
@@ -144,7 +161,7 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		sPeakOpts.intLag = intLag;
 		sPeakOpts.dblThreshZ = dblThreshZ;
 		sPeakOpts.dblInfluence = dblInfluence;
-		[sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR,vecStimIFR_Raw] = getPopEvents(vecIFR,vecTime,vecOrigStimOnTime,sPeakOpts,sAllSpike,dblCutOff);
+		[sPopEvents,sMergedPopEvents,vecStimTime,vecStimIFR,vecStimIFR_Raw] = getPopEvents(vecIFR,vecTime,vecStimOnTime,sPeakOpts,sAllSpike,dblCutOff);
 		
 		%extract
 		vecPopEventTimes = [sPopEvents.Time];
@@ -152,7 +169,83 @@ for intRec=1:numel(sAggStim) %19 || weird: 11
 		vecMergedPopEventTimes = [sMergedPopEvents.Time];
 		vecMergedPopEventLocs = [sMergedPopEvents.Loc];
 		vecPeakHeight = vecStimIFR(vecMergedPopEventLocs);
+		intHalfGroup = ceil(intSpikeGroupSize/2);
+		vecRisingPhaseDeltaIFR = vecStimIFR(vecMergedPopEventLocs) - vecStimIFR(vecMergedPopEventLocs-intHalfGroup);
+		vecFallingPhaseDeltaIFR = vecStimIFR(vecMergedPopEventLocs+intHalfGroup) - vecStimIFR(vecMergedPopEventLocs);
+		%{
+		%% get spike blocks in rising and falling phase of peaks
+		intNextEvent = 2;
+		dblNextEventT = vecMergedPopEventTimes(1);
+		vecPhaseTrialIdx = zeros(1,(numel(vecMergedPopEventTimes)-1)*2);
+		matPhaseData = nan(intNumN,(numel(vecMergedPopEventTimes)-1)*2);
+		vecPhaseDeltaIFR = nan(1,(numel(vecMergedPopEventTimes)-1)*2);
+		vecPrePost = zeros(1,(numel(vecMergedPopEventTimes)-1)*2);
+		for intSpike=1:(numel(vecAllSpikeTime)-intSpikeGroupSize)
+			if vecAllSpikeTime(intSpike) >= dblNextEventT
+				intTrialIdx = sum(vecAllSpikeTime(intSpike)>vecStimOnTime);
+				vecAssignTo = [-1 0]+(intNextEvent-1)*2;
+				
+				%increment event
+				intNextEvent = intNextEvent + 1;
+				if intNextEvent>numel(vecMergedPopEventTimes)
+					break;
+				else
+					dblNextEventT = vecMergedPopEventTimes(intNextEvent);
+				end
+				
+				%skip if in ITI
+				if vecAllSpikeTime(intSpike) > vecStimOnTime(intTrialIdx)+dblStimDur
+					continue;
+				end
+				
+				vecPrecedingEntries = [(intSpike-intHalfGroup):(intSpike)]-1;
+				vecPostEntries = [intSpike:(intSpike+intHalfGroup)]+1;
+				vecPreN = accumarray(vecAllSpikeNeuron(vecPrecedingEntries)',ones(size(vecPrecedingEntries))',[intNumN 1]);
+				vecPostN = accumarray(vecAllSpikeNeuron(vecPostEntries)',ones(size(vecPostEntries))',[intNumN 1]);
+				matPhaseData(:,vecAssignTo(1)) = vecPreN;
+				matPhaseData(:,vecAssignTo(2)) = vecPostN;
+				vecPhaseTrialIdx(vecAssignTo) = intTrialIdx;
+				vecPhaseDeltaIFR(vecAssignTo(1)) = vecIFR(intSpike) - vecIFR(intSpike-intHalfGroup);
+				vecPhaseDeltaIFR(vecAssignTo(2)) = vecIFR(intSpike+intHalfGroup) - vecIFR(intSpike);
+				vecPrePost(vecAssignTo) = [1 2];
+			end
+		end
 		
+		%remove 0
+		indRem=vecPhaseTrialIdx==0;
+		vecPhaseTrialIdx(indRem) = [];
+		matPhaseData(:,indRem) = [];
+		vecPhaseDeltaIFR(indRem) = [];
+		vecPrePost(indRem) = [];
+		vecPhaseTrialType = vecOriIdx(vecPhaseTrialIdx);
+		
+		%% do logistic regression
+		dblLambda = 1;
+		intTypeCV = 0;
+		intOriNum = numel(unique(vecOriIdx));
+		vecPriorDistribution = accumarray(vecPhaseTrialType(:),1,[intOriNum 1]);
+		intVerbose = 1;
+		[dblPerformanceCV,vecSpikeGroupDecodedTrial,matPosteriorProbability,dblMeanErrorDegs,matConfusion,matWeights,matAggActivation,matAggWeights,vecRepetition,vecTrialTypeIdx] = ...
+			doCrossValidatedDecodingLR(matPhaseData,vecPhaseTrialType,intTypeCV,[],dblLambda,intVerbose);
+		
+		vecSpikeGroupCorrect = vecSpikeGroupDecodedTrial(:) == vecTrialTypeIdx;
+		vecSpikeGroupConfidence = nan(size(vecSpikeGroupCorrect));
+		for intStimType=1:size(matPosteriorProbability,1)
+			vecSpikeGroupConfidence(vecTrialTypeIdx==intStimType) = matPosteriorProbability(intStimType,vecTrialTypeIdx==intStimType);
+		end
+		
+		%% plot rising/falling phase analysis
+		figure;maxfig;
+		subplot(2,3,1)
+		scatter(vecPhaseDeltaIFR,vecSpikeGroupConfidence,'.');
+		[r,p]=corrcoef(vecPhaseDeltaIFR',vecSpikeGroupConfidence');
+		
+		subplot(2,3,2);
+		vecConfRising = vecSpikeGroupConfidence(vecPrePost==1);
+		vecConfFalling = vecSpikeGroupConfidence(vecPrePost==2);
+		
+		errorbar([1 2],[mean(vecConfRising) mean(vecConfFalling)],[std(vecConfRising) std(vecConfFalling)]./sqrt(numel(vecSpikeGroupConfidence)/2))
+		%}
 		%% plot
 		if 1
 			figure;maxfig;

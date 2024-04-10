@@ -29,16 +29,8 @@ function [sPopEvents,sMergedPopEvents,vecStimTime_Filt,vecStimIFR_Filt,vecStimIF
 	vecStimTime_Filt = vecFiltTime(indStimSpikes);
 	[vecPeakHeight,vecPeakLocs,w,p] = findpeaks(vecStimIFR_Filt);
 	
-	%remove peaks with identical subsequent values
-	%vecPeakLocs(vecStimIFR(vecPeakLocs)==vecStimIFR(vecPeakLocs+1))=[];
-	
 	%threshold peaks
 	vecCulledPeakLocs = vecPeakLocs(vecPeakHeight>dblCutOff);
-	
-	%retain only stim epoch
-	indStimEpoch = vecAllSpikeTime > dblStartEpoch & vecAllSpikeTime < (dblStartEpoch + dblEpochDur);
-	vecPopSpikeTime = vecAllSpikeTime(indStimEpoch);
-	vecPopNeuronId = vecAllSpikeNeuron(indStimEpoch);
 	
 	%get raw pop events
 	vecPopEventTimes = vecStimTime_Filt(vecCulledPeakLocs);

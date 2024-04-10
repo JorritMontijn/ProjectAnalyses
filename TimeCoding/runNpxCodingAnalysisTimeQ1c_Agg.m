@@ -6,7 +6,7 @@ I.e., are codes equally efficient during high and low rate periods?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 1;
+intRunDataType = 2;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 boolFixSpikeGroupSize = false;
@@ -34,13 +34,20 @@ for intRec=1:intRecNum %19 || weird: 11
 		%get cell props
 		%vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
 		vecNeuronType = [sLoad.sNeuron.Types]; %1=pyr,2=interneuron
-		
+		intUseMaxRep = 40;
+		indRemTrials = vecTrialRepetition>intUseMaxRep;
+		vecOri180(indRemTrials) = [];
+		vecStimIdx(indRemTrials) = [];
+		vecStimOnTime(indRemTrials) = [];
+		vecStimOffTime(indRemTrials) = [];
+		vecOrientation(indRemTrials) = [];
+		dblMinHz = 0;
 	elseif strcmp(strRunType,'Npx') || strcmp(strRunType,'SWN')
 		%prep
 		runRecPrepNpx;
 		strThisRec = strRec;
 		strDataPathT0 = strTargetDataPath;
-		
+		dblMinHz = 90;
 		
 		%get cell props
 		vecNeuronType = ones(size(indTuned)); %1=pyr,2=interneuron
@@ -64,7 +71,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	sSource = load(strTarget);
 	cellSpikeTimes = sSource.cellSpikeTimes;
 	intNumN = numel(cellSpikeTimes);
-	cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
+	cellSpikeTimesPerCellPerTrial = cell(intNumN,intTrialNum);
 	for intN=1:intNumN
 		%real
 		[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime,dblStimDur);
@@ -74,7 +81,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		end
 	end
 	matData = cellfun(@numel,cellSpikeTimesPerCellPerTrial)./dblStimDur;
-	if mean(sum(matData)) < 90%90 / 50
+	if mean(sum(matData)) < dblMinHz%90 / 50
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
 	end
@@ -104,24 +111,13 @@ for intRec=1:intRecNum %19 || weird: 11
 		end
 		if isempty(vecTime),continue;end
 		
-		%% replace IFR with binned rates?
-		if 0
-			%events
-			dblStartEpoch = vecStimOnTime(1)-dblStimDur;
-			dblEpochDur = vecStimOnTime(end)-vecStimOnTime(1)+dblStimDur;
-			dblStopEpoch = dblStartEpoch + dblEpochDur;
-			dblBinDur = (5/1000);
-			vecBins=(dblStartEpoch:dblBinDur:dblStopEpoch)';
-			vecIFR = flat(histcounts(vecTime,vecBins)./dblBinDur);
-			vecTime = vecBins(2:end)-dblBinDur/2;
-		end
-		
 		%% build trial-neuron cell matrix
-		cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
+		cellSpikeTimesPerCellPerTrial = cell(intNumN,intTrialNum);
 		for intN=1:intNumN
 			%real
+			cellSpikeTimes{intN}(cellSpikeTimes{intN} > vecStimOnTime(end)+dblStimDur*2)=[];
 			[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime,dblStimDur);
-			for intTrial=1:intOrigTrialNum
+			for intTrial=1:intTrialNum
 				vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
 				cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
 			end
@@ -557,7 +553,6 @@ for intRec=1:intRecNum %19 || weird: 11
 			'sSpikeGroup');
 		
 	end
-	return
 	close all;
 end
 toc

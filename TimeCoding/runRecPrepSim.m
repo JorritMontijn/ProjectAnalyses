@@ -15,6 +15,7 @@ if strcmp(strRunStim,'DG')
 	% concatenate stimulus structures
 	vecStimOnTime = sLoad.vecStimStartSecs;
 	vecStimOffTime = sLoad.vecStimStopSecs;
+	dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
 	
 	vecOrientation = sLoad.vecTrialOris;
 	vecTypeTFs = [sLoad.sStim.TFs];

@@ -6,7 +6,7 @@ I.e., are codes equally efficient during high and low rate periods?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 2;
+intRunDataType = 4;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 boolFixSpikeGroupSize = false;

@@ -89,6 +89,46 @@ for intRec=1:intRecNum
 		continue;
 	end
 	
+	
+	%% is cell an interneuron (fast/narrow spiking) or pyramid (regular/broad spiking)?
+	error check if this works and add it to the output
+	
+	%load waveform
+	if ~isfield(sUseNeuron,'Waveform')
+		[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
+	else
+		sThisRec.sample_rate = str2double(sAggSources(intRec).sMetaAP.imSampRate);
+	end
+	
+	%calculate waveform properties
+	dblSampRateIM = sThisRec.sample_rate;
+	dblRecDur = max(cellfun(@max,{sUseNeuron.SpikeTimes})) - min(cellfun(@min,{sUseNeuron.SpikeTimes}));
+	vecSpikeRate = cellfun(@numel,{sUseNeuron.SpikeTimes})/dblRecDur;
+	matAreaWaveforms = cell2mat({sUseNeuron.Waveform}'); %[cell x sample]
+	intNeurons=size(matAreaWaveforms,1);
+	vecSpikeDur = nan(1,intNeurons);
+	vecSpikePTR = nan(1,intNeurons);
+	for intNeuron=1:intNeurons
+		%find trough
+		[dblTroughVal,intTrough]=min(matAreaWaveforms(intNeuron,:));
+		[dblPeakVal,intTroughToPeak]=max(matAreaWaveforms(intNeuron,intTrough:end));
+		intPeak = intTrough + intTroughToPeak - 1;
+		
+		dblTroughTime = intTrough/dblSampRateIM;
+		dblTroughToPeakTime = intTroughToPeak/dblSampRateIM;
+		dblPeakTime = intPeak/dblSampRateIM;
+		vecSpikeDur(intNeuron) = dblTroughToPeakTime;
+		vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
+	end
+	dblPTT = 0.5;
+	dblSWT = 0.5/1000;
+	vecNarrow = vecSpikeDur < dblSWT & vecSpikePTR > dblPTT; %Ctx BL6
+	vecBroad = vecSpikeDur > dblSWT & vecSpikePTR < dblPTT; %Ctx BL6
+	vecOther = ~vecNarrow & ~vecBroad;
+	vecCol = vecNarrow + vecBroad*2 + vecOther*3;
+	%scatter(vecSpikeDur,vecSpikePTR,[],vecCol)
+	
+	
 	%% get cortical depth per cell
 	%scatter(vecSupraGranuInfra,vecDepth)
 	%hold on

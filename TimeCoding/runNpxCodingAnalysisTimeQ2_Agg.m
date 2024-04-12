@@ -6,6 +6,7 @@ strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
+boolMakeFigs = false;
 
 %% go through recs
 tic
@@ -76,6 +77,8 @@ for intRec=1:intRecNum %19 || weird: 11
 	if mean(sum(matData)) < 90%90 / 50
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
+	else
+		fprintf('Running %s... [%s]\n',strThisRec,getTime);
 	end
 	
 	
@@ -164,6 +167,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		vecActBinsC = vecActBins(2:end)-dblActBinW/2;
 		
 		%%
+		if boolMakeFigs
 		figure;maxfig;
 		subplot(2,3,1)
 		histx(vecMperTrial)
@@ -202,7 +206,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		%%
 		export_fig(fullpath(strFigurePathSR,sprintf('Q2A_PopActStatistics_%s_%s_%s.tif',strThisRec,strType,strOnset)));
 		export_fig(fullpath(strFigurePathSR,sprintf('Q2A_PopActStatistics_%s_%s_%s.pdf',strThisRec,strType,strOnset)));
-		
+		end
 		
 		%% calculate activity during low/high epochs
 		%are only cells tuned to the orientation active during low phases? Is this different from high 5%?
@@ -313,7 +317,8 @@ for intRec=1:intRecNum %19 || weird: 11
 		vecDiffLL = rad2deg(abs(circ_dist(vecPrefRadLow1,vecPrefRadLow2)));
 		vecDiffHH = rad2deg(abs(circ_dist(vecPrefRadHigh1,vecPrefRadHigh2)));
 		
-		% plot
+		if boolMakeFigs
+		%% plot
 		figure;maxfig;
 		subplot(2,3,1);
 		vecEdges = 0:90:360;
@@ -388,10 +393,11 @@ for intRec=1:intRecNum %19 || weird: 11
 		%%
 		export_fig(fullpath(strFigurePathSR,sprintf('Q2B_Qsplit_OriCoding_%s_%s_%s.tif',strThisRec,strType,strOnset)));
 		export_fig(fullpath(strFigurePathSR,sprintf('Q2B_Qsplit_OriCoding_%s_%s_%s.pdf',strThisRec,strType,strOnset)));
-		
+		end
 		
 		%%
 		sData = struct;
+		sData.strRec = strRec;
 		sData.strType = strType;
 		sData.dblRemOnset = dblRemOnset;
 		sData.strThisRec = strThisRec;
@@ -404,6 +410,8 @@ for intRec=1:intRecNum %19 || weird: 11
 		sData.vecLperTrial = vecLperTrial;
 		sData.vecMperTrial = vecMperTrial;
 		sData.vecPopSparseness = vecPopSparseness;
+		sData.matResp = matResp;
+		
 		%add to superstructure
 		sAggData(intType) = sData;
 	end
@@ -411,133 +419,5 @@ for intRec=1:intRecNum %19 || weird: 11
 	%% save agg data
 	save(fullpath(strTargetDataPath,sprintf('Q2Data%s_%s.mat',strThisRec,strOnset)),...
 		'sAggData');
-	
-	%% plot real vs shuffled
-	cellMarkers = {'x','o'};
-	intReal = 1;
-	intShuff = 3;%shufftid
-	vecMperTrial = sAggData(intReal).vecMperTrial;
-	vecSperTrial = sAggData(intReal).vecSperTrial;
-	vecLperTrial = sAggData(intReal).vecLperTrial;
-	vecHperTrial = sAggData(intReal).vecHperTrial;
-	vecPopSparseness = sAggData(intReal).vecPopSparseness;
-	
-	strShuff = sAggData(intShuff).strType;
-	vecMperTrial_S = sAggData(intShuff).vecMperTrial;
-	vecSperTrial_S = sAggData(intShuff).vecSperTrial;
-	vecLperTrial_S = sAggData(intShuff).vecLperTrial;
-	vecHperTrial_S = sAggData(intShuff).vecHperTrial;
-	vecPopSparseness_S = sAggData(intShuff).vecPopSparseness;
-	
-	figure;maxfig;
-	[rML,pML]=corr(vecMperTrial(:),vecLperTrial(:));
-	[rMH,pMH]=corr(vecMperTrial,vecHperTrial(:));
-	[rHL,pHL]=corr(vecLperTrial(:),vecHperTrial(:));
-	
-	subplot(2,3,1)
-	[vecCounts,vecMeansL,vecSDsL] = makeBins(vecMperTrial,vecLperTrial,vecActBins);
-	[vecCounts,vecMeansH,vecSDsH] = makeBins(vecMperTrial,vecHperTrial,vecActBins);
-	[vecCounts_S,vecMeansL_S,vecSDsL_S] = makeBins(vecMperTrial_S,vecLperTrial_S,vecActBins);
-	[vecCounts_S,vecMeansH_S,vecSDsH_S] = makeBins(vecMperTrial_S,vecHperTrial_S,vecActBins);hold on
-	indPlotBins = vecCounts>10;
-	
-	scatter(cat(1,vecMperTrial_S,vecMperTrial_S),cat(1,vecLperTrial_S(:),vecHperTrial_S(:)),[],[0.7 0.7 0.7],'.');
-	scatter(vecMperTrial,vecLperTrial(:),[],[0.5 0.5 1],'.');
-	scatter(vecMperTrial,vecHperTrial(:),[],[1 0.5 0.5],'.');
-	
-	errorbar(vecActBinsC(indPlotBins),vecMeansL_S(indPlotBins),vecSDsL_S(indPlotBins)./sqrt(vecCounts_S(indPlotBins)),'color',[0.5 0.5 0.5])
-	errorbar(vecActBinsC(indPlotBins),vecMeansH_S(indPlotBins),vecSDsH_S(indPlotBins)./sqrt(vecCounts_S(indPlotBins)),'color',[0.5 0.5 0.5])
-	errorbar(vecActBinsC(indPlotBins),vecMeansL(indPlotBins),vecSDsL(indPlotBins)./sqrt(vecCounts(indPlotBins)),'color',[0 0 1])
-	errorbar(vecActBinsC(indPlotBins),vecMeansH(indPlotBins),vecSDsH(indPlotBins)./sqrt(vecCounts(indPlotBins)),'color',[1 0 0])
-	
-	hold off
-	fixfig;
-	xlabel('Mean firing rate during trial (Hz)');
-	ylabel('FR in upper/lower 5% (Hz)');
-	title(['Real rate fluctuations vs ' strShuff])
-	fixfig;
-	
-	subplot(2,3,2)
-	dblStep = 0.05;
-	vecBinE = -1:dblStep:1.5;
-	vecBinC = vecBinE(2:end)-dblStep/2;
-	vecCountsLow = histcounts((vecLperTrial-vecLperTrial_S)./vecLperTrial_S,vecBinE);
-	vecCountsHigh = histcounts((vecHperTrial-vecHperTrial_S)./vecHperTrial_S,vecBinE);
-	plot(vecBinC*100,vecCountsLow,'color',[0 0 1]);
-	hold on
-	plot(vecBinC*100,vecCountsHigh,'color',[1 0 0]);
-	hold off
-	xlabel(['% change in FR over ' strShuff]);
-	legend({'Lowest 5%','Highest 5%'});
-	ylabel('Number of trials (count)');
-	vecL = (vecLperTrial-vecLperTrial_S)./vecLperTrial_S;
-	vecH = (vecHperTrial-vecHperTrial_S)./vecHperTrial_S;
-	[h,pL]=ttest(vecL);
-	[h,pH]=ttest(vecH);
-	title(sprintf('Low, avg=%.1f%%, p=%.1e; high, avg=+%.1f%%, p=%.1e',mean(vecL)*100,pL,mean(vecH)*100,pH));
-	fixfig;
-	
-	%real
-	r1=corr(vecLperTrial(:),vecPopSparseness(:));
-	r2=corr(vecMperTrial(:),vecPopSparseness(:));
-	[rSpH,pSpH]=corr(vecMperTrial(:),vecPopSparseness(:));
-	vecActBinsH = 0:dblActBinW:1700;
-	vecActBinsHC = vecActBinsH(2:end)-dblActBinW/2;
-	[vecCounts2,vecMeans2,vecSDs2] = makeBins(vecMperTrial,vecPopSparseness,vecActBinsH);
-	%shuff
-	r1_S=corr(vecLperTrial_S(:),vecPopSparseness_S(:));
-	r2_S=corr(vecMperTrial_S(:),vecPopSparseness_S(:));
-	[rSpH_S,pSpH_S]=corr(vecMperTrial_S(:),vecPopSparseness_S(:));
-	vecActBinsH_S = 0:dblActBinW:1700;
-	vecActBinsHC_S = vecActBinsH_S(2:end)-dblActBinW/2;
-	[vecCounts2_S,vecMeans2_S,vecSDs2_S] = makeBins(vecMperTrial_S,vecPopSparseness_S,vecActBinsH_S);
-	
-	%fit
-	indPlotBins2 = vecCounts2>10 | vecCounts2_S>10;
-	
-	mdl = fitlm(vecMperTrial,vecPopSparseness);
-	ci = coefCI(mdl);
-	[ypred,yci] = predict(mdl,vecActBinsHC(indPlotBins2)');
-	
-	mdl_S = fitlm(vecMperTrial_S,vecPopSparseness_S);
-	ci_S = coefCI(mdl_S);
-	[ypred_S,yci_S] = predict(mdl_S,vecActBinsHC_S(indPlotBins2)');
-	
-	subplot(2,3,3)
-	hold on;
-	scatter(vecMperTrial,vecPopSparseness,[],1-(1-lines(1))*(2/3),'.');
-	scatter(vecMperTrial_S,vecPopSparseness_S,[],[0.7 0.7 0.7],'.');
-	plot(vecActBinsHC(indPlotBins2),yci(:,1),'--','color',lines(1));
-	plot(vecActBinsHC(indPlotBins2),ypred,'color',lines(1));
-	plot(vecActBinsHC(indPlotBins2),yci(:,2),'--','color',lines(1));
-	plot(vecActBinsHC_S(indPlotBins2),yci_S(:,1),'--','color',[0.5 0.5 0.5]);
-	plot(vecActBinsHC_S(indPlotBins2),ypred_S,'color',[0.5 0.5 0.5]);
-	plot(vecActBinsHC_S(indPlotBins2),yci_S(:,2),'--','color',[0.5 0.5 0.5]);
-	hold off;
-	hold off;
-	ylabel('Pop. sparseness per trial');
-	xlabel('Mean pop. firing rate per trial (Hz) ');
-	title(sprintf('Real=%.2f, p=%.1e; %s=%.2f, p=%.1e',rSpH,pSpH,strType,rSpH_S,pSpH_S));
-	fixfig;
-	
-	%split population in highest 50/lowest 50
-	intUseUpperCells = min(sum(matResp>0,1));
-	vecHighAct = nan(intTrialNum,1);
-	vecLowAct =  nan(intTrialNum,1);
-	vecQuantiles = [1/3 1/2 2/3];
-	vecQuantileIdx = round(vecQuantiles*intNeurons);
-	matQuantileAct = nan(intTrialNum,numel(vecQuantileIdx));
-	vecMeanOfActiveCells = nan(intTrialNum,1);
-	for intTrial=1:intTrialNum
-		vecR = sort(matResp(:,intTrial));
-		matQuantileAct(intTrial,:) = vecR(vecQuantileIdx);
-		vecMeanOfActiveCells(intTrial) = mean(vecR((end-intUseUpperCells+1):end));
-	end
-	[vecHsorted,vecReorder]=sort(vecHperTrial);
-	
-	%save fig
-	export_fig(fullpath(strFigurePathSR,sprintf('Q2C_QuantileDeviations%s_%s_%s.tif',strThisRec,strOnset)));
-	export_fig(fullpath(strFigurePathSR,sprintf('Q2C_QuantileDeviations%s_%s_%s.pdf',strThisRec,strOnset)))
-	
 end
 toc

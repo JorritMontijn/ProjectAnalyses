@@ -37,7 +37,7 @@ end
 
 %% define parameters
 %single rec plots
-boolSingleRecPlots = true;
+boolSingleRecPlots = false;
 
 %ISI distro
 dblBinSizeISI = 1/1000;
@@ -271,9 +271,77 @@ for intFile=1:intRecNum
 	vecCVperTrial_P = vecSperTrial_P./vecMperTrial_P;
 	[vecCountsCV_P,vecMeansCV_P,vecSDsCV_P] = makeBins(vecMperTrial_P,vecCVperTrial_P,vecActBins);
 	
+	%fit per recording
+	intK = 1;
+	dblSlope = ((vecMperTrial' * vecMperTrial) \ vecMperTrial') * vecSperTrial;
+	vecFitY = vecMperTrial*dblSlope;
+	[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecSperTrial,vecFitY,intK);
+	
+	dblSlope_S = ((vecMperTrial_S' * vecMperTrial_S) \ vecMperTrial_S') * vecSperTrial_S;
+	vecFitY_S = vecMperTrial_S*dblSlope_S;
+	[dblR2_S,dblSS_tot_S,dblSS_res_S,dblT_S,dblP_S,dblR2_adjusted_S,dblR2_SE_S] = getR2(vecSperTrial_S,vecFitY_S,intK);
+	
+	dblSlope_U = ((vecMperTrial_U' * vecMperTrial_U) \ vecMperTrial_U') * vecSperTrial_U;
+	vecFitY_U = vecMperTrial_U*dblSlope_U;
+	[dblR2_U,dblSS_tot_U,dblSS_res_U,dblT_U,dblP_U,dblR2_adjusted_U,dblR2_SE_U] = getR2(vecSperTrial_U,vecFitY_U,intK);
+	
+	dblSlope_P = ((vecMperTrial_P' * vecMperTrial_P) \ vecMperTrial_P') * vecSperTrial_P;
+	vecFitY_P = vecMperTrial_P*dblSlope_P;
+	[dblR2_P,dblSS_tot_P,dblSS_res_P,dblT_P,dblP_P,dblR2_adjusted_P,dblR2_SE_P] = getR2(vecSperTrial_P,vecFitY_P,intK);
+	
+	%% save data
+	vecLogExpPdf = log10(vecExpPdf./sum(vecExpPdf(:)));
+	vecLogCounts = log10(vecCountsISI./sum(vecCountsISI(:)));
+	vecNormCounts = (vecLogCounts - min(vecLogExpPdf))./range(vecLogExpPdf);
+	
+	matSlopes(1,intFile) = dblSlope;
+	matSlopes(2,intFile) = dblSlope_S;
+	matSlopes(3,intFile) = dblSlope_U;
+	matSlopes(4,intFile) = dblSlope_P;
+	
+	matR2(1,intFile) = dblR2;
+	matR2(2,intFile) = dblR2_S;
+	matR2(3,intFile) = dblR2_U;
+	matR2(4,intFile) = dblR2_P;
+	
+	matISINormCounts(:,intFile) = vecNormCounts;
+	matISIExpPdf(:,intFile) = vecExpPdf;
+	matISICounts(:,intFile) = vecCountsISI;
+	matISICorrs(:,:,intFile) = cat(2,vecMeans_D,vecMeans_R,vecMeans_U,vecMeans_S);
+	matISICorrCounts(:,:,intFile) = cat(2,vecCounts_D,vecCounts_R,vecCounts_U,vecCounts_S);
+	matRatioQ(:,intFile) = vecMeanQ_Real./vecMeanQ_Exp;
+	matRealQ(:,intFile) = vecMeanQ_Real;
+	matExpQ(:,intFile) = vecMeanQ_Exp;
+	%vecCorrSparseness(intFile) = rSpH;
+	%vecCorrSparsenessS(intFile) = rSpHS;
+	
+	matCountsCV(:,intFile) = vecCountsSd;
+	matMeansSd(:,intFile) = vecMeansSd;
+	matMeansCV(:,intFile) = vecMeansCV;
+	matCountsCV_S(:,intFile) = vecCountsSd_S;
+	matMeansSd_S(:,intFile) = vecMeansSd_S;
+	matMeansCV_S(:,intFile) = vecMeansCV_S;
+	
+	matCountsCV_U(:,intFile) = vecCountsSd_U;
+	matMeansSd_U(:,intFile) = vecMeansSd_U;
+	matMeansCV_U(:,intFile) = vecMeansCV_U;
+	
+	matCountsCV_P(:,intFile) = vecCountsSd_P;
+	matMeansSd_P(:,intFile) = vecMeansSd_P;
+	matMeansCV_P(:,intFile) = vecMeansCV_P;
+	
+	cellAllMperTrial{intFile} = vecMperTrial;
+	cellAllSperTrial{intFile} = vecSperTrial;
+	cellAllMperTrial_S{intFile} = vecMperTrial_S;
+	cellAllSperTrial_S{intFile} = vecSperTrial_S;
+	cellAllMperTrial_U{intFile} = vecMperTrial_U;
+	cellAllSperTrial_U{intFile} = vecSperTrial_U;
+	cellAllMperTrial_P{intFile} = vecMperTrial_P;
+	cellAllSperTrial_P{intFile} = vecSperTrial_P;
+	
 	if boolSingleRecPlots
 		%% single plot 1
-	figure;maxfig;
+		figure;maxfig;
 		subplot(2,3,1)
 		hold on
 		plot(vecBinCentersISI*1000,vecCountsISI./sum(vecCountsISI(:)))
@@ -284,7 +352,7 @@ for intFile=1:intRecNum
 		
 		
 		hold off
-		set(gca,'yscale','log');
+		set(gca,'xscale','log');
 		xlabel('Inter-spike interval (ms)');
 		ylabel('Normalized count (n)');
 		legend({strType,strType_S,strType_U,strType_P},'location','best');
@@ -542,59 +610,13 @@ for intFile=1:intRecNum
 		%save fig
 		export_fig(fullpath(strFigurePathSR,sprintf('Q2D_QuantileDeviations%s_%s.tif',strRec,strOnset)));
 		export_fig(fullpath(strFigurePathSR,sprintf('Q2D_QuantileDeviations%s_%s.pdf',strRec,strOnset)))
-		
+			error do fit per recording, then plot fits
 	end
-	%% save data
-	vecLogExpPdf = log10(vecExpPdf./sum(vecExpPdf(:)));
-	vecLogCounts = log10(vecCountsISI./sum(vecCountsISI(:)));
-	vecNormCounts = (vecLogCounts - min(vecLogExpPdf))./range(vecLogExpPdf);
-	
-	%subplot(2,3,4)
-	%plot(vecBinCentersISI*1000,vecNormCounts);
-	%hold on
-	%plot(vecBinCentersISI*1000,linspace(1,0,numel(vecBinCentersISI*1000)));
-	%hold off;
-	
-	matISINormCounts(:,intFile) = vecNormCounts;
-	matISIExpPdf(:,intFile) = vecExpPdf;
-	matISICounts(:,intFile) = vecCountsISI;
-	matISICorrs(:,:,intFile) = cat(2,vecMeans_D,vecMeans_R,vecMeans_U,vecMeans_S);
-	matISICorrCounts(:,:,intFile) = cat(2,vecCounts_D,vecCounts_R,vecCounts_U,vecCounts_S);
-	matRatioQ(:,intFile) = vecMeanQ_Real./vecMeanQ_Exp;
-	matRealQ(:,intFile) = vecMeanQ_Real;
-	matExpQ(:,intFile) = vecMeanQ_Exp;
-	%vecCorrSparseness(intFile) = rSpH;
-	%vecCorrSparsenessS(intFile) = rSpHS;
-	
-	matCountsCV(:,intFile) = vecCountsSd;
-	matMeansSd(:,intFile) = vecMeansSd;
-	matMeansCV(:,intFile) = vecMeansCV;
-	matCountsCV_S(:,intFile) = vecCountsSd_S;
-	matMeansSd_S(:,intFile) = vecMeansSd_S;
-	matMeansCV_S(:,intFile) = vecMeansCV_S;
-	
-	matCountsCV_U(:,intFile) = vecCountsSd_U;
-	matMeansSd_U(:,intFile) = vecMeansSd_U;
-	matMeansCV_U(:,intFile) = vecMeansCV_U;
-	
-	matCountsCV_P(:,intFile) = vecCountsSd_P;
-	matMeansSd_P(:,intFile) = vecMeansSd_P;
-	matMeansCV_P(:,intFile) = vecMeansCV_P;
-	
-	cellAllMperTrial{intFile} = vecMperTrial;
-	cellAllSperTrial{intFile} = vecSperTrial;
-	cellAllMperTrial_S{intFile} = vecMperTrial_S;
-	cellAllSperTrial_S{intFile} = vecSperTrial_S;
-	cellAllMperTrial_U{intFile} = vecMperTrial_U;
-	cellAllSperTrial_U{intFile} = vecSperTrial_U;
-	cellAllMperTrial_P{intFile} = vecMperTrial_P;
-	cellAllSperTrial_P{intFile} = vecSperTrial_P;
-	
-	error do fit per recording, then plot fits
-	
 end
 
 %% plot mean over recordings
+%error plot matSlopes
+
 %{
 subplot(2,3,4)
 matC = lines(2);
@@ -655,7 +677,7 @@ fixfig;
 % hold off
 % fixfig;
 
-%% mean and sd scale together: CV is constant
+% mean and sd scale together: CV is constant
 %do analysis where you shuffle trials independently for each neuron to test if blue curve is population effect
 %error calculate fit on binned points
 intK = 1;
@@ -737,6 +759,23 @@ errorbar(4,dblR2_P,dblR2_SE_P,'x','color',matC(4,:),'capsize',20);
 xlim([0 5]);
 set(gca,'xtick',1:4,'xticklabel',{strType,strType_S,strType_U,strType_P});
 ylabel('Linearity of sd/mean (R^2)');
+fixfig;
+
+subplot(2,3,6)
+matSlopesNorm = matSlopes./matSlopes(4,:);
+hold on;
+vecX = ones(size(matSlopesNorm(1,:)));
+swarmchart(vecX,matSlopesNorm(1,:),[30],matC(1,:),'marker','o','JitterWidth',0.2);
+errorbar(1,mean(matSlopesNorm(1,:),2),std(matSlopesNorm(1,:),[],2)./sqrt(intRecNum),'x','color',matC(1,:),'capsize',20);
+swarmchart(2*vecX,matSlopesNorm(2,:),[],matC(2,:),'marker','o','JitterWidth',0.2);
+errorbar(2,mean(matSlopesNorm(2,:),2),std(matSlopesNorm(2,:),[],2)./sqrt(intRecNum),'x','color',matC(2,:),'capsize',20);
+swarmchart(3*vecX,matSlopesNorm(3,:),[],matC(3,:),'marker','o','JitterWidth',0.2);
+errorbar(3,mean(matSlopesNorm(3,:),2),std(matSlopesNorm(3,:),[],2)./sqrt(intRecNum),'x','color',matC(3,:),'capsize',20);
+swarmchart(4*vecX,matSlopesNorm(4,:),[],matC(4,:),'marker','o','JitterWidth',0.2);
+errorbar(4,mean(matSlopesNorm(4,:),2),std(matSlopesNorm(4,:),[],2)./sqrt(intRecNum),'x','color',matC(4,:),'capsize',20);
+xlim([0 5]);
+set(gca,'xtick',1:4,'xticklabel',{strType,strType_S,strType_U,strType_P});
+ylabel('Slope of sd/mean');
 fixfig;
 
 drawnow;

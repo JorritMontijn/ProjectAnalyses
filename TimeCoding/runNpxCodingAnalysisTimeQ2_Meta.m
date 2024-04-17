@@ -90,7 +90,7 @@ cellTypes =  {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
 for intFile=1:intRecNum
 	%% load
 	load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
-	strRec = getFlankedBy(sFiles(intFile).name,'Q2Data','_P0_t0');
+	strRec = getFlankedBy(sFiles(intFile).name,'Q2Data','_g0_t0');
 	
 	%% unpack
 	%real

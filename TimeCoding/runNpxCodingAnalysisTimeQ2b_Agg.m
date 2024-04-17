@@ -155,9 +155,9 @@ for intRec=1:intRecNum %19 || weird: 11
 		end
 		
 		%% plot
-		figure
+		figure;maxfig;
 		subplot(3,4,1)
-		cline(vecMean,vecSd,vecTimescales)
+		cline(vecMean,vecSd,vecTimescales);
 		xlabel('Mean of spike counts over bins');
 		ylabel('Sd of spike counts over bins');
 		title(sprintf('Color=timescale; %s - %s',strRec,strType),'interpreter','none');
@@ -213,7 +213,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%% single neurons
 		subplot(3,4,5)
-		cline(matMeanSingle(1,:),matSdSingle(1,:),matMeanSingle(1,:))
+		cline(matMeanSingle(1,:),matSdSingle(1,:),matMeanSingle(1,:));
 		xlabel('Mean of spike counts over bins');
 		ylabel('Sd of spike counts over bins');
 		title('Color=timescale');
@@ -271,7 +271,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		%% timescales
 		subplot(3,4,9)
 		matCV = matSd./matMean;
-		cline(matTime(end,:),matCV(end,:),matMean(end,:))
+		cline(matTime(end,:),matCV(end,:),matMean(end,:));
 		xlabel('Timescale (bin width in s)');
 		ylabel('CV (sd/mu) of spike counts over bins');
 		title('Color=mean spike count');

@@ -6,7 +6,9 @@ strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
-boolMakeFigs = false;
+boolMakeFigs = true;
+intSubSampleSize = 10;
+intSampleDist = 1;
 
 %% go through recs
 tic
@@ -107,7 +109,7 @@ for intRec=1:intRecNum %19 || weird: 11
 			end
 		end
 		
-		%%
+		%% get pop and single neurons
 		vecAllSpikeTime = sort(cell2vec(cellSpikeTimes));
 		vecTimescales = 0.01:0.01:1;
 		vecMean = nan(size(vecTimescales));
@@ -120,30 +122,52 @@ for intRec=1:intRecNum %19 || weird: 11
 		end
 		
 		%subselect neurons
+		vecNumN = [1:intSampleDist:(intNumN-1) intNumN];
 		vecN = 1:intNumN;
-		matMean = nan(intNumN,numel(vecTimescales));
-		matSd = nan(intNumN,numel(vecTimescales));
-		matTime = nan(intNumN,numel(vecTimescales));
-		for intN=1:intNumN
-			intN
-			vecUseN = randperm(intNumN,intN);
-			vecAllSpikeTime = sort(cell2vec(cellSpikeTimes(vecUseN)));
-			for intScale=1:numel(vecTimescales)
-				vecBins = sSource.dblStartEpoch:vecTimescales(intScale):(sSource.dblStartEpoch+sSource.dblEpochDur);
-				vecCounts = histcounts( vecAllSpikeTime,vecBins);
-				matMean(intN,intScale) = mean(vecCounts);
-				matSd(intN,intScale) = std(vecCounts);
-				matTime(intN,intScale) = vecTimescales(intScale);
+		intSampleNum = numel(vecNumN);
+		matAllMean = nan(intSampleNum,numel(vecTimescales),intSubSampleSize);
+		matAllSd = nan(intSampleNum,numel(vecTimescales),intSubSampleSize);
+		matAllTime = nan(intSampleNum,numel(vecTimescales),intSubSampleSize);
+		warning('off','MATLAB:nchoosek:LargeCoefficient');
+		hTic=tic;
+		for intIdx=1:intSampleNum
+			intN = vecNumN(intIdx);
+			if toc(hTic)>5
+				fprintf('Running %s - %s, %d/%d [%s]\n',strRec,strType,intIdx,intSampleNum,getTime);
+				hTic=tic;
+			end
+			intCombs = nchoosek(intNumN,intN);
+			if intCombs <= intSubSampleSize
+				matCombs = nchoosek(vecN,intN);
+			else
+				matCombs = nan(intSubSampleSize,intN);
+				for i=1:intSubSampleSize
+					matCombs(i,:) = randperm(intNumN,intN);
+				end
+			end
+			for intIter=1:size(matCombs,1)
+				vecUseN = matCombs(intIter,:);
+				vecAllSpikeTime = sort(cell2vec(cellSpikeTimes(vecUseN)));
+				for intScale=1:numel(vecTimescales)
+					vecBins = sSource.dblStartEpoch:vecTimescales(intScale):(sSource.dblStartEpoch+sSource.dblEpochDur);
+					vecCounts = histcounts( vecAllSpikeTime,vecBins);
+					matAllMean(intIdx,intScale,intIter) = mean(vecCounts);
+					matAllSd(intIdx,intScale,intIter) = std(vecCounts);
+					matAllTime(intIdx,intScale,intIter) = vecTimescales(intScale);
+				end
 			end
 		end
+		matMean = nanmean(matAllMean,3);
+		matSd = nanmean(matAllSd,3);
+		matTime = nanmean(matAllTime,3);
+		matAllCV = matAllSd./matAllMean;
+		matCV = nanmean(matAllCV,3);
 		
 		%single neurons
-		vecN = 1:intNumN;
 		matMeanSingle = nan(intNumN,numel(vecTimescales));
 		matSdSingle = nan(intNumN,numel(vecTimescales));
 		matTimeSingle = nan(intNumN,numel(vecTimescales));
 		for intN=1:intNumN
-			intN
 			vecAllSpikeTime = sort(cell2vec(cellSpikeTimes(intN)));
 			for intScale=1:numel(vecTimescales)
 				vecBins = sSource.dblStartEpoch:vecTimescales(intScale):(sSource.dblStartEpoch+sSource.dblEpochDur);
@@ -154,7 +178,74 @@ for intRec=1:intRecNum %19 || weird: 11
 			end
 		end
 		
+		%fit sd/mean pop
+		vecSlopes = nan(1,intSampleNum);
+		vecR2 = nan(1,intSampleNum);
+		intK=1;
+		for intIdx=1:intSampleNum
+			vecX = matMean(intIdx,:)';
+			vecY = matSd(intIdx,:)';
+			dblSlope = ((vecX' * vecX) \ vecX') * vecY;
+			vecFitY = vecX*dblSlope;
+			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
+			
+			vecSlopes(intIdx) = dblSlope;
+			vecR2(intIdx) = dblR2;
+		end
+		
+		%fit sd/mean single
+		vecSlopes_Single = nan(1,intNumN);
+		vecR2_Single = nan(1,intNumN);
+		intK=1;
+		for intN=1:intNumN
+			vecX = matMeanSingle(intN,:)';
+			vecY = matSdSingle(intN,:)';
+			dblSlope = ((vecX' * vecX) \ vecX') * vecY;
+			vecFitY = vecX*dblSlope;
+			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
+			
+			vecSlopes_Single(intN) = dblSlope;
+			vecR2_Single(intN) = dblR2;
+		end
+		
+		%fit cv/timescale pop
+		g = fittype('a+b*exp(-x/c)',...
+			'dependent',{'y'},'independent',{'x'},...
+			'coefficients',{'a','b','c'});
+		warning('off','curvefit:fit:noStartPoint');
+		vecSlopes_Time = nan(1,intSampleNum);
+		vecR2_Time = nan(1,intSampleNum);
+		vecHalfLifeExp_Time = nan(1,intSampleNum);
+		vecAsymptoteExp_Time = nan(1,intSampleNum);
+		vecScaleExp_Time = nan(1,intSampleNum);
+		vecR2Exp_Time = nan(1,intSampleNum);
+		intK=1;
+		vecCV = matCV(end,:);
+		for intIdx=1:intSampleNum
+			%fit linear model
+			vecX = vecTimescales';
+			vecY = matCV(intIdx,:)';
+			mdl = fitlm(vecX,vecY);
+			
+			dblSlope = mdl.Coefficients.Estimate(2);
+			vecFitY =  mdl.Fitted;
+			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
+			vecSlopes_Time(intIdx) = dblSlope;
+			vecR2_Time(intIdx) = dblR2;
+			
+			%fit exp model
+			vecStartCoeffs = [vecY(end) vecY(1)-vecY(end) 0.1];
+			[fitobject,gof] = fit(vecX,vecY,g,'lower',[0 0 1e-6],'upper',[1e6 1e6 1e6],'startpoint',vecStartCoeffs);
+			vecFitExp = fitobject(vecX);
+			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitExp,intK);
+			vecHalfLifeExp_Time(intIdx) = fitobject.c*log(2);
+			vecAsymptoteExp_Time(intIdx) = fitobject.a;
+			vecScaleExp_Time(intIdx) = fitobject.b;
+			vecR2Exp_Time(intIdx) = dblR2;
+		end
+		
 		%% plot
+		if boolMakeFigs
 		figure;maxfig;
 		subplot(3,4,1)
 		cline(vecMean,vecSd,vecTimescales);
@@ -186,28 +277,13 @@ for intRec=1:intRecNum %19 || weird: 11
 		colorbar;
 		title('Density normalized per mu-bin');
 		
-		%fit sd/mean
-		vecSlopes = nan(1,intNumN);
-		vecR2 = nan(1,intNumN);
-		intK=1;
-		for intN=1:intNumN
-			vecX = matMean(intN,:)';
-			vecY = matSd(intN,:)';
-			dblSlope = ((vecX' * vecX) \ vecX') * vecY;
-			vecFitY = vecX*dblSlope;
-			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
-			
-			vecSlopes(intN) = dblSlope;
-			vecR2(intN) = dblR2;
-		end
-		
 		%plot slope of sd/mean as function of # of neurons
 		subplot(6,4,4);
-		plot(1:intNumN,vecSlopes);
+		plot(1:intSampleNum,vecSlopes);
 		ylabel('Slope of sd/mu (CV)');
 		
 		subplot(6,4,8);
-		plot(1:intNumN,vecR2);
+		plot(1:intSampleNum,vecR2);
 		xlabel('Population size (# of neurons)');
 		ylabel('Linearity (R^2 of sd/mu)');
 		
@@ -242,21 +318,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		colorbar;
 		title('Density normalized per mu-bin');
 		
-		%fit sd/mean
-		vecSlopes_Single = nan(1,intNumN);
-		vecR2_Single = nan(1,intNumN);
-		intK=1;
-		for intN=1:intNumN
-			vecX = matMeanSingle(intN,:)';
-			vecY = matSdSingle(intN,:)';
-			dblSlope = ((vecX' * vecX) \ vecX') * vecY;
-			vecFitY = vecX*dblSlope;
-			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
-			
-			vecSlopes_Single(intN) = dblSlope;
-			vecR2_Single(intN) = dblR2;
-		end
-		
 		%plot slope of sd/mean as function of # of neurons
 		subplot(6,4,12);
 		plot(1:intNumN,vecSlopes_Single);
@@ -270,7 +331,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%% timescales
 		subplot(3,4,9)
-		matCV = matSd./matMean;
 		cline(matTime(end,:),matCV(end,:),matMean(end,:));
 		xlabel('Timescale (bin width in s)');
 		ylabel('CV (sd/mu) of spike counts over bins');
@@ -300,51 +360,20 @@ for intRec=1:intRecNum %19 || weird: 11
 		colorbar;
 		title('Density normalized per t-bin');
 		
-		
-		g = fittype('a+b*exp(-x/c)',...
-			'dependent',{'y'},'independent',{'x'},...
-			'coefficients',{'a','b','c'});
-		warning('off','curvefit:fit:noStartPoint');
-		%fit sd/mean
-		vecSlopes_Time = nan(1,intNumN);
-		vecR2_Time = nan(1,intNumN);
-		vecLambdaExp_Time = nan(1,intNumN);
-		vecR2Exp_Time = nan(1,intNumN);
-		intK=1;
-		for intN=1:intNumN
-			%fit linear model
-			vecX = vecTimescales';
-			vecY = matCV(intN,:)';
-			mdl = fitlm(vecX,vecY);
-			
-			dblSlope = mdl.Coefficients.Estimate(2);
-			vecFitY =  mdl.Fitted;
-			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
-			vecSlopes_Time(intN) = dblSlope;
-			vecR2_Time(intN) = dblR2;
-			
-			%fit exp model
-			[fitobject,gof] = fit(vecX,vecY,g,'lower',[0 0 1e-6],'upper',[1e6 1e6 1e6]);
-			vecFitExp = fitobject(vecX);
-			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitExp,intK);
-			vecLambdaExp_Time(intN) = fitobject.c*log(2);
-			vecR2Exp_Time(intN) = dblR2;
-			
-		end
-		
 		%plot slope of sd/mean as function of # of neurons
 		subplot(6,4,20);
-		plot(1:intNumN,vecR2_Time);
+		plot(1:intSampleNum,vecR2_Time);
 		ylabel('CV-linearity with timescale (R^2 of mu/sd)');
 		
 		subplot(6,4,24);
-		plot(1:intNumN,vecR2Exp_Time);
+		plot(1:intSampleNum,vecR2Exp_Time);
 		xlabel('Population size (# of neurons)');
 		ylabel('CV-exponentiality with timescale (R^2 of mu/sd)');
 		
 		%% save figure
 		export_fig(fullpath(strFigurePathSR,sprintf('Q2bA_TimescaleCV_%s_%s_%s.tif',strThisRec,strType,strOnset)));
 		export_fig(fullpath(strFigurePathSR,sprintf('Q2bA_TimescaleCV_%s_%s_%s.pdf',strThisRec,strType,strOnset)));
+		end
 		
 		%% save data
 		sData = struct;
@@ -352,19 +381,24 @@ for intRec=1:intRecNum %19 || weird: 11
 		sData.strType = strType;
 		sData.dblRemOnset = dblRemOnset;
 		sData.strThisRec = strThisRec;
+		sData.vecMean = vecMean;
+		sData.vecSd = vecSd;
 		sData.vecTimescales = vecTimescales;
+		sData.vecCV = vecCV;
 		sData.vecSlopes = vecSlopes;
 		sData.vecR2 = vecR2;
 		sData.vecSlopes_Single = vecSlopes_Single;
 		sData.vecR2_Single = vecR2_Single;
 		sData.vecSlopes_Time = vecSlopes_Time;
 		sData.vecR2_Time = vecR2_Time;
-		sData.vecLambdaExp_Time = vecLambdaExp_Time;
+		sData.vecHalfLifeExp_Time = vecHalfLifeExp_Time;
+		sData.vecAsymptoteExp_Time = vecAsymptoteExp_Time;
+		sData.vecScaleExp_Time = vecScaleExp_Time;
 		sData.vecR2Exp_Time = vecR2Exp_Time;
-		
+		sData.vecN = vecN;
+
 		%add to superstructure
 		sAggData(intType) = sData;
-		
 	end
 	close all;
 	%% save agg data

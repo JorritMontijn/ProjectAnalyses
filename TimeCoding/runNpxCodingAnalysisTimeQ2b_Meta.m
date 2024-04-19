@@ -69,6 +69,7 @@ cellExpHalflife = {};
 cellExpScale = {};
 cellExpAsymptote = {};
 matCol=lines(numel(cellTypes));
+matMaxSlopes = [];
 for intFile=1:intRecNum
 	%% load
 	sLoad=load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
@@ -100,9 +101,10 @@ for intFile=1:intRecNum
 		%% plot cv/timescale
 		plot(vecH2(intType),sAggData(intUseEntry).vecTimescales,sAggData(intUseEntry).vecCV,'color',matCol(intType,:));
 		
-		
+		matMaxSlopes(intFile,intType) = sAggData(intUseEntry).vecSd(end)/sAggData(intUseEntry).vecMean(end);
 	end
 end
+
 for intType=1:numel(cellTypes)
 	%finish plots 1; mean and labels
 	xlabel(vecH(intType),'Mean of spike counts');

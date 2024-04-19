@@ -185,8 +185,13 @@ for intRec=1:intRecNum %19 || weird: 11
 		for intIdx=1:intSampleNum
 			vecX = matMean(intIdx,:)';
 			vecY = matSd(intIdx,:)';
-			dblSlope = ((vecX' * vecX) \ vecX') * vecY;
-			vecFitY = vecX*dblSlope;
+			
+			%fit linear model
+			mdl = fitlm(vecX,vecY);
+			dblSlope = mdl.Coefficients.Estimate(2);
+			vecFitY =  mdl.Fitted;
+			%dblSlope = ((vecX' * vecX) \ vecX') * vecY;
+			%vecFitY = vecX*dblSlope;
 			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
 			
 			vecSlopes(intIdx) = dblSlope;
@@ -200,8 +205,11 @@ for intRec=1:intRecNum %19 || weird: 11
 		for intN=1:intNumN
 			vecX = matMeanSingle(intN,:)';
 			vecY = matSdSingle(intN,:)';
-			dblSlope = ((vecX' * vecX) \ vecX') * vecY;
-			vecFitY = vecX*dblSlope;
+			mdl = fitlm(vecX,vecY);
+			dblSlope = mdl.Coefficients.Estimate(2);
+			vecFitY =  mdl.Fitted;
+			%dblSlope = ((vecX' * vecX) \ vecX') * vecY;
+			%vecFitY = vecX*dblSlope;
 			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
 			
 			vecSlopes_Single(intN) = dblSlope;

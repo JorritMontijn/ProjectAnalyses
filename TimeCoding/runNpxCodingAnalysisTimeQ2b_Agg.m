@@ -7,9 +7,10 @@ cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
 boolMakeFigs = true;
-intSubSampleSize = 10;
+intSubSampleSize = 100;
 intSampleDist = 1;
-
+vecTimescales = [0.01:0.01:1.5];
+		
 %% go through recs
 tic
 for intRec=1:intRecNum %19 || weird: 11
@@ -83,7 +84,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		fprintf('Running %s... [%s]\n',strThisRec,getTime);
 	end
 	
-	
 	%types: Real, UniformTrial, ShuffTid, PoissGain
 	clear sAggData;
 	for intType=1:numel(cellTypes)
@@ -111,7 +111,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%% get pop and single neurons
 		vecAllSpikeTime = sort(cell2vec(cellSpikeTimes));
-		vecTimescales = 0.01:0.01:1;
 		vecMean = nan(size(vecTimescales));
 		vecSd = nan(size(vecTimescales));
 		for intScale=1:numel(vecTimescales)
@@ -217,9 +216,13 @@ for intRec=1:intRecNum %19 || weird: 11
 		end
 		
 		%fit cv/timescale pop
-		g = fittype('a+b*exp(-x/c)',...
+		fExp = fittype('a+b*exp(-x/c)',...
 			'dependent',{'y'},'independent',{'x'},...
 			'coefficients',{'a','b','c'});
+		fRoot = fittype('a+(1/((b*x)^c))',...
+			'dependent',{'y'},'independent',{'x'},...
+			'coefficients',{'a','b','c'});
+		
 		warning('off','curvefit:fit:noStartPoint');
 		vecSlopes_Time = nan(1,intSampleNum);
 		vecR2_Time = nan(1,intSampleNum);
@@ -227,6 +230,10 @@ for intRec=1:intRecNum %19 || weird: 11
 		vecAsymptoteExp_Time = nan(1,intSampleNum);
 		vecScaleExp_Time = nan(1,intSampleNum);
 		vecR2Exp_Time = nan(1,intSampleNum);
+		vecAsymptoteRoot_Time = nan(1,intSampleNum);
+		vecScaleRoot_Time = nan(1,intSampleNum);
+		vecExponentRoot_Time = nan(1,intSampleNum);
+		vecR2Root_Time = nan(1,intSampleNum);
 		intK=1;
 		vecCV = matCV(end,:);
 		for intIdx=1:intSampleNum
@@ -243,13 +250,23 @@ for intRec=1:intRecNum %19 || weird: 11
 			
 			%fit exp model
 			vecStartCoeffs = [vecY(end) vecY(1)-vecY(end) 0.1];
-			[fitobject,gof] = fit(vecX,vecY,g,'lower',[0 0 1e-6],'upper',[1e6 1e6 1e6],'startpoint',vecStartCoeffs);
+			[fitobject,gof] = fit(vecX,vecY,fExp,'lower',[0 0 1e-6],'upper',[1e6 1e6 1e6],'startpoint',vecStartCoeffs);
 			vecFitExp = fitobject(vecX);
 			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitExp,intK);
 			vecHalfLifeExp_Time(intIdx) = fitobject.c*log(2);
 			vecAsymptoteExp_Time(intIdx) = fitobject.a;
 			vecScaleExp_Time(intIdx) = fitobject.b;
 			vecR2Exp_Time(intIdx) = dblR2;
+			
+			%fit root model
+			vecStartCoeffs = [vecY(end) vecY(1)/vecTimescales(1) 1/2];
+			[fitobject,gof] = fit(vecX,vecY,fRoot,'lower',[0 0 0],'upper',[1e6 1e6 1],'startpoint',vecStartCoeffs);
+			vecFitRoot = fitobject(vecX);
+			[dblR2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitRoot,intK);
+			vecAsymptoteRoot_Time(intIdx) = fitobject.a;
+			vecScaleRoot_Time(intIdx) = fitobject.b;
+			vecExponentRoot_Time(intIdx) = fitobject.c;
+			vecR2Root_Time(intIdx) = dblR2;
 		end
 		
 		%% plot
@@ -404,13 +421,18 @@ for intRec=1:intRecNum %19 || weird: 11
 		sData.vecScaleExp_Time = vecScaleExp_Time;
 		sData.vecR2Exp_Time = vecR2Exp_Time;
 		sData.vecN = vecN;
-
+		sData.vecScaleRoot_Time = vecScaleRoot_Time;
+		sData.vecAsymptoteRoot_Time = vecAsymptoteRoot_Time;
+		sData.vecExponentRoot_Time = vecExponentRoot_Time;
+		sData.vecR2Root_Time = vecR2Root_Time;
+		
 		%add to superstructure
 		sAggData(intType) = sData;
 	end
 	close all;
+	
 	%% save agg data
-	save(fullpath(strTargetDataPath,sprintf('Q2bData%s_%s.mat',strThisRec,strOnset)),...
+	save(fullpath(strTargetDataPath,sprintf('Q2b2Data%s_%s.mat',strThisRec,strOnset)),...
 		'sAggData');
 end
 toc

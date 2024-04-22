@@ -1,7 +1,6 @@
 
 %% get matching recording data
 strTarget = fullpath(sSimRecs(intRec).folder,sSimRecs(intRec).name);
-close all;
 strRec = sSimRecs(intRec).name(1:(end-4));
 strRecOrig = strRec;
 

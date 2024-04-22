@@ -1,6 +1,5 @@
 
 %% get matching recording data
-close all;
 strRec = sAggStim(intRec).Exp;
 strRecOrig = strRec;
 sThisRec = sAggStim(strcmpi(strRec,{sAggStim(:).Exp}));

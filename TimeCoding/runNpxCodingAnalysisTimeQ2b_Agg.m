@@ -98,19 +98,14 @@ for intRec=1:intRecNum %19 || weird: 11
 		cellSpikeTimes = sSource.cellSpikeTimes;
 		if isempty(vecTime),continue;end
 		
-		%% build trial-neuron cell matrix
-		cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
-		for intN=1:intNumN
-			%real
-			[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(cellSpikeTimes{intN},vecStimOnTime,dblStimDur);
-			for intTrial=1:intOrigTrialNum
-				vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
-				cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
-			end
+		%% take only period during stimuli
+		for i=1:numel(cellSpikeTimes)
+			[vecPseudoSpikeTimes,vecPseudoStartT] = getPseudoSpikeVectors(cellSpikeTimes{i},vecStimOnTime,dblStimDur,true);
+			cellSpikeTimes{i} = vecPseudoSpikeTimes;
 		end
+		vecAllSpikeTime = sort(cell2vec(cellSpikeTimes));
 		
 		%% get pop and single neurons
-		vecAllSpikeTime = sort(cell2vec(cellSpikeTimes));
 		vecMean = nan(size(vecTimescales));
 		vecSd = nan(size(vecTimescales));
 		for intScale=1:numel(vecTimescales)

@@ -47,7 +47,8 @@ if dblRemOnset == 0
 else
 	strOnset = sprintf('%.2f',dblRemOnset);
 end
-sFiles = dir ([strTargetDataPath 'Q2b2Data*' strOnset '.mat']);
+strTag = 'Q2cData';
+sFiles = dir ([strTargetDataPath strTag '*' strOnset '.mat']);
 intRecNum = numel(sFiles);
 
 %% pre-allocate
@@ -66,7 +67,7 @@ end
 
 cellSlopes = {};
 cellR2 = {};
-cellR2Exp = {};
+cellExpR2 = {};
 cellExpHalflife = {};
 cellExpScale = {};
 cellExpAsymptote = {};
@@ -76,10 +77,11 @@ for intFile=1:intRecNum
 	%% load
 	sLoad=load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
 	sAggData = sLoad.sAggData;
-	strRec = getFlankedBy(sFiles(intFile).name,'Q2bData','_g0_t0');
+	strRec = getFlankedBy(sFiles(intFile).name,strTag,'_g0_t0');
 	cellTheseTypes = {sAggData.strType};
 	vecTimescales = sAggData(1).vecTimescales;
-	
+	vecJitter = sAggData(1).vecJitter;
+		
 	%% plot & save data
 	for intType=1:numel(cellTypes)
 		strType = cellTypes{intType};
@@ -90,26 +92,21 @@ for intFile=1:intRecNum
 		end
 		
 		%% save data
-		cellSlopes{intFile,intType} = sAggData(intUseEntry).vecSlopes;
-		cellR2{intFile,intType} = sAggData(intUseEntry).vecR2;
-		cellR2Exp{intFile,intType} = sAggData(intUseEntry).vecR2Exp_Time;
-		cellExpHalflife{intFile,intType} = sAggData(intUseEntry).vecHalfLifeExp_Time;
-		cellExpScale{intFile,intType} = sAggData(intUseEntry).vecScaleExp_Time;
-		cellExpAsymptote{intFile,intType} = sAggData(intUseEntry).vecAsymptoteExp_Time;
-		cellRootR2{intFile,intType} = sAggData(intUseEntry).vecR2Root_Time;
-		cellRootAsymptote{intFile,intType} = sAggData(intUseEntry).vecAsymptoteRoot_Time;
-		cellRootScale{intFile,intType} = sAggData(intUseEntry).vecScaleRoot_Time;
-		cellRootExponent{intFile,intType} = sAggData(intUseEntry).vecExponentRoot_Time;
-		
-		%% plot sd/mean
-		plot(vecH(intType),sAggData(intUseEntry).vecMean,sAggData(intUseEntry).vecSd,'color',matCol(intType,:));
-		plot(vecH1_5(intType),sAggData(intUseEntry).vecMean,sAggData(intUseEntry).vecSd.^2,'color',matCol(intType,:));
-		
-		%% plot cv/timescale
-		plot(vecH2(intType),sAggData(intUseEntry).vecTimescales,sAggData(intUseEntry).vecCV,'color',matCol(intType,:));
+		cellExpR2{intFile,intType} = sAggData(intUseEntry).vecR2_Exp;
+		cellExpHalflife{intFile,intType} = sAggData(intUseEntry).vecHalfLife_Exp;
+		cellExpScale{intFile,intType} = sAggData(intUseEntry).vecScale_Exp;
+		cellExpAsymptote{intFile,intType} = sAggData(intUseEntry).vecAsymptote_Exp;
 		
 		
-		matMaxSlopes(intFile,intType) = sAggData(intUseEntry).vecSd(end)/sAggData(intUseEntry).vecMean(end);
+		cellRootR2{intFile,intType} = sAggData(intUseEntry).vecR2_Root;
+		cellRootAsymptote{intFile,intType} = sAggData(intUseEntry).vecAsymptote_Root;
+		cellRootScale{intFile,intType} = sAggData(intUseEntry).vecScale_Root;
+		cellRootExponent{intFile,intType} = sAggData(intUseEntry).vecExponent_Root;
+		
+		matMean = sAggData(intUseEntry).matMean;
+		matSd = sAggData(intUseEntry).matSd;
+		matCV = sAggData(intUseEntry).matCV;
+		
 	end
 end
 
@@ -133,38 +130,21 @@ end
 fixfig;
 
 drawnow;
-export_fig(fullpath(strFigurePath,sprintf('Q2b_CV_Timescales.tif')));
-export_fig(fullpath(strFigurePath,sprintf('Q2b_CV_Timescales.pdf')));
-
-%% plot examples
-figure
-hold on
-x=[0.1:0.1:0.9 1:10];
-plot(x,exp(-x))
-plot(x,imnorm(1./(x.^0.5)))
-plot(x,imnorm(1./(x.^0.33)))
-plot(x,imnorm(1./(x.^0.2)))
-legend({'exp','0.5','0.33','0.2'})
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_Timescales.tif')));
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_Timescales.pdf')));
 
 
 %% plot slopes/r2 for sd/mean and half-life/r2 for cv/timescale
 %use same pop size for all, or max for each?
-if boolUseMax
-	vecUseEntries = cellfun(@numel,cellSlopes(:,1));
-else
-	vecUseEntries = ones(1,intRecNum)*min(cellfun(@numel,cellSlopes(:,1)));
-end
-matSlopes = nan(intRecNum,intTypeNum);
-matR2 = nan(intRecNum,intTypeNum);
+vecUseEntries = cellfun(@numel,cellSlopes(:,1));
+
 matExpR2 = nan(intRecNum,intTypeNum);
 matExpHalfLife = nan(intRecNum,intTypeNum);
 matExpAsymptote = nan(intRecNum,intTypeNum);
 matExpScale = nan(intRecNum,intTypeNum);
 for intType=1:intTypeNum
 	for intRec=1:intRecNum
-		matSlopes(intRec,intType) = cellSlopes{intRec,intType}(vecUseEntries(intRec));
-		matR2(intRec,intType) = cellR2{intRec,intType}(vecUseEntries(intRec));
-		matExpR2(intRec,intType) = cellR2Exp{intRec,intType}(vecUseEntries(intRec));
+		matExpR2(intRec,intType) = cellExpR2{intRec,intType}(vecUseEntries(intRec));
 		matExpHalfLife(intRec,intType) = cellExpHalflife{intRec,intType}(vecUseEntries(intRec));
 		matExpAsymptote(intRec,intType) = cellExpAsymptote{intRec,intType}(vecUseEntries(intRec));
 		matExpScale(intRec,intType) = cellExpScale{intRec,intType}(vecUseEntries(intRec));
@@ -264,5 +244,5 @@ set(cellH3{10},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cel
 fixfig;
 
 drawnow;
-export_fig(fullpath(strFigurePath,sprintf('Q2b_CV_ExpDecay.tif')));
-export_fig(fullpath(strFigurePath,sprintf('Q2b_CV_ExpDecay.pdf')));
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_ExpDecay.tif')));
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_ExpDecay.pdf')));

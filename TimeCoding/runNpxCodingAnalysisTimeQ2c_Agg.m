@@ -6,10 +6,12 @@ cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
 intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
+cellTypes = {'Real','Poiss'};%,'Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
 runHeaderPopTimeCoding;
 boolMakeFigs = true;
-vecTimescales = 0.01:0.01:10;%10;1.5;
-vecJitter = [0 0.01:0.01:0.1 0.2:0.1:1];
+%vecTimescales = 0.01:0.01:10;%10;1.5;
+vecTimescales = linspace(1e-2,1e1,1000);%logspace(-2,3,1000);%0.01:0.01:10;%10;1.5;
+vecJitter = [0 (2.^(-9:10))];
 intPopSize = inf; %24 (smallest pop of all recs) or inf (uses full pop for each rec)
 
 %% go through recs
@@ -32,11 +34,11 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%% move onset
 		%remove first x ms
-		vecStimOnTime = vecStimOnTime + dblRemOnset;
+		vecOrigStimOnTime = vecStimOnTime + dblRemOnset;
 		
 		%get data matrix
 		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,indResp] = ...
-			SimPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
+			SimPrepData(cellSpikeTimesRaw,vecOrigStimOnTime,vecStimOffTime,vecOrientation);
 		
 		%get cell props
 		%vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
@@ -50,11 +52,11 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%% move onset
 		%remove first x ms
-		vecStimOnTime = vecStimOnTime + dblRemOnset;
+		vecOrigStimOnTime = vecStimOnTime + dblRemOnset;
 		
 		%get data matrix
 		[matData,indTuned,cellSpikeTimes,sTuning24,cellSpikeTimesPerCellPerTrial] = ...
-			NpxPrepData(cellSpikeTimesRaw,vecStimOnTime,vecStimOffTime,vecOrientation);
+			NpxPrepData(cellSpikeTimesRaw,vecOrigStimOnTime,vecStimOffTime,vecOrientation);
 		
 		%get cell props
 		vecNeuronType = ones(size(indTuned)); %1=pyr,2=interneuron
@@ -67,7 +69,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	intTunedN = sum(indTuned);
 	intRespN = size(matData,1);
 	intNumN = numel(cellSpikeTimes);
-	intTrialNum = numel(vecStimOnTime);
+	intTrialNum = numel(vecOrigStimOnTime);
 	vecOri180 = mod(vecOrientation,180);
 	[vecOriIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
 	sTuning = getTuningCurves(matData,vecOri180,0);
@@ -76,7 +78,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	
 	intOriNum = numel(vecUnique);
 	intRepNum = min(vecPriorDistribution);
-	dblStimDur = median(vecStimOffTime - vecStimOnTime);
+	dblStimDur = median(vecStimOffTime - vecOrigStimOnTime);
 	if mean(sum(matData)) < 90%90 / 50
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
@@ -85,74 +87,29 @@ for intRec=1:intRecNum %19 || weird: 11
 	end
 	%% go through types
 	clear sAggData;
-	figure;maxfig;hold on
-	matCol=lines(6);
-	vecHandles = [];
 	for intType=1:numel(cellTypes)
 		strType = cellTypes{intType};
-		fprintf('Running %s (%d/%d) - %s [%s]\n',strRec,intRec,intRecNum,strType,getTime);
 		
 		%% load prepped data and ifr
 		sSource = load(fullpath(strDataPathT0,sprintf('T0Data_%s%s%s%s%s',strThisRec,strRunType,strRunStim,strType)));
-		cellSpikeTimes = sSource.cellSpikeTimes;
-		%if isempty(vecTime),continue;end
+		cellOrigSpikeTimes = sSource.cellSpikeTimes;
+		vecPseudoStartT = vecOrigStimOnTime;
 		
 		%% take only period during stimuli
-		for i=1:numel(cellSpikeTimes)
-			[vecPseudoSpikeTimes,vecPseudoStartT] = getPseudoSpikeVectors(cellSpikeTimes{i},vecStimOnTime,dblStimDur,true);
+		cellSpikeTimes = cell(size(cellOrigSpikeTimes));
+		for i=1:numel(cellOrigSpikeTimes)
+			[vecPseudoSpikeTimes,vecPseudoStartT] = getPseudoSpikeVectors(cellOrigSpikeTimes{i},vecOrigStimOnTime,dblStimDur,true);
 			cellSpikeTimes{i} = vecPseudoSpikeTimes;
 		end
+		
 		vecAllSpikeTime = sort(cell2vec(cellSpikeTimes));
+		dblStart = vecPseudoStartT(1);
+		dblEnd = vecPseudoStartT(end)+dblStimDur;
+		dblTotDur = dblEnd-dblStart;
+		vecAllSpikeTime(vecAllSpikeTime<dblStart | vecAllSpikeTime>dblEnd) = [];
+		vecAllSpikeTime = vecAllSpikeTime-dblStart;
+		dblLastSpike = max(vecAllSpikeTime);
 		
-		%true uniform
-		%vecAllSpikeTime = sort(rand(size(vecAllSpikeTime))*range(vecAllSpikeTime)+min(vecAllSpikeTime));
-		vecISI = diff(sort(vecAllSpikeTime));
-		
-		vecBinEdges = 0:0.001:0.02;
-		vecBinCenters = vecBinEdges(2:end)-diff(vecBinEdges)/2;
-		vecCounts = histcounts(vecISI,vecBinEdges);
-		
-		fExp = @(b,c,x) b*exp(-x/c);
-		fitExp = fittype(fExp,...
-			'dependent',{'y'},'independent',{'x'},...
-			'coefficients',{'b','c'});
-		
-		vecX = 1000*vecBinCenters';
-		vecY = vecCounts';
-		
-		subplot(2,3,intType);hold on
-		vecHandles(intType) = plot(vecX,vecY,'color',matCol(intType,:));
-		options = fitoptions;
-		vecStartCoeffsExp = [vecY(1) 0.1];
-		%fExp = @(p,x) p(1)*exp(-x/p(2));
-		%[pFit,Resnorm,FVAL,EXITFLAG,OUTPUT,LAMBDA,JACOB] = curvefitfun(fExp,vecStartCoeffsExp,vecX,vecY,[0 0],[1e10 1e6]);
-		%vecFitY3 = fExp(pFit,vecX);
-		
-		[fitobject,gof,output] = fit(vecX,vecY,fitExp,'lower',[0 0],'upper',[1e10 1e10],'startpoint',vecStartCoeffsExp);
-		vecFitExp = fitobject(vecX);
-		[dblR2_Exp,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitExp,1);
-		dblHalfLife_Exp = fitobject.c*log(2);
-		dblScale_Exp = fitobject.b;
-		
-		plot(vecX,vecFitExp,'--','color',matCol(intType,:));
-		if intType==1
-			vecFitReal = vecFitExp;
-		else
-			plot(vecX,vecFitReal,'--','color',matCol(1,:));
-		end
-		title(strType);
-		set(gca,'yscale','log');
-		xlabel('Inter-spike interval (ms)');
-		ylabel('# of spikes');
-	end
-	%set(gca,'yscale','log');
-	%legend(vecHandles,cellTypes,'location','best')
-	fixfig;
-	return
-	%%
-	for i=1
-		%%
-		continue
 		%pre-allocate
 		intTimescaleNum = numel(vecTimescales);
 		intJitterNum = numel(vecJitter);
@@ -175,13 +132,13 @@ for intRec=1:intRecNum %19 || weird: 11
 		vecScale_Root = nan(intJitterNum,1);
 		vecExponent_Root = nan(intJitterNum,1);
 		
-		clear sAggData;
 		for intJitterIdx=1:numel(vecJitter)
 			%% jitter
 			dblJitter = vecJitter(intJitterIdx);
+			fprintf('Running %s (%d/%d) - %s jitter %.2e (%d/%d) [%s]\n',strRec,intRec,intRecNum,strType,dblJitter,intJitterIdx,numel(vecJitter),getTime);
 			vecAllSpikeTime = cell2vec(cellSpikeTimes);
-			vecRand = (rand(size(vecAllSpikeTime))-0.5)*2; %[-1 +1]
-			vecAllSpikeTime = sort(vecAllSpikeTime + dblJitter*vecRand);
+			vecApplyJitter = randn(size(vecAllSpikeTime))*dblJitter;
+			vecAllSpikeTime = sort(mod(vecAllSpikeTime + vecApplyJitter,dblTotDur));
 			
 			%% get lin fit for mean/sd
 			vecSlopes = nan(size(vecTimescales));
@@ -190,7 +147,7 @@ for intRec=1:intRecNum %19 || weird: 11
 			vecSd = nan(size(vecTimescales));
 			intK=1;
 			for intScale=1:intTimescaleNum
-				vecBins = sSource.dblStartEpoch:vecTimescales(intScale):(sSource.dblStartEpoch+sSource.dblEpochDur);
+				vecBins = 0:vecTimescales(intScale):dblTotDur;
 				vecCounts = histcounts( vecAllSpikeTime,vecBins);
 				vecMean(intScale) = mean(vecCounts);
 				vecSd(intScale) = std(vecCounts);
@@ -210,7 +167,7 @@ for intRec=1:intRecNum %19 || weird: 11
 			vecX = vecTimescales';
 			vecY = (vecSd./vecMean)';
 			vecStartCoeffs = [vecY(end) vecY(1)/vecTimescales(1) 1/2];
-			vecUpper = [1e6 1e6 1];
+			vecUpper = [1e16 1e16 1];
 			vecLower = [0 0 0];
 			if boolFixedAsymptote
 				fRoot = fittype('(1/((b*x)^c))',...
@@ -235,7 +192,7 @@ for intRec=1:intRecNum %19 || weird: 11
 			
 			%fit exp model
 			vecStartCoeffsExp = [vecY(end) vecY(1)-vecY(end) 0.1];
-			[fitobject,gof] = fit(vecX,vecY,fExp,'lower',[0 0 1e-6],'upper',[1e6 1e6 1e6],'startpoint',vecStartCoeffsExp);
+			[fitobject,gof] = fit(vecX,vecY,fExp,'lower',[0 0 1e-6],'upper',[1e16 1e16 1e16],'startpoint',vecStartCoeffsExp);
 			vecFitExp = fitobject(vecX);
 			[dblR2_Exp,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitExp,intK);
 			dblHalfLife_Exp = fitobject.c*log(2);
@@ -243,7 +200,8 @@ for intRec=1:intRecNum %19 || weird: 11
 			dblScale_Exp = fitobject.b;
 			
 			%fit root model
-			[fitobject,gof] = fit(vecX,vecY,fRoot,'lower',vecLower,'upper',vecUpper,'startpoint',vecStartCoeffs);
+			[fitobject,gof,output] = fit(vecX,vecY,fRoot,'lower',vecLower,'upper',vecUpper,'startpoint',vecStartCoeffs,...
+				'tolfun',1e-16,'tolx',1e-16,'maxfunevals',1e3,'maxiter',1e3);
 			vecFitRoot = fitobject(vecX);
 			[dblR2_Root,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitRoot,intK);
 			if boolFixedAsymptote
@@ -253,6 +211,13 @@ for intRec=1:intRecNum %19 || weird: 11
 			end
 			dblScale_Root = fitobject.b;
 			dblExponent_Root = fitobject.c;
+			
+			%fit root
+% 			fRoot = @(p,x) (p(1)+1/((p(2).*x).^p(3)));
+% 			[pFit,Resnorm,FVAL,EXITFLAG,OUTPUT,LAMBDA,JACOB] = curvefitfun(fRoot,vecStartCoeffsExp,vecX,vecY,vecLower,vecUpper);
+% 			vecFitRoot2 = fRoot(pFit,vecX);
+% 			[dblR2_Root2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitRoot2,intK);
+			
 			
 			%% save
 			matMean(intJitterIdx,:) = vecMean;
@@ -306,12 +271,14 @@ for intRec=1:intRecNum %19 || weird: 11
 			title('exp decay r2')
 			xlabel('Spike jitter (s)');
 			ylabel('R^2 exp decay fit');
+			set(gca,'xscale','log');
 			
 			subplot(2,4,4);
 			plot(vecJitter,vecHalfLife_Exp)
 			title('exp decay half-life')
 			xlabel('Spike jitter (s)');
 			ylabel('Half-life decay fit');
+			set(gca,'xscale','log');
 			
 			subplot(2,4,5);
 			plot(matMean',matSd')
@@ -332,12 +299,14 @@ for intRec=1:intRecNum %19 || weird: 11
 			title('root r2')
 			xlabel('Spike jitter (s)');
 			ylabel('R^2 root fit');
+			set(gca,'xscale','log');
 			
 			subplot(2,4,8);
 			plot(vecJitter,vecExponent_Root)
 			title('root exponent')
 			xlabel('Spike jitter (s)');
 			ylabel('Exponent of root fit');
+			set(gca,'xscale','log');
 			fixfig;
 			
 			%% save figure

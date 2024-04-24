@@ -10,7 +10,7 @@ cellTypes = {'Real','Poiss'};%,'Poiss','ShuffTid','Shuff','PoissGain','Uniform'}
 runHeaderPopTimeCoding;
 boolMakeFigs = true;
 %vecTimescales = 0.01:0.01:10;%10;1.5;
-vecTimescales = linspace(1e-3,1e1,1000);%linspace(1e-2,1e1,1000)
+vecTimescales = linspace(1e-4,1e1,1000);%linspace(1e-2,1e1,1000)
 vecJitter = [0 (2.^(-9:10))];
 intPopSize = inf; %24 (smallest pop of all recs) or inf (uses full pop for each rec)
 

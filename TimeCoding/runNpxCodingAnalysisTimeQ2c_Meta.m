@@ -277,7 +277,7 @@ for intRealPoiss=1:2
 end
 
 %plot exponents
-Xprev=0;
+Xmean=0;
 figure(hSummaryFig);
 vecColTheory = [0.5 0.5 0.5];
 for intRealPoiss=1:2

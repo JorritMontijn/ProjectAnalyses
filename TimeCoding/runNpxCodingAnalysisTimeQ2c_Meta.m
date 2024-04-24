@@ -1,26 +1,4 @@
-%% aim
-%{
-https://www.nature.com/articles/s41598-021-95037-z
-https://www.nature.com/articles/s42003-021-02437-y
 
-q1: Progression of orientation information over time: how does trial activity evolve? what is the function of the onset peak?
-> is decoding better when matched for stimulus phase? => no.
-
-q2: "Spike time and rate coding can be represented within a single model of spiking probability as a
-function of time: rate codes are uniform over a certain period tau, while spike time codes are
-temporally localized peaks"
-> is this true?
-
-q3: Rate codes do not exist; a rate code is simply a subset of spike time codes where the temporal
-integration window is very large. But what about multi dim codes? Those are all rate based. Can we
-formulate a multidimensional spike-time code? I.e., can we make a taxonomy of neural codes?
-
-q4: How does information evolve over time, is initial peak indeed less tuned? Is pop activity
-rhythmic? Are stimuli encoded invariant to brain state? Eg, high arousal, low arousal. Or is
-stimulus manifold dynamic over time? Does manifold scale with arousal? => How does manifold depend
-on binning size? What is the optimal time window?
-
-%}
 %% define qualifying areas
 clear all;%close all;
 if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
@@ -53,15 +31,15 @@ intRecNum = numel(sFiles);
 
 %% pre-allocate
 figure;maxfig;
-cellTypes =  {'Real','Poiss','Shuff','PoissGain','ShuffTid','Uniform'};
-intTypeNum = numel(cellTypes);
-vecH = nan([1 intTypeNum]);
-vecH1_5 = nan([1 intTypeNum]);
-vecH2 = nan([1 intTypeNum]);
-for intType=1:intTypeNum
-	vecH(intType) = subplot(3,intTypeNum,intType);hold on;
-	vecH1_5(intType) = subplot(3,intTypeNum,intType+intTypeNum);hold on;
-	vecH2(intType) = subplot(3,intTypeNum,intType+2*intTypeNum);hold on;
+cellTypes =  {'Real','Poiss'};
+intPlotNum = 2*numel(cellTypes);
+vecH = nan([1 intPlotNum]);
+vecH1_5 = nan([1 intPlotNum]);
+vecH2 = nan([1 intPlotNum]);
+for intType=1:(intPlotNum)
+	vecH(intType) = subplot(3,intPlotNum,intType);hold on;
+	vecH1_5(intType) = subplot(3,intPlotNum,intType+intPlotNum);hold on;
+	vecH2(intType) = subplot(3,intPlotNum,intType+2*intPlotNum);hold on;
 end
 
 
@@ -81,7 +59,7 @@ for intFile=1:intRecNum
 	cellTheseTypes = {sAggData.strType};
 	vecTimescales = sAggData(1).vecTimescales;
 	vecJitter = sAggData(1).vecJitter;
-		
+	
 	%% plot & save data
 	for intType=1:numel(cellTypes)
 		strType = cellTypes{intType};
@@ -103,29 +81,69 @@ for intFile=1:intRecNum
 		cellRootScale{intFile,intType} = sAggData(intUseEntry).vecScale_Root;
 		cellRootExponent{intFile,intType} = sAggData(intUseEntry).vecExponent_Root;
 		
+		cellCV{intFile,intType} = sAggData(intUseEntry).matCV;
+		
 		matMean = sAggData(intUseEntry).matMean;
 		matSd = sAggData(intUseEntry).matSd;
 		matCV = sAggData(intUseEntry).matCV;
+		
+		vecMeanNoJitter = matMean(1,:);
+		vecMeanFullJitter = matMean(end,:);
+		vecSdNoJitter = matSd(1,:);
+		vecSdFullJitter = matSd(end,:);
+		vecCVNoJitter = matCV(1,:);
+		vecCVFullJitter = matCV(end,:);
+		
+		%singles
+		cellCV_Single{intFile,intType} = sAggData(intUseEntry).mat1CV;
+		cellRootR2_Single{intFile,intType} = sAggData(intUseEntry).mat1R2_Root;
+		cellRootExponent_Single{intFile,intType} = sAggData(intUseEntry).mat1Exponent_Root;
+		
+		%% plot sd/mean
+		intPlot = (intType-1)*2+1;
+		plot(vecH(intPlot),vecMeanNoJitter,vecSdNoJitter,'color',matCol(intType,:));
+		plot(vecH(intPlot+1),vecMeanFullJitter,vecSdFullJitter,'color',matCol(intType,:));
+		
+		plot(vecH1_5(intPlot),vecMeanNoJitter,vecSdNoJitter.^2,'color',matCol(intType,:));
+		plot(vecH1_5(intPlot+1),vecMeanFullJitter,vecSdFullJitter.^2,'color',matCol(intType,:));
+		
+		%% plot cv/timescale
+		plot(vecH2(intPlot),vecTimescales,vecCVNoJitter,'color',matCol(intType,:));
+		plot(vecH2(intPlot+1),vecTimescales,vecCVFullJitter,'color',matCol(intType,:));
 		
 	end
 end
 
 for intType=1:numel(cellTypes)
+	intPlot = (intType-1)*2+1;
 	%finish plots 1; mean and sd
-	xlabel(vecH(intType),'Mean of spike counts');
-	ylabel(vecH(intType),'Sd of spike counts');
-	title(vecH(intType),sprintf('%s',cellTypes{intType}),'interpreter','none');
+	xlabel(vecH(intPlot),'Mean of spike counts');
+	ylabel(vecH(intPlot),'Sd of spike counts');
+	title(vecH(intPlot),sprintf('No jitter, %s',cellTypes{intType}),'interpreter','none');
+	%finish plots 1; mean and sd
+	xlabel(vecH(intPlot+1),'Mean of spike counts');
+	ylabel(vecH(intPlot+1),'Sd of spike counts');
+	title(vecH(intPlot+1),sprintf('Full jitter, %s',cellTypes{intType}),'interpreter','none');
 	
 	%finish plots 1.5; mean and var
-	xlabel(vecH1_5(intType),'Mean of spike counts');
-	ylabel(vecH1_5(intType),'Var of spike counts');
-	title(vecH1_5(intType),sprintf('%s',cellTypes{intType}),'interpreter','none');
+	xlabel(vecH1_5(intPlot),'Mean of spike counts');
+	ylabel(vecH1_5(intPlot),'Var of spike counts');
+	title(vecH1_5(intPlot),sprintf('No jitter, %s',cellTypes{intType}),'interpreter','none');
+	%finish plots 1.5; mean and var
+	xlabel(vecH1_5(intPlot+1),'Mean of spike counts');
+	ylabel(vecH1_5(intPlot+1),'Var of spike counts');
+	title(vecH1_5(intPlot+1),sprintf('Full jitter, %s',cellTypes{intType}),'interpreter','none');
 	
 	%finish plots 2; timescale and cv
-	xlabel(vecH2(intType),'Timescale (s)');
-	ylabel(vecH2(intType),'CV (sd/mu)');
-	title(vecH2(intType),sprintf('%s',cellTypes{intType}),'interpreter','none');
-	set(vecH2(intType),'ylim',[0 1.2]);%[0 max(get(vecH2(intType),'ylim'))]);
+	xlabel(vecH2(intPlot),'Timescale (s)');
+	ylabel(vecH2(intPlot),'CV (sd/mu)');
+	title(vecH2(intPlot),sprintf('No jitter,%s',cellTypes{intType}),'interpreter','none');
+	set(vecH2(intPlot),'ylim',[0 1.2]);
+	%finish plots 2; timescale and cv
+	xlabel(vecH2(intPlot+1),'Timescale (s)');
+	ylabel(vecH2(intPlot+1),'CV (sd/mu)');
+	title(vecH2(intPlot+1),sprintf('Full jitter,%s',cellTypes{intType}),'interpreter','none');
+	set(vecH2(intPlot+1),'ylim',[0 1.2]);
 end
 fixfig;
 
@@ -134,115 +152,205 @@ export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_Timescales.tif')));
 export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_Timescales.pdf')));
 
 
-%% plot slopes/r2 for sd/mean and half-life/r2 for cv/timescale
-%use same pop size for all, or max for each?
-vecUseEntries = cellfun(@numel,cellSlopes(:,1));
+%% plot cv/timescale for real and poiss with/without jitter and for full pop and single neurons [2 x 2 x 2]
+vecTimescales = sAggData(1).vecTimescales;
+vecJitter = sAggData(1).vecJitter;
 
-matExpR2 = nan(intRecNum,intTypeNum);
-matExpHalfLife = nan(intRecNum,intTypeNum);
-matExpAsymptote = nan(intRecNum,intTypeNum);
-matExpScale = nan(intRecNum,intTypeNum);
-for intType=1:intTypeNum
-	for intRec=1:intRecNum
-		matExpR2(intRec,intType) = cellExpR2{intRec,intType}(vecUseEntries(intRec));
-		matExpHalfLife(intRec,intType) = cellExpHalflife{intRec,intType}(vecUseEntries(intRec));
-		matExpAsymptote(intRec,intType) = cellExpAsymptote{intRec,intType}(vecUseEntries(intRec));
-		matExpScale(intRec,intType) = cellExpScale{intRec,intType}(vecUseEntries(intRec));
-		
-		matRootR2(intRec,intType) = cellRootR2{intRec,intType}(vecUseEntries(intRec));
-		matRootExponent(intRec,intType) = cellRootExponent{intRec,intType}(vecUseEntries(intRec));
-		matRootAsymptote(intRec,intType) = cellRootAsymptote{intRec,intType}(vecUseEntries(intRec));
-		matRootScale(intRec,intType) = cellRootScale{intRec,intType}(vecUseEntries(intRec));
+%whole pops
+vecR2_RealNoJitter = cellfun(@(x) x(1), cellRootR2(:,1));
+vecR2_PoissNoJitter = cellfun(@(x) x(1), cellRootR2(:,2));
+vecR2_RealFullJitter = cellfun(@(x) x(end), cellRootR2(:,1));
+vecR2_PoissFullJitter = cellfun(@(x) x(end), cellRootR2(:,2));
+clear matR2;
+matR2(:,1,1) = vecR2_RealNoJitter;
+matR2(:,2,1) = vecR2_PoissNoJitter;
+matR2(:,1,2) = vecR2_RealFullJitter;
+matR2(:,2,2) = vecR2_PoissFullJitter;
+
+vecExponent_RealNoJitter = cellfun(@(x) x(1), cellRootExponent(:,1));
+vecExponent_PoissNoJitter = cellfun(@(x) x(1), cellRootExponent(:,2));
+vecExponent_RealFullJitter = cellfun(@(x) x(end), cellRootExponent(:,1));
+vecExponent_PoissFullJitter = cellfun(@(x) x(end), cellRootExponent(:,2));
+clear matExponent;
+matExponent(:,1,1) = vecExponent_RealNoJitter;
+matExponent(:,2,1) = vecExponent_PoissNoJitter;
+matExponent(:,1,2) = vecExponent_RealFullJitter;
+matExponent(:,2,2) = vecExponent_PoissFullJitter;
+
+matCV_RealNoJitter = cell2mat(cellfun(@(x) x(1,:)', cellCV(:,1),'UniformOutput',false)'); %[timescale x neuron]
+matCV_PoissNoJitter = cell2mat(cellfun(@(x) x(1,:)', cellCV(:,2),'UniformOutput',false)'); %[timescale x neuron]
+matCV_RealFullJitter = cell2mat(cellfun(@(x) x(end,:)', cellCV(:,1),'UniformOutput',false)'); %[timescale x neuron]
+matCV_PoissFullJitter = cell2mat(cellfun(@(x) x(end,:)', cellCV(:,2),'UniformOutput',false)'); %[timescale x neuron]
+clear matCV
+matCV(:,:,1,1) = matCV_RealNoJitter;
+matCV(:,:,2,1) = matCV_PoissNoJitter;
+matCV(:,:,1,2) = matCV_RealFullJitter;
+matCV(:,:,2,2) = matCV_PoissFullJitter;
+
+%single neurons [real/poiss with/without-jitter neuron-id]
+vecSingleR2_RealNoJitter = cell2vec(cellfun(@(x) x(1,:),cellRootR2_Single(:,1),'UniformOutput',false));
+vecSingleR2_PoissNoJitter = cell2vec(cellfun(@(x) x(1,:),cellRootR2_Single(:,2),'UniformOutput',false));
+vecSingleR2_RealFullJitter = cell2vec(cellfun(@(x) x(end,:),cellRootR2_Single(:,1),'UniformOutput',false));
+vecSingleR2_PoissFullJitter = cell2vec(cellfun(@(x) x(end,:),cellRootR2_Single(:,2),'UniformOutput',false));
+clear matSingleR2;
+matSingleR2(:,1,1) = vecSingleR2_RealNoJitter;
+matSingleR2(:,2,1) = vecSingleR2_PoissNoJitter;
+matSingleR2(:,1,2) = vecSingleR2_RealFullJitter;
+matSingleR2(:,2,2) = vecSingleR2_PoissFullJitter;
+
+vecSingleExponent_RealNoJitter = cell2vec(cellfun(@(x) x(1,:),cellRootExponent_Single(:,1),'UniformOutput',false));
+vecSingleExponent_PoissNoJitter = cell2vec(cellfun(@(x) x(1,:),cellRootExponent_Single(:,2),'UniformOutput',false));
+vecSingleExponent_RealFullJitter = cell2vec(cellfun(@(x) x(end,:),cellRootExponent_Single(:,1),'UniformOutput',false));
+vecSingleExponent_PoissFullJitter = cell2vec(cellfun(@(x) x(end,:),cellRootExponent_Single(:,2),'UniformOutput',false));
+clear matSingleExponent;
+matSingleExponent(:,1,1) = vecSingleExponent_RealNoJitter;
+matSingleExponent(:,2,1) = vecSingleExponent_PoissNoJitter;
+matSingleExponent(:,1,2) = vecSingleExponent_RealFullJitter;
+matSingleExponent(:,2,2) = vecSingleExponent_PoissFullJitter;
+
+%concatenate cvs
+matSingleCV_RealNoJitter = cell2mat(cellfun(@(x) squeeze(x(:,1,:)),cellCV_Single(:,1),'UniformOutput',false)'); %[timescale x neuron]
+matSingleCV_PoissNoJitter = cell2mat(cellfun(@(x) squeeze(x(:,1,:)),cellCV_Single(:,2),'UniformOutput',false)'); %[timescale x neuron]
+matSingleCV_RealFullJitter = cell2mat(cellfun(@(x) squeeze(x(:,end,:)),cellCV_Single(:,1),'UniformOutput',false)'); %[timescale x neuron]
+matSingleCV_PoissFullJitter = cell2mat(cellfun(@(x) squeeze(x(:,end,:)),cellCV_Single(:,2),'UniformOutput',false)'); %[timescale x neuron]
+clear matSingleCV;
+matSingleCV(:,:,1,1) = matSingleCV_RealNoJitter;
+matSingleCV(:,:,2,1) = matSingleCV_PoissNoJitter;
+matSingleCV(:,:,1,2) = matSingleCV_RealFullJitter;
+matSingleCV(:,:,2,2) = matSingleCV_PoissFullJitter;
+%matSingleCV: [timescale x neuron x real/poiss x (no-)/jitter]
+%matCV: [timescale x pop x real/poiss x (no-)/jitter]
+
+%% plot
+%plot cv/timescale for real and poiss with/without jitter and for full pop and single neurons [2 x 2 x 2]
+cellPop = {'Pop','Single'};
+cellJit = {'NoJit','FullJit'};
+hSummaryFig = figure;maxfig;
+hPlotCVs(1) = subplot(2,3,1);hold on;
+hPlotCVs(2) = subplot(2,3,4);hold on;
+matColorPopSingle = [lines(1);[0.8 0 0]];
+cellLineType = {'-','-';'--','--'};
+cellSubLegend = {};
+hAllFig=figure;maxfig;
+cellLegend = {};
+
+for intRealPoiss=1:2
+	%real/poiss
+	for intPopSingle=1:2
+		if intPopSingle==1
+			%pop
+			matPlotCV = matCV;
+		else
+			%single
+			matPlotCV = matSingleCV;
+		end
+		for intJit=1:2
+			%(no-)jitter
+			matData = matPlotCV(:,:,intRealPoiss,intJit);
+			vecMean = mean(matData,2);
+			vecSd = std(matData,[],2);
+			
+			intPlotNr = (intRealPoiss-1)*4+(intPopSingle-1)*2+intJit;
+			subplot(2,4,intPlotNr);
+			plot(vecTimescales,vecMean,'color',lines(1));
+			hold on
+			plot(vecTimescales,vecMean-vecSd,'--','color',lines(1));
+			plot(vecTimescales,vecMean+vecSd,'--','color',lines(1));
+			strTag = sprintf('%s - %s - %s',cellPop{intPopSingle},cellTypes{intRealPoiss},cellJit{intJit});
+			title(strTag);
+			cellLegend{intPlotNr} = strTag;
+			xlabel('Timescale (s)');
+			ylabel('CV (sd/mu)');
+			
+			%plot mean
+			intPlotNr2 = (intPopSingle-1)*2+intJit;
+			plot(hPlotCVs(intRealPoiss),vecTimescales,vecMean,cellLineType{intJit,intRealPoiss},'color',matColorPopSingle(intPopSingle,:));
+			cellSubLegend{intPlotNr2} = sprintf('%s - %s',cellPop{intPopSingle},cellJit{intJit});
+		end
 	end
+	legend(hPlotCVs(intRealPoiss),cellSubLegend);
+	xlabel(hPlotCVs(intRealPoiss),'Timescale (s)');
+	ylabel(hPlotCVs(intRealPoiss),'CV (sd/mu)');
+	title(hPlotCVs(intRealPoiss),cellTypes{intRealPoiss});
+	set(hPlotCVs(intRealPoiss),'xscale','log');
+	set(hPlotCVs(intRealPoiss),'yscale','log');
 end
 
-% plot
-figure;maxfig;
-cellH3 = cell(1,10);
-cellPlotType = {'R^2 linear fit sd/mu of spike counts per bin',...
-	'Slope sd/mu of spike counts per bin',...
-	'R^2 exp decay fit CV/timescale',...
-	'Half-life exp CV/timescale',...
-	'Asymptote exp CV/timescale',...
-	'Scale CV/timescale',...
-	'R^2 root fit CV/timescale',...
-	'Exponent root CV/timescale',...
-	'Asymptote root CV/timescale',...
-	'Scale root CV/timescale'};
-for intPlot=1:2
-	cellH3{intPlot} = subplot(3,4,intPlot);hold on;
-	title(cellPlotType{intPlot});
-end
-for intPlot=3:10
-	cellH3{intPlot} = subplot(3,4,intPlot+2);hold on;
-	title(cellPlotType{intPlot});
-end
-
-for intType=1:intTypeNum
-%slope sd/mu
-%swarmchart(vecH3(1),intType*ones(1,intRecNum),matR2(:,intType),'jitterwidth',0.5);
-errorbar(cellH3{1},intType,mean(matR2(:,intType)),std(matR2(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-%linearity sd/mu
-%swarmchart(vecH3(2),intType*ones(1,intRecNum),matSlopes(:,intType),'jitterwidth',0.5);
-errorbar(cellH3{2},intType,mean(matSlopes(:,intType)),std(matSlopes(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-%half-life cv/time
-%swarmchart(vecH3(3),intType*ones(1,intRecNum),matExpR2(:,intType),'jitterwidth',0.5);
-errorbar(cellH3{3},intType,mean(matExpR2(:,intType)),std(matExpR2(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-%R^2 cv/time
-%swarmchart(vecH3(4),intType*ones(1,intRecNum),matExpLambda(:,intType),'jitterwidth',0.5);
-errorbar(cellH3{4},intType,mean(matExpHalfLife(:,intType)),std(matExpHalfLife(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{5},intType,mean(matExpAsymptote(:,intType)),std(matExpAsymptote(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{6},intType,mean(matExpScale(:,intType)),std(matExpScale(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-%% root
-errorbar(cellH3{7},intType,mean(matRootR2(:,intType)),std(matRootR2(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{8},intType,mean(matRootExponent(:,intType)),std(matRootExponent(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{9},intType,mean(matRootAsymptote(:,intType)),std(matRootAsymptote(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{10},intType,mean(matRootScale(:,intType)),std(matRootScale(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
+%plot exponents
+Xprev=0;
+figure(hSummaryFig);
+vecColTheory = [0.5 0.5 0.5];
+for intRealPoiss=1:2
+	subplot(2,3,2+(intRealPoiss-1)*3);hold on;
+	plot([0.5 4.5],[0.5 0.5],'--','color',vecColTheory);
+	text(0.1,0.525,'Theory','fontsize',14,'color',vecColTheory);
+	for intPopSingle=1:2
+		if intPopSingle==1
+			%pop
+			matPlotExp = matExponent;
+		else
+			%single
+			matPlotExp = matSingleExponent;
+		end
+		
+		%real/poiss
+		for intJit=1:2
+			%(no-)jitter
+			vecData = matPlotExp(:,intRealPoiss,intJit);
+			Xprev=Xmean;
+			Xmean=mean(vecData);
+			intPlotNr = (intPopSingle-1)*2+intJit;
+			errorbar(intPlotNr,Xmean,std(vecData)./sqrt(intRecNum),'x','color',matColorPopSingle(intPopSingle,:));
+			if intJit==2
+				plot([intPlotNr-1 intPlotNr],[Xprev Xmean],'color',matColorPopSingle(intPopSingle,:));
+			end
+		end
+	end
+	set(gca,'xtick',1:4,'xticklabel',cellSubLegend);
+	xtickangle(gca,45);
+	xlim([0 5]);
+	ylim([0 0.6]);
+	ylabel('Root fit exponent');
+	title([cellTypes{intRealPoiss} ' ;Mu +/- sem of beta fit; a+(1/((b*x)^c))']);
 end
 
-%tests
-[h,p12]=ttest(matExpR2(:,1),matExpR2(:,2));
-[h,p13]=ttest(matExpR2(:,1),matExpR2(:,3));
-[h,p23]=ttest(matExpR2(:,2),matExpR2(:,3));
+%plot R2
+for intRealPoiss=1:2
+	subplot(2,3,3+(intRealPoiss-1)*3);hold on;
+	for intPopSingle=1:2
+		if intPopSingle==1
+			%pop
+			matPlotR2 = matR2;
+		else
+			%single
+			matPlotR2 = matSingleR2;
+		end
+		%real/poiss
+		for intJit=1:2
+			%(no-)jitter
+			vecData = matPlotR2(:,intRealPoiss,intJit);
+			
+			dblAlpha = 2-2*normcdf(2);
+			[phat,pci] = betafit(vecData,dblAlpha);
+			Xprev=Xmean;
+			Xupper = betainv(dblAlpha,pci(1,1),pci(1,2));
+			Xmean = betainv(dblAlpha,phat(1),phat(2));
+			Xlower = betainv(dblAlpha,pci(2,1),pci(2,2));
+			
+			intPlotNr = (intPopSingle-1)*2+intJit;
+			errorbar(intPlotNr,Xmean,Xlower-Xmean,Xupper-Xmean,'x','color',matColorPopSingle(intPopSingle,:));
+			if intJit==2
+				plot([intPlotNr-1 intPlotNr],[Xprev Xmean],'color',matColorPopSingle(intPopSingle,:));
+			end
+		end
+	end
+	set(gca,'xtick',1:4,'xticklabel',cellSubLegend);
+	xtickangle(gca,45);
+	xlim([0 5]);
+	ylim([0 1]);
+	ylabel('Root fit R^2');
+	title([cellTypes{intRealPoiss} ' ;Mu +/- 95-CI of beta fit; a+(1/((b*x)^c))']);
+end
 
-subplot(3,4,4)
-title(sprintf('R^2 exp decay p, R-P=%.2e;R-S=%.2e;S-P=%.2e',p12,p13,p23));
-axis off
 
-%finish figs
-ylabel(cellH3{1},'R^2 lin fit sd/mu');
-set(cellH3{1},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
-ylabel(cellH3{2},'Slope lin fit (sd/mu)');
-set(cellH3{2},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
-ylabel(cellH3{3},'R^2 exponential decay (CV/s)');
-set(cellH3{3},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
-ylabel(cellH3{4},'Half-life of CV/timescale (\lambda_1_/_2)');
-set(cellH3{4},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
-ylabel(cellH3{5},'Asymptote of CV/timescale');
-set(cellH3{5},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
-ylabel(cellH3{6},'Scale of CV/timescale');
-set(cellH3{6},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
-
-ylabel(cellH3{7},'R^2 root fit (CV/s)');
-set(cellH3{7},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
-ylabel(cellH3{8},'Exponent of root fit');
-set(cellH3{8},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
-ylabel(cellH3{9},'Asymptote of root fit');
-set(cellH3{9},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
-ylabel(cellH3{10},'Scale of root fit');
-set(cellH3{10},'xtick',1:intTypeNum,'xticklabel',cellTypes,'xlim',[0.5 numel(cellTypes)+0.5]);
 fixfig;
-
-drawnow;
-export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_ExpDecay.tif')));
-export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_ExpDecay.pdf')));

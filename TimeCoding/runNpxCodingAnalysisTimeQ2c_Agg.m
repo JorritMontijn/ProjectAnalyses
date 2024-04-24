@@ -10,7 +10,7 @@ cellTypes = {'Real','Poiss'};%,'Poiss','ShuffTid','Shuff','PoissGain','Uniform'}
 runHeaderPopTimeCoding;
 boolMakeFigs = true;
 %vecTimescales = 0.01:0.01:10;%10;1.5;
-vecTimescales = linspace(1e-2,1e1,1000);%logspace(-2,3,1000);%0.01:0.01:10;%10;1.5;
+vecTimescales = linspace(1e-3,1e1,1000);%linspace(1e-2,1e1,1000)
 vecJitter = [0 (2.^(-9:10))];
 intPopSize = inf; %24 (smallest pop of all recs) or inf (uses full pop for each rec)
 
@@ -99,145 +99,99 @@ for intRec=1:intRecNum %19 || weird: 11
 		cellSpikeTimes = cell(size(cellOrigSpikeTimes));
 		for i=1:numel(cellOrigSpikeTimes)
 			[vecPseudoSpikeTimes,vecPseudoStartT] = getPseudoSpikeVectors(cellOrigSpikeTimes{i},vecOrigStimOnTime,dblStimDur,true);
+			
+			dblStart = vecPseudoStartT(1);
+			dblEnd = vecPseudoStartT(end)+dblStimDur;
+			dblTotDur = dblEnd-dblStart;
+			vecPseudoSpikeTimes(vecPseudoSpikeTimes<dblStart | vecPseudoSpikeTimes>dblEnd) = [];
+			vecPseudoSpikeTimes = vecPseudoSpikeTimes-dblStart;
+			dblLastSpike = max(vecPseudoSpikeTimes);
+			
 			cellSpikeTimes{i} = vecPseudoSpikeTimes;
 		end
 		
-		vecAllSpikeTime = sort(cell2vec(cellSpikeTimes));
-		dblStart = vecPseudoStartT(1);
-		dblEnd = vecPseudoStartT(end)+dblStimDur;
-		dblTotDur = dblEnd-dblStart;
-		vecAllSpikeTime(vecAllSpikeTime<dblStart | vecAllSpikeTime>dblEnd) = [];
-		vecAllSpikeTime = vecAllSpikeTime-dblStart;
-		dblLastSpike = max(vecAllSpikeTime);
-		
-		%pre-allocate
+		%% run for whole pop and for single neurons
 		intTimescaleNum = numel(vecTimescales);
 		intJitterNum = numel(vecJitter);
+		%whole pop
 		matMean = nan(intJitterNum,intTimescaleNum);
 		matSd = nan(intJitterNum,intTimescaleNum);
 		matCV = nan(intJitterNum,intTimescaleNum);
-		matCVFit_Exp = nan(intJitterNum,intTimescaleNum);
-		matCVFit_Root = nan(intJitterNum,intTimescaleNum);
-		
-		vecSlope_Lin = nan(intJitterNum,1);
-		vecR2_Lin = nan(intJitterNum,1);
 		
 		vecR2_Exp = nan(intJitterNum,1);
 		vecHalfLife_Exp = nan(intJitterNum,1);
 		vecAsymptote_Exp = nan(intJitterNum,1);
 		vecScale_Exp = nan(intJitterNum,1);
+		matCVFit_Exp = nan(intJitterNum,intTimescaleNum);
 		
 		vecR2_Root = nan(intJitterNum,1);
 		vecAsymptote_Root = nan(intJitterNum,1);
 		vecScale_Root = nan(intJitterNum,1);
 		vecExponent_Root = nan(intJitterNum,1);
+		matCVFit_Root = nan(intJitterNum,intTimescaleNum);
+		
+		%single neurons
+		mat1CV = nan(intTimescaleNum,intJitterNum,intNumN);
+		mat1R2_Exp = nan(intJitterNum,intNumN);
+		mat1HalfLife_Exp = nan(intJitterNum,intNumN);
+		mat1Asymptote_Exp = nan(intJitterNum,intNumN);
+		mat1Scale_Exp = nan(intJitterNum,intNumN);
+		
+		mat1R2_Root = nan(intJitterNum,intNumN);
+		mat1Asymptote_Root = nan(intJitterNum,intNumN);
+		mat1Scale_Root = nan(intJitterNum,intNumN);
+		mat1Exponent_Root = nan(intJitterNum,intNumN);
+		
 		
 		for intJitterIdx=1:numel(vecJitter)
 			%% jitter
 			dblJitter = vecJitter(intJitterIdx);
-			fprintf('Running %s (%d/%d) - %s jitter %.2e (%d/%d) [%s]\n',strRec,intRec,intRecNum,strType,dblJitter,intJitterIdx,numel(vecJitter),getTime);
+			fprintf('Running %s (%d/%d) - %s, jitter %.2e (%d/%d) [%s]\n',strRec,intRec,intRecNum,strType,dblJitter,intJitterIdx,numel(vecJitter),getTime);
+			
+			%% whole pop
 			vecAllSpikeTime = cell2vec(cellSpikeTimes);
 			vecApplyJitter = randn(size(vecAllSpikeTime))*dblJitter;
 			vecAllSpikeTime = sort(mod(vecAllSpikeTime + vecApplyJitter,dblTotDur));
 			
-			%% get lin fit for mean/sd
-			vecSlopes = nan(size(vecTimescales));
-			vecR2 = nan(size(vecTimescales));
-			vecMean = nan(size(vecTimescales));
-			vecSd = nan(size(vecTimescales));
-			intK=1;
-			for intScale=1:intTimescaleNum
-				vecBins = 0:vecTimescales(intScale):dblTotDur;
-				vecCounts = histcounts( vecAllSpikeTime,vecBins);
-				vecMean(intScale) = mean(vecCounts);
-				vecSd(intScale) = std(vecCounts);
-			end
-			%fit linear model
-			mdl = fitlm(vecMean,vecSd);
-			dblSlope_SdMean = mdl.Coefficients.Estimate(2);
-			vecFitY =  mdl.Fitted;
-			[dblR2_SdMean,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecSd,vecFitY,intK);
+			%get fits
+			boolFixedAsymptote = false;
+			[sFits,vecCV,vecMean,vecSd] = getFitsCV(vecAllSpikeTime,dblTotDur,vecTimescales,boolFixedAsymptote);
 			
-			%% fit cv/timescale pop
-			fExp = fittype('a+b*exp(-x/c)',...
-				'dependent',{'y'},'independent',{'x'},...
-				'coefficients',{'a','b','c'});
-			
-			boolFixedAsymptote = true;
-			vecX = vecTimescales';
-			vecY = (vecSd./vecMean)';
-			vecStartCoeffs = [vecY(end) vecY(1)/vecTimescales(1) 1/2];
-			vecUpper = [1e16 1e16 1];
-			vecLower = [0 0 0];
-			if boolFixedAsymptote
-				fRoot = fittype('(1/((b*x)^c))',...
-					'dependent',{'y'},'independent',{'x'},...
-					'coefficients',{'b','c'});
-				vecStartCoeffs = vecStartCoeffs(2:end);
-				vecUpper = vecUpper(2:end);
-				vecLower = vecLower(2:end);
-			else
-				fRoot = fittype('a+(1/((b*x)^c))',...
-					'dependent',{'y'},'independent',{'x'},...
-					'coefficients',{'a','b','c'});
-			end
-			
-			intK=1;
-			%fit linear model
-			mdl = fitlm(vecX,vecY);
-			
-			dblSlope_Lin = mdl.Coefficients.Estimate(2);
-			vecFitY =  mdl.Fitted;
-			[dblR2_Lin,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY,intK);
-			
-			%fit exp model
-			vecStartCoeffsExp = [vecY(end) vecY(1)-vecY(end) 0.1];
-			[fitobject,gof] = fit(vecX,vecY,fExp,'lower',[0 0 1e-6],'upper',[1e16 1e16 1e16],'startpoint',vecStartCoeffsExp);
-			vecFitExp = fitobject(vecX);
-			[dblR2_Exp,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitExp,intK);
-			dblHalfLife_Exp = fitobject.c*log(2);
-			dblAsymptote_Exp = fitobject.a;
-			dblScale_Exp = fitobject.b;
-			
-			%fit root model
-			[fitobject,gof,output] = fit(vecX,vecY,fRoot,'lower',vecLower,'upper',vecUpper,'startpoint',vecStartCoeffs,...
-				'tolfun',1e-16,'tolx',1e-16,'maxfunevals',1e3,'maxiter',1e3);
-			vecFitRoot = fitobject(vecX);
-			[dblR2_Root,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitRoot,intK);
-			if boolFixedAsymptote
-				dblAsymptote_Root=0;
-			else
-				dblAsymptote_Root = fitobject.a;
-			end
-			dblScale_Root = fitobject.b;
-			dblExponent_Root = fitobject.c;
-			
-			%fit root
-% 			fRoot = @(p,x) (p(1)+1/((p(2).*x).^p(3)));
-% 			[pFit,Resnorm,FVAL,EXITFLAG,OUTPUT,LAMBDA,JACOB] = curvefitfun(fRoot,vecStartCoeffsExp,vecX,vecY,vecLower,vecUpper);
-% 			vecFitRoot2 = fRoot(pFit,vecX);
-% 			[dblR2_Root2,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitRoot2,intK);
-			
-			
-			%% save
 			matMean(intJitterIdx,:) = vecMean;
 			matSd(intJitterIdx,:) = vecSd;
-			vecSlope_Lin(intJitterIdx) = dblSlope_Lin;
-			vecR2_Lin(intJitterIdx) = dblR2_Lin;
+			matCV(intJitterIdx,:) = vecCV;
+			vecR2_Exp(intJitterIdx) = sFits.Exp.R2;
+			vecHalfLife_Exp(intJitterIdx) = sFits.Exp.HalfLife;
+			vecAsymptote_Exp(intJitterIdx) = sFits.Exp.Asymptote;
+			vecScale_Exp(intJitterIdx) = sFits.Exp.Scale;
+			matCVFit_Exp(intJitterIdx,:) = sFits.Exp.FitY;
 			
-			matCV(intJitterIdx,:) = vecSd./vecMean;
-			matCVFit_Exp(intJitterIdx,:) = vecFitExp;
-			matCVFit_Root(intJitterIdx,:) = vecFitRoot;
+			vecR2_Root(intJitterIdx) = sFits.Root.R2;
+			vecAsymptote_Root(intJitterIdx) = sFits.Root.Asymptote;
+			vecScale_Root(intJitterIdx) = sFits.Root.Scale;
+			vecExponent_Root(intJitterIdx) = sFits.Root.Exponent;
+			matCVFit_Root(intJitterIdx,:) = sFits.Root.FitY;
 			
-			vecR2_Exp(intJitterIdx) = dblR2_Exp;
-			vecHalfLife_Exp(intJitterIdx) = dblHalfLife_Exp;
-			vecAsymptote_Exp(intJitterIdx) = dblAsymptote_Exp;
-			vecScale_Exp(intJitterIdx) = dblScale_Exp;
-			
-			vecR2_Root(intJitterIdx) = dblR2_Root;
-			vecAsymptote_Root(intJitterIdx) = dblAsymptote_Root;
-			vecScale_Root(intJitterIdx) = dblScale_Root;
-			vecExponent_Root(intJitterIdx) = dblExponent_Root;
+			%% single neurons
+			for intN=1:intNumN
+				vecAllSpikeTime = cellSpikeTimes{intN};
+				vecApplyJitter = randn(size(vecAllSpikeTime))*dblJitter;
+				vecAllSpikeTime = sort(mod(vecAllSpikeTime + vecApplyJitter,dblTotDur));
+				
+				%get fits
+				boolFixedAsymptote = false;
+				[sFitsSingle,vecCV] = getFitsCV(vecAllSpikeTime,dblTotDur,vecTimescales,boolFixedAsymptote);
+				mat1CV(:,intJitterIdx,intN) = vecCV;
+				mat1R2_Exp(intJitterIdx,intN) = sFitsSingle.Exp.R2;
+				mat1HalfLife_Exp(intJitterIdx,intN) = sFitsSingle.Exp.HalfLife;
+				mat1Asymptote_Exp(intJitterIdx,intN) = sFitsSingle.Exp.Asymptote;
+				mat1Scale_Exp(intJitterIdx,intN) = sFitsSingle.Exp.Scale;
+				
+				mat1R2_Root(intJitterIdx,intN) = sFitsSingle.Root.R2;
+				mat1Asymptote_Root(intJitterIdx,intN) = sFitsSingle.Root.Asymptote;
+				mat1Scale_Root(intJitterIdx,intN) = sFitsSingle.Root.Scale;
+				mat1Exponent_Root(intJitterIdx,intN) = sFitsSingle.Root.Exponent;
+			end
 		end
 		
 		
@@ -323,22 +277,34 @@ for intRec=1:intRecNum %19 || weird: 11
 		sData.vecJitter = vecJitter;
 		sData.vecTimescales = vecTimescales;
 		
+		%whole pop
 		sData.matMean = matMean;
 		sData.matSd = matSd;
-		sData.vecSlope_Lin = vecSlope_Lin;
 		sData.matCV = matCV;
-		sData.matCVFit_Exp = matCVFit_Exp;
-		sData.matCVFit_Root = matCVFit_Root;
-		sData.vecR2_Exp = vecR2_Exp;
 		
+		sData.vecR2_Exp = vecR2_Exp;
 		sData.vecHalfLife_Exp = vecHalfLife_Exp;
 		sData.vecAsymptote_Exp = vecAsymptote_Exp;
 		sData.vecScale_Exp = vecScale_Exp;
+		sData.matCVFit_Exp = matCVFit_Exp;
 		
 		sData.vecR2_Root = vecR2_Root;
 		sData.vecAsymptote_Root = vecAsymptote_Root;
 		sData.vecScale_Root = vecScale_Root;
 		sData.vecExponent_Root = vecExponent_Root;
+		sData.matCVFit_Root = matCVFit_Root;
+		
+		%single neurons
+		sData.mat1CV = mat1CV;
+		sData.mat1R2_Exp = mat1R2_Exp;
+		sData.mat1HalfLife_Exp = mat1HalfLife_Exp;
+		sData.mat1Asymptote_Exp = mat1Asymptote_Exp;
+		sData.mat1Scale_Exp = mat1Scale_Exp;
+		
+		sData.mat1R2_Root = mat1R2_Root;
+		sData.mat1Asymptote_Root = mat1Asymptote_Root;
+		sData.mat1Scale_Root = mat1Scale_Root;
+		sData.mat1Exponent_Root = mat1Exponent_Root;
 		
 		sAggData(intType) = sData;
 	end

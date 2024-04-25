@@ -26,12 +26,13 @@ else
 	strOnset = sprintf('%.2f',dblRemOnset);
 end
 strTag = 'Q2cData';
+%strTargetDataPath = 'C:\Drive\PopTimeCoding\data\q2c\';
 sFiles = dir ([strTargetDataPath strTag '*' strOnset '.mat']);
 intRecNum = numel(sFiles);
 
 %% pre-allocate
 figure;maxfig;
-cellTypes =  {'Real','Poiss'};
+cellTypes =  {'Real','Poiss','ShuffTid'};
 intPlotNum = 2*numel(cellTypes);
 vecH = nan([1 intPlotNum]);
 vecH1_5 = nan([1 intPlotNum]);
@@ -99,6 +100,30 @@ for intFile=1:intRecNum
 		cellRootR2_Single{intFile,intType} = sAggData(intUseEntry).mat1R2_Root;
 		cellRootExponent_Single{intFile,intType} = sAggData(intUseEntry).mat1Exponent_Root;
 		
+		%linfit
+		vecUseEntries = 1:numel(vecTimescales);%round(logspace(0,3,15));
+		intK=1;
+		fLin = fittype('a*x',...
+			'dependent',{'y'},'independent',{'x'},...
+			'coefficients',{'a'});
+		intJitNum = numel(vecJitter);
+		vecLinSlopesMuSd = nan(1,intJitNum);
+		vecLinR2MuSd = nan(1,intJitNum);
+		for intJit=1:intJitNum
+			vecX = matMean(intJit,vecUseEntries);
+			vecY = matSd(intJit,vecUseEntries);
+			[fitobject,gof] = fit(vecX',vecY',fLin,'lower',0,'upper',1e16,'startpoint',mean(vecY)/mean(vecX));
+			dblSlope_SdMean = fitobject.a;
+			vecFitY_SdMean = fitobject(vecX);
+			[dblR2_Lin,dblSS_tot,dblSS_res,dblT,dblP,dblR2_adjusted,dblR2_SE] = getR2(vecY,vecFitY_SdMean,intK);
+			
+			vecLinSlopesMuSd(intJit) = dblSlope_SdMean;
+			vecLinR2MuSd(intJit) = dblR2_Lin;
+		end
+		
+		cellLinR2{intFile,intType} = vecLinR2MuSd;
+		cellLinSlope{intFile,intType} = vecLinSlopesMuSd;
+		
 		%% plot sd/mean
 		intPlot = (intType-1)*2+1;
 		plot(vecH(intPlot),vecMeanNoJitter,vecSdNoJitter,'color',matCol(intType,:));
@@ -148,76 +173,59 @@ end
 fixfig;
 
 drawnow;
-export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_Timescales.tif')));
-export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_Timescales.pdf')));
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescalesAllPlots.tif')));
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescalesAllPlots.pdf')));
 
 
 %% plot cv/timescale for real and poiss with/without jitter and for full pop and single neurons [2 x 2 x 2]
 vecTimescales = sAggData(1).vecTimescales;
 vecJitter = sAggData(1).vecJitter;
+intTypeNum = numel(cellTypes);
 
 %whole pops
-vecR2_RealNoJitter = cellfun(@(x) x(1), cellRootR2(:,1));
-vecR2_PoissNoJitter = cellfun(@(x) x(1), cellRootR2(:,2));
-vecR2_RealFullJitter = cellfun(@(x) x(end), cellRootR2(:,1));
-vecR2_PoissFullJitter = cellfun(@(x) x(end), cellRootR2(:,2));
+%concatenate r2s
 clear matR2;
-matR2(:,1,1) = vecR2_RealNoJitter;
-matR2(:,2,1) = vecR2_PoissNoJitter;
-matR2(:,1,2) = vecR2_RealFullJitter;
-matR2(:,2,2) = vecR2_PoissFullJitter;
+for intType=1:intTypeNum
+	matR2(:,intType,1) = cell2mat(cellfun(@(x) squeeze(x(1,:)),cellRootR2(:,intType),'UniformOutput',false)');
+	matR2(:,intType,2) = cell2mat(cellfun(@(x) squeeze(x(end,:)),cellRootR2(:,intType),'UniformOutput',false)');
+end
 
-vecExponent_RealNoJitter = cellfun(@(x) x(1), cellRootExponent(:,1));
-vecExponent_PoissNoJitter = cellfun(@(x) x(1), cellRootExponent(:,2));
-vecExponent_RealFullJitter = cellfun(@(x) x(end), cellRootExponent(:,1));
-vecExponent_PoissFullJitter = cellfun(@(x) x(end), cellRootExponent(:,2));
+%concatenate exps
 clear matExponent;
-matExponent(:,1,1) = vecExponent_RealNoJitter;
-matExponent(:,2,1) = vecExponent_PoissNoJitter;
-matExponent(:,1,2) = vecExponent_RealFullJitter;
-matExponent(:,2,2) = vecExponent_PoissFullJitter;
-
-matCV_RealNoJitter = cell2mat(cellfun(@(x) x(1,:)', cellCV(:,1),'UniformOutput',false)'); %[timescale x neuron]
-matCV_PoissNoJitter = cell2mat(cellfun(@(x) x(1,:)', cellCV(:,2),'UniformOutput',false)'); %[timescale x neuron]
-matCV_RealFullJitter = cell2mat(cellfun(@(x) x(end,:)', cellCV(:,1),'UniformOutput',false)'); %[timescale x neuron]
-matCV_PoissFullJitter = cell2mat(cellfun(@(x) x(end,:)', cellCV(:,2),'UniformOutput',false)'); %[timescale x neuron]
-clear matCV
-matCV(:,:,1,1) = matCV_RealNoJitter;
-matCV(:,:,2,1) = matCV_PoissNoJitter;
-matCV(:,:,1,2) = matCV_RealFullJitter;
-matCV(:,:,2,2) = matCV_PoissFullJitter;
-
-%single neurons [real/poiss with/without-jitter neuron-id]
-vecSingleR2_RealNoJitter = cell2vec(cellfun(@(x) x(1,:),cellRootR2_Single(:,1),'UniformOutput',false));
-vecSingleR2_PoissNoJitter = cell2vec(cellfun(@(x) x(1,:),cellRootR2_Single(:,2),'UniformOutput',false));
-vecSingleR2_RealFullJitter = cell2vec(cellfun(@(x) x(end,:),cellRootR2_Single(:,1),'UniformOutput',false));
-vecSingleR2_PoissFullJitter = cell2vec(cellfun(@(x) x(end,:),cellRootR2_Single(:,2),'UniformOutput',false));
-clear matSingleR2;
-matSingleR2(:,1,1) = vecSingleR2_RealNoJitter;
-matSingleR2(:,2,1) = vecSingleR2_PoissNoJitter;
-matSingleR2(:,1,2) = vecSingleR2_RealFullJitter;
-matSingleR2(:,2,2) = vecSingleR2_PoissFullJitter;
-
-vecSingleExponent_RealNoJitter = cell2vec(cellfun(@(x) x(1,:),cellRootExponent_Single(:,1),'UniformOutput',false));
-vecSingleExponent_PoissNoJitter = cell2vec(cellfun(@(x) x(1,:),cellRootExponent_Single(:,2),'UniformOutput',false));
-vecSingleExponent_RealFullJitter = cell2vec(cellfun(@(x) x(end,:),cellRootExponent_Single(:,1),'UniformOutput',false));
-vecSingleExponent_PoissFullJitter = cell2vec(cellfun(@(x) x(end,:),cellRootExponent_Single(:,2),'UniformOutput',false));
-clear matSingleExponent;
-matSingleExponent(:,1,1) = vecSingleExponent_RealNoJitter;
-matSingleExponent(:,2,1) = vecSingleExponent_PoissNoJitter;
-matSingleExponent(:,1,2) = vecSingleExponent_RealFullJitter;
-matSingleExponent(:,2,2) = vecSingleExponent_PoissFullJitter;
+for intType=1:intTypeNum
+	matExponent(:,intType,1) = cell2mat(cellfun(@(x) squeeze(x(1,:)),cellRootExponent(:,intType),'UniformOutput',false)');
+	matExponent(:,intType,2) = cell2mat(cellfun(@(x) squeeze(x(end,:)),cellRootExponent(:,intType),'UniformOutput',false)');
+end
 
 %concatenate cvs
-matSingleCV_RealNoJitter = cell2mat(cellfun(@(x) squeeze(x(:,1,:)),cellCV_Single(:,1),'UniformOutput',false)'); %[timescale x neuron]
-matSingleCV_PoissNoJitter = cell2mat(cellfun(@(x) squeeze(x(:,1,:)),cellCV_Single(:,2),'UniformOutput',false)'); %[timescale x neuron]
-matSingleCV_RealFullJitter = cell2mat(cellfun(@(x) squeeze(x(:,end,:)),cellCV_Single(:,1),'UniformOutput',false)'); %[timescale x neuron]
-matSingleCV_PoissFullJitter = cell2mat(cellfun(@(x) squeeze(x(:,end,:)),cellCV_Single(:,2),'UniformOutput',false)'); %[timescale x neuron]
+clear matCV;
+for intType=1:intTypeNum
+	matCV(:,:,intType,1) = cell2mat(cellfun(@(x) x(1,:)',cellCV(:,intType),'UniformOutput',false)');
+	matCV(:,:,intType,2) = cell2mat(cellfun(@(x) x(end,:)',cellCV(:,intType),'UniformOutput',false)');
+end
+
+%single neurons [real/poiss with/without-jitter neuron-id]
+%concatenate r2s
+clear matSingleR2;
+for intType=1:intTypeNum
+	matSingleR2(:,intType,1) = cell2mat(cellfun(@(x) x(1,:),cellRootR2_Single(:,intType),'UniformOutput',false)');
+	matSingleR2(:,intType,2) = cell2mat(cellfun(@(x) x(end,:),cellRootR2_Single(:,intType),'UniformOutput',false)');
+end
+
+%concatenate exps
+clear matSingleExponent;
+for intType=1:intTypeNum
+	matSingleExponent(:,intType,1) = cell2mat(cellfun(@(x) x(1,:),cellRootExponent_Single(:,intType),'UniformOutput',false)');
+	matSingleExponent(:,intType,2) = cell2mat(cellfun(@(x) x(end,:),cellRootExponent_Single(:,intType),'UniformOutput',false)');
+end
+
+%concatenate cvs
 clear matSingleCV;
-matSingleCV(:,:,1,1) = matSingleCV_RealNoJitter;
-matSingleCV(:,:,2,1) = matSingleCV_PoissNoJitter;
-matSingleCV(:,:,1,2) = matSingleCV_RealFullJitter;
-matSingleCV(:,:,2,2) = matSingleCV_PoissFullJitter;
+for intType=1:intTypeNum
+	matSingleCV(:,:,intType,1) = cell2mat(cellfun(@(x) squeeze(x(:,1,:)),cellCV_Single(:,intType),'UniformOutput',false)');
+	matSingleCV(:,:,intType,2) = cell2mat(cellfun(@(x) squeeze(x(:,end,:)),cellCV_Single(:,intType),'UniformOutput',false)');
+end
+
 %matSingleCV: [timescale x neuron x real/poiss x (no-)/jitter]
 %matCV: [timescale x pop x real/poiss x (no-)/jitter]
 
@@ -226,15 +234,17 @@ matSingleCV(:,:,2,2) = matSingleCV_PoissFullJitter;
 cellPop = {'Pop','Single'};
 cellJit = {'NoJit','FullJit'};
 hSummaryFig = figure;maxfig;
-hPlotCVs(1) = subplot(2,3,1);hold on;
-hPlotCVs(2) = subplot(2,3,4);hold on;
-matColorPopSingle = [lines(1);[0.8 0 0]];
-cellLineType = {'-','-';'--','--'};
+hPlotCVS = [];
+for intType=1:intTypeNum
+	hPlotCVs(intType) = subplot(2,intTypeNum,intType);hold on;
+end
+matColorPopSingle = lines(2);
+cellLineType = {'-','-','-',;'--','--','--'};
 cellSubLegend = {};
-hAllFig=figure;maxfig;
 cellLegend = {};
-
-for intRealPoiss=1:2
+boolPlotAllFigs = false;
+if boolPlotAllFigs,hAllFig=figure;maxfig;end
+for intType=1:intTypeNum
 	%real/poiss
 	for intPopSingle=1:2
 		if intPopSingle==1
@@ -246,42 +256,44 @@ for intRealPoiss=1:2
 		end
 		for intJit=1:2
 			%(no-)jitter
-			matData = matPlotCV(:,:,intRealPoiss,intJit);
+			matData = matPlotCV(:,:,intType,intJit);
 			vecMean = mean(matData,2);
 			vecSd = std(matData,[],2);
 			
-			intPlotNr = (intRealPoiss-1)*4+(intPopSingle-1)*2+intJit;
-			subplot(2,4,intPlotNr);
-			plot(vecTimescales,vecMean,'color',lines(1));
-			hold on
-			plot(vecTimescales,vecMean-vecSd,'--','color',lines(1));
-			plot(vecTimescales,vecMean+vecSd,'--','color',lines(1));
-			strTag = sprintf('%s - %s - %s',cellPop{intPopSingle},cellTypes{intRealPoiss},cellJit{intJit});
-			title(strTag);
+			intPlotNr = (intType-1)*4+(intPopSingle-1)*2+intJit;
+			strTag = sprintf('%s - %s - %s',cellPop{intPopSingle},cellTypes{intType},cellJit{intJit});
 			cellLegend{intPlotNr} = strTag;
-			xlabel('Timescale (s)');
-			ylabel('CV (sd/mu)');
-			
+			if boolPlotAllFigs
+				subplot(intTypeNum,4,intPlotNr);
+				plot(vecTimescales,vecMean,'color',lines(1));
+				hold on
+				plot(vecTimescales,vecMean-vecSd,'--','color',lines(1));
+				plot(vecTimescales,vecMean+vecSd,'--','color',lines(1));
+				title(strTag);
+				xlabel('Timescale (s)');
+				ylabel('CV (sd/mu)');
+			end
 			%plot mean
 			intPlotNr2 = (intPopSingle-1)*2+intJit;
-			plot(hPlotCVs(intRealPoiss),vecTimescales,vecMean,cellLineType{intJit,intRealPoiss},'color',matColorPopSingle(intPopSingle,:));
+			%plot(hPlotCVs(intType),vecTimescales,matData',cellLineType{intJit,intType},'color',matColorPopSingle(intPopSingle,:));
+			plot(hPlotCVs(intType),vecTimescales,vecMean,cellLineType{intJit,intType},'color',matColorPopSingle(intPopSingle,:));
 			cellSubLegend{intPlotNr2} = sprintf('%s - %s',cellPop{intPopSingle},cellJit{intJit});
 		end
 	end
-	legend(hPlotCVs(intRealPoiss),cellSubLegend);
-	xlabel(hPlotCVs(intRealPoiss),'Timescale (s)');
-	ylabel(hPlotCVs(intRealPoiss),'CV (sd/mu)');
-	title(hPlotCVs(intRealPoiss),cellTypes{intRealPoiss});
-	set(hPlotCVs(intRealPoiss),'xscale','log');
-	set(hPlotCVs(intRealPoiss),'yscale','log');
+	legend(hPlotCVs(intType),cellSubLegend,'location','best');
+	xlabel(hPlotCVs(intType),'Timescale (s)');
+	ylabel(hPlotCVs(intType),'CV (sd/mu)');
+	title(hPlotCVs(intType),cellTypes{intType});
+	set(hPlotCVs(intType),'xscale','log');
+	set(hPlotCVs(intType),'yscale','log');
 end
 
 %plot exponents
 Xmean=0;
 figure(hSummaryFig);
 vecColTheory = [0.5 0.5 0.5];
-for intRealPoiss=1:2
-	subplot(2,3,2+(intRealPoiss-1)*3);hold on;
+for intType=1:intTypeNum
+	subplot(2,intTypeNum,intTypeNum+intType);hold on;
 	plot([0.5 4.5],[0.5 0.5],'--','color',vecColTheory);
 	text(0.1,0.525,'Theory','fontsize',14,'color',vecColTheory);
 	for intPopSingle=1:2
@@ -296,7 +308,7 @@ for intRealPoiss=1:2
 		%real/poiss
 		for intJit=1:2
 			%(no-)jitter
-			vecData = matPlotExp(:,intRealPoiss,intJit);
+			vecData = matPlotExp(:,intType,intJit);
 			Xprev=Xmean;
 			Xmean=mean(vecData);
 			intPlotNr = (intPopSingle-1)*2+intJit;
@@ -311,12 +323,90 @@ for intRealPoiss=1:2
 	xlim([0 5]);
 	ylim([0 0.6]);
 	ylabel('Root fit exponent');
-	title([cellTypes{intRealPoiss} ' ;Mu +/- sem of beta fit; a+(1/((b*x)^c))']);
+	title([cellTypes{intType} ' ;Mu +/- sem of beta fit; a+(1/((b*x)^c))']);
+end
+fixfig;
+
+drawnow;
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescaleFits.tif')));
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescaleFits.pdf')));
+
+%% plot d primes and lin slopes
+%run tests
+%matSingleCV: [timescale x neuron x real/poiss x (no-)/jitter]
+%matCV: [timescale x pop x real/poiss x (no-)/jitter]
+
+% plot
+figure;maxfig;
+subplot(2,3,1);hold on
+cellLegendSub3 = {};
+for intType=1:intTypeNum
+	%get data
+	matPopCV_NoJit = matCV(:,:,intType,1);
+	matPopCV_Jit = matCV(:,:,intType,2);
+	[dummy,vecP]=ttest(log10(matPopCV_NoJit'),log10(matPopCV_Jit'));
+	vecP_Pop = vecP*numel(vecP);
+	vecDprime_Pop = getdprime2(matPopCV_NoJit,matPopCV_Jit,2);
+	
+	matSingleCV_NoJit = matSingleCV(:,:,intType,1);
+	matSingleCV_Jit = matSingleCV(:,:,intType,2);
+	[dummy,vecP]=ttest(log10(matSingleCV_NoJit'),log10(matSingleCV_Jit'));
+	vecP_SinglePoiss = vecP*numel(vecP);
+	vecDprime_Single = getdprime2(matSingleCV_NoJit,matSingleCV_Jit,2);
+	
+	%plot
+	plot(vecTimescales,vecDprime_Pop,cellTypeLine{intType},'color',matColorPopSingle(1,:));
+	plot(vecTimescales,vecDprime_Single,cellTypeLine{intType},'color',matColorPopSingle(2,:));
+	cellLegendSub3{intType*2-1} = ['Pop-' cellTypes{intType}];
+	cellLegendSub3{intType*2} = ['Single-' cellTypes{intType}];
 end
 
+set(gca,'xscale','log');
+ylabel('d'' NoJit/FullJit');
+legend(cellLegendSub3,'location','northwest');
+xlabel('Timescale (s)');
+
+subplot(2,3,2);hold on
+Xmean=0;
+cellSubLegend2={};
+cellTypeLine = {'-','--',':'};
+matColJit = [0 0 0; 0.8 0 0];
+for intType=1:intTypeNum
+	%real/poiss
+	vecJitEntry = [1 numel(cellLinR2{1,intType})];
+	strLine = cellTypeLine{intType};
+	for intJit=1:2
+		%(no-)jitter
+		vecData = cellfun(@(x) x(vecJitEntry(intJit)),cellLinR2(:,intType));
+		Xprev=Xmean;
+		Xmean=mean(vecData);
+		intPlotNr = (intType-1)*2+intJit;
+		errorbar(intPlotNr,Xmean,std(vecData)./sqrt(intRecNum),'x','color',matColJit(intJit,:));
+		if intJit==2
+			plot([intPlotNr-1 intPlotNr],[Xprev Xmean],strLine,'color',matColJit(intJit,:));
+		end
+		cellSubLegend2{intPlotNr} = sprintf('%s - %s',cellTypes{intType},cellJit{intJit});
+	end
+end
+set(gca,'xtick',1:numel(cellSubLegend2),'xticklabel',cellSubLegend2);
+xtickangle(gca,45);
+xlim([0 numel(cellSubLegend2)+1]);
+ylabel('Linearity of sd/mu (R^2)');
+title('Real data is gain/timescale-invariant');
+
+fixfig;
+
+drawnow;
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_Invariance.tif')));
+export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_Invariance.pdf')));
+
+return
+
+%%
+%{
 %plot R2
-for intRealPoiss=1:2
-	subplot(2,3,3+(intRealPoiss-1)*3);hold on;
+for intType=1:2
+	subplot(2,3,3+(intType-1)*3);hold on;
 	for intPopSingle=1:2
 		if intPopSingle==1
 			%pop
@@ -328,7 +418,7 @@ for intRealPoiss=1:2
 		%real/poiss
 		for intJit=1:2
 			%(no-)jitter
-			vecData = matPlotR2(:,intRealPoiss,intJit);
+			vecData = matPlotR2(:,intType,intJit);
 			
 			dblAlpha = 2-2*normcdf(2);
 			[phat,pci] = betafit(vecData,dblAlpha);
@@ -349,8 +439,7 @@ for intRealPoiss=1:2
 	xlim([0 5]);
 	ylim([0 1]);
 	ylabel('Root fit R^2');
-	title([cellTypes{intRealPoiss} ' ;Mu +/- 95-CI of beta fit; a+(1/((b*x)^c))']);
+	title([cellTypes{intType} ' ;Mu +/- 95-CI of beta fit; a+(1/((b*x)^c))']);
 end
-
-
 fixfig;
+%}

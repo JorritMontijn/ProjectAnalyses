@@ -6,12 +6,12 @@ cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
 intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
-cellTypes = {'Real','Poiss'};%,'Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
+cellTypes = {'ShuffTxClass','Real','Poiss','ShuffTid'};%,'Poiss','ShuffTid','Shuff','PoissGain','Uniform','ShuffTxClass'};
 runHeaderPopTimeCoding;
 boolMakeFigs = true;
 %vecTimescales = 0.01:0.01:10;%10;1.5;
-vecTimescales = linspace(1e-4,1e1,1000);%linspace(1e-2,1e1,1000)
-vecJitter = [0 (2.^(-9:10))];
+vecTimescales = linspace(1e-4,1e1,10000);%linspace(1e-2,1e1,1000)
+vecJitter = [0 1e3];%[0 (2.^(-9:10))];
 intPopSize = inf; %24 (smallest pop of all recs) or inf (uses full pop for each rec)
 
 %% go through recs
@@ -173,7 +173,12 @@ for intRec=1:intRecNum %19 || weird: 11
 			matCVFit_Root(intJitterIdx,:) = sFits.Root.FitY;
 			
 			%% single neurons
+			hTic=tic;
 			for intN=1:intNumN
+				if toc(hTic) > 5
+					fprintf('  Neuron %d/%d [%s]\n',intN,intNumN,getTime);
+					hTic=tic;
+				end
 				vecAllSpikeTime = cellSpikeTimes{intN};
 				vecApplyJitter = randn(size(vecAllSpikeTime))*dblJitter;
 				vecAllSpikeTime = sort(mod(vecAllSpikeTime + vecApplyJitter,dblTotDur));
@@ -199,36 +204,39 @@ for intRec=1:intRecNum %19 || weird: 11
 		if boolMakeFigs
 			figure;maxfig;
 			colormap(parula)
-			vecPlotJitters = 1:intJitterNum;%[1 2 ceil(intJitterNum/2) intJitterNum];
+			vecPlotJitterIdx = 1:intJitterNum;%[1 2 ceil(intJitterNum/2) intJitterNum];
+			vecPlotJitter = vecJitter(vecPlotJitterIdx);
+			vecPlotJitter(1) = 1e-5; %to show on log axis
 			subplot(2,4,1)
 			matCV = matSd./matMean;
-			plot(vecTimescales,matCV(vecPlotJitters,:)')
+			plot(vecTimescales,matCV(vecPlotJitterIdx,:)')
 			cellL=(cellfun(@(x) sprintf('%.2f',x),vec2cell(vecJitter),'UniformOutput',false));
 			h=colorbar;
-			vecShowJitterTicks = [1 6 11 15 20];
+			vecShowJitterTicks = unique(round(linspace(1,numel(vecPlotJitter),5)));
+			%vecShowJitterTicks = [1 6 11 15 20];
 			h.Ticks = imnorm(vecShowJitterTicks);
 			h.TickLabels = cellL(vecShowJitterTicks);
 			title(sprintf('Color=jitter; %s - %s',strRec,strType),'interpreter','none');
-			set(gca, 'ColorOrder', parula(numel(vecPlotJitters)))
+			set(gca, 'ColorOrder', parula(numel(vecPlotJitterIdx)))
 			xlabel('Timescale (bin size in s)');
 			ylabel('CV (sd/mu)');
 			
 			subplot(2,4,2);
-			plot(vecTimescales,(matCV(vecPlotJitters,:) - matCVFit_Exp(vecPlotJitters,:))')
+			plot(vecTimescales,(matCV(vecPlotJitterIdx,:) - matCVFit_Exp(vecPlotJitterIdx,:))')
 			title('exp residuals')
-			set(gca, 'ColorOrder', parula(numel(vecPlotJitters)))
+			set(gca, 'ColorOrder', parula(numel(vecPlotJitterIdx)))
 			xlabel('Timescale (bin size in s)');
 			ylabel('Residuals exp decay fit');
 			
 			subplot(2,4,3);
-			plot(vecJitter,vecR2_Exp)
+			plot(vecPlotJitter,vecR2_Exp)
 			title('exp decay r2')
 			xlabel('Spike jitter (s)');
 			ylabel('R^2 exp decay fit');
 			set(gca,'xscale','log');
 			
 			subplot(2,4,4);
-			plot(vecJitter,vecHalfLife_Exp)
+			plot(vecPlotJitter,vecHalfLife_Exp)
 			title('exp decay half-life')
 			xlabel('Spike jitter (s)');
 			ylabel('Half-life decay fit');
@@ -239,24 +247,24 @@ for intRec=1:intRecNum %19 || weird: 11
 			title('Sd/mean')
 			xlabel('Mean spike count');
 			ylabel('Sd spike count');
-			set(gca, 'ColorOrder', parula(numel(vecPlotJitters)))
+			set(gca, 'ColorOrder', parula(numel(vecPlotJitterIdx)))
 			
 			subplot(2,4,6);
-			plot(vecTimescales,(matCV(vecPlotJitters,:) - matCVFit_Root(vecPlotJitters,:))')
+			plot(vecTimescales,(matCV(vecPlotJitterIdx,:) - matCVFit_Root(vecPlotJitterIdx,:))')
 			title('root residuals')
-			set(gca, 'ColorOrder', parula(numel(vecPlotJitters)))
+			set(gca, 'ColorOrder', parula(numel(vecPlotJitterIdx)))
 			xlabel('Timescale (bin size in s)');
 			ylabel('Residuals root fit');
 			
 			subplot(2,4,7);
-			plot(vecJitter,vecR2_Root)
+			plot(vecPlotJitter,vecR2_Root)
 			title('root r2')
 			xlabel('Spike jitter (s)');
 			ylabel('R^2 root fit');
 			set(gca,'xscale','log');
 			
 			subplot(2,4,8);
-			plot(vecJitter,vecExponent_Root)
+			plot(vecPlotJitter,vecExponent_Root)
 			title('root exponent')
 			xlabel('Spike jitter (s)');
 			ylabel('Exponent of root fit');

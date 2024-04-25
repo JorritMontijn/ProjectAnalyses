@@ -14,9 +14,9 @@ q2: How precise are spike times in the natural movie repetitions?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 2;
+intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
-cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
+cellTypes = {'ShuffTxClass'};{'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform','ShuffTxClass'};
 boolFixSpikeGroupSize = false;
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
@@ -82,6 +82,63 @@ for intRec=1:intRecNum
 		vecCorticalLayer = cellfun(@(x) str2double(x(regexp(x,'layer.*')+6)),cellAreas);
 		vecDepth = [sRespNeurons.DepthBelowIntersect];
 		vecSupraGranuInfra = double(vecCorticalLayer < 4) + 2*double(vecCorticalLayer == 4) + 3*double(vecCorticalLayer > 4);
+	
+		%% is cell an interneuron (fast/narrow spiking) or pyramid (regular/broad spiking)?
+		fprintf('Loading and processing waveforms... [%s]\n',getTime);
+		%load waveform
+		if ~isfield(sUseNeuron,'Waveform')
+			[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
+		else
+			sThisRec.sample_rate = str2double(sAggSources(intRec).sMetaAP.imSampRate);
+		end
+		
+		%calculate waveform properties
+		dblSampRateIM = sThisRec.sample_rate;
+		dblRecDur = max(cellfun(@max,{sUseNeuron.SpikeTimes})) - min(cellfun(@min,{sUseNeuron.SpikeTimes}));
+		vecSpikeRate = cellfun(@numel,{sUseNeuron.SpikeTimes})/dblRecDur;
+		matAreaWaveforms = cell2mat({sUseNeuron.Waveform}'); %[cell x sample]
+		intNeurons=size(matAreaWaveforms,1);
+		vecSpikeDur = nan(1,intNeurons);
+		vecSpikePTR = nan(1,intNeurons);
+		for intNeuron=1:intNeurons
+			%find trough
+			[dblTroughVal,intTrough]=min(matAreaWaveforms(intNeuron,:));
+			[dblPeakVal,intTroughToPeak]=max(matAreaWaveforms(intNeuron,intTrough:end));
+			intPeak = intTrough + intTroughToPeak - 1;
+			
+			dblTroughTime = intTrough/dblSampRateIM;
+			dblTroughToPeakTime = intTroughToPeak/dblSampRateIM;
+			dblPeakTime = intPeak/dblSampRateIM;
+			vecSpikeDur(intNeuron) = dblTroughToPeakTime;
+			vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
+		end
+		dblRatio_PTT = 0.4;
+		dblDur_SWT = 0.4/1000;
+		vecNarrow = vecSpikeDur < dblDur_SWT & vecSpikePTR > dblRatio_PTT; %Ctx BL6
+		vecBroad = vecSpikeDur > dblDur_SWT;% & vecSpikePTR < dblRatio_PTT; %Ctx BL6
+		vecOther = ~vecNarrow & ~vecBroad;
+		vecNeuronType = vecNarrow + vecBroad*2 + vecOther*3;
+		vecNeuronSpikeDur = vecSpikeDur;
+		vecNeuronPeakToTrough = vecSpikePTR;
+		matNeuronWaveform = matAreaWaveforms;
+		cellNeuronTypes = {'Narrow','Broad','Other'};
+		
+		%% plot
+		vecSpikePTR(vecSpikePTR>1.25)=1.25;
+		matCol = [0 0 1;0 1 0;0.5 0.5 0.5];
+		figure;hold on
+		colormap(matCol);
+		scatter(vecSpikePTR(vecNeuronType==1),vecSpikeDur(vecNeuronType==1)*1000,[],matCol(1,:));
+		scatter(vecSpikePTR(vecNeuronType==2),vecSpikeDur(vecNeuronType==2)*1000,[],matCol(2,:));
+		scatter(vecSpikePTR(vecNeuronType==3),vecSpikeDur(vecNeuronType==3)*1000,[],matCol(3,:));
+		xlabel('trough to peak ratio');
+		ylabel('trough to peak dur (ms)');
+		title(strRec,'interpreter','none');
+		legend(cellNeuronTypes,'location','best');
+		fixfig;
+		%%
+		export_fig(fullpath(strFigurePathSR,sprintf('T0_NarrowBroadClassification_%s.tif',strThisRec)));
+		export_fig(fullpath(strFigurePathSR,sprintf('T0_NarrowBroadClassification_%s.pdf',strThisRec)));
 	end
 	
 	if intNeuronsInArea == 0% || intNeuronNum < 25
@@ -89,46 +146,7 @@ for intRec=1:intRecNum
 		continue;
 	end
 	
-	
-	%% is cell an interneuron (fast/narrow spiking) or pyramid (regular/broad spiking)?
-	error check if this works and add it to the output
-	
-	%load waveform
-	if ~isfield(sUseNeuron,'Waveform')
-		[sThisRec,sUseNeuron] = loadWaveforms(sThisRec,sUseNeuron);
-	else
-		sThisRec.sample_rate = str2double(sAggSources(intRec).sMetaAP.imSampRate);
-	end
-	
-	%calculate waveform properties
-	dblSampRateIM = sThisRec.sample_rate;
-	dblRecDur = max(cellfun(@max,{sUseNeuron.SpikeTimes})) - min(cellfun(@min,{sUseNeuron.SpikeTimes}));
-	vecSpikeRate = cellfun(@numel,{sUseNeuron.SpikeTimes})/dblRecDur;
-	matAreaWaveforms = cell2mat({sUseNeuron.Waveform}'); %[cell x sample]
-	intNeurons=size(matAreaWaveforms,1);
-	vecSpikeDur = nan(1,intNeurons);
-	vecSpikePTR = nan(1,intNeurons);
-	for intNeuron=1:intNeurons
-		%find trough
-		[dblTroughVal,intTrough]=min(matAreaWaveforms(intNeuron,:));
-		[dblPeakVal,intTroughToPeak]=max(matAreaWaveforms(intNeuron,intTrough:end));
-		intPeak = intTrough + intTroughToPeak - 1;
-		
-		dblTroughTime = intTrough/dblSampRateIM;
-		dblTroughToPeakTime = intTroughToPeak/dblSampRateIM;
-		dblPeakTime = intPeak/dblSampRateIM;
-		vecSpikeDur(intNeuron) = dblTroughToPeakTime;
-		vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
-	end
-	dblPTT = 0.5;
-	dblSWT = 0.5/1000;
-	vecNarrow = vecSpikeDur < dblSWT & vecSpikePTR > dblPTT; %Ctx BL6
-	vecBroad = vecSpikeDur > dblSWT & vecSpikePTR < dblPTT; %Ctx BL6
-	vecOther = ~vecNarrow & ~vecBroad;
-	vecCol = vecNarrow + vecBroad*2 + vecOther*3;
-	%scatter(vecSpikeDur,vecSpikePTR,[],vecCol)
-	
-	
+
 	%% get cortical depth per cell
 	%scatter(vecSupraGranuInfra,vecDepth)
 	%hold on
@@ -220,6 +238,18 @@ for intRec=1:intRecNum
 				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
 					%create data
 					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur);
+				else
+					error
+				end
+			elseif strcmp(strType,'ShuffTxClass')
+				%%
+				cellSpikeTimes = cell(1,intNumN);
+				if strcmp(strRunStim,'NM')
+					error
+				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
+					%create data
+					vecUseStimIdx = ones(size(vecStimIdx)); %collapse all classes
+					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecUseStimIdx,dblTrialDur);
 				else
 					error
 				end
@@ -319,7 +349,15 @@ for intRec=1:intRecNum
 				'vecTime',...
 				'vecIFR',...
 				'strRunStim',...
-				'dblRemOnset'...
+				'dblRemOnset',...
+				'strRunStim',...
+				'vecSupraGranuInfra',...
+				...%neuron type
+				'vecNeuronType',...
+				'vecNeuronSpikeDur',...
+				'vecNeuronPeakToTrough',...
+				'matNeuronWaveform',...
+				'cellNeuronTypes'...
 				);
 		end
 	end

@@ -6,7 +6,7 @@ I.e., are codes equally efficient during high and low rate periods?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 4;
+intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 boolFixSpikeGroupSize = false;
@@ -34,6 +34,9 @@ for intRec=1:intRecNum %19 || weird: 11
 		%get cell props
 		%vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
 		vecNeuronType = [sLoad.sNeuron.Types]; %1=pyr,2=interneuron
+		%swap types to match npx
+		vecSwap = [2 1];
+		vecNeuronType = vecSwap(vecNeuronType);
 		intUseMaxRep = 40;
 		indRemTrials = vecTrialRepetition>intUseMaxRep;
 		vecOri180(indRemTrials) = [];
@@ -49,12 +52,18 @@ for intRec=1:intRecNum %19 || weird: 11
 		strDataPathT0 = strTargetDataPath;
 		dblMinHz = 90;
 		
-		%get cell props
-		vecNeuronType = ones(size(indTuned)); %1=pyr,2=interneuron
-		%narrow vs broad not done
+		
+		%% layers
+		sArea1Neurons = sUseNeuron(indArea1Neurons);
+		cellAreas = {sArea1Neurons.Area};
+		vecCorticalLayer = cellfun(@(x) str2double(x(regexp(x,'layer.*')+6)),cellAreas);
+		vecDepth = [sArea1Neurons.DepthBelowIntersect];
+		vecSupraGranuInfra = double(vecCorticalLayer < 4) + 2*double(vecCorticalLayer == 4) + 3*double(vecCorticalLayer > 4);
+		vecSupraGranuInfra = vecSupraGranuInfra(indResp);
 	else
 		error impossible
 	end
+	
 	
 	%% move onset
 	%remove first x ms
@@ -65,6 +74,8 @@ for intRec=1:intRecNum %19 || weird: 11
 	if ~exist(strTarget,'file')
 		fprintf('Prepped T0 file did not exist for %s; skipping...\n',strThisRec);
 		continue;
+	else
+		fprintf('Running %s... [%s]\n',strRec,getTime);
 	end
 	
 	%check fr
@@ -85,8 +96,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
 	end
-	
-	
 	%% get ori vars
 	intTrialNum = numel(vecStimOnTime);
 	vecOri180 = mod(vecOrientation,180);
@@ -111,6 +120,12 @@ for intRec=1:intRecNum %19 || weird: 11
 		end
 		if isempty(vecTime),continue;end
 		
+		
+		%% cell type (narrow/broad)
+		%get cell props
+		vecNeuronType = sSource.vecNeuronType(indResp); %1=interneuron/narrow,2=pyramidal/broad
+		vecSupraGranuInfra = sSource.vecSupraGranuInfra;%1=supra,2=granu,3=infra
+		
 		%% build trial-neuron cell matrix
 		cellSpikeTimesPerCellPerTrial = cell(intNumN,intTrialNum);
 		for intN=1:intNumN
@@ -126,6 +141,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		sTuning = getTuningCurves(matData,vecOri180,0);
 		vecNeuronPrefOri = sTuning.matFittedParams(:,1);
 		vecNeuronBandwidth = real(sTuning.matBandwidth);
+		vecNeuronLayer = vecSupraGranuInfra;
 		
 		%% check rates
 		if boolFixSpikeGroupSize
@@ -137,7 +153,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		end
 		
 		%% go through pop spikes and group into sets of 20
-		fprintf('   Collecting n-spike groups and decoding [%s]\n',getTime);
+		fprintf('   Collecting n-spike groups and decoding for %s-%s [%s]\n',strRec,strType,getTime);
 		[sSpikeGroup,matSpikeGroupData] = getSpikeGroupData(cellSpikeTimesPerCellPerTrial,intSpikeGroupSize,vecOriIdx,vecStimOnTime,vecTime,vecIFR);
 		intSpikeGroupNum = numel(sSpikeGroup);
 		if intSpikeGroupNum < intTrialNum,continue;end
@@ -177,6 +193,9 @@ for intRec=1:intRecNum %19 || weird: 11
 		vecSpikeGroupNumOfCells = nan(size(vecSpikeGroupLatency)); %how many cells participate?
 		vecSpikeGroupFractionInterneurons = nan(size(vecSpikeGroupLatency)); %fraction of interneurons
 		vecSpikeGroupAvgPrefDistToStim = nan(size(vecSpikeGroupLatency)); %average distance to stim ori
+		vecSpikeGroupFractionSupragranular = nan(size(vecSpikeGroupLatency)); %fraction of supragranular cells
+		vecSpikeGroupFractionGranular = nan(size(vecSpikeGroupLatency)); %fraction of granular cells
+		vecSpikeGroupFractionInfragranular = nan(size(vecSpikeGroupLatency)); %fraction of infragranular cells
 		
 		for intSpikeGroup=1:intSpikeGroupNum
 			%get stim
@@ -204,6 +223,11 @@ for intRec=1:intRecNum %19 || weird: 11
 			%get interneurons
 			vecSpikeGroupFractionInterneurons(intSpikeGroup) = mean(vecNeuronType(vecActiveCells));
 			
+			%get layer
+			vecSpikeGroupFractionSupragranular(intSpikeGroup) = mean(vecSupraGranuInfra(vecActiveCells)==1);
+			vecSpikeGroupFractionGranular(intSpikeGroup) = mean(vecSupraGranuInfra(vecActiveCells)==2);
+			vecSpikeGroupFractionInfragranular(intSpikeGroup) = mean(vecSupraGranuInfra(vecActiveCells)==3);
+			
 			%get avg pref dist to stim
 			vecSpikeGroupAvgPrefDistToStim(intSpikeGroup) = mean(abs(circ_dist(2*vecNeuronPrefOri(vecActiveCells),dblStimRad*2)));
 			vecSpikeGroupAvgBandwidthOfCells(intSpikeGroup) = mean(vecNeuronBandwidth(vecActiveCells));
@@ -215,6 +239,9 @@ for intRec=1:intRecNum %19 || weird: 11
 			sSpikeGroup(intSpikeGroup).NumOfCells = vecSpikeGroupNumOfCells(intSpikeGroup);
 			
 			sSpikeGroup(intSpikeGroup).FractionInterneurons = vecSpikeGroupFractionInterneurons(intSpikeGroup);
+			sSpikeGroup(intSpikeGroup).FractionSupra = vecSpikeGroupFractionSupragranular(intSpikeGroup);
+			sSpikeGroup(intSpikeGroup).FractionGranu = vecSpikeGroupFractionGranular(intSpikeGroup);
+			sSpikeGroup(intSpikeGroup).FractionInfra = vecSpikeGroupFractionInfragranular(intSpikeGroup);
 			sSpikeGroup(intSpikeGroup).AvgPrefDistToStim = vecSpikeGroupAvgPrefDistToStim(intSpikeGroup);
 			sSpikeGroup(intSpikeGroup).AvgBandwidthOfCells = vecSpikeGroupAvgBandwidthOfCells(intSpikeGroup);
 		end

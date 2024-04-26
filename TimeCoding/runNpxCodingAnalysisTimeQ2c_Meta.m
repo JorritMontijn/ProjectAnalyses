@@ -32,7 +32,7 @@ intRecNum = numel(sFiles);
 
 %% pre-allocate
 figure;maxfig;
-cellTypes =  {'Real','Poiss','ShuffTid'};
+cellTypes =  {'Real','Poiss','ShuffTid','ShuffTxClass','Uniform'};
 intPlotNum = 2*numel(cellTypes);
 vecH = nan([1 intPlotNum]);
 vecH1_5 = nan([1 intPlotNum]);
@@ -239,7 +239,7 @@ for intType=1:intTypeNum
 	hPlotCVs(intType) = subplot(2,intTypeNum,intType);hold on;
 end
 matColorPopSingle = lines(2);
-cellLineType = {'-','-','-',;'--','--','--'};
+cellLineType = repmat({'-';'--'},[1 intTypeNum]);
 cellSubLegend = {};
 cellLegend = {};
 boolPlotAllFigs = false;
@@ -337,6 +337,7 @@ export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescaleFits.pdf')));
 %matCV: [timescale x pop x real/poiss x (no-)/jitter]
 
 % plot
+cellTypeLine = {'-','--',':','-.'};
 figure;maxfig;
 subplot(2,3,1);hold on
 cellLegendSub3 = {};
@@ -369,7 +370,6 @@ xlabel('Timescale (s)');
 subplot(2,3,2);hold on
 Xmean=0;
 cellSubLegend2={};
-cellTypeLine = {'-','--',':'};
 matColJit = [0 0 0; 0.8 0 0];
 for intType=1:intTypeNum
 	%real/poiss

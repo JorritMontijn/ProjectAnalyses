@@ -88,7 +88,7 @@ for intRec=1:intRecNum %19 || weird: 11
 	%% go through types
 	clear sAggData;
 	vecRunTypes = 1:numel(cellTypes);
-	if 1
+	if 0
 		%load old data
 		load(fullpath(strTargetDataPath,sprintf('Q2cData%s_%s.mat',strThisRec,strOnset)));
 		vecRunTypes=(numel(sAggData)+1):numel(cellTypes);

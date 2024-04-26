@@ -337,7 +337,7 @@ export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescaleFits.pdf')));
 %matCV: [timescale x pop x real/poiss x (no-)/jitter]
 
 % plot
-cellTypeLine = {'-','--',':','-.'};
+cellTypeLine = {'-','--',':','-.','--'};
 figure;maxfig;
 subplot(2,3,1);hold on
 cellLegendSub3 = {};

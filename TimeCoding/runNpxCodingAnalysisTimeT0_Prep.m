@@ -16,7 +16,7 @@ q2: How precise are spike times in the natural movie repetitions?
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
 intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
-cellTypes = {'ShuffTxClass'};{'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform','ShuffTxClass'};
+cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform','ShuffTxClass'};
 boolFixSpikeGroupSize = false;
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
@@ -195,15 +195,12 @@ for intRec=1:intRecNum
 				%poisson process neurons
 				cellSpikeTimes = cell(1,intNumN);
 				for intN=1:intNumN
-					dblT0 = cellSpikeTimesReal{intN}(1);
-					dblTN = cellSpikeTimesReal{intN}(end);
-					dblTotT = dblTN-dblT0;
 					%add 3ms refractory period
 					dblRt = (3/1000);
-					dblLambda = numel(cellSpikeTimesReal{intN})/(dblTotT-dblRt*numel(cellSpikeTimesReal{intN}));
-					vecISI = dblRt+exprnd(1./dblLambda,[1,round(dblLambda*dblTotT*2)]);
-					vecSpikeT = dblT0+cumsum(vecISI)-vecISI(1);
-					cellSpikeTimes{intN} = vecSpikeT(vecSpikeT<dblTN);
+					dblLambda = numel(cellSpikeTimesReal{intN})/(dblEpochDur-dblRt*numel(cellSpikeTimesReal{intN}));
+					vecISI = dblRt+exprnd(1./dblLambda,[1,round(dblLambda*dblEpochDur*2)]);
+					vecSpikeT = dblStartEpoch+cumsum(vecISI)-vecISI(1);
+					cellSpikeTimes{intN} = vecSpikeT(vecSpikeT<dblStopEpoch);
 				end
 				
 			elseif strcmp(strType,'ShuffTid')
@@ -253,6 +250,19 @@ for intRec=1:intRecNum
 				else
 					error
 				end
+			elseif strcmp(strType,'ShuffTidUniform')
+				%% first create uniform spikes, then shuffle across trials
+				error to do
+				cellSpikeTimes = cell(1,intNumN);
+				if strcmp(strRunStim,'NM')
+					error
+				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
+					%create data
+					vecUseStimIdx = ones(size(vecStimIdx)); %collapse all classes
+					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecUseStimIdx,dblTrialDur);
+				else
+					error
+				end
 			elseif strcmp(strType,'Shuff')
 				%shuffled ISI per neuron
 				for intN=1:intNumN
@@ -284,7 +294,7 @@ for intRec=1:intRecNum
 					dblTotT = dblTN-dblT0;
 					%add 3ms refractory period
 					dblRt = (3/1000);
-					dblLambda = numel(cellSpikeTimesReal{intN})/(dblTotT-dblRt*numel(cellSpikeTimesReal{intN}));
+					dblLambda = numel(cellSpikeTimesReal{intN})/(dblEpochDur-dblRt*numel(cellSpikeTimesReal{intN}));
 					vecSpikeT = nan(1,2*numel(cellSpikeTimesReal{intN}));
 					vecSpikeT(1) = dblT0;
 					dblLastSpike = dblT0;
@@ -342,6 +352,10 @@ for intRec=1:intRecNum
 				...%type
 				'strType',...
 				'strLayer',...
+				...%stim
+				'vecStimOnTime',...
+				'vecStimIdx',...
+				'dblStimDur',...
 				...%data
 				'vecAllSpikeTime',...
 				'vecAllSpikeNeuron',...

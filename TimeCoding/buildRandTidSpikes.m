@@ -1,6 +1,6 @@
-function [cellSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur)
+function [cellSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildRandTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur)
 	%buildShuffTidSpikes Summary of this function goes here
-	%   [cellSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur);
+	%   [cellSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildRandTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur);
 	
 	%get beginning & end vectors
 	intNumN = numel(cellSpikeTimesReal);
@@ -47,9 +47,10 @@ function [cellSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(ce
 			vecTrialsOfType = find(vecStimIdx==intStimType);
 			indSelectSpikes = ismember(cellTrialTrials{intN},vecTrialsOfType);
 			
-			%assign to random trials: keep # of spikes in each trial the same; only shuffle
-			vecShuffTrials = vecOrigTrials(randperm(numel(vecOrigTrials)));
-			cellShuffTrials{intN}(indSelectSpikes) = vecShuffTrials;
+			%assign to random trials: take random amount of spikes for each trial from the subselection
+			vecOrigTrials = cellTrialTrials{intN}(indSelectSpikes);
+			vecRandTrials = vecTrialsOfType(randi(numel(vecTrialsOfType),size(vecOrigTrials)));
+			cellShuffTrials{intN}(indSelectSpikes) = vecRandTrials;
 		end
 	end
 	

@@ -16,7 +16,7 @@ q2: How precise are spike times in the natural movie repetitions?
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
 intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
-cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform','ShuffTxClass'};
+cellTypes = {'RandTid','RandTxClass'};{'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform','RandTid','RandTxClass'};
 boolFixSpikeGroupSize = false;
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
@@ -235,10 +235,23 @@ for intRec=1:intRecNum
 				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
 					%create data
 					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur);
+				
 				else
 					error
 				end
-			elseif strcmp(strType,'ShuffTxClass')
+			elseif strcmp(strType,'RandTid')
+				%%
+				cellSpikeTimes = cell(1,intNumN);
+				if strcmp(strRunStim,'NM')
+					error
+				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
+					%create data
+					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildRandTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur);
+				
+				else
+					error
+				end
+			elseif strcmp(strType,'RandTxClass')
 				%%
 				cellSpikeTimes = cell(1,intNumN);
 				if strcmp(strRunStim,'NM')
@@ -246,20 +259,7 @@ for intRec=1:intRecNum
 				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
 					%create data
 					vecUseStimIdx = ones(size(vecStimIdx)); %collapse all classes
-					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecUseStimIdx,dblTrialDur);
-				else
-					error
-				end
-			elseif strcmp(strType,'ShuffTidUniform')
-				%% first create uniform spikes, then shuffle across trials
-				error to do
-				cellSpikeTimes = cell(1,intNumN);
-				if strcmp(strRunStim,'NM')
-					error
-				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
-					%create data
-					vecUseStimIdx = ones(size(vecStimIdx)); %collapse all classes
-					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecUseStimIdx,dblTrialDur);
+					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildRandTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecUseStimIdx,dblTrialDur);
 				else
 					error
 				end

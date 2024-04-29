@@ -6,7 +6,7 @@ cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
 intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
-cellTypes = {'Real','Poiss','ShuffTid','ShuffTxClass','Uniform'};%,'Poiss','ShuffTid','Shuff','PoissGain','Uniform','ShuffTxClass'};
+cellTypes = {'RandTid','RandTxClass'};%{'Real','Poiss','ShuffTid','RandTid','RandTxClass','Uniform'};%,'Poiss','ShuffTid','Shuff','PoissGain','Uniform','ShuffTxClass'};
 runHeaderPopTimeCoding;
 boolMakeFigs = true;
 %vecTimescales = 0.01:0.01:10;%10;1.5;
@@ -88,10 +88,9 @@ for intRec=1:intRecNum %19 || weird: 11
 	%% go through types
 	clear sAggData;
 	vecRunTypes = 1:numel(cellTypes);
-	if 0
+	if 1
 		%load old data
 		load(fullpath(strTargetDataPath,sprintf('Q2cData%s_%s.mat',strThisRec,strOnset)));
-		vecRunTypes=(numel(sAggData)+1):numel(cellTypes);
 	end
 	for intType=vecRunTypes
 		strType = cellTypes{intType};
@@ -319,8 +318,13 @@ for intRec=1:intRecNum %19 || weird: 11
 		sData.mat1Asymptote_Root = mat1Asymptote_Root;
 		sData.mat1Scale_Root = mat1Scale_Root;
 		sData.mat1Exponent_Root = mat1Exponent_Root;
-
-		sAggData(intType) = sData;
+		if exist('sAggData','var')
+			intAssignTo = find(strcmp(strType,{sAggData.strType}));
+		else
+			intAssignTo = 1;
+		end
+		if isempty(intAssignTo),intAssignTo=numel(sAggData)+1;end
+		sAggData(intAssignTo) = sData;
 	end
 	
 	%% save agg data

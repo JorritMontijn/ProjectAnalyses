@@ -37,9 +37,11 @@ for intRec=1:intRecNum %19 || weird: 11
 	
 	%% prep figs
 	figure
-	vecH = [];
+	h6 = subplot(2,3,6);hold on;xlabel('Real pop act per trial');ylabel('Pop act per trial');
+	cellLegendScat = {};
+	%vecH = [];
 	for intStim=1:intOriNum
-		vecH(intStim) = subplot(3,4,intStim);hold on;
+		%vecH(intStim) = subplot(3,4,intStim);hold on;
 	end
 	matCol = lines(numel(cellTypes));
 	dblBinDur = 0.025;
@@ -57,7 +59,17 @@ for intRec=1:intRecNum %19 || weird: 11
 		% get matrix
 		[matData,indTuned,cellSpikeTimes,sTuning24,cellSpikeTimesPerCellPerTrial] = ...
 			NpxPrepData(sSource.cellSpikeTimes,vecStimOnTime,vecStimOffTime,vecOri180);
-		
+		if strcmp(strType,'Real')
+			vecRealAct = mean(matData);
+		else
+			scatter(h6,vecRealAct,mean(matData),'.');
+			cellLegendScat(end+1) = {strType};
+		end
+		subplot(2,3,intType)
+		imagesc(matData);
+		colorbar
+		title(strType);
+		continue;
 		%% plot
 		for intStim=1:intOriNum
 			intStim
@@ -73,6 +85,7 @@ for intRec=1:intRecNum %19 || weird: 11
 			errorbar(vecH(intStim),vecBinC,vecMean,vecSd./sqrt(intRepNum),'color',matCol(intType,:));
 		end
 	end
+	break
 	for i=1:numel(vecH)
 		set(vecH(i),'ylim',[0 1000]);
 		xlabel(vecH(i),'Time after onset (s)');
@@ -82,3 +95,4 @@ for intRec=1:intRecNum %19 || weird: 11
 	legend(vecH(1),cellTypes,'location','best');fixfig;
 	return
 end
+legend(h6,cellLegendScat);

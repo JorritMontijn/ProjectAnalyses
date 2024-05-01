@@ -337,10 +337,11 @@ export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescaleFits.pdf')));
 %matCV: [timescale x pop x real/poiss x (no-)/jitter]
 
 % plot
-cellTypeLine = {'-','--',':','-.','--',':'};
 figure;maxfig;
 subplot(2,3,1);hold on
+cellTypeLine = {'-','--'}; %pop/single
 cellLegendSub3 = {};
+vecInclude = [];
 for intType=1:intTypeNum
 	%get data
 	matPopCV_NoJit = matCV(:,:,intType,1);
@@ -356,16 +357,28 @@ for intType=1:intTypeNum
 	vecDprime_Single = getdprime2(matSingleCV_NoJit,matSingleCV_Jit,2);
 	
 	%plot
-	plot(vecTimescales,vecDprime_Pop,cellTypeLine{intType},'color',matColorPopSingle(1,:));
-	plot(vecTimescales,vecDprime_Single,cellTypeLine{intType},'color',matColorPopSingle(2,:));
+	vecInclude(intType) = plot(vecTimescales,vecDprime_Pop,cellTypeLine{1},'color',matCol(intType,:));
+	plot(vecTimescales,vecDprime_Single,cellTypeLine{2},'color',matCol(intType,:));
 	cellLegendSub3{intType*2-1} = ['Pop-' cellTypes{intType}];
 	cellLegendSub3{intType*2} = ['Single-' cellTypes{intType}];
 end
 
 set(gca,'xscale','log');
-ylabel('d'' NoJit/FullJit');
-legend(cellLegendSub3,'location','northwest');
+ylabel('d'' NoJit/FullJit of CV/timescale');
+legend(vecInclude,cellTypes,'location','northwest');
 xlabel('Timescale (s)');
+title('Neural fluctuations at different timescales');
+
+subplot(2,3,4)
+title(sprintf(['Real vs ShuffTid: effect of pop-peak synchrony\n'...
+	'ShuffTid vs Uniform: effect of trial structure (onset peak)\n'...
+	'ShuffTid vs RandTid: effect of 1s trial-level noise corrs\n'...
+	'RandTid vs RandTxClass: effect of manifold geometry/stim tuning\n'...
+	'Real vs ShuffTid: effect of pop-peak synchrony'...
+	]));
+text(gca,0.1,0.5,sprintf(['Conclusion: these effects contribute at different timescales:\n'...
+	'At trial-level (>1s), short fluctuations average out, but noise corrs\n'...
+	'and manifold geometry/stim tuning play an important role']));
 
 subplot(2,3,2);hold on
 Xmean=0;
@@ -374,16 +387,16 @@ matColJit = [0 0 0; 0.8 0 0];
 for intType=1:intTypeNum
 	%real/poiss
 	vecJitEntry = [1 numel(cellLinR2{1,intType})];
-	strLine = cellTypeLine{intType};
 	for intJit=1:2
 		%(no-)jitter
+		strLine = cellTypeLine{intJit};
 		vecData = cellfun(@(x) x(vecJitEntry(intJit)),cellLinR2(:,intType));
 		Xprev=Xmean;
 		Xmean=mean(vecData);
 		intPlotNr = (intType-1)*2+intJit;
-		errorbar(intPlotNr,Xmean,std(vecData)./sqrt(intRecNum),'x','color',matColJit(intJit,:));
+		errorbar(intPlotNr,Xmean,std(vecData)./sqrt(intRecNum),'x','color',matCol(intType,:));
 		if intJit==2
-			plot([intPlotNr-1 intPlotNr],[Xprev Xmean],strLine,'color',matColJit(intJit,:));
+			plot([intPlotNr-1 intPlotNr],[Xprev Xmean],strLine,'color',matCol(intType,:));
 		end
 		cellSubLegend2{intPlotNr} = sprintf('%s - %s',cellTypes{intType},cellJit{intJit});
 	end
@@ -393,6 +406,14 @@ xtickangle(gca,45);
 xlim([0 numel(cellSubLegend2)+1]);
 ylabel('Linearity of sd/mu (R^2)');
 title('Real data is gain/timescale-invariant');
+
+subplot(2,3,5)
+title(sprintf(['Sd/mu linearity requires long-timescale (>1s) noise corrs'...
+	]));
+text(gca,0.1,0.5,sprintf(['sd/mu linearity is preserved when destroying rapid fluctuations (ShuffTid/Uniform),\n'...
+	'but is destroyed when noise corrs are removed.\n\n'...
+	'Sd/mu linearity suggests a gain invariant population code of stim properties\n',...
+	'dependent on noise correlations and stimulus tuning manifold\n']));
 
 fixfig;
 

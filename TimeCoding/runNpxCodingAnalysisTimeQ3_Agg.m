@@ -7,7 +7,7 @@ cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
 intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
-cellTypes = {'Real'};%{'Real','Poiss','ShuffTid','RandTid','RandTxClass','Uniform'};
+cellTypes = {'Real','Poiss','ShuffTid','RandTid','RandTxClass','Uniform'};%{'Real','Poiss','ShuffTid','RandTid','RandTxClass','Uniform'};
 runHeaderPopTimeCoding;
 boolMakeFigs = true;
 vecTimescales = [1e-2 1e-1 1e-0]; %timescales for rapid flucts, noise corrs, tuning
@@ -287,16 +287,16 @@ for intRec=1:intRecNum %19 || weird: 11
 				export_fig(fullpath(strFigurePathSR,sprintf('Q3A_GaussGainPrediction_%s_%s_T%d_%s.pdf',strThisRec,strType,intScale,strOnset)));
 			end
 			%save data
-			sData(intTimescaleNum).strRec = strThisRec;
-			sData(intTimescaleNum).dblTimescale = dblTimescale;
-			sData(intTimescaleNum).strType = strType;
-			sData(intTimescaleNum).strOnset = strOnset;
-			sData(intTimescaleNum).dblR2_Gauss = dblR2_Gauss;
-			sData(intTimescaleNum).dblR2_Gain = dblR2_Gain;
-			sData(intTimescaleNum).dblR2_GainFull = dblR2_GainFull;
-			sData(intTimescaleNum).dblR2_Gauss_Single = dblR2_Gauss_Single;
-			sData(intTimescaleNum).dblR2_Gain_Single = dblR2_Gain_Single;
-			sData(intTimescaleNum).dblR2_GainFull_Single = dblR2_GainFull_Single;
+			sData(intScale).strRec = strThisRec;
+			sData(intScale).dblTimescale = dblTimescale;
+			sData(intScale).strType = strType;
+			sData(intScale).strOnset = strOnset;
+			sData(intScale).dblR2_Gauss = dblR2_Gauss;
+			sData(intScale).dblR2_Gain = dblR2_Gain;
+			sData(intScale).dblR2_GainFull = dblR2_GainFull;
+			sData(intScale).dblR2_Gauss_Single = dblR2_Gauss_Single;
+			sData(intScale).dblR2_Gain_Single = dblR2_Gain_Single;
+			sData(intScale).dblR2_GainFull_Single = dblR2_GainFull_Single;
 		end
 		
 		%% agg data

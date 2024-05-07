@@ -20,10 +20,6 @@ etc
 %}
 %% define parameters
 clear all;
-%{'VISal'}    {'VISam'}    {'VISl'}    {'VISp'}    {'VISpm'}    {'VISrl'}
-strRunArea = 'Primary visual area';%'posteromedial visual area' 'Primary visual area'
-cellUseAreas = {strRunArea};
-
 boolSaveFigs = true;
 if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPath = 'F:\Data\Processed\Neuropixels\';
@@ -36,55 +32,62 @@ else
 	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
 	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
+
 %% find data
-strStim = 'NM';%DG/NM
+strStim = 'DG';%DG/NM
 dblBimoThreshold = inf;%0.5;%0.4
 dblDevThreshold = 0.7;%0.7;%0.7
 
-cellTypes = {'Real','Shuff','Poiss'};
+cellTypes = {'Real','TShuff','TPoiss','xPerm'};
+intTypeNum = numel(cellTypes);
 sDir = dir([strTargetDataPath 'QC2*.mat']); %or ABA if old
+intFileNum = numel(sDir);
 
 %% aggregate data
 %[3 x 1] cell (type (real/poiss/shuff), content=vector with r2 per recording
-cellR2_Tune = cell(1,3); %only tuning
-cellR2_Mean = cell(1,3);%tuning * pop-mean
-cellR2_Gain1 = cell(1,3);%tuning * unitary pop-gain
-cellR2_Gain = cell(1,3);%tuning * stim-specific pop-gain
+cellR2_Tune = cell(1,intTypeNum); %only tuning
+cellR2_Mean = cell(1,intTypeNum);%tuning * pop-mean
+cellR2_Gain1 = cell(1,intTypeNum);%tuning * unitary pop-gain
+cellR2_Gain = cell(1,intTypeNum);%tuning * stim-specific pop-gain
 
 %[3 x 1] cell (type (real/poiss/shuff), content=vector with average r2 per neuron, mean over all cells
-cellR2_TuneN = cell(1,3); %only tuning
-cellR2_MeanN = cell(1,3);%tuning * pop-mean
-cellR2_Gain1N = cell(1,3);%tuning * unitary pop-gain
-cellR2_GainN = cell(1,3);%tuning * stim-specific pop-gain
-cellFilenames = cell(1,3);%names
+cellR2_TuneN = cell(1,intTypeNum); %only tuning
+cellR2_MeanN = cell(1,intTypeNum);%tuning * pop-mean
+cellR2_Gain1N = cell(1,intTypeNum);%tuning * unitary pop-gain
+cellR2_GainN = cell(1,intTypeNum);%tuning * stim-specific pop-gain
+cellFilenames = cell(1,intTypeNum);%names
 
 %projection data;[3 x 1] cell (type (real/poiss/shuff)
-cellReflMuDistToOrth = cell(1,3);
-cellReflMuDistToSelf = cell(1,3);
-cellReflGainDistToOrth = cell(1,3);
-cellReflGainDistToSelf = cell(1,3);
-cellReflRandDistToOrth = cell(1,3);
-cellReflRandDistToSelf = cell(1,3);
-cellGainSymmetry = cell(1,3);
-cellMeanSymmetry = cell(1,3);
-cellRandSymmetry = cell(1,3);
-cellAngleMeanAndGain = cell(1,3);
-cellAngleMeanAndGainRand = cell(1,3);
-cellSdProjMean = cell(1,3);
-cellSdProjGain = cell(1,3);
-cellSdProjGain1 = cell(1,3);
-cellSdProjRand = cell(1,3);
-cellSdProjOrth = cell(1,3);
-cellSdProjAdja = cell(1,3);
-cellDistFromOrigin = cell(1,3);
-cellDistFromOrthOri = cell(1,3);
-cellDistFromAdjaOri = cell(1,3);
-cellMatDistFromOrthOri = cell(1,3);
-cellMatDistFromOrigin = cell(1,3);
-cellMatDistFromAdjaOri = cell(1,3);
+cellReflMuDistToOrth = cell(1,intTypeNum);
+cellReflMuDistToSelf = cell(1,intTypeNum);
+cellReflGainDistToOrth = cell(1,intTypeNum);
+cellReflGainDistToSelf = cell(1,intTypeNum);
+cellReflRandDistToOrth = cell(1,intTypeNum);
+cellReflRandDistToSelf = cell(1,intTypeNum);
+cellGainSymmetry = cell(1,intTypeNum);
+cellMeanSymmetry = cell(1,intTypeNum);
+cellRandSymmetry = cell(1,intTypeNum);
+cellAngleMeanAndGain = cell(1,intTypeNum);
+cellAngleMeanAndGainRand = cell(1,intTypeNum);
+cellSdProjMean = cell(1,intTypeNum);
+cellSdProjGain = cell(1,intTypeNum);
+cellSdProjGain1 = cell(1,intTypeNum);
+cellSdProjRand = cell(1,intTypeNum);
+cellSdProjOrth = cell(1,intTypeNum);
+cellSdProjAdja = cell(1,intTypeNum);
+cellDistFromOrigin = cell(1,intTypeNum);
+cellDistFromOrthOri = cell(1,intTypeNum);
+cellDistFromAdjaOri = cell(1,intTypeNum);
+cellMatDistFromOrthOri = cell(1,intTypeNum);
+cellMatDistFromOrigin = cell(1,intTypeNum);
+cellMatDistFromAdjaOri = cell(1,intTypeNum);
+
+matPupilPredG = nan(1,intTypeNum);
+matPupilPredM = nan(1,intTypeNum);
 
 hTic=tic;
-for intFile=1:numel(sDir)
+vecCounter = zeros(1,intTypeNum);
+for intFile=1:intFileNum
 	%% load data
 	strFolder = sDir(intFile).folder;
 	strFile = sDir(intFile).name;
@@ -96,6 +99,7 @@ for intFile=1:numel(sDir)
 	end
 	%get data
 	sData = load(fullpath(strFolder,strFile));
+	vecCounter(intType) = vecCounter(intType) + 1;
 	
 	%save pop pred r2s
 	sPrediction = sData.sPrediction;
@@ -134,26 +138,29 @@ for intFile=1:numel(sDir)
 	cellMatDistFromOrthOri{intType}(end+1,:) = sProjection.vecDistFromOrthOri;
 	cellMatDistFromOrigin{intType}(end+1,:) = sProjection.vecDistFromOrigin;
 	cellMatDistFromAdjaOri{intType}(end+1,:) = sProjection.vecDistFromAdjaOri;
+	
+	%pupil
+	matPupilPredG(vecCounter(intType),intType) = sData.dblRG;
+	matPupilPredM(vecCounter(intType),intType) = sData.dblRM;
 end
-
+intRecNum = mean(vecCounter);
 %% make plot 1
 %real pop mean+sd
 figure;maxfig
 %real
-cellCol = {[lines(1)],[0.5 0 0],[0 0 0.5]};
-vecOffset = [0.1 -0.1 -0.1]*0.5;
-subplot(2,4,4);
+matCol = lines(intTypeNum);
+vecOffset = [0.1 -0.1 -0.1 0.1]*0.5;
+subplot(2,intTypeNum+1,intTypeNum+1);
 hold on;
-subplot(2,4,8);
+subplot(2,intTypeNum+1,intTypeNum*2+2);
 hold on;
-for intType=1:3
+vecX = 1:intTypeNum;
+for intType=1:intTypeNum
 	strType = cellTypes{intType};
 	
 	%pop predictions
-	subplot(2,4,intType)
+	subplot(2,intTypeNum+1,intType)
 	[h,pMeanGain]=ttest(cellR2_Mean{intType},cellR2_Gain{intType});
-	vecX = 1:4;
-	%vecX = 1:3;
 	cellLabels = {'Tune','Tune*Mu','Tune*G1','Tune*G'};
 	vecMeans = [mean(cellR2_Tune{intType})...
 		mean(cellR2_Mean{intType})...
@@ -167,21 +174,19 @@ for intType=1:3
 		];
 	intN = numel(cellR2_Tune{intType});
 	vecSems = vecSds./sqrt(intN);
-	errorbar(vecX,vecMeans,vecSems,'x','color',cellCol{intType});
+	errorbar(vecX,vecMeans,vecSems,'x','color',matCol(intType,:));
 	set(gca,'xtick',vecX,'xticklabel',cellLabels);
 	ylabel('Cross-val prediction (R^2)');
-	title(sprintf('%s; pop R2, t-test Mu/G,p=%.1e',strType,pMeanGain));
+	title(sprintf('%s; pop, Mu/G,p=%.1e',strType,pMeanGain));
 	xlim([vecX(1)-0.5 vecX(end)+0.5]);
 	fixfig;
 	
-	subplot(2,4,4);
-	errorbar(vecX+vecOffset(intType),vecMeans,vecSems,'x','color',cellCol{intType});
+	subplot(2,intTypeNum+1,intTypeNum+1);
+	errorbar(vecX+vecOffset(intType),vecMeans,vecSems,'x','color',matCol(intType,:));
 	
 	%neuron predictions
-	subplot(2,4,4+intType)
+	subplot(2,intTypeNum+1,intTypeNum+1+intType)
 	[h,pMeanGain]=ttest(cellR2_MeanN{intType},cellR2_GainN{intType});
-	vecX = 1:4;
-	%vecX = 1:3;
 	cellLabels = {'Tune','Tune*Mu','Tune*G1','Tune*G'};
 	vecMeans = [mean(cellR2_TuneN{intType})...
 		mean(cellR2_MeanN{intType})...
@@ -195,20 +200,20 @@ for intType=1:3
 		];
 	intN = numel(cellR2_TuneN{intType});
 	vecSems = vecSds./sqrt(intN);
-	errorbar(vecX,vecMeans,vecSems,'x','color',cellCol{intType});
+	errorbar(vecX,vecMeans,vecSems,'x','color',matCol(intType,:));
 	set(gca,'xtick',vecX,'xticklabel',cellLabels);
 	ylabel('Cross-val prediction (R^2)');
-	title(sprintf('%s; neuron R2, t-test Mu/G,p=%.1e',strType,pMeanGain));
+	title(sprintf('%s; neuron, Mu/G,p=%.1e',strType,pMeanGain));
 	xlim([vecX(1)-0.5 vecX(end)+0.5]);
 	fixfig;
 	
-	subplot(2,4,8);
-	errorbar(vecX+vecOffset(intType),vecMeans,vecSems,'x','color',cellCol{intType});
+	subplot(2,intTypeNum+1,intTypeNum*2+2);
+	errorbar(vecX+vecOffset(intType),vecMeans,vecSems,'x','color',matCol(intType,:));
 	
 end
 
 %finish multi-graphs
-subplot(2,4,4);
+subplot(2,intTypeNum+1,intTypeNum+1);
 hold off;
 set(gca,'xtick',vecX,'xticklabel',cellLabels);
 ylabel('Cross-val prediction (R^2)');
@@ -216,7 +221,7 @@ title(sprintf('Comparison; pop R2, n=%d',intN));
 xlim([vecX(1)-0.5 vecX(end)+0.5]);
 fixfig;
 
-subplot(2,4,8);
+subplot(2,intTypeNum+1,2*intTypeNum+2);
 hold off;
 set(gca,'xtick',vecX,'xticklabel',cellLabels);
 ylabel('Cross-val prediction (R^2)');
@@ -226,8 +231,8 @@ fixfig;
 
 if boolSaveFigs
 	%% save fig
-	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg1%s%s_ActivityPrediction.tif',strStim,strRunArea)));
-	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg1%s%s_ActivityPrediction.pdf',strStim,strRunArea)));
+	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg1%s_ActivityPrediction.tif',strStim)));
+	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg1%s_ActivityPrediction.pdf',strStim)));
 end
 
 %% plot projections
@@ -237,7 +242,7 @@ matCol = [0 0 0;...mean
 	0.8 0 0;...self
 	0.5 0 0.5;...(rand)
 	];
-for intType=1:3
+for intType=1:intTypeNum
 	strType = cellTypes{intType};
 	%get data
 	vecReflMuDistToOrth = cellReflMuDistToOrth{intType};
@@ -380,7 +385,7 @@ for intType=1:3
 	
 	dblDistToGainCenter = mean(vecAvgDistFromOrigin);
 	vecGainAx = [0.1 1];
-	dblAlignment=cossim(vecGainAx,ones(size(vecGainAx)));
+	dblAlignment=cossim(vecGainAx',ones(size(vecGainAx))');
 	dblAng = acos(dblAlignment)/2+deg2rad(45);
 	vecGainCenter = [cos(dblAng) sin(dblAng)]*dblDistToGainCenter;
 	
@@ -447,8 +452,8 @@ for intType=1:3
 	
 	if boolSaveFigs
 		%% save fig
-		export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg2%s%s_Projections_%s.tif',strStim,strRunArea,strType)));
-		export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg2%s%s_Projections_%s.pdf',strStim,strRunArea,strType)));
+		export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg2%s_Projections_%s.tif',strStim,strType)));
+		export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg2%s_Projections_%s.pdf',strStim,strType)));
 	end
 end
 
@@ -486,30 +491,30 @@ fixfig;grid off;
 
 
 subplot(2,3,2)
-vecGainAdjaReal = cellSdProjAdja{1}./(cellSdProjGain{1}+cellSdProjAdja{1});
-vecGainAdjaShuff = cellSdProjAdja{2}./(cellSdProjGain{2}+cellSdProjAdja{2});
-vecGainAdjaPoiss = cellSdProjAdja{3}./(cellSdProjGain{3}+cellSdProjAdja{3});
-[h,pRealShuff] = ttest(vecGainAdjaReal,vecGainAdjaShuff);
 hold on
-plot(cat(1,vecGainAdjaReal,vecGainAdjaShuff,vecGainAdjaPoiss),'color',[0.7 0.7 0.7]);
-errorbar(1,mean(vecGainAdjaReal),std(vecGainAdjaReal)./sqrt(numel(vecGainAdjaReal)),'x','color',cellCol{1});
-errorbar(2,mean(vecGainAdjaShuff),std(vecGainAdjaShuff)./sqrt(numel(vecGainAdjaShuff)),'x','color',cellCol{2});
-errorbar(3,mean(vecGainAdjaPoiss),std(vecGainAdjaPoiss)./sqrt(numel(vecGainAdjaPoiss)),'x','color',cellCol{3});
+for intType=1:intTypeNum
+	matGains(intType,:) = cellSdProjAdja{intType}./(cellSdProjGain{intType}+cellSdProjAdja{intType});
+end
+plot(matGains,'color',[0.7 0.7 0.7]);
+for intType=1:intTypeNum
+	errorbar(intType,mean(matGains(intType,:)),std(matGains(intType,:))./sqrt(numel(matGains(intType,:))),'x','color',matCol(intType,:));
+end
+[h,pRealShuff] = ttest(matGains(1,:),matGains(2,:));
+
+
 hold off
 ylabel('Fraction of info-limiting variability');
-set(gca,'xtick',1:3,'xticklabel',cellTypes);
-xlim([0.5 3.5]);
+set(gca,'xtick',1:intTypeNum,'xticklabel',cellTypes);
+xlim([0.5 intTypeNum+0.5]);
 title(sprintf('T-test real-shuff, p=%.2e',pRealShuff));
 fixfig;grid off;
 
 subplot(2,3,3)
 vecGain1Real = cellSdProjGain1{1};
 vecGain1Shuff = cellSdProjGain1{2};
-vecGain1Poiss = cellSdProjGain1{3};
 
 vecGainReal = cellSdProjGain{1};
 vecGainShuff = cellSdProjGain{2};
-vecGainPoiss = cellSdProjGain{3};
 
 vecGain1RealShuffDiff = (vecGain1Real - vecGain1Shuff);
 vecGainRealShuffDiff = (vecGainReal - vecGainShuff);
@@ -560,25 +565,59 @@ title(sprintf('T-test gain1-gain, p=%.2e',pGain1Gain));
 fixfig;grid off;
 
 subplot(2,3,6)
-vecGain1_VarNorm = 100*(vecGain1RealShuffDiff - vecGain1RealShuffDiff)./vecGain1RealShuffDiff;
-vecGain_VarNorm = 100*(vecGainRealShuffDiff - vecGain1RealShuffDiff)./vecGain1RealShuffDiff;
-
-[h,pGain1Gain2] = ttest(vecGain1_VarNorm,vecGain_VarNorm);
-hold on
-plot(cat(1,vecGain1_VarNorm,vecGain_VarNorm),'color',[0.7 0.7 0.7]);
-errorbar(1,mean(vecGain1_VarNorm),std(vecGain1_VarNorm)./sqrt(numel(vecGain1_VarNorm)),'x','color',vecColGain1);
-errorbar(2,mean(vecGain_VarNorm),std(vecGain_VarNorm)./sqrt(numel(vecGain_VarNorm)),'x','color',vecColGain);
-hold off
-ylabel('Var. increase for Gain over Gain1 (%)');
-set(gca,'xtick',1:2,'xticklabel',{'Gain1','Gain'});
-xlim([0.5 2.5]);
-title(sprintf('T-test gain1-gain, p=%.2e',pGain1Gain2));
-fixfig;grid off;
+vecAvgGainSymmetry = cellfun(@mean,cellGainSymmetry);
+vecSdGainSymmetry = cellfun(@std,cellGainSymmetry);
+vecAvgMeanSymmetry = cellfun(@mean,cellMeanSymmetry);
+vecSdMeanSymmetry = cellfun(@std,cellMeanSymmetry);
+vecAvgRandSymmetry = cellfun(@mean,cellRandSymmetry);
+vecSdRandSymmetry = cellfun(@std,cellRandSymmetry);
+errorbar(1:intTypeNum,vecAvgGainSymmetry,vecSdGainSymmetry./sqrt(intRecNum));hold on
+errorbar(1:intTypeNum,vecAvgMeanSymmetry,vecSdMeanSymmetry./sqrt(intRecNum),'color','k');
+errorbar(1:intTypeNum,vecAvgRandSymmetry,vecSdRandSymmetry./sqrt(intRecNum),'color','r');
+ylim([0 max(get(gca,'ylim'))]);
+set(gca,'xtick',1:intTypeNum,'xticklabel',cellTypes);
+xlim([0.5 intTypeNum+0.5]);
+ylabel('Manifold symmetry across axis (%)');
+legend(gca,{'Gain','Mean','Rand'});
+fixfig;
 
 
 
 if boolSaveFigs
 	%% save fig
-	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg3%s%s_PredAndInfoLimVar.tif',strStim,strRunArea)));
-	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg3%s%s_PredAndInfoLimVar.pdf',strStim,strRunArea)));
+	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg3%s_PredAndInfoLimVar.tif',strStim)));
+	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Agg3%s_PredAndInfoLimVar.pdf',strStim)));
+end
+
+%%
+figure;hold on
+matPupilPredGRem = matPupilPredG;
+matPupilPredMRem = matPupilPredM;
+indRem = any(matPupilPredGRem < -0.3 | isnan(matPupilPredGRem) | isnan(matPupilPredMRem),2);
+matPupilPredGRem(indRem,:) = [];
+matPupilPredMRem(indRem,:) = [];
+vecMuG = mean(matPupilPredGRem,1);
+vecSdG = std(matPupilPredGRem,[],1);
+
+vecMuM = mean(matPupilPredMRem,1);
+vecSdM = std(matPupilPredMRem,[],1);
+intGoodRecs = sum(~indRem);
+
+matCol=lines(intTypeNum);
+vecH = [];
+for intType=1:intTypeNum
+	vecH(intType) = errorbar(0.75+0.1*intType,vecMuG(intType),vecSdG(intType)./sqrt(intGoodRecs),'x','color',matCol(intType,:));
+	errorbar(1.75+0.1*intType,vecMuM(intType),vecSdM(intType)./sqrt(intGoodRecs),'x','color',matCol(intType,:));
+end
+set(gca,'xtick',[1 2],'xticklabel',{'Gain','Mean'});
+xlim([0.5 2.5])
+xlabel('Pop activity metric');
+ylabel('Pearson corr with pupil size (r)');
+legend(vecH,cellTypes,'location','best');
+fixfig;
+
+if boolSaveFigs
+	%% save fig
+	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Pupil%s.tif',strStim)));
+	export_fig(fullpath(strFigurePath,sprintf('QC2Meta_Pupil%s.pdf',strStim)));
 end

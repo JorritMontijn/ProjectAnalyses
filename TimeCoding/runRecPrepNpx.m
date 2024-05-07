@@ -7,10 +7,10 @@ sThisSource = sAggSources(strcmpi(strRec,{sAggSources(:).Exp}));
 if strcmp(strRunStim,'DG') || strcmp(strRunType,'SWN')
 	if strcmp(strRunStim,'DG')
 		%prep grating data
-		[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
+		[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation,structStim] = NpxPrepGrating(sAggNeuron,sThisRec,cellUseAreas);
 	elseif strcmp(strRunType,'SWN')
 		%pretend that whisk stim and no whisk stim are two different orientations
-		[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation] = NpxPrepWhisking(sAggNeuron,sThisRec,cellUseAreas);
+		[sUseNeuron,vecStimOnTime,vecStimOffTime,vecOrientation,structStim] = NpxPrepWhisking(sAggNeuron,sThisRec,cellUseAreas);
 	end
 	[vecStimIdx,vecUnique,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecOrientation);
 	intTrialNum = numel(vecStimOnTime);

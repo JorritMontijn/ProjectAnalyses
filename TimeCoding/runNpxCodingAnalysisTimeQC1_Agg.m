@@ -1,75 +1,123 @@
 %% aim
-%{
-https://www.nature.com/articles/s41598-021-95037-z
-https://www.nature.com/articles/s42003-021-02437-y
+% plots of distros over LR decision axis
 
-q1: can single-neuron variability be explained as population-level gain multiplication?
-> estimate tuning curve from real data, then apply trial-by-trial gain to all neurons
->model predicting firing rate as combination of mean-rate multiplied by tuning curve => what do
-residuals look like?
-A: gain axis and mean-rate axis do not align, but ori tuning is distributed as conic manifold around
-gain axis. Using stim-specific gain coupling calculated cross-validated for each neuron, allows pop
-response to be predicted with R^2 of 0.72
-
-%see articles:
-https://elifesciences.org/articles/8998
-https://www.nature.com/articles/nn.3711
-https://www.jneurosci.org/content/39/37/7344.abstract
-etc
-
-==========
-20220803:
-
-As a function of mean-rate, adjacent stimulus discriminability could theoretically be anything, such as:
-1) Fixed variance, tuning curves that scale with mean rate (= linear increasing curve)
-=> perhaps Poisson cells with a wider dynamic range already show this property
-2) Smoothly, slowly saturating Poisson neurons (constant for a range of mean rates, then reduction to d?=0)
-=> perhaps this can also be made to show a decreasing curve if saturation starts very early
-3) Fixed tuning curves, scaling variance (=linear decreasing curve)
-
-To do: show this in a figure
-
-%}
-%% define qualifying data
-strRunType = 'ABI'; %ABI or Npx?
+%% set parameters
+cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
+intRunDataType = 1;
+strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
+dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
-if strcmp(strRunType,'ABI')
-	runLoadABI;
-else
-	runLoadNpx;
-end
 
-%what to run?
-vecRandomize = 1:10; %5=fixed variance, scaling tuning; 6=smoothly saturating poisson
+%% specific parameters
+intProjType = 2; %1=train+project per quantile; 2=train overall + project per quantile
+intQuantiles = 5;
+cellRandomize = {'Real','TShuff','TPoiss','TSdScaling'};% {'Real','TShuff','TPoiss','TUniStretch','TSdFixed','TSaturating','TSdScaling','TSdLinear','TSdQuad','TSdCude'};
 boolSaveData = true;
 boolMakeFigs = true;
 boolSaveFigs = true;
 boolDoDecodingAnalysis = true;
-strRunStim = 'DG';%DG or NM
 
-%% pre-allocate matrices
-intAreas = numel(cellUseAreas{1});
-dblStartT = 0;
-intProjType = 2; %1=train+project per quantile; 2=train overall + project per quantile
-intQuantiles = 5;
-
-%% go through recordings
+%% go through recs
 tic
-for intRec=1:intRecNum
+for intRec=1:intRecNum %19 || weird: 11
 	%% prep ABI or Npx data
 	if strcmp(strRunType,'ABI')
+		error to be updated
 		runRecPrepABI;
-	elseif strcmp(strRunType,'Npx')
+		strThisRec = strRec;
+	elseif strcmp(strRunType,'Sim')
+		%load
+		runRecPrepSim;
+		
+		%edit vars
+		strThisRec = strRec;
+		strDataPathT0=strDataPathSimT0;
+		vecOri180 = mod(vecOrientation,180)*2;
+		vecStimIdx = vecOri180;
+		
+		%% move onset
+		%remove first x ms
+		vecOrigStimOnTime = vecStimOnTime + dblRemOnset;
+		
+		%get data matrix
+		[matData,indTuned,cellSpikeTimes,sOut,cellSpikeTimesPerCellPerTrial,indResp] = ...
+			SimPrepData(cellSpikeTimesRaw,vecOrigStimOnTime,vecStimOffTime,vecOrientation);
+		
+		%get cell props
+		%vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
+		vecNeuronType = [sLoad.sNeuron.Types]; %1=pyr,2=interneuron
+		
+	elseif strcmp(strRunType,'Npx') || strcmp(strRunType,'SWN')
+		%prep
 		runRecPrepNpx;
+		strThisRec = strRec;
+		strDataPathT0 = strTargetDataPath;
+		
+		%% move onset
+		%remove first x ms
+		vecOrigStimOnTime = vecStimOnTime + dblRemOnset;
+		
+		%get data matrix
+		[matData,indTuned,cellSpikeTimes,sTuning24,cellSpikeTimesPerCellPerTrial] = ...
+			NpxPrepData(cellSpikeTimesRaw,vecOrigStimOnTime,vecStimOffTime,vecOrientation);
+		
+		%get cell props
+		vecNeuronType = ones(size(indTuned)); %1=pyr,2=interneuron
+		%narrow vs broad not done
+	else
+		error impossible
 	end
-	if intNeuronsInArea == 0 || intNeuronNum < 25
-		fprintf('Number of neurons is %d for %s: skipping... [%s]\n',intNeuronsInArea,strRecOrig,getTime);
+	
+	%get ori vars
+	cellOrigSpikeTimes = cellSpikeTimes;
+	intTunedN = sum(indTuned);
+	intRespN = size(matData,1);
+	intNumN = numel(cellSpikeTimes);
+	intTrialNum = numel(vecOrigStimOnTime);
+	vecOri180 = mod(vecOrientation,180);
+	[vecOriIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
+	sTuning = getTuningCurves(matData,vecOri180,0);
+	vecNeuronPrefOri = sTuning.matFittedParams(:,1);
+	vecNeuronBandwidth = real(sTuning.matBandwidth);
+	
+	intOriNum = numel(vecUnique);
+	intRepNum = min(vecPriorDistribution);
+	dblStimDur = median(vecStimOffTime - vecOrigStimOnTime);
+	if mean(sum(matData)) < 90%90 / 50
+		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
+	else
+		fprintf('Running %s... [%s]\n',strThisRec,getTime);
+	end
+	
+	%% take only period during stimuli
+	cellSpikeTimes = cell(size(cellOrigSpikeTimes));
+	cellSpikeTimesPerCellPerTrial = cell(numel(cellOrigSpikeTimes),intTrialNum);
+	for intN=1:numel(cellOrigSpikeTimes)
+		[vecPseudoSpikeTimes,vecPseudoEventT] = getPseudoSpikeVectors(cellOrigSpikeTimes{intN},vecOrigStimOnTime,dblStimDur,true);
+		
+		dblStart = vecPseudoEventT(1);
+		dblEnd = vecPseudoEventT(end)+dblStimDur;
+		dblTotDur = dblEnd-dblStart;
+		vecPseudoSpikeTimes(vecPseudoSpikeTimes<dblStart | vecPseudoSpikeTimes>dblEnd) = [];
+		vecPseudoSpikeTimes = vecPseudoSpikeTimes-dblStart;
+		dblLastSpike = max(vecPseudoSpikeTimes);
+		
+		cellSpikeTimes{intN} = vecPseudoSpikeTimes;
+		
+		%real
+		[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecPseudoSpikeTimes,vecPseudoEventT,dblStimDur);
+		for intTrial=1:intTrialNum
+			vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
+			cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
+		end
 	end
 	
 	%% run analysis
 	close all;
-	for intRandomize=vecRandomize
+	for intRand=1:numel(cellRandomize)
+		strType = cellRandomize{intRand};
+		
 		%simple "rate code"
 		matSpikeCounts = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
 		matMeanRate = matSpikeCounts./dblUseMaxDur;
@@ -77,38 +125,7 @@ for intRec=1:intRecNum
 		dblLambda = 1;%1
 		intTypeCV = 2;
 		%change name
-		if intRandomize == 1
-			strType = 'Real';
-			%real
-		elseif intRandomize == 2
-			strType = 'Shuff';
-			%trial-shuffled
-		elseif intRandomize == 3
-			strType = 'Poiss';
-			%poisson process neurons
-		elseif intRandomize == 4
-			strType = 'UniStretch';
-			%shuffle activity like before (repetitions per stimulus randomly and independently permuted for
-			%each neuron), but then rescale each trial to the pop mean (or by gain?) in that trial of the
-			%original data set; this will recapture the original distribution of population firing rates, while
-			%keeping the noise correlation uniform in all directions except the gain
-		elseif intRandomize == 5
-			strType = 'SdFixed';
-			%uniform sd, mean as normal
-		elseif intRandomize == 6
-			strType = 'Saturating';
-			%saturating poisson
-		elseif intRandomize == 7
-			strType = 'SdScaling';
-			%sd scales as mean
-		elseif intRandomize == 8
-			strType = 'SdLinear';
-		elseif intRandomize == 9
-			strType = 'SdQuad';
-		elseif intRandomize == 10
-			strType = 'SdCube';
-		end
-		strName = [strRunStim '_' strRec '_' strType '_' strAreaAbbr];
+		strName = [strRunStim '_' strRec '_' strType];
 		
 		%get population gain
 		vecGainAx = mean(matMeanRate,2);
@@ -124,127 +141,7 @@ for intRec=1:intRecNum
 		vecPopSdFactor = vecOldSd ./ mean(vecOldSd);
 		
 		%randomize per orientation
-		if intRandomize > 1
-			for intN=1:intRespN
-				for intStim=1:intStimNum
-					vecUseT = find(vecStimIdx==intStim);
-					if intRandomize == 2
-						%shuffle spikes
-						matMeanRate(intN,vecUseT) = matMeanRate(intN,vecUseT(randperm(numel(vecUseT))));
-					elseif intRandomize == 3
-						%generate spikes
-						dblMean = mean(matMeanRate(intN,vecUseT));
-						vecRates = poissrnd(dblMean,size(vecUseT));
-						matMeanRate(intN,vecUseT) = vecRates;
-					elseif intRandomize == 4
-						%shuffle spikes & compensate for pop-rate change later
-						matMeanRate(intN,vecUseT) = matMeanRate(intN,vecUseT(randperm(numel(vecUseT))));
-					else
-						%error
-					end
-				end
-				
-				%change for each neuron
-				if intRandomize == 6
-					%smoothly saturating poisson
-					vecR = matMeanRate(intN,:);
-					
-					%logistic slope is 0.5; both k and L increase slope
-					vecOldHz = vecR;
-					dblSatStart = mean(vecR)/2;
-					indSat = vecR > dblSatStart;
-					
-					fLogistic = @(x,x0,L) x0 + L*2* (-0.5+1./(1+exp(-(2/L)*(x-x0))));
-					x = vecR(indSat);
-					x0 = dblSatStart;
-					L = dblSatStart + 2*sqrt(dblSatStart);
-					vecNewSat = fLogistic(x,x0,L);
-					
-					vecR(indSat) = vecNewSat;
-					matMeanRate(intN,:) = vecR;
-					
-					%scatter(vecOldHz,vecR);
-				end
-			end
-			if intRandomize == 4
-				%unistretch
-				vecNewMean = mean(matMeanRate,1);
-				vecCompensateBy = vecOldMean./vecNewMean;
-				matMeanRate = bsxfun(@times,matMeanRate,vecCompensateBy);
-			elseif intRandomize == 5
-				%fixed sd, scaling tuning
-				
-				%remove mean
-				matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
-				
-				%make sd uniform
-				matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
-				
-				%add mean back in
-				matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
-			elseif intRandomize == 7
-				%scaling sd as pop mean
-				
-				%remove mean
-				matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
-				
-				%make sd uniform
-				matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
-				
-				%multiply sd
-				matMeanRate = bsxfun(@times,matMeanRate,vecOldMean); %basically recapitulates real data
-				
-				%add mean back in
-				matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
-			elseif intRandomize == 8
-				%linear scaling sd
-				
-				%remove mean
-				matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
-				
-				%make sd uniform
-				matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
-				
-				%multiply sd
-				matMeanRate = bsxfun(@times,matMeanRate,vecPopMeanFactor);
-				
-				%add mean back in
-				matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
-			elseif intRandomize == 9
-				%linear scaling variance (sd quadratic)
-				
-				%remove mean
-				matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
-				
-				%make sd uniform
-				matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
-				
-				%multiply sd
-				%matMeanRate = bsxfun(@times,matMeanRate,vecOldMean); %basically recapitulates real data
-				matMeanRate = bsxfun(@times,matMeanRate,vecPopMeanFactor.^2);
-				
-				%add mean back in
-				matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
-			elseif intRandomize == 10
-				%sd cubic
-				
-				%remove mean
-				matMeanRate = bsxfun(@minus,matMeanRate,vecOldMean);
-				
-				%make sd uniform
-				matMeanRate = bsxfun(@rdivide,matMeanRate,vecOldSd);
-				
-				%multiply sd
-				%matMeanRate = bsxfun(@times,matMeanRate,vecOldMean); %basically recapitulates real data
-				matMeanRate = bsxfun(@times,matMeanRate,vecPopMeanFactor.^3);
-				
-				%add mean back in
-				matMeanRate = bsxfun(@plus,matMeanRate,vecOldMean);
-				
-			end
-		end
-		%ensure positive rates
-		matMeanRate(matMeanRate<0.1)=0.1;
+		matMeanRate = getTRandData(matMeanRate,vecStimIdx,strType);
 		
 		%% plot population mean + sd over neurons, compare with neuron mean+sd over trials
 		intTrials = size(matMeanRate,2);

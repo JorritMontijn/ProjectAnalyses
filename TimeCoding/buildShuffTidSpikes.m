@@ -48,6 +48,7 @@ function [cellSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(ce
 			indSelectSpikes = ismember(cellTrialTrials{intN},vecTrialsOfType);
 			
 			%assign to random trials: keep # of spikes in each trial the same; only shuffle
+			vecOrigTrials = cellTrialTrials{intN}(indSelectSpikes);
 			vecShuffTrials = vecOrigTrials(randperm(numel(vecOrigTrials)));
 			cellShuffTrials{intN}(indSelectSpikes) = vecShuffTrials;
 		end

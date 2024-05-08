@@ -14,9 +14,9 @@ q2: How precise are spike times in the natural movie repetitions?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 1;
+intRunDataType = 2;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
-cellTypes = {'RandTid','RandTxClass'};{'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform','RandTid','RandTxClass'};
+cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform','RandTid','RandTxClass'};
 boolFixSpikeGroupSize = false;
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
@@ -60,6 +60,15 @@ for intRec=1:intRecNum
 		%get layers
 		cellSpikeTimesOrig = cellSpikeTimes;
 		vecSupraGranuInfra = 3*ones(size(cellSpikeTimes));
+		
+		%inerneuron/pyramid
+		vecExcInh = [sLoad.sNeuron.Types];
+		vecSwap = [2 1];%to match Npx
+		vecNeuronType = vecSwap(vecExcInh);
+		vecNeuronSpikeDur = [];
+		vecNeuronPeakToTrough = [];
+		matNeuronWaveform = [];
+		cellNeuronTypes = {'Narrow','Broad','Other'};
 		
 	elseif strcmp(strRunType,'Npx') || strcmp(strRunType,'SWN')
 		%prep

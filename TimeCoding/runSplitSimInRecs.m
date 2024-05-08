@@ -6,8 +6,8 @@ end
 strLoadFile= 'Simulation_xAreaDistributed_SG18_2019-07-04.mat';
 strSimName = 'SimDG18';
 
-strNpxDir= 'C:\Drive\PopTimeCoding\data';
-strNpxFiles = 'Q1cData_Rec*_Real_SGSFixed10.mat';
+strNpxDir= 'F:\Drive\PopTimeCoding\data';
+strNpxFiles = 'Q1cData_Rec*_Real_SGSVar*.mat';
 sNpx = dir(fullpath(strNpxDir,strNpxFiles));
 
 %find neurons per rec
@@ -19,13 +19,54 @@ for intRec=1:numel(vecNeuronsPerRec)
 	vecNeuronsPerRec(intRec) = numel(sLoad.vecTuningPerCell);
 	cellRec{intRec} = getFlankedBy(sLoad.strRec,'','R01');
 end
-vecUseNeurons = randperm(1200,sum(vecNeuronsPerRec));
-vecEndNeuronPerRec = cumsum(vecNeuronsPerRec);
 
 %% reformat data
 %match numbers in model and split data in random sets
 sSim = load(fullpath(strDataPathSim,strLoadFile));
 
+%define neurons
+vecCellArea = sSim.vecCellArea;
+vecNeuronsV1 = find(vecCellArea==1);
+vecNeuronsV2 = find(vecCellArea==2);
+vecUseNeurons = vecNeuronsV1(randperm(numel(vecNeuronsV1),sum(vecNeuronsPerRec)));
+vecEndNeuronPerRec = cumsum(vecNeuronsPerRec);
+intTotNum = numel(vecCellArea);
+
+%transform synapse data to connectivity matrix
+matSynFromTo=sSim.matSynFromTo;
+vecSynVal = sSim.vecSynWeight .* sSim.vecSynConductance .* ((sSim.vecSynExcInh==1)*2-1);
+intSynNum = numel(vecSynVal);
+matConn = zeros(intTotNum,intTotNum);
+vecLim = max(abs([min(vecSynVal) max(vecSynVal)]))*[-1 1];
+colormap(redblue)
+for i=1:intSynNum
+	intFrom=matSynFromTo(i,1);
+	intTo=matSynFromTo(i,2);
+	matConn(intFrom,intTo) = vecSynVal(i);
+end
+%{
+%filter
+matConnPlus = matConn.*double(matConn>0);
+matConnMinus = matConn.*double(matConn<0);
+
+matConnMinusNorm=imnorm(-matConnMinus);
+vecV1=1:1200;
+vecV2=1201:2400;
+matConnPlusNorm=zeros(size(matConnPlus));
+matConnPlusNorm(vecV1,vecV1)=imnorm(matConnPlus(vecV1,vecV1));
+matConnPlusNorm(vecV1,vecV2)=imnorm(matConnPlus(vecV1,vecV2));
+matConnPlusNorm(vecV2,vecV2)=imnorm(matConnPlus(vecV2,vecV2));
+
+matConnBig = ones([size(matConnPlus) 3]);
+matConnBig(:,:,1) = 1-matConnMinusNorm;
+matConnBig(:,:,2) = 1-sign(matConnPlusNorm+matConnMinusNorm);
+matConnBig(:,:,3) = 1-matConnPlusNorm;
+
+figure;
+imshow(matConnBig);
+%}
+
+%%
 %remove synapse variables;
 cellFields = fieldnames(sSim);
 indSyn = contains(cellFields,'vecSyn');
@@ -45,7 +86,7 @@ cellFields = fieldnames(sSim);
 indMat = contains(cellFields,'mat');
 sSim=rmfield(sSim,cellFields(indMat));
 
-%remove cells except spike times
+%remove cells except spike times and area
 cellSpikeTimesCortex = sSim.cellSpikeTimesCortex;
 cellFields = fieldnames(sSim);
 indCell = contains(cellFields,'cell');
@@ -109,9 +150,31 @@ sSim.vecTrialEndSecs = vecTrialEndSecs;
 sSim.vecTrialStartSecs = vecTrialStartSecs;
 sSim.vecTrialStimType = vecTrialStimType;
 
+%% save V2
+strFile = [strSimName '_V2pop.mat'];
+fprintf('   Saving V2 data - %s [%s]\n',strFile,getTime);
+%select
+vecOrigIds = vecNeuronsV2;
 
-%% save per rec
-for intRec=1:numel(vecNeuronsPerRec)
+%transform spike times
+cellSpikeTimesSamples = cellSpikeTimesCortex(vecOrigIds);
+cellSpikeTimesSecs = cell(size(cellSpikeTimesSamples));
+for i=1:numel(cellSpikeTimesSecs)
+	cellSpikeTimesSecs{i} = vecOverallT(cellSpikeTimesSamples{i}-1);
+end
+
+%build rec struct
+sRec = sSim;
+sRec.vecOrigIds = vecOrigIds;
+sRec.cellSpikeTimes = cellSpikeTimesSecs;
+sRec.sNeuron = sRec.sNeuron(vecOrigIds);
+sRec.matConn = matConn;
+
+%save sim rec file
+save(fullpath(strDataPathSim,strFile),'-struct','sRec');
+
+%% save V1 per rec
+for intRec=[]%1:numel(vecNeuronsPerRec)
 	strFile = [strSimName '_MatchedTo' cellRec{intRec} '.mat'];
 	fprintf('   Saving %d/%d - %s [%s]\n',intRec,numel(vecNeuronsPerRec),strFile,getTime);
 	%select

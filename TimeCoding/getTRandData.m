@@ -6,9 +6,15 @@ function matMeanRateRand = getTRandData(matMeanRateIn,vecStimIdx,strType)
 	[vecStimIdx,vecStimTypes] = val2idx(vecStimIdx);
 	intStimNum = numel(vecStimTypes);
 	[intNumN,intNumT] = size(matMeanRateIn);
-	matMeanRateRand = matMeanRateIn;
+	
+	%get population mean
+	vecOldMean = mean(matMeanRateIn,1);
+	vecPopMeanFactor = vecOldMean ./ mean(vecOldMean);
+	vecOldSd = std(matMeanRateIn,[],1);
+	vecPopSdFactor = vecOldSd ./ mean(vecOldSd);
 	
 	%run
+	matMeanRateRand = matMeanRateIn;
 	if strcmp(strType,'Real')
 		%do nothing
 	else
@@ -34,7 +40,7 @@ function matMeanRateRand = getTRandData(matMeanRateIn,vecStimIdx,strType)
 			%change for each neuron
 			if strcmp(strType,'TSaturating')
 				%smoothly saturating poisson
-				vecR = matMeanRateIn(intN,:);
+				vecR = matMeanRateRand(intN,:);
 				
 				%logistic slope is 0.5; both k and L increase slope
 				vecOldHz = vecR;
@@ -55,14 +61,14 @@ function matMeanRateRand = getTRandData(matMeanRateIn,vecStimIdx,strType)
 		end
 		if strcmp(strType,'TUniStretch')
 			%unistretch
-			vecNewMean = mean(matMeanRateIn,1);
+			vecNewMean = mean(matMeanRateRand,1);
 			vecCompensateBy = vecOldMean./vecNewMean;
-			matMeanRateRand = bsxfun(@times,matMeanRateIn,vecCompensateBy);
+			matMeanRateRand = bsxfun(@times,matMeanRateRand,vecCompensateBy);
 		elseif strcmp(strType,'TSdFixed')
 			%fixed sd, scaling tuning
 			
 			%remove mean
-			matMeanRateRand = bsxfun(@minus,matMeanRateIn,vecOldMean);
+			matMeanRateRand = bsxfun(@minus,matMeanRateRand,vecOldMean);
 			
 			%make sd uniform
 			matMeanRateRand = bsxfun(@rdivide,matMeanRateRand,vecOldSd);
@@ -73,7 +79,7 @@ function matMeanRateRand = getTRandData(matMeanRateIn,vecStimIdx,strType)
 			%scaling sd as pop mean
 			
 			%remove mean
-			matMeanRateRand = bsxfun(@minus,matMeanRateIn,vecOldMean);
+			matMeanRateRand = bsxfun(@minus,matMeanRateRand,vecOldMean);
 			
 			%make sd uniform
 			matMeanRateRand = bsxfun(@rdivide,matMeanRateRand,vecOldSd);
@@ -87,7 +93,7 @@ function matMeanRateRand = getTRandData(matMeanRateIn,vecStimIdx,strType)
 			%linear scaling sd
 			
 			%remove mean
-			matMeanRateRand = bsxfun(@minus,matMeanRateIn,vecOldMean);
+			matMeanRateRand = bsxfun(@minus,matMeanRateRand,vecOldMean);
 			
 			%make sd uniform
 			matMeanRateRand = bsxfun(@rdivide,matMeanRateRand,vecOldSd);
@@ -101,7 +107,7 @@ function matMeanRateRand = getTRandData(matMeanRateIn,vecStimIdx,strType)
 			%linear scaling variance (sd quadratic)
 			
 			%remove mean
-			matMeanRateRand = bsxfun(@minus,matMeanRateIn,vecOldMean);
+			matMeanRateRand = bsxfun(@minus,matMeanRateRand,vecOldMean);
 			
 			%make sd uniform
 			matMeanRateRand = bsxfun(@rdivide,matMeanRateRand,vecOldSd);
@@ -116,7 +122,7 @@ function matMeanRateRand = getTRandData(matMeanRateIn,vecStimIdx,strType)
 			%sd cubic
 			
 			%remove mean
-			matMeanRateRand = bsxfun(@minus,matMeanRateIn,vecOldMean);
+			matMeanRateRand = bsxfun(@minus,matMeanRateRand,vecOldMean);
 			
 			%make sd uniform
 			matMeanRateRand = bsxfun(@rdivide,matMeanRateRand,vecOldSd);

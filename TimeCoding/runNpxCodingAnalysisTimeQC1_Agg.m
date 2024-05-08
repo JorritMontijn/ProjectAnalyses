@@ -134,12 +134,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		if any(vecPopGainFactor==0),continue;end
 		fprintf('Running data type %s for %s [%s]\n',strType,strRecOrig,getTime);
 		
-		%get population mean
-		vecOldMean = mean(matMeanRate,1);
-		vecPopMeanFactor = vecOldMean ./ mean(vecOldMean);
-		vecOldSd = std(matMeanRate,[],1);
-		vecPopSdFactor = vecOldSd ./ mean(vecOldSd);
-		
 		%randomize per orientation
 		matMeanRate = getTRandData(matMeanRate,vecStimIdx,strType);
 		

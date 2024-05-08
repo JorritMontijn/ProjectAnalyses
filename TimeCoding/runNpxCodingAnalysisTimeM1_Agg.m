@@ -102,7 +102,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%% cell type (narrow/broad)
 		%get cell props
-		vecNeuronType = sSource.vecNeuronType(indResp); %1=interneuron/narrow,2=pyramidal/broad
+		vecNeuronType = sSource.vecNeuronType; %1=interneuron/narrow,2=pyramidal/broad
 		vecSupraGranuInfra = sSource.vecSupraGranuInfra;%1=supra,2=granu,3=infra
 		
 		%% build trial-neuron cell matrix
@@ -139,7 +139,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%% go through spike groups
 		%show spiking transfer from v1 to v2 occurs primarily during peaks in model and specifically
-		%in connected V2 cells
+		%in connected V2 cells(?)
 		
 		% what is the hypothesis exactly?
 		

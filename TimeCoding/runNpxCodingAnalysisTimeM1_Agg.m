@@ -145,6 +145,9 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		% how do we answer this?
 		
+		% > decode stimuli in V2 time bins (or spike blocks?) following spike blocks in V1
+		% is decoding accuracy higher when rate was higher in V1?
+		
 		error
 		
 	end

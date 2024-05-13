@@ -14,7 +14,7 @@ if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels
 else
 	strDataPathABI = 'E:\AllenBrainVisualEphys';
 	strDataPathSim = 'D:\Data\Processed\PopTimeCoding\';
-	strDataPathSimT0 = 'C:\Drive\PopTimeCoding\';
+	strDataPathSimT0 = 'C:\Drive\PopTimeCoding\data\';
 	strDataPath = 'E:\DataPreProcessed\';
 	strDataPathNora = 'D:\Data\Processed\PopTimeCoding\Noradata';
 	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';

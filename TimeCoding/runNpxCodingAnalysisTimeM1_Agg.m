@@ -150,6 +150,11 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		error
 		
+		%what are they connected to?
+		vecCellIdsV1 = sLoad.vecOrigIds;
+		matV1ToV2 = sV2.matConn(vecCellIdsV1,1201:end);
+		vecInputV2 = sum(sV2.matConn(vecCellIdsV1,1201:end));
+		sum(zscore(vecInputV2)>1)
 	end
 	close all;
 end

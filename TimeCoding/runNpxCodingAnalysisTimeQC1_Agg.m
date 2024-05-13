@@ -567,8 +567,8 @@ for intRec=1:intRecNum %19 || weird: 11
 			%% get axes and projection per quantile
 			for intQ=1:intQuantiles
 				for intOriIdx1 = 1:intStimNum
-					intOriIdx2 = intOriIdx1+1;
-					%intOriIdx2 = intOriIdx1+floor(intStimNum/2)-1;
+					%intOriIdx2 = intOriIdx1+1;
+					intOriIdx2 = intOriIdx1+floor(intStimNum/2);
 					intOriIdx2 = modx(intOriIdx2,intStimNum);
 					
 					vecUseTrials = vecTrialQuantile==intQ & (vecStimIdx == intOriIdx1 | vecStimIdx == intOriIdx2);
@@ -596,8 +596,8 @@ for intRec=1:intRecNum %19 || weird: 11
 		else
 			%% get axes from all data, then project per quantile
 			for intOriIdx1 = 1:intStimNum
-				intOriIdx2 = intOriIdx1+1;
-				%intOriIdx2 = intOriIdx1+floor(intStimNum/2)-1;
+				%intOriIdx2 = intOriIdx1+1;
+				intOriIdx2 = intOriIdx1+floor(intStimNum/2);
 				intOriIdx2 = modx(intOriIdx2,intStimNum);
 				
 				indUseTrainTrials = (vecStimIdx == intOriIdx1 | vecStimIdx == intOriIdx2);

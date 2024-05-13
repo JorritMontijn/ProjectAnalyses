@@ -84,7 +84,7 @@ function matMeanRateRand = getTRandData(matMeanRateIn,vecStimIdx,strType)
 			%make sd uniform
 			matMeanRateRand = bsxfun(@rdivide,matMeanRateRand,vecOldSd);
 			
-			%multiply sd
+			%multiply mean
 			matMeanRateRand = bsxfun(@times,matMeanRateRand,vecOldMean); %basically recapitulates real data
 			
 			%add mean back in

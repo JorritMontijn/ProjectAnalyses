@@ -99,12 +99,13 @@ for intType=1:numel(cellTypes)
 
 	%% average over all orthogonal (or adjacent?) stimuli
 	if intType == 3
-		dblStep = 0.1;
-		vecBinE = -4:dblStep:4;
+		dblStep = 1/4;
+		vecBinE = -3:dblStep:3;
 	else
-		dblStep = 0.1;
-		vecBinE = -4:dblStep:4;
+		dblStep = 1/4;
+		vecBinE = -3:dblStep:3;
 	end
+	dblIntegralFactor = numel(vecBinE)/range(vecBinE);
 	vecBinC = vecBinE(2:end)-dblStep/2;
 	figure;maxfig;
 	subplot(2,3,1);
@@ -126,15 +127,15 @@ for intType=1:numel(cellTypes)
 		vecAct2 = cell2vec(cellUseLRActPerQ(intQ,:,2,intType,:));
 		vecCounts1 = histcounts(vecAct1,vecBinE);
 		vecCounts2 = histcounts(vecAct2,vecBinE);
-		plot(vecBinC,0.8*(vecCounts1/max(vecCounts1))+intQ,'Color',[1 0 0]);
-		plot(vecBinC,0.8*(vecCounts2/max(vecCounts2))+intQ,'Color',[0 0 1]);
+		plot(vecBinC,1*dblIntegralFactor*(vecCounts1/sum(vecCounts1))+intQ,'Color',[1 0 0]);
+		plot(vecBinC,1*dblIntegralFactor*(vecCounts2/sum(vecCounts2))+intQ,'Color',[0 0 1]);
 	end
 	%finish plot
 	hold off;
 	set(gca,'ytick',0.5 + (1:intQuantiles),'yticklabel',1:5);
 	ylabel('Quantile; y=trials per quantile');
 	xlabel('LR activation');
-	title(sprintf('%s; Mean over adj stim pairs',strType));
+	title(sprintf('%s; Mean over orth stim pairs',strType));
 	fixfig;grid off
 
 	%plot d', variance and distance in mean
@@ -277,7 +278,7 @@ for intType=1:numel(cellTypes)
 
 	if intType == 2
 		subplot(2,3,6);
-		[h,p_RealShuff]=ttest(matR_Discr(1,:),matR_Discr(2,:));
+		[h,p_RealShuff]=ttest(matR_MuVar(1,:),matR_MuVar(2,:));
 		title(sprintf('T-test Pearson r(real) vs r(shuff),p=%.4f',p_RealShuff));
 		fixfig;
 	end

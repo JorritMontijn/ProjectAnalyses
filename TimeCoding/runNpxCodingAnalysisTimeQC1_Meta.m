@@ -13,7 +13,7 @@ or end? does this ordering differ between orientations?
 %% define qualifying data
 %close all;
 clear all;
-strRunType = 'ABI'; %ABI or Npx or all?
+strRunType = 'Npx'; %ABI or Npx or all?
 strRunStim = 'DG';%DG or NM
 intPlotMu = 3; %1=delta mu of LR axes + sd of LR axes, 2= pop mean + pop sd, 3= pop mean + sd of LR axes
 boolSaveFigs = true;
@@ -34,7 +34,7 @@ end
 
 %% find data
 %cellTypes = {'Real','Shuff','Poiss','UniStretch','VarFixed','Saturating','TuneFixed'};
-cellTypes = {'Real','Shuff','Poiss','UniStretch','SdFixed','Saturating','SdScaling','SdLinear','SdQuad','SdCube'};
+cellTypes = {'Real','TShuff','TPoiss','TSdScaling'};
 if strcmp(strRunType,'ABI')
 	strFindStrType = '_ABI';
 elseif strcmp(strRunType,'Npx')
@@ -53,7 +53,7 @@ sDir = dir([strTargetDataPath 'QC1Data*' strFindStrType '*.mat']); %or ABA if ol
 
 matDecPerf_TrainAll = nan(5,0,0);
 matDecPerf_TrainOnQ = nan(5,0,0);
-cellAggLRActPerQ = cell([0 0 0 0 0]);
+cellAggLRActPerQ = cell([0 0 0 0 0]); %[quantile x stim x (this stim/adja stim) x type x rec]
 cellAggPopMuPerQ = cell([0 0 0 0 0]);
 vecCounter = zeros(1,numel(cellTypes));
 for intFile=1:numel(sDir)
@@ -61,8 +61,8 @@ for intFile=1:numel(sDir)
 	strFolder = sDir(intFile).folder;
 	strFile = sDir(intFile).name;
 	cellSplit = strsplit(strFile,'_');
-	intType = find(ismember(cellTypes,cellSplit));
 	sData = load(fullpath(strFolder,strFile));
+	intType = find(ismember(cellTypes,sData.strType));
 	if ~strcmp(sData.strRunStim,strRunStim) || size(sData.cellLRActPerQ,2) < 8 || any(flat(cellfun(@(x) any(isnan(x(:))),sData.cellLRActPerQ)))
 		continue;
 	end
@@ -318,7 +318,7 @@ dblChance = 1/numel(unique(sData.vecStimIdx));
 h1=subplot(2,3,1);hold on;plot([1 5],[dblChance dblChance],'--','color',[0.5 0.5 0.5]);xlabel('Activity quantile');ylabel('Decoding accuracy');text(h1,5,dblChance,'Chance');
 h2=subplot(2,3,2);hold on;plot([1 5],[dblChance dblChance],'--','color',[0.5 0.5 0.5]);xlabel('Activity quantile');ylabel('Decoding accuracy');text(h2,5,dblChance,'Chance');
 h3=subplot(2,3,3);hold on;xlabel('Activity quantile');ylabel('\DeltaDecoding accuracy');
-for intType=[1:4 7]%:numel(cellTypes)
+for intType=1%:numel(cellTypes)
 	strType = cellTypes{intType};
 
 	vecTrainAllMu = mean(matDecPerf_TrainAll(:,intType,:),3);

@@ -9,7 +9,7 @@ dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
 
 %% specific parameters
-intProjType = 2; %1=train+project per quantile; 2=train overall + project per quantile
+intProjType = 1; %1=train+project per quantile; 2=train overall + project per quantile
 intQuantiles = 5;
 cellRandomize = {'Real','TShuff','TPoiss','TSdScaling'};% {'Real','TShuff','TPoiss','TUniStretch','TSdFixed','TSaturating','TSdScaling','TSdLinear','TSdQuad','TSdCude'};
 boolSaveData = true;
@@ -297,7 +297,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		if boolDoDecodingAnalysis
 			%% run decoding
 			%run samples with balanced trials
-			intIters = 100;
+			intIters = 10;
 			matSplitPerf = nan(intQuantiles,intIters);
 			for intIter=1:intIters
 				%select balanced trials
@@ -481,8 +481,8 @@ for intRec=1:intRecNum %19 || weird: 11
 			subplot(2,3,3)
 			hold on;
 		end
-		dblStep = 1;
-		vecBinE = (-10:dblStep:10)/10;
+		dblStep = 0.5;
+		vecBinE = -3:dblStep:3;
 		vecBinC = vecBinE(2:end)-dblStep/2;
 		vecAllAct = nan(1,numel(vecTQR));
 		vecAbsW = nan(1,intQuantiles);
@@ -527,6 +527,7 @@ for intRec=1:intRecNum %19 || weird: 11
 				vecAct = matActivation(1,vecUseTrialsQ)'./vecNormFactors(vecUseTrialsQ);
 			end
 			%% plot
+			
 			vecCounts1 = histcounts(vecAct(vecUseOriQ==1),vecBinE);
 			vecCounts2 = histcounts(vecAct(vecUseOriQ==2),vecBinE);
 			if boolMakeFigs && intUseStim == 1
@@ -628,10 +629,12 @@ for intRec=1:intRecNum %19 || weird: 11
 				end
 			end
 		end
-		
+		%%
 		if boolMakeFigs
-			dblStep = 1;
-			vecBinE = -10:dblStep:10;
+			dblStep = 0.5;
+			
+			dblLim = 3;%roundi(max(abs(cell2vec(cellLRActPerQ(:)))),1);
+			vecBinE = -dblLim:dblStep:dblLim;
 			vecBinC = vecBinE(2:end)-dblStep/2;
 			
 			subplot(2,3,4);
@@ -643,8 +646,8 @@ for intRec=1:intRecNum %19 || weird: 11
 				vecCounts1 = histcounts(vecAct1,vecBinE);
 				vecCounts2 = histcounts(vecAct2,vecBinE);
 				if boolMakeFigs
-					plot(vecBinC,0.8*(vecCounts1/max(vecCounts1))+intQ,'Color',[1 0 0]);
-					plot(vecBinC,0.8*(vecCounts2/max(vecCounts2))+intQ,'Color',[0 0 1]);
+					plot(vecBinC,2*(vecCounts1/sum(vecCounts1))+intQ,'Color',[1 0 0]);
+					plot(vecBinC,2*(vecCounts2/sum(vecCounts2))+intQ,'Color',[0 0 1]);
 				end
 			end
 			%finish plot

@@ -9,6 +9,7 @@ clear all;%close all;
 cellRunTypes = {'RecTopo','SimDG18'};
 intRunType = 1; %topo or sim
 intOnsetType = 0; %normal (0) or rem onset (1)
+cellTypes = {'Real','ShuffTid','PoissGain','Poiss'};%{'Real','Uniform','ShuffTid','PoissGain','Shuff','Poiss'}
 
 %% define qualifying areas
 boolSaveFig = true;
@@ -55,13 +56,17 @@ for intFile=1:intRecNum
 	%% load
 	sLoad=load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
 	matLogIntegral(:,intFile) = sLoad.vecLogIntegral;
-	cellTypes = sLoad.cellTypes;
+	cellLoadedTypes = sLoad.cellTypes;
+end
+
+%use supplied type order
+vecReorder = nan(size(cellTypes));
+for i=1:numel(vecReorder)
+	vecReorder(i) = find(strcmp(cellTypes{i},cellLoadedTypes));
 end
 
 %sort
-[dummy,vecReorder]=sort(mean(matLogIntegral,2),'descend');
 matLogIntegral = matLogIntegral(vecReorder,:);
-cellTypes = cellTypes(vecReorder);
 
 %% plot
 figure;maxfig;
@@ -71,7 +76,7 @@ vecMean = mean(matLogIntegral,2);
 plot(matLogIntegral,'color',[0.7 0.7 0.7]);
 hold on
 plot(vecMean,'color',lines(1));
-set(gca,'xtick',1:6,'xticklabel',cellTypes);
+set(gca,'xtick',1:numel(cellTypes),'xticklabel',cellTypes);
 ylabel('Pop rate variability (s^2)');
 
 %plot normalized
@@ -82,7 +87,7 @@ vecMean = mean(matNormLogIntegral,2);
 plot(matNormLogIntegral,'color',[0.7 0.7 0.7]);
 hold on
 plot(vecMean,'color',lines(1));
-set(gca,'xtick',1:6,'xticklabel',cellTypes);
+set(gca,'xtick',1:numel(cellTypes),'xticklabel',cellTypes);
 ylabel('Normalized pop rate variability (%)');
 title('Relative to 100%=exponential process (Poisson)');
 
@@ -110,8 +115,39 @@ matCol(end,:) = [0 0 0];
 colormap(matCol);
 title('p-values of Bonferroni-corrected paired t-tests');
 
-fixfig;
+%% plot mean+/-sem
+subplot(2,3,4)
+intVarNum = size(matLogIntegral,1);
 
+vecMean = mean(matLogIntegral,2);
+vecSem = std(matLogIntegral,[],2)./sqrt(intRecNum);
+errorbar(vecMean,vecSem,'linestyle','none','marker','x');
+
+set(gca,'xtick',1:numel(cellTypes),'xticklabel',cellTypes);
+ylabel('Pop rate variability (s^2)');
+xlim([0.5 intVarNum+0.5]);
+%ylim([0 0.12]);
+
+%plot normalized
+subplot(2,3,5);cla;
+intPoisson = find(strcmp(cellTypes,'Poiss'));
+matNormLogIntegral = 100*(matLogIntegral./matLogIntegral(intPoisson,:));
+vecMean = mean(matNormLogIntegral,2);
+vecSem = std(matNormLogIntegral,[],2)./sqrt(intRecNum);
+errorbar(vecMean(1:(intVarNum-1)),vecSem(1:(intVarNum-1)),'linestyle','none','CapSize',40);
+hold on
+bar((1:(intVarNum-1)),vecMean(1:(intVarNum-1)),0.5,'facecolor',lines(1));
+set(gca,'xtick',1:(intVarNum-1),'xticklabel',cellTypes(1:(intVarNum-1)));
+ylabel('Normalized pop rate variability (%)');
+title('Relative to 100%=exponential process (Poisson)');
+xlim([0.5 (intVarNum-1)+0.5]);
+ylim([100 160]);
+
+
+
+
+fixfig;
+%%
 if boolSaveFig
 	%%
 	export_fig(fullpath(strFigurePath,sprintf('D1_Summary%s%s.tif',strRunType,strOnset)));

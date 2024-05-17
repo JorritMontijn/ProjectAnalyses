@@ -86,7 +86,7 @@ cellAllSperTrial = cell(1,intRecNum);
 matCountsCV = nan(numel(vecActBinsC),intRecNum);
 matMeansSd = nan(numel(vecActBinsC),intRecNum);
 matMeansCV = nan(numel(vecActBinsC),intRecNum);
-cellTypes =  {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
+cellTypes =  {'Real','ShuffTid','PoissGain','Poiss'};%,'Uniform','Shuff',
 for intFile=1:intRecNum
 	%% load
 	load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
@@ -117,6 +117,16 @@ for intFile=1:intRecNum
 	vecMperTrial_S = sAggData(intS).vecMperTrial;
 	vecPopSparseness_S = sAggData(intS).vecPopSparseness;
 	
+	%poiss-gain
+	intU = 5;
+	strType_U = sAggData(intU).strType;
+	cellISI_perTrial_U = sAggData(intU).cellISI_perTrial;
+	vecSperTrial_U = sAggData(intU).vecSperTrial;
+	vecHperTrial_U = sAggData(intU).vecHperTrial;
+	vecLperTrial_U = sAggData(intU).vecLperTrial;
+	vecMperTrial_U = sAggData(intU).vecMperTrial;
+	vecPopSparseness_U = sAggData(intU).vecPopSparseness;
+	
 	%poisson
 	intP = 2;
 	strType_P = sAggData(intP).strType;
@@ -127,15 +137,6 @@ for intFile=1:intRecNum
 	vecMperTrial_P = sAggData(intP).vecMperTrial;
 	vecPopSparseness_P = sAggData(intP).vecPopSparseness;
 	
-	%uniform
-	intU = 6;
-	strType_U = sAggData(intU).strType;
-	cellISI_perTrial_U = sAggData(intU).cellISI_perTrial;
-	vecSperTrial_U = sAggData(intU).vecSperTrial;
-	vecHperTrial_U = sAggData(intU).vecHperTrial;
-	vecLperTrial_U = sAggData(intU).vecLperTrial;
-	vecMperTrial_U = sAggData(intU).vecMperTrial;
-	vecPopSparseness_U = sAggData(intU).vecPopSparseness;
 	
 	%% create derived variables
 	%get data

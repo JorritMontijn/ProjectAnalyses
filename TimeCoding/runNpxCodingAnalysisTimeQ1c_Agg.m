@@ -307,7 +307,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		figure;maxfig;
 		
 		%make example
-		intPlotTrial = 10;
+		intPlotTrial = 26;
 		cellSpikesInTrial = cellSpikeTimesPerCellPerTrial(:,intPlotTrial);
 		intSpikesInTrial = sum(sum(cellfun(@numel,cellSpikesInTrial)));
 		vecSpikeTimes = nan(1,intSpikesInTrial);
@@ -399,7 +399,7 @@ for intRec=1:intRecNum %19 || weird: 11
 			fixfig
 		end
 		
-		%% plot example trial
+		% plot example trial
 		%make plot
 		h1=subplot(3,4,1);
 		plot(dblRemOnset+vecT,vecR,'color',[0.5 0.5 0.5]);
@@ -561,7 +561,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		%%
 		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.tif',strThisRec,strType,strSGS,strOnset)));
 		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.pdf',strThisRec,strType,strSGS,strOnset)));
-		
+		return
 		%% save data
 		save(fullpath(strTargetDataPath,sprintf('Q1cData_%s_%s_SGS%s%s.mat',strThisRec,strType,strSGS,strOnset)),...
 			'vecStimOnTime',...

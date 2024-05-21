@@ -589,3 +589,78 @@ for i=1:numel(cellSuffices) %dur, conf, ifr
 		export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryUniformNormalized%s%s%s.pdf',strRunType,strSGS,strOnset)));
 	end
 end
+
+return
+%% plot real and shufftid normalized to uniform
+%test vs 0
+matP = nan(2,numel(cellVars));
+figure;maxfig;
+for i=1:numel(cellSuffices) %dur, conf, ifr
+	%prep plot
+	strSuffix = cellSuffices{i};
+	hSummary=[1 2];
+	cellStrP = {'',''};
+	for intRealShuff=1:2
+		if intRealShuff == 1
+			hSummary(intRealShuff)=subplot(2,3,i);
+		else
+			hSummary(intRealShuff)=subplot(2,3,i+3);
+		end
+		cla(hSummary(intRealShuff));
+		hold(hSummary(intRealShuff),'on');
+		plot(hSummary(intRealShuff),[0 (2*numel(cellVars))-1],[0 0],'--','color',[0.5 0.5 0.5]);
+	end
+	
+	%transform variable names and calculate p
+	for intVar=1:numel(cellVars)
+		strVar = cellVars{intVar};
+		eval(['cellY = cellQuantile' strVar '_' strSuffix ';']);
+		
+		
+		matQuantY_Real = cellSummaryMatrices{1,intVar,i};
+		matQuantY_ShuffTid = cellSummaryMatrices{2,intVar,i};
+		matQuantY_Uniform = cellSummaryMatrices{3,intVar,i};
+		
+		for intRealShuff=1:2
+			if intRealShuff == 1
+				matRelY = matQuantY_Real ./ matQuantY_ShuffTid;
+				strPlot = 'x';
+			else
+				matRelY = matQuantY_Uniform ./ matQuantY_ShuffTid;
+				strPlot = 'o--';
+			end
+			matQuantY_Z = zscore(matRelY,[],2);
+			matX = repmat(1:10,[intRecNum 1]);
+			mdl = fitlm(matX(:),matQuantY_Z(:));
+			r=mdl.Coefficients.Estimate(2);
+			r_SE=mdl.Coefficients.SE(2);
+			dblAlpha = 0.05/numel(cellVars);
+			r_CI = coefCI(mdl,dblAlpha);
+			r_CI = r_CI(2,:);
+			p=mdl.Coefficients.pValue(2)*numel(cellVars);
+			matP(intRealShuff,intVar) = p;
+			cellStrP{intRealShuff} = [cellStrP{intRealShuff} sprintf('%s=%.2f',cellVars{intVar}(1),p)];
+			%plot in summary
+			errorbar(hSummary(intRealShuff),(intVar*2-1),r,r-r_CI(1),r-r_CI(2),strPlot,'color',matCol(intVar,:));
+		end
+	end
+	%finish
+	cellRealShuff = {'Real','Uniform'};
+	for intRealShuff=1:2
+		hold(hSummary(intRealShuff),'off');
+		set(hSummary(intRealShuff),'xtick',[1:2:(2*numel(cellVars))],'xticklabel',cellVars);
+		xtickangle(hSummary(intRealShuff),45);
+		ylabel(hSummary(intRealShuff),sprintf('ShuffTid-norm. r, mean +/- 95 CI (%s/decile)',getGreek('sigma')));
+		ylim(hSummary(intRealShuff),[-0.4 0.4]);
+		strP = cellStrP{intRealShuff};
+		strTitleType = [strSuffix ', ' cellRealShuff{intRealShuff} ', ' strRunType ', ' strSGS ', O' strOnset];
+		title(hSummary(intRealShuff),sprintf('%s, Bonf-corr p & CI\n%s',strTitleType,strP),'interpreter','none');
+	end
+	fixfig;
+	
+	if boolSaveFig
+		%%
+		export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryShuffTidNormalized%s%s%s.tif',strRunType,strSGS,strOnset)));
+		export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryShuffTidNormalized%s%s%s.pdf',strRunType,strSGS,strOnset)));
+	end
+end

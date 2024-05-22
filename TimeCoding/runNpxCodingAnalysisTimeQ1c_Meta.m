@@ -82,6 +82,7 @@ cellVarsLegend = {'# of cells','Cell Rate','Cell Tune','Pop Rate','Conf','% Inte
 	'Pref-d','BndW','% Supra','% Granu','% Infra'};
 intVarNum = numel(cellVars);
 for intType=1:numel(cellTypes)
+	%%
 	strType = cellTypes{intType};
 	if boolFixedSpikeGroupSize
 		sFiles = dir ([strTargetDataPath 'Q1cData_' strRunType '*' strType '*Fixed*.mat']);
@@ -115,7 +116,7 @@ for intType=1:numel(cellTypes)
 	hold(h1,'on')
 	title(h1,sprintf('%s, %s',strType,strSGS));
 	
-	plot(h2,[0 100],([1 1]./intStimNum),'--','color',vecColChance);
+	%plot(h2,[0 100],([1 1]./intStimNum),'--','color',vecColChance);
 	hold(h2,'on')
 	
 	%plot(h3,[0 10],([1 1]./intStimNum),'--','color',vecColChance);
@@ -171,10 +172,12 @@ for intType=1:numel(cellTypes)
 		
 		%calculate fraction correct and confidence per bin of equal size
 		intQuantileNum = 10;
-		[vecMeanDur,vecSemDur,vecMeanConf,vecSemConf,vecQuantile,cellValsDur,cellValsConf]=getQuantiles(vecSortedDur,vecSortedConf,intQuantileNum);
+		%[vecMeanDur,vecSemDur,vecMeanConf,vecSemConf,vecQuantile,cellValsDur,cellValsConf]=getQuantiles(vecSortedDur,vecSortedConf,intQuantileNum);
+		[vecMeanIfr,vecSemIfr,vecMeanTune,vecSemCTune,vecQuantile,cellValsIfr,cellValsTune]=getQuantiles(vecSortedIFR,vecSortedTune-mean(vecSortedTune),intQuantileNum);
 		
 		%conf with dur
-		errorbar(h2,vecMeanDur*1000,vecMeanConf,vecSemConf,vecSemConf,vecSemDur,vecSemDur,'color',lines(1));
+		%errorbar(h2,vecMeanDur*1000,vecMeanConf,vecSemConf,vecSemConf,vecSemDur,vecSemDur,'color',lines(1));
+		errorbar(h2,1:intQuantileNum,vecMeanTune,vecSemCTune,'color',lines(1));
 		
 		%conf with time
 		[vecCounts,vecMeans,vecSDs]=makeBins(vecSpikeGroupLatency,vecSpikeGroupConfidence,vecBinsDur);
@@ -207,7 +210,7 @@ for intType=1:numel(cellTypes)
 			end
 			
 			%prediction with dur
-			tbl = table(vecMeanNum,vecMeanRate,vecMeanTune,vecMeanIFR,vecMeanConf,vecMeanDurDeciles,...
+			tbl = table(vecMeanNum,vecMeanRate,vecMeanTune,vecMeanIFR,vecMeanTune,vecMeanDurDeciles,...
 				'VariableNames',{'CellNumber','AvgCellRate','AvgCellTuning','AvgPopIFR','Conf','Dur'});
 			mdl_predDur = fitlm(tbl,'linear');
 			
@@ -223,7 +226,7 @@ for intType=1:numel(cellTypes)
 				
 				[vecMeanConfDeciles,vecSemConfDeciles,vecMeanOut,vecSemOut]=getQuantiles(vecSpikeGroupConfidence,vecSource,intQuantileNum);
 				vecMeanConfDeciles = vecMeanConfDeciles';
-			
+				
 				%assign output
 				eval([strVarMean '=vecMeanOut'';']);
 				eval([strVarSem '=vecSemOut'';']);
@@ -250,7 +253,7 @@ for intType=1:numel(cellTypes)
 				
 				[vecMeanIFRDeciles,vecSemIFRDeciles,vecMeanOut,vecSemOut]=getQuantiles(vecSpikeGroupAvgRate,vecSource,intQuantileNum);
 				vecMeanIFRDeciles = vecMeanIFRDeciles';
-			
+				
 				%assign output
 				eval([strVarMean '=vecMeanOut'';']);
 				eval([strVarSem '=vecSemOut'';']);
@@ -341,8 +344,8 @@ for intType=1:numel(cellTypes)
 		
 		%vecR_Group_Rate_Tune(intFile) = rGroup_Rate_Tune;
 		
-		cellQuantileDur(intFile,:) = cellValsDur;
-		cellQuantileConf(intFile,:) = cellValsConf;
+		cellQuantileDur(intFile,:) = cellValsIfr;
+		cellQuantileConf(intFile,:) = cellValsTune;
 		matLatConf(intFile,:) = vecMeans;
 		vecSpikeGroupSize(intFile) = intSpikeGroupSize;
 		
@@ -370,10 +373,12 @@ for intType=1:numel(cellTypes)
 		end
 	end
 	hold(h2,'off');
-	xlabel(h2,'Duration of n-spike block (ms)');
-	ylabel(h2,'Decoder confidence');
+	%xlabel(h2,'Duration of n-spike block (ms)');
+	%ylabel(h2,'Decoder confidence');
+	xlabel(h2,'Avg pop rate of n-spike block (decile)');
+	ylabel(h2,sprintf('Avg cell tuning (%st-stat)',getGreek('Delta')));
 	title(h2,sprintf('Deciles'));
-	ylim(h2,[0 max(get(h2,'ylim'))]);
+	%ylim(h2,[0 max(get(h2,'ylim'))]);
 	
 	plot(h1,vecBinsDurC,mean(matLatConf,1),'color',lines(1));%,vecSDs./sqrt(vecCounts),vecSDs./sqrt(vecCounts),'color',lines(1));
 	hold(h1,'off')
@@ -441,6 +446,7 @@ for intType=1:numel(cellTypes)
 			if intVar==round(intVarNum/2)
 				strTitle = [strTitle sprintf('\n')];
 			end
+			matR(intType,i,intVar,:) = vecSource; %[Real/Shuff/Unif x Dur/Conf/IFR x Var x Rec]
 		end
 		hold off
 		set(gca,'xtick',[1:2:(intVarNum*2)],'xticklabel',cellVarsLegend);
@@ -663,4 +669,78 @@ for i=1:numel(cellSuffices) %dur, conf, ifr
 		export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryShuffTidNormalized%s%s%s.tif',strRunType,strSGS,strOnset)));
 		export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryShuffTidNormalized%s%s%s.pdf',strRunType,strSGS,strOnset)));
 	end
+end
+
+%% plot real and shufftid pairwise
+%test vs 0
+vecP = nan(1,numel(cellVars));
+figure;maxfig;
+for i=1:numel(cellSuffices) %dur, conf, ifr
+	%prep plot
+	h=subplot(2,3,i);
+	strSuffix = cellSuffices{i};
+	hold('on');
+	plot([0 (numel(cellVars))-1],[0 0],'--','color',[0.5 0.5 0.5]);
+	
+	%transform variable names and calculate p
+	for intVar=1:numel(cellVars)
+		strVar = cellVars{intVar};
+		vecR_Real = squeeze(matR(1,i,intVar,:));
+		vecR_Shuff = squeeze(matR(2,i,intVar,:));
+		vecR_Unif = squeeze(matR(3,i,intVar,:));
+		
+		matX = repmat(intVar+[-0.2 0.2],[intRecNum 1]);
+		plot(matX', [vecR_Real vecR_Shuff]','color', [0.5 0.5 0.5]);
+		
+		errorbar(intVar+[-0.2 0.2],mean([vecR_Real vecR_Shuff]),std([vecR_Real vecR_Shuff])./sqrt(intRecNum),'color',matCol(intVar,:));
+		
+	end
+	
+	%plot diff
+	subplot(2,3,i+3);hold on
+	plot([0 (2*numel(cellVars))-1],[0 0],'--','color',[0.5 0.5 0.5]);
+	
+	
+	%transform variable names and calculate p
+	vecP = nan(1,numel(cellVars));
+	for intVar=1:numel(cellVars)
+		strVar = cellVars{intVar};
+		vecR_Real = squeeze(matR(1,i,intVar,:));
+		vecR_Shuff = squeeze(matR(2,i,intVar,:));
+		vecR_Unif = squeeze(matR(3,i,intVar,:));
+		vecDiff = vecR_Real - vecR_Shuff;
+		swarmchart(repmat(intVar*2,[intRecNum 1]),vecDiff,[],matColP(intVar,:),'filled');
+		errorbar(intVar*2,mean(vecDiff),std(vecDiff)./sqrt(intRecNum),'x','color',matCol(intVar,:));
+		[h,p]=ttest(vecDiff);
+		vecP(intVar) = p;
+	end
+	
+	hold('off');
+	set(gca,'xtick',[2:2:(2*numel(cellVars))],'xticklabel',cellVars);
+	xtickangle(gca,45);
+	ylabel(gca,sprintf('ShuffTid-norm. %sr, mean +/- sem',getGreek('delta')));
+	ylim(gca,[-0.4 0.4]);
+	strTitleType = [strSuffix ', ' strRunType ', ' strSGS ', O' strOnset];
+	
+	indUsePs = ~isnan(vecP);
+	vecP_corr2 = vecP;
+	vecP_corr = vecP;
+	[d,d2,vecPs_corr] = fdr_bh(vecP(indUsePs));
+	[vecPs_corr2] = bonf_holm(vecP(indUsePs));
+	vecP_corr(indUsePs) = vecPs_corr;
+	vecP_corr2(indUsePs) = vecPs_corr2;
+	
+	strP= '';
+	for intVar=1:numel(cellVars)
+		strP = [strP sprintf('%s=%.2e',cellVars{intVar}(1),vecP_corr2(intVar))];
+	end
+	title(gca,sprintf('%s, Bonf-holm corr p\n%s',strTitleType,strP),'interpreter','none');
+	ylim([ -0.5 0.5]);
+end
+fixfig;
+%
+if boolSaveFig
+	%%
+	export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryPairwise%s%s%s.tif',strRunType,strSGS,strOnset)));
+	export_fig(fullpath(strFigurePath,sprintf('Q1c_SummaryPairwise%s%s%s.pdf',strRunType,strSGS,strOnset)));
 end

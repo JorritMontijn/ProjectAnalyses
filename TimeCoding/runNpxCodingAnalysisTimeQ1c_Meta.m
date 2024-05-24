@@ -26,7 +26,7 @@ on binning size? What is the optimal time window?
 clear all;%close all;
 cellTypes = {'Real','ShuffTid','Uniform'};%'Real','ShuffTid'};
 cellRunTypes = {'RecTopo','SimDG18'};
-intRunType = 1; %topo or sim
+intRunType = 2; %topo or sim
 
 boolFixedSpikeGroupSize = false;
 intGroupOrDecile = 1;
@@ -80,6 +80,15 @@ cellVarsLong = {'NumOfCells','AvgRateOfCells','AvgTuningOfCells','AvgRate','Conf
 	'AvgPrefDistToStim','AvgBandwidthOfCells','FractionSupra','FractionGranu','FractionInfra'};
 cellVarsLegend = {'# of cells','Cell Rate','Cell Tune','Pop Rate','Conf','% InterN',...
 	'Pref-d','BndW','% Supra','% Granu','% Infra'};
+
+%remove layers if model
+if intRunType == 2
+	cellVars = cellVars(1:8);
+	cellVarsShort = cellVarsShort(1:numel(cellVars));
+	cellVarsLong = cellVarsLong(1:numel(cellVars));
+	cellVarsLegend = cellVarsLegend(1:numel(cellVars));
+end
+
 intVarNum = numel(cellVars);
 for intType=1:numel(cellTypes)
 	%%
@@ -155,11 +164,15 @@ for intType=1:numel(cellTypes)
 		vecSpikeGroupFractionInterneurons = [sSpikeGroup.FractionInterneurons]';
 		vecSpikeGroupAvgPrefDistToStim = [sSpikeGroup.AvgPrefDistToStim]';
 		vecSpikeGroupAvgBandwidthOfCells = [sSpikeGroup.AvgBandwidthOfCells]';
-		
-		vecSpikeGroupFractionSupra = [sSpikeGroup.FractionSupra]';
-		vecSpikeGroupFractionGranu = [sSpikeGroup.FractionGranu]';
-		vecSpikeGroupFractionInfra = [sSpikeGroup.FractionInfra]';
-		
+		if isfield(sSpikeGroup,'FractionSupra')
+			vecSpikeGroupFractionSupra = [sSpikeGroup.FractionSupra]';
+			vecSpikeGroupFractionGranu = [sSpikeGroup.FractionGranu]';
+			vecSpikeGroupFractionInfra = [sSpikeGroup.FractionInfra]';
+		else
+			vecSpikeGroupFractionSupra = nan*[sSpikeGroup.AvgBandwidthOfCells]';
+			vecSpikeGroupFractionGranu = nan*[sSpikeGroup.AvgBandwidthOfCells]';
+			vecSpikeGroupFractionInfra = nan*[sSpikeGroup.AvgBandwidthOfCells]';
+		end
 		%sort by duration
 		[vecSortedDur,vecSort]=sort(vecSpikeGroupDuration);
 		vecSortedCorr = vecSpikeGroupCorrect(vecSort);
@@ -182,6 +195,8 @@ for intType=1:numel(cellTypes)
 		%conf with time
 		[vecCounts,vecMeans,vecSDs]=makeBins(vecSpikeGroupLatency,vecSpikeGroupConfidence,vecBinsDur);
 		plot(h1,vecBinsDurC,vecMeans,'color',vecColGrey);%,vecSDs./sqrt(vecCounts),vecSDs./sqrt(vecCounts),'color',lines(1));
+		pout=binotest(sum(vecSpikeGroupCorrect),numel(vecSpikeGroupCorrect),1/numel(unique(vecOri180)));
+		if mean(vecSpikeGroupCorrect)<0.3,continue;end
 		
 		%% group or decile
 		if intGroupOrDecile == 2
@@ -596,7 +611,6 @@ for i=1:numel(cellSuffices) %dur, conf, ifr
 	end
 end
 
-return
 %% plot real and shufftid normalized to uniform
 %test vs 0
 matP = nan(2,numel(cellVars));
@@ -688,8 +702,12 @@ for i=1:numel(cellSuffices) %dur, conf, ifr
 		vecR_Real = squeeze(matR(1,i,intVar,:));
 		vecR_Shuff = squeeze(matR(2,i,intVar,:));
 		vecR_Unif = squeeze(matR(3,i,intVar,:));
-		
-		matX = repmat(intVar+[-0.2 0.2],[intRecNum 1]);
+		indRem = vecR_Real==0;
+		vecR_Real(indRem) = [];
+		vecR_Shuff(indRem) = [];
+		vecR_Unif(indRem) = [];
+		intRecNum = numel(vecR_Real);
+		matX = repmat(intVar+[-0.2 0.2],[numel(vecR_Unif) 1]);
 		plot(matX', [vecR_Real vecR_Shuff]','color', [0.5 0.5 0.5]);
 		
 		errorbar(intVar+[-0.2 0.2],mean([vecR_Real vecR_Shuff]),std([vecR_Real vecR_Shuff])./sqrt(intRecNum),'color',matCol(intVar,:));
@@ -708,6 +726,12 @@ for i=1:numel(cellSuffices) %dur, conf, ifr
 		vecR_Real = squeeze(matR(1,i,intVar,:));
 		vecR_Shuff = squeeze(matR(2,i,intVar,:));
 		vecR_Unif = squeeze(matR(3,i,intVar,:));
+		indRem = vecR_Real==0;
+		vecR_Real(indRem) = [];
+		vecR_Shuff(indRem) = [];
+		vecR_Unif(indRem) = [];
+		intRecNum = numel(vecR_Real);
+		
 		vecDiff = vecR_Real - vecR_Shuff;
 		swarmchart(repmat(intVar*2,[intRecNum 1]),vecDiff,[],matColP(intVar,:),'filled');
 		errorbar(intVar*2,mean(vecDiff),std(vecDiff)./sqrt(intRecNum),'x','color',matCol(intVar,:));

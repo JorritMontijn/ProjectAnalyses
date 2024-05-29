@@ -559,8 +559,85 @@ for intRec=1:intRecNum %19 || weird: 11
 		%%
 		export_fig(fullpath(strFigurePathSR,sprintf('A1c_Example_%s_%s_SGS%s%s.tif',strThisRec,strType,strSGS,strOnset)));
 		export_fig(fullpath(strFigurePathSR,sprintf('A1c_Example_%s_%s_SGS%s%s.pdf',strThisRec,strType,strSGS,strOnset)));
+		
+		%% plot multiple timescales
+		vecStimOnTime = sSource.vecStimOnTime;
+		intTrial=317;
+		dblStimT = vecStimOnTime(intTrial);
+		dblCenterTime = dblStimT+0.4;
+		
+		vecAllSpikeT = sSource.vecAllSpikeTime;
+		dblPlotWindow = 50;
+		figure
+		vecTimescales = 10.^(1:-1:-2);
+		intPlotNum = numel(vecTimescales)+1;
+		vecRateBins = 0:100:2000;
+		for intScaleIdx=1:numel(vecTimescales)
+			dblScale = vecTimescales(intScaleIdx);
+			subplot(intPlotNum,2,intScaleIdx*2-1);
+			
+			dblStartT = dblCenterTime-dblScale*dblPlotWindow;
+			dblStopT = dblCenterTime+dblScale*dblPlotWindow;
+			vecBinE = dblStartT:dblScale:dblStopT;
+			vecSpikeRate = histcounts(vecAllSpikeT,vecBinE)./dblScale;
+			vecBinC = vecBinE(2:end)-dblScale/2;
+			
+			indPlot = vecT>dblStartT & vecT<dblStopT;
+			stairs(vecBinC,vecSpikeRate);
+			hold on
+			%plot([dblStimT dblStimT],[0 2000])
+			xlim([dblStartT dblStopT]);
+			ylim([0 2000]);
+			
+			dblNextStartT = dblCenterTime-(dblScale/10)*dblPlotWindow;
+			dblNextStopT = dblCenterTime+(dblScale/10)*dblPlotWindow;
+			plot([dblNextStartT dblNextStartT],[0 2000],'color',[0.5 0.5 0.5])
+			plot([dblNextStopT dblNextStopT],[0 2000],'color',[0.5 0.5 0.5])
+			
+			
+			subplot(intPlotNum,4,intScaleIdx*4-1);
+			vecCounts = histcounts(vecSpikeRate,vecRateBins);
+			stairs(vecRateBins(2:end)-diff(vecRateBins(1:2))/2,vecCounts);
+			xlim([0 2000]);
+			ylim([0 40]);
+			title(sprintf('mu=%.3f, sd=%.3f, cv=%.3f',mean(vecSpikeRate),std(vecSpikeRate),std(vecSpikeRate)/mean(vecSpikeRate)));
+		end
+		
+		subplot(intPlotNum,2,intPlotNum*2-1);
+		vecIFR_T = vecAllSpikeT(vecAllSpikeT>dblStartT & vecAllSpikeT<dblStopT);
+		[vecT,vecIFR]=getIFR(vecIFR_T,dblStartT,dblStopT-dblStartT);
+		plot(vecT+dblStartT,vecIFR);
+		xlim([dblStartT dblStopT]);
+		%ylim([0 2000]);
+		
+		%%
+		export_fig(fullpath(strFigurePathSR,sprintf('A1c_Example2_%s_%s_%s.tif',strThisRec,strType,strOnset)));
+		export_fig(fullpath(strFigurePathSR,sprintf('A1c_Example2_%s_%s_%s.pdf',strThisRec,strType,strOnset)));
 		return
 		
+		%%
+		vecT=10.^(-4:0.1:1);
+		vecLinCV = 0.001*(1./vecT);
+		
+		plot(vecT,vecLinCV);
+		set(gca,'xscale','log','yscale','log')
+		
+		%% 35 54
+		matCol=redbluepurple(5);
+		for i=35
+			cla;hold on;
+			vec1 = matData(i,:)+rand(1,960)-0.5;
+			vec2 = matData(i+1,:)+rand(1,960)-0.5;
+			vecTot =vec1+vec2;
+			[vecMeanX,vecSemX,vecMeanY,vecSemY,vecQuantileAssignment] = getQuantiles(vecTot,vecTot,5);
+			for j=1:5
+				scatter(vec1(vecQuantileAssignment==j),vec2(vecQuantileAssignment==j),[],matCol(j,:),'filled')
+			end
+			title(sprintf('%d',i))
+		xlim([0 100]);
+		ylim([0 50]);
+		%pause
+		end
 	end
 	close all;
 end

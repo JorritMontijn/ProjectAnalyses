@@ -45,3 +45,9 @@ ylabel('Neuron #');
 title('Norm. act (Hz)');
 colorbar
 fixfig;
+
+%% make lognormal plot 
+vecOut = logmvnrnd(4,4,10000);
+vecE = 0:0.5:15;
+vecC = histcounts(vecOut,vecE);
+stairs(vecE(2:end)-diff(vecE(1:2))/2,vecC);

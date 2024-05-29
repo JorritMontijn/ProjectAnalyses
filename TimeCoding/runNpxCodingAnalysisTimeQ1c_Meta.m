@@ -196,7 +196,7 @@ for intType=1:numel(cellTypes)
 		[vecCounts,vecMeans,vecSDs]=makeBins(vecSpikeGroupLatency,vecSpikeGroupConfidence,vecBinsDur);
 		plot(h1,vecBinsDurC,vecMeans,'color',vecColGrey);%,vecSDs./sqrt(vecCounts),vecSDs./sqrt(vecCounts),'color',lines(1));
 		pout=binotest(sum(vecSpikeGroupCorrect),numel(vecSpikeGroupCorrect),1/numel(unique(vecOri180)));
-		if mean(vecSpikeGroupCorrect)<0.3,continue;end
+		%if mean(vecSpikeGroupCorrect)<0.3,continue;end
 		
 		%% group or decile
 		if intGroupOrDecile == 2
@@ -613,6 +613,7 @@ end
 
 %% plot real and shufftid normalized to uniform
 %test vs 0
+intVarNum = 11;
 matP = nan(2,numel(cellVars));
 figure;maxfig;
 for i=1:numel(cellSuffices) %dur, conf, ifr
@@ -654,12 +655,12 @@ for i=1:numel(cellSuffices) %dur, conf, ifr
 			mdl = fitlm(matX(:),matQuantY_Z(:));
 			r=mdl.Coefficients.Estimate(2);
 			r_SE=mdl.Coefficients.SE(2);
-			dblAlpha = 0.05/numel(cellVars);
+			dblAlpha = 0.05/intVarNum;
 			r_CI = coefCI(mdl,dblAlpha);
 			r_CI = r_CI(2,:);
-			p=mdl.Coefficients.pValue(2)*numel(cellVars);
+			p=mdl.Coefficients.pValue(2)*intVarNum;
 			matP(intRealShuff,intVar) = p;
-			cellStrP{intRealShuff} = [cellStrP{intRealShuff} sprintf('%s=%.2f',cellVars{intVar}(1),p)];
+			cellStrP{intRealShuff} = [cellStrP{intRealShuff} sprintf('%s=%.2e',cellVars{intVar}(1),p)];
 			%plot in summary
 			errorbar(hSummary(intRealShuff),(intVar*2-1),r,r-r_CI(1),r-r_CI(2),strPlot,'color',matCol(intVar,:));
 		end

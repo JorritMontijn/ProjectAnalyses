@@ -38,6 +38,7 @@ end
 %% define parameters
 %single rec plots
 boolSingleRecPlots = false;
+boolMultiPlots = true;
 boolUseMax = true;
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 
@@ -51,18 +52,19 @@ sFiles = dir ([strTargetDataPath 'Q2b2Data*' strOnset '.mat']);
 intRecNum = numel(sFiles);
 
 %% pre-allocate
-figure;maxfig;
 cellTypes =  {'Real','Poiss','Shuff','PoissGain','ShuffTid','Uniform'};
 intTypeNum = numel(cellTypes);
-vecH = nan([1 intTypeNum]);
-vecH1_5 = nan([1 intTypeNum]);
-vecH2 = nan([1 intTypeNum]);
-for intType=1:intTypeNum
-	vecH(intType) = subplot(3,intTypeNum,intType);hold on;
-	vecH1_5(intType) = subplot(3,intTypeNum,intType+intTypeNum);hold on;
-	vecH2(intType) = subplot(3,intTypeNum,intType+2*intTypeNum);hold on;
+if boolMultiPlots
+	figure;maxfig;
+	vecH = nan([1 intTypeNum]);
+	vecH1_5 = nan([1 intTypeNum]);
+	vecH2 = nan([1 intTypeNum]);
+	for intType=1:intTypeNum
+		vecH(intType) = subplot(3,intTypeNum,intType);hold on;
+		vecH1_5(intType) = subplot(3,intTypeNum,intType+intTypeNum);hold on;
+		vecH2(intType) = subplot(3,intTypeNum,intType+2*intTypeNum);hold on;
+	end
 end
-
 
 cellSlopes = {};
 cellR2 = {};
@@ -72,6 +74,7 @@ cellExpScale = {};
 cellExpAsymptote = {};
 matCol=lines(numel(cellTypes));
 matMaxSlopes = [];
+matCVs = [];
 for intFile=1:intRecNum
 	%% load
 	sLoad=load(fullpath(sFiles(intFile).folder,sFiles(intFile).name));
@@ -100,52 +103,65 @@ for intFile=1:intRecNum
 		cellRootAsymptote{intFile,intType} = sAggData(intUseEntry).vecAsymptoteRoot_Time;
 		cellRootScale{intFile,intType} = sAggData(intUseEntry).vecScaleRoot_Time;
 		cellRootExponent{intFile,intType} = sAggData(intUseEntry).vecExponentRoot_Time;
+		matCVs(intFile,intType,:) = sAggData(intUseEntry).vecCV;
 		
-		%% plot sd/mean
-		plot(vecH(intType),sAggData(intUseEntry).vecMean,sAggData(intUseEntry).vecSd,'color',matCol(intType,:));
-		plot(vecH1_5(intType),sAggData(intUseEntry).vecMean,sAggData(intUseEntry).vecSd.^2,'color',matCol(intType,:));
-		
-		%% plot cv/timescale
-		plot(vecH2(intType),sAggData(intUseEntry).vecTimescales,sAggData(intUseEntry).vecCV,'color',matCol(intType,:));
-		
+		if boolMultiPlots
+			%% plot sd/mean
+			plot(vecH(intType),sAggData(intUseEntry).vecMean,sAggData(intUseEntry).vecSd,'color',matCol(intType,:));
+			plot(vecH1_5(intType),sAggData(intUseEntry).vecMean,sAggData(intUseEntry).vecSd.^2,'color',matCol(intType,:));
+			
+			%% plot cv/timescale
+			plot(vecH2(intType),sAggData(intUseEntry).vecTimescales,sAggData(intUseEntry).vecCV,'color',matCol(intType,:));
+		end
 		
 		matMaxSlopes(intFile,intType) = sAggData(intUseEntry).vecSd(end)/sAggData(intUseEntry).vecMean(end);
 	end
 end
 
-for intType=1:numel(cellTypes)
-	%finish plots 1; mean and sd
-	xlabel(vecH(intType),'Mean of spike counts');
-	ylabel(vecH(intType),'Sd of spike counts');
-	title(vecH(intType),sprintf('%s',cellTypes{intType}),'interpreter','none');
+if boolMultiPlots
+	for intType=1:numel(cellTypes)
+		
+		%finish plots 1; mean and sd
+		xlabel(vecH(intType),'Mean of spike counts');
+		ylabel(vecH(intType),'Sd of spike counts');
+		title(vecH(intType),sprintf('%s',cellTypes{intType}),'interpreter','none');
+		
+		%finish plots 1.5; mean and var
+		xlabel(vecH1_5(intType),'Mean of spike counts');
+		ylabel(vecH1_5(intType),'Var of spike counts');
+		title(vecH1_5(intType),sprintf('%s',cellTypes{intType}),'interpreter','none');
+		
+		%finish plots 2; timescale and cv
+		xlabel(vecH2(intType),'Timescale (s)');
+		ylabel(vecH2(intType),'CV (sd/mu)');
+		title(vecH2(intType),sprintf('%s',cellTypes{intType}),'interpreter','none');
+		set(vecH2(intType),'ylim',[0 1.2]);%[0 max(get(vecH2(intType),'ylim'))]);
+	end
+	fixfig;
 	
-	%finish plots 1.5; mean and var
-	xlabel(vecH1_5(intType),'Mean of spike counts');
-	ylabel(vecH1_5(intType),'Var of spike counts');
-	title(vecH1_5(intType),sprintf('%s',cellTypes{intType}),'interpreter','none');
-	
-	%finish plots 2; timescale and cv
-	xlabel(vecH2(intType),'Timescale (s)');
-	ylabel(vecH2(intType),'CV (sd/mu)');
-	title(vecH2(intType),sprintf('%s',cellTypes{intType}),'interpreter','none');
-	set(vecH2(intType),'ylim',[0 1.2]);%[0 max(get(vecH2(intType),'ylim'))]);
+	drawnow;
+	export_fig(fullpath(strFigurePath,sprintf('Q2b_CV_Timescales.tif')));
+	export_fig(fullpath(strFigurePath,sprintf('Q2b_CV_Timescales.pdf')));
 end
-fixfig;
 
-drawnow;
-export_fig(fullpath(strFigurePath,sprintf('Q2b_CV_Timescales.tif')));
-export_fig(fullpath(strFigurePath,sprintf('Q2b_CV_Timescales.pdf')));
-
-%% plot examples
+%% plot mean cvs
 figure
-hold on
-x=[0.1:0.1:0.9 1:10];
-plot(x,exp(-x))
-plot(x,imnorm(1./(x.^0.5)))
-plot(x,imnorm(1./(x.^0.33)))
-plot(x,imnorm(1./(x.^0.2)))
-legend({'exp','0.5','0.33','0.2'})
-
+for intType = 1:intTypeNum
+	subplot(2,3,intType);
+	vecMuCV = squeeze(mean(matCVs(:,intType,:)));
+	vecSdCV = squeeze(std(matCVs(:,intType,:)));
+	indPlot = vecTimescales>=0.5;
+	
+	plot(vecTimescales(indPlot),squeeze(matCVs(:,intType,indPlot)),'color',[0.5 0.5 0.5]);
+	hold on
+	plot(vecTimescales(indPlot),vecMuCV(indPlot),'color',matCol(intType,:));
+	plot(vecTimescales(indPlot),vecMuCV(indPlot)-vecSdCV(indPlot)./sqrt(intRecNum),'color',matCol(intType,:));
+	plot(vecTimescales(indPlot),vecMuCV(indPlot)+vecSdCV(indPlot)./sqrt(intRecNum),'color',matCol(intType,:));
+	
+	ylim([0 max(get(gca,'ylim'))]);
+	title(cellTypes{intType});
+end
+	
 
 %% plot slopes/r2 for sd/mean and half-life/r2 for cv/timescale
 %use same pop size for all, or max for each?
@@ -199,35 +215,35 @@ for intPlot=3:10
 end
 
 for intType=1:intTypeNum
-%slope sd/mu
-%swarmchart(vecH3(1),intType*ones(1,intRecNum),matR2(:,intType),'jitterwidth',0.5);
-errorbar(cellH3{1},intType,mean(matR2(:,intType)),std(matR2(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-%linearity sd/mu
-%swarmchart(vecH3(2),intType*ones(1,intRecNum),matSlopes(:,intType),'jitterwidth',0.5);
-errorbar(cellH3{2},intType,mean(matSlopes(:,intType)),std(matSlopes(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-%half-life cv/time
-%swarmchart(vecH3(3),intType*ones(1,intRecNum),matExpR2(:,intType),'jitterwidth',0.5);
-errorbar(cellH3{3},intType,mean(matExpR2(:,intType)),std(matExpR2(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-%R^2 cv/time
-%swarmchart(vecH3(4),intType*ones(1,intRecNum),matExpLambda(:,intType),'jitterwidth',0.5);
-errorbar(cellH3{4},intType,mean(matExpHalfLife(:,intType)),std(matExpHalfLife(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{5},intType,mean(matExpAsymptote(:,intType)),std(matExpAsymptote(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{6},intType,mean(matExpScale(:,intType)),std(matExpScale(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-%% root
-errorbar(cellH3{7},intType,mean(matRootR2(:,intType)),std(matRootR2(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{8},intType,mean(matRootExponent(:,intType)),std(matRootExponent(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{9},intType,mean(matRootAsymptote(:,intType)),std(matRootAsymptote(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
-errorbar(cellH3{10},intType,mean(matRootScale(:,intType)),std(matRootScale(:,intType))./sqrt(intRecNum),'x','capsize',20);
-
+	%slope sd/mu
+	%swarmchart(vecH3(1),intType*ones(1,intRecNum),matR2(:,intType),'jitterwidth',0.5);
+	errorbar(cellH3{1},intType,mean(matR2(:,intType)),std(matR2(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
+	%linearity sd/mu
+	%swarmchart(vecH3(2),intType*ones(1,intRecNum),matSlopes(:,intType),'jitterwidth',0.5);
+	errorbar(cellH3{2},intType,mean(matSlopes(:,intType)),std(matSlopes(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
+	%half-life cv/time
+	%swarmchart(vecH3(3),intType*ones(1,intRecNum),matExpR2(:,intType),'jitterwidth',0.5);
+	errorbar(cellH3{3},intType,mean(matExpR2(:,intType)),std(matExpR2(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
+	%R^2 cv/time
+	%swarmchart(vecH3(4),intType*ones(1,intRecNum),matExpLambda(:,intType),'jitterwidth',0.5);
+	errorbar(cellH3{4},intType,mean(matExpHalfLife(:,intType)),std(matExpHalfLife(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
+	errorbar(cellH3{5},intType,mean(matExpAsymptote(:,intType)),std(matExpAsymptote(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
+	errorbar(cellH3{6},intType,mean(matExpScale(:,intType)),std(matExpScale(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
+	%% root
+	errorbar(cellH3{7},intType,mean(matRootR2(:,intType)),std(matRootR2(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
+	errorbar(cellH3{8},intType,mean(matRootExponent(:,intType)),std(matRootExponent(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
+	errorbar(cellH3{9},intType,mean(matRootAsymptote(:,intType)),std(matRootAsymptote(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
+	errorbar(cellH3{10},intType,mean(matRootScale(:,intType)),std(matRootScale(:,intType))./sqrt(intRecNum),'x','capsize',20);
+	
 end
 
 %tests

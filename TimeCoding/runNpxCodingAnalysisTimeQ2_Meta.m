@@ -290,6 +290,21 @@ for intFile=1:intRecNum
 	vecFitY_P = vecMperTrial_P*dblSlope_P;
 	[dblR2_P,dblSS_tot_P,dblSS_res_P,dblT_P,dblP_P,dblR2_adjusted_P,dblR2_SE_P] = getR2(vecSperTrial_P,vecFitY_P,intK);
 	
+	%real
+	[vecMeanX,vecSemX,vecMeanY,vecSemY,vecQuantileAssignment,cellValsX,cellValsY]=getQuantiles(vecMperTrial,vecSperTrial,10);
+	vecMu = cellfun(@mean,cellValsX);
+	vecSd = cellfun(@std,cellValsX);
+	
+	%poisson
+	[vecMeanX,vecSemX,vecMeanY,vecSemY,vecQuantileAssignment,cellValsX,cellValsY]=getQuantiles(vecMperTrial_P,vecSperTrial_P,10);
+	vecMu_P = cellfun(@mean,cellValsX);
+	vecSd_P = cellfun(@std,cellValsX);
+	
+	figure
+	plot(vecMu,vecSd);
+	hold on
+	plot(vecMu_P,vecSd_P);
+	
 	%% save data
 	vecLogExpPdf = log10(vecExpPdf./sum(vecExpPdf(:)));
 	vecLogCounts = log10(vecCountsISI./sum(vecCountsISI(:)));
@@ -763,7 +778,7 @@ ylabel('Linearity of sd/mean (R^2)');
 fixfig;
 
 subplot(2,3,6)
-matSlopesNorm = matSlopes./matSlopes(4,:);
+matSlopesNorm = matSlopes;%./matSlopes(4,:);
 hold on;
 vecX = ones(size(matSlopesNorm(1,:)));
 swarmchart(vecX,matSlopesNorm(1,:),[30],matC(1,:),'marker','o','JitterWidth',0.2);

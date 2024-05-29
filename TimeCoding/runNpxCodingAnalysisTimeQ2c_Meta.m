@@ -176,7 +176,7 @@ drawnow;
 export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescalesAllPlots.tif')));
 export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescalesAllPlots.pdf')));
 
-
+return
 %% plot cv/timescale for real and poiss with/without jitter and for full pop and single neurons [2 x 2 x 2]
 vecTimescales = sAggData(1).vecTimescales;
 vecJitter = sAggData(1).vecJitter;

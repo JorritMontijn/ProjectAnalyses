@@ -12,6 +12,7 @@ function matMeanRateRand = getTRandData(matMeanRateIn,vecStimIdx,strType)
 	vecPopMeanFactor = vecOldMean ./ mean(vecOldMean);
 	vecOldSd = std(matMeanRateIn,[],1);
 	vecPopSdFactor = vecOldSd ./ mean(vecOldSd);
+	r=corr(vecOldMean',vecOldSd');
 	
 	%run
 	matMeanRateRand = matMeanRateIn;

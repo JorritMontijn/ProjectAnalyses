@@ -66,21 +66,22 @@ for intFile=1:numel(sDir)
 	if ~strcmp(sData.strRunStim,strRunStim) || size(sData.cellLRActPerQ,2) < 8 || any(flat(cellfun(@(x) any(isnan(x(:))),sData.cellLRActPerQ)))
 		continue;
 	end
-
+	
 	vecCounter(intType) = vecCounter(intType) + 1;
 	matMeanRate = sData.matMeanRate;
 	[intQuantiles,intStimNum,intStimCompN] = size(sData.cellLRActPerQ);
 	[intNeuronNum,intTrialNum] = size(matMeanRate);
-
+	
 	vecSplitPerfMu = mean(sData.matSplitPerf,2)';%Train once on all, test per quantile
 	vecQuantilePerf = sData.vecQuantilePerf;%Train+test per quantile
-
+	
 	matDecPerf_TrainAll(:,intType,vecCounter(intType)) = vecSplitPerfMu;
 	matDecPerf_TrainOnQ(:,intType,vecCounter(intType)) = vecQuantilePerf;
-
+	
 	%% aggregate data
 	cellAggLRActPerQ(:,:,:,intType,vecCounter(intType)) = sData.cellLRActPerQ;
 	cellAggPopMuPerQ(:,:,:,intType,vecCounter(intType)) = sData.cellPopMuPerQ;
+	
 end
 
 %% plot
@@ -94,9 +95,9 @@ matR_MuVar=nan(3,intRecs);
 hAggFig = figure;
 hAggAx = axes();
 hold on;
-for intType=1:numel(cellTypes)
+for intType=1%:numel(cellTypes)
 	strType = cellTypes{intType};
-
+	
 	%% average over all orthogonal (or adjacent?) stimuli
 	if intType == 3
 		dblStep = 1/4;
@@ -117,19 +118,64 @@ for intType=1:numel(cellTypes)
 	cellMidMu2 = num2cell(repmat(cellfun(@mean,cellUseLRActPerQ(intMidQ,:,2,:,:)),[5 1 1 1 1]));
 	cellMidSd1 = num2cell(repmat(cellfun(@std,cellUseLRActPerQ(intMidQ,:,1,:,:)),[5 1 1 1 1]));
 	cellMidSd2 = num2cell(repmat(cellfun(@std,cellUseLRActPerQ(intMidQ,:,2,:,:)),[5 1 1 1 1]));
-
+	
 	%cellUseLRActPerQ(:,:,1,:,:)  = cellfun(@(x,m,s) dblAggMu1+((x-m)/s),cellUseLRActPerQ(:,:,1,:,:),cellMidMu1,cellMidSd1,'UniformOutput',false);
 	%cellUseLRActPerQ(:,:,2,:,:)  = cellfun(@(x,m,s) dblAggMu2+((x-m)/s),cellUseLRActPerQ(:,:,2,:,:),cellMidMu2,cellMidSd2,'UniformOutput',false);
-
+	
+	global cellAct;
+	cellAct={};
 	for intQ=1:intQuantiles
 		%plot distros
 		vecAct1 = cell2vec(cellUseLRActPerQ(intQ,:,1,intType,:));
 		vecAct2 = cell2vec(cellUseLRActPerQ(intQ,:,2,intType,:));
+		
+		%save vecs
+		cellAct{1,intQ} = vecAct1;
+		cellAct{2,intQ} = vecAct2;
+	end
+	%get best fit
+	x = fminsearch(@fGenQuantDistros,[1 1]);
+	dblMuFactor = x(1);
+	dblSdFactor = x(2);
+	
+	%calculate theory
+	vecMu1 = cellfun(@mean,cellAct(1,:));
+	vecSd1 = cellfun(@std,cellAct(1,:));
+	vecMu2 = cellfun(@mean,cellAct(2,:));
+	vecSd2 = cellfun(@std,cellAct(2,:));
+	vecMu = (vecMu2 - vecMu1)/2;
+	vecSd = (vecSd1 + vecSd2)/2;
+	vecCV = vecSd./vecMu;
+	dblAvgCV = mean(vecCV);
+	
+	
+	vecDeltaMu = vecMu-mean(vecMu);
+	vecGenMu = dblMuFactor*vecDeltaMu+mean(vecMu);
+	vecGenSd = dblSdFactor*dblAvgCV*(dblMuFactor*vecDeltaMu+mean(vecMu));
+	
+	%plot
+	for intQ=1:intQuantiles
+		vecAct1 = cellAct{1,intQ};
+		vecAct2 = cellAct{2,intQ};
+		
 		vecCounts1 = histcounts(vecAct1,vecBinE);
 		vecCounts2 = histcounts(vecAct2,vecBinE);
-		plot(vecBinC,1*dblIntegralFactor*(vecCounts1/sum(vecCounts1))+intQ,'Color',[1 0 0]);
-		plot(vecBinC,1*dblIntegralFactor*(vecCounts2/sum(vecCounts2))+intQ,'Color',[0 0 1]);
+		vecNormCounts1 = vecCounts1/sum(vecCounts1);
+		vecNormCounts2 = vecCounts2/sum(vecCounts2);
+		
+		%real
+		plot(vecBinC,dblIntegralFactor*vecNormCounts1+intQ,'Color',[1 0 0]);
+		plot(vecBinC,dblIntegralFactor*vecNormCounts2+intQ,'Color',[0 0 1]);
+		
+		%theory
+		vecGenCounts1 = normpdf(vecBinC,-vecGenMu(intQ),vecGenSd(intQ));
+		vecGenNormCounts1 = vecGenCounts1 / sum(vecGenCounts1);
+		vecGenCounts2 = normpdf(vecBinC,vecGenMu(intQ),vecGenSd(intQ));
+		vecGenNormCounts2 = vecGenCounts2 / sum(vecGenCounts2);
+		plot(vecBinC,dblIntegralFactor*vecGenNormCounts1+intQ,'--','Color',[1 0 0]);
+		plot(vecBinC,dblIntegralFactor*vecGenNormCounts2+intQ,'--','Color',[0 0 1]);
 	end
+	
 	%finish plot
 	hold off;
 	set(gca,'ytick',0.5 + (1:intQuantiles),'yticklabel',1:5);
@@ -137,13 +183,13 @@ for intType=1:numel(cellTypes)
 	xlabel('LR activation');
 	title(sprintf('%s; Mean over orth stim pairs',strType));
 	fixfig;grid off
-
+	
 	%plot d', variance and distance in mean
 	matPooledSd = nan(intQuantiles,intStimNum,intRecs);
 	matMeanD = nan(intQuantiles,intStimNum,intRecs);
 	matPopMu = nan(intQuantiles,intStimNum,intRecs);
 	matPopSd = nan(intQuantiles,intStimNum,intRecs);
-
+	
 	matQ = nan(intQuantiles,intStimNum,intRecs);
 	for intRec=1:intRecs
 		for intQ=1:intQuantiles
@@ -154,11 +200,11 @@ for intType=1:numel(cellTypes)
 				matPooledSd(intQ,intOriIdx,intRec) = ((std(vecR1) + std(vecR2))/2);
 				matMeanD(intQ,intOriIdx,intRec)  = abs(mean(vecR1) - mean(vecR2));
 				matQ(intQ,intOriIdx,intRec) = intQ;
-
+				
 				dblPopMu1 = mean(cellUsePopMuPerQ{intQ,intOriIdx,1,intType,intRec});
 				dblPopMu2 = mean(cellUsePopMuPerQ{intQ,intOriIdx,2,intType,intRec});
 				matPopMu(intQ,intOriIdx,intRec) = (dblPopMu1 + dblPopMu2)/2;
-
+				
 				dblPopSd1 = std(cellUsePopMuPerQ{intQ,intOriIdx,1,intType,intRec});
 				dblPopSd2 = std(cellUsePopMuPerQ{intQ,intOriIdx,2,intType,intRec});
 				matPopSd(intQ,intOriIdx,intRec) = (dblPopSd1 + dblPopSd2)/2;
@@ -167,7 +213,7 @@ for intType=1:numel(cellTypes)
 	end
 	matColMap = redbluepurple(intQuantiles);
 	matColor2 = matColMap(matQ(:),:);
-
+	
 	h=subplot(2,3,2);
 	colormap(h,matColMap);
 	%scatter(mean(matPooledSd,2),mean(matMeanD,2),[],matColMap)
@@ -187,7 +233,7 @@ for intType=1:numel(cellTypes)
 		matMuV = squeeze(mean(matPopMu,2));
 		matSdV = squeeze(mean(matPopSd,2));
 		matDp = squeeze(mean(matDprime,2));
-
+		
 		indRem = any(matDp > 100,1) | any(isnan(matSdV),1) | any(isnan(matDp),1) | any(isnan(matMuV),1);
 		matSdV(:,indRem) = [];
 		matDp(:,indRem) = [];
@@ -197,15 +243,14 @@ for intType=1:numel(cellTypes)
 		matMuV = squeeze(mean(matPopMu,2));
 		matSdV = squeeze(mean(matPooledSd,2));
 		matDp = squeeze(mean(matDprime,2));
-
+		
 		indRem = any(matDp > 100,1) | any(isnan(matSdV),1) | any(isnan(matDp),1) | any(isnan(matMuV),1);
 		matSdV(:,indRem) = [];
 		matDp(:,indRem) = [];
 		matMuV(:,indRem) = [];
 	end
 	intRecs = sum(~indRem);
-%error is d prime correct? sd/mean in plot (2,3,2) seems different for for example SdFixed
-
+	
 	vecMeanDprime = mean(matDp,2);
 	vecSemDprime = std(matDp,[],2)./sqrt(intRecs);
 	vecMeanSd = mean(matSdV,2);
@@ -227,7 +272,7 @@ for intType=1:numel(cellTypes)
 	xlim([min(0,min(get(gca,'xlim'))) max(get(gca,'xlim'))]);
 	ylim([min(0,min(get(gca,'ylim'))) max(get(gca,'ylim'))]);
 	fixfig;
-
+	
 	h=subplot(2,3,3);
 	colormap(h,matColMap);
 	hold on
@@ -242,8 +287,8 @@ for intType=1:numel(cellTypes)
 	xlim([min(0,min(get(gca,'xlim'))) max(get(gca,'xlim'))]);
 	ylim([min(0,min(get(gca,'ylim'))) max(get(gca,'ylim'))]);
 	fixfig;
-
-
+	
+	
 	%corrs per rec
 	matFanoV = squeeze(matDp);
 	matSdV = squeeze(matSdV);
@@ -252,7 +297,7 @@ for intType=1:numel(cellTypes)
 		matR_Discr(intType,intRec) = corr(flat(matMeanD(:,:,intRec)),flat(matDprime(:,:,intRec)));
 		matR_MuVar(intType,intRec) = corr(flat(matMeanD(:,:,intRec)),flat(matPooledSd(:,:,intRec)));
 	end
-
+	
 	subplot(2,3,4)
 	dblStep = 0.1;
 	vecBinsE = -1:dblStep:1;
@@ -263,7 +308,7 @@ for intType=1:numel(cellTypes)
 	xlabel('Pearson correlation mean/sd');
 	title('muvar');
 	fixfig;
-
+	
 	subplot(2,3,5)
 	dblStep = 0.25;
 	vecBinsE = -1:dblStep:1;
@@ -275,7 +320,7 @@ for intType=1:numel(cellTypes)
 	xlabel('Pearson correlation mean vs d''');
 	title(sprintf('Pearson r(mu,d''), mu=%.3f, p=%.2e',nanmean(matR_Discr(intType,:)),pD));
 	fixfig;
-
+	
 	if intType == 2
 		subplot(2,3,6);
 		[h,p_RealShuff]=ttest(matR_MuVar(1,:),matR_MuVar(2,:));
@@ -287,7 +332,7 @@ for intType=1:numel(cellTypes)
 		export_fig(fullpath(strFigurePath,sprintf('QC1a_GainInvariance_%s_%s_%s.tif',strRunType,strRunStim,strType)));
 		export_fig(fullpath(strFigurePath,sprintf('QC1a_GainInvariance_%s_%s_%s.pdf',strRunType,strRunStim,strType)));
 	end
-
+	
 	%% add plot to agg fig
 	axes(hAggAx);
 	colormap(hAggAx,matColMap);
@@ -321,7 +366,7 @@ h2=subplot(2,3,2);hold on;plot([1 5],[dblChance dblChance],'--','color',[0.5 0.5
 h3=subplot(2,3,3);hold on;xlabel('Activity quantile');ylabel('\DeltaDecoding accuracy');
 for intType=1%:numel(cellTypes)
 	strType = cellTypes{intType};
-
+	
 	vecTrainAllMu = mean(matDecPerf_TrainAll(:,intType,:),3);
 	vecTrainAllSem = std(matDecPerf_TrainAll(:,intType,:),[],3)./sqrt(intRecs);
 	vecTrainOnQMu = mean(matDecPerf_TrainOnQ(:,intType,:),3);
@@ -338,7 +383,7 @@ for intType=1%:numel(cellTypes)
 		errorbar(h1,intQ,vecTrainAllMu(intQ),vecTrainAllSem(intQ),'x','color',matColMap(intQ,:));
 	end
 	text(h1,5,vecTrainAllMu(end),strType);
-
+	
 	axes(h2);
 	colormap(h2,matColMap);
 	cline(h2,1:5,vecTrainOnQMu,[],1:5);
@@ -346,7 +391,7 @@ for intType=1%:numel(cellTypes)
 		errorbar(h2,intQ,vecTrainOnQMu(intQ),vecTrainOnQSem(intQ),'x','color',matColMap(intQ,:));
 	end
 	text(h2,5,vecTrainOnQMu(end),strType);
-
+	
 	axes(h3);
 	colormap(h3,matColMap);
 	cline(h3,1:5,vecDiffMu,[],1:5);
@@ -365,4 +410,63 @@ if boolSaveFigs
 	%% save fig
 	export_fig(fullpath(strFigurePath,sprintf('QC1c_DecodingPerQuantile_%s_%s.tif',strRunType,strRunStim)));
 	export_fig(fullpath(strFigurePath,sprintf('QC1c_DecodingPerQuantile_%s_%s.pdf',strRunType,strRunStim)));
+end
+
+%% sd/mu per rec
+intType = 1;
+vecAggRealMu = [];
+vecAggRealSd = [];
+vecAggGenMu = [];
+vecAggGenSd = [];
+for intRec=1:intRecs
+	%plot distros
+	vecMu1 = nan(1,5);
+	vecSd1 = nan(1,5);
+	vecMu2 = nan(1,5);
+	vecSd2 = nan(1,5);
+	for intQ=1:5
+	vecAct1 = cell2vec(cellUseLRActPerQ(intQ,:,1,intType,intRec));
+	vecAct2 = cell2vec(cellUseLRActPerQ(intQ,:,2,intType,intRec));
+	
+	vecMu1(intQ) = mean(vecAct1);
+	vecSd1(intQ) = std(vecAct1);
+	vecMu2(intQ) = mean(vecAct2);
+	vecSd2(intQ) = std(vecAct2);
+	end
+	
+	vecMu = (vecMu2 - vecMu1)/2;
+	vecSd = (vecSd1 + vecSd2)/2;
+	vecCV = vecSd./vecMu;
+	dblAvgCV = mean(vecCV);
+	
+	
+	vecDeltaMu = vecMu-mean(vecMu);
+	vecGenMu = dblMuFactor*vecDeltaMu+mean(vecMu);
+	vecGenSd = dblSdFactor*dblAvgCV*(dblMuFactor*vecDeltaMu+mean(vecMu));
+	
+	%save
+	vecAggRealMu = [vecAggRealMu vecMu];
+	vecAggRealSd = [vecAggRealSd vecSd];
+	vecAggGenMu = [vecAggGenMu vecGenMu];
+	vecAggGenSd = [vecAggGenSd vecGenSd];
+end
+
+vecRealCV = vecAggRealSd./vecAggRealMu;
+vecGenCV = vecAggGenSd./vecAggGenMu;
+figure
+h=scatter(vecAggRealSd,vecAggGenSd,'o');
+h.MarkerFaceColor=lines(1);
+h.MarkerEdgeColor='none';
+hold on
+plot([0 1.5],[0 1.5],'k--');
+[R,P,RL,RU] = corrcoef(vecAggRealSd,vecAggGenSd);
+xlabel('Quantile sd if CV were fixed (theory)');
+ylabel('Real quantile (data)');
+title(sprintf('Pearson corr,r=%.3f,p=%.3e',R(2),P(2)));
+fixfig;
+
+if boolSaveFigs
+	%% save fig
+	export_fig(fullpath(strFigurePath,sprintf('QC1d_SdPerQuantile_%s_%s.tif',strRunType,strRunStim)));
+	export_fig(fullpath(strFigurePath,sprintf('QC1d_SdPerQuantile_%s_%s.pdf',strRunType,strRunStim)));
 end

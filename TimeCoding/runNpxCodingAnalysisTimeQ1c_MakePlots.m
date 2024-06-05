@@ -622,22 +622,48 @@ for intRec=1:intRecNum %19 || weird: 11
 		plot(vecT,vecLinCV);
 		set(gca,'xscale','log','yscale','log')
 		
+		%% plot quantiles
+		vecPopRate = sum(matData,1);
+		figure
+		subplot(2,3,1)
+		vecBinE = 0:50:1200;
+		vecBinC = vecBinE(2:end)-diff(vecBinE(1:2))/2;
+		vecPopR = histcounts(vecPopRate,vecBinE);
+		plot(vecBinC,vecPopR);hold on
+		%plot quantiles
+		[vecSortedR,vecReorder]=sort(vecPopRate);
+		dblQsize = 960/5;
+		vecQedges = dblQsize:dblQsize:959;
+		for i =1:numel(vecQedges)
+			plot(vecSortedR(vecQedges(i))*[1 1],[0 150]);
+		end
+		
+		subplot(2,3,2);
+		colormap(redbluepurple);
+		[coeff,score,latent,tsquared,explained,mu] = pca(matData);
+		h=scatter(coeff(:,1),coeff(:,2),[],vecPopRate,'marker','o');
+		h.MarkerFaceColor='flat';
+		h.MarkerEdgeColor='none';
+		colorbar
+		
 		%% 35 54
 		matCol=redbluepurple(5);
-		for i=35
+		n1 = 83;%35
+		n2 = 86;
+
 			cla;hold on;
-			vec1 = matData(i,:)+rand(1,960)-0.5;
-			vec2 = matData(i+1,:)+rand(1,960)-0.5;
+			vec1 = matData(n1,:);%+rand(1,960)-0.5;
+			vec2 = matData(n2,:);%+rand(1,960)-0.5;
 			vecTot =vec1+vec2;
 			[vecMeanX,vecSemX,vecMeanY,vecSemY,vecQuantileAssignment] = getQuantiles(vecTot,vecTot,5);
 			for j=1:5
 				scatter(vec1(vecQuantileAssignment==j),vec2(vecQuantileAssignment==j),[],matCol(j,:),'filled')
 			end
 			title(sprintf('%d',i))
-		xlim([0 100]);
-		ylim([0 50]);
+		%xlim([0 100]);
+		%ylim([0 100]);
 		%pause
-		end
+
 	end
 	close all;
 end

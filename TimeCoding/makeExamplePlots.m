@@ -193,7 +193,7 @@ ylim(vecLim);
 zlim(vecLim);
 drawnow;
 
-%% plot ring manifold and cone manifold
+%% plot cone manifold
 intNumP = 50;
 vecP = linspace(0,2*pi,intNumP);
 dblFactor = 0.5;
@@ -219,7 +219,7 @@ matR = [...
 	-sin(b)			cos(b)*sin(c)						cos(b)*cos(c)]';
 	
 %build base cone
-r = linspace(0,0.6,intNumP) ;
+r = linspace(0,0.55,intNumP) ;
 th = linspace(0,2*pi,intNumP) ;
 [R,T] = meshgrid(r,th) ;
 X = R.*cos(T) ;
@@ -233,10 +233,10 @@ X = reshape(matRotP(1,:)',size(X));
 Y = reshape(matRotP(2,:)',size(Y));
 Z = reshape(matRotP(3,:)',size(Z));
 
-%colormap(redbluepurple(intNumP));
-%C = repmat(r,[intNumP 1]);
-colormap(circcol(intNumP));
-C = repmat(th',[1 intNumP]);
+colormap(redbluepurple(intNumP));
+C = repmat(r,[intNumP 1]);
+%colormap(circcol(intNumP));
+%C = repmat(th',[1 intNumP]);
 h=surf(X,Y,Z,C,'edgecolor','none','facealpha',0.5);
 
 for i=3[]%1:5%[1 2 4]%3 5];%1:numel(vecFactor)

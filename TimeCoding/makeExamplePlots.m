@@ -237,9 +237,9 @@ colormap(redbluepurple(intNumP));
 C = repmat(r,[intNumP 1]);
 %colormap(circcol(intNumP));
 %C = repmat(th',[1 intNumP]);
-h=surf(X,Y,Z,C,'edgecolor','none','facealpha',0.5);
+%h=surf(X,Y,Z,C,'edgecolor','none','facealpha',0.5);
 
-for i=3[]%1:5%[1 2 4]%3 5];%1:numel(vecFactor)
+for i=[]%3%1:5%[1 2 4]%3 5];%1:numel(vecFactor)
 	
 	
 	%build base ring
@@ -277,13 +277,13 @@ end
 %zlim([-1.1 1.1]);
 set(gcf,'Renderer','zbuffer')
 drawnow;
-%%{
 %patch([-1.1 -1.1 1.1 1.1],[-1.1 1.1 1.1 -1.1],dblPlaneHeight*[1 1 1 1],[0.9 0.9 0.9],...
 %	'FaceAlpha',0.2,'FaceColor',[0.5 0.5 0.5],'EdgeColor','none');
 %h= cline(vecX,vecY,dblPlaneHeight*ones(size(vecX)),1:length(vecX),true);
-%set(h,'LineWidth',4,'EdgeColor','interp')
-%}
-%%{
+h=surf(X,Y,0*Z,C,'edgecolor','none','facealpha',0.5);
+
+set(h,'LineWidth',4,'EdgeColor','interp')
+
 %lighting and stuff
 
 hold off

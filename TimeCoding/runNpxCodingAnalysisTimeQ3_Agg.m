@@ -144,21 +144,17 @@ for intRec=1:intRecNum %19 || weird: 11
 		clear sData;
 		for intScale=1:intTimescaleNum
 			%%
+			%what is better model for pop activity? multivariate gaussian noise or fixed sd/mu over a
+			%gain-scaling axis?
 			dblTimescale = vecTimescales(intScale);
 			matCounts = cellCounts{intScale};
-			[intNumN,intNumT] = size(matCounts);
 			vecRealMean = matMean(:,intScale);
 			vecRealSd = matSd(:,intScale);
 			
-			vecRealCV = vecRealSd./vecRealMean;
-			
-			%what is better model for pop activity? multivariate gaussian noise or fixed sd/mu over a
-			%gain-scaling axis?
-			
-			
 			%% define source parameters
-			vecReqMu = vecRealMean;
-			vecReqSd = vecRealSd;
+			[intNumN,intNumT] = size(matCounts);
+			vecReqMu = mean(matCounts,2);
+			vecReqSd = std(matCounts,[],2);
 			vecReqVar = vecReqSd.^2;
 			matReqCov = diag(vecReqVar);
 			

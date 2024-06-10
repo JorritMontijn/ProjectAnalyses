@@ -79,12 +79,15 @@ for intRec=1:intRecNum %19 || weird: 11
 	intOriNum = numel(vecUnique);
 	intRepNum = min(vecPriorDistribution);
 	dblStimDur = median(vecStimOffTime - vecOrigStimOnTime);
+	vecSpNum(intRec) = mean(sum(matData))
+	vecCellNum(intRec) = size(matData,1)
 	if mean(sum(matData)) < 90%90 / 50
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
 	else
 		fprintf('Running %s... [%s]\n',strThisRec,getTime);
 	end
+	continue
 	%% go through types
 	clear sAggData;
 	vecRunTypes = 1:numel(cellTypes);

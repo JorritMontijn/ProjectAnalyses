@@ -216,7 +216,7 @@ for intRec=1:intRecNum
 				%%
 				cellSpikeTimes = cell(1,intNumN);
 				if strcmp(strRunStim,'NM')
-					
+					error to do
 					%shuffle trial ids
 					cellSpikeTimesPerCellPerTrial = cell(intNumN,intOrigTrialNum);
 					for intN=1:intNumN

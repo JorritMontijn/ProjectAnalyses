@@ -164,6 +164,7 @@ end
 %% plot mean/sd
 figure;maxfig;
 subplot(2,3,1)
+matMean = squeeze(matMu(:,3,:));
 matVar = squeeze(matSd(:,3,:));
 intVarNum = size(matVar,1);
 vecMean = mean(matVar,2);
@@ -195,10 +196,19 @@ for i=1:intVarNum
 	end
 	%matP(i,i) = 1;
 end
-intComps = (intVarNum^2-intVarNum)/2;
-matP = matP*intComps;
+vecP_corr = bonf_holm(matP(~isnan(matP)));
+matP_corr = nan(intVarNum,intVarNum);
+k=0;
+for i=1:intVarNum
+	for j=(i+1):intVarNum
+		k=k+1;
+		matP_corr(i,j) = vecP_corr(k);
+	end
+	%matP(i,i) = 1;
+end
+matP_corr = matP_corr';
 subplot(2,3,3);
-h = heatmap(matP);
+h = heatmap(matP_corr);
 h.CellLabelFormat = '%.3e';
 h.ColorLimits = [0 0.05];
 h.XDisplayLabels = cellTypes;
@@ -221,7 +231,7 @@ errorbar(vecMean,vecSem,'linestyle','none','marker','x');
 set(gca,'xtick',1:numel(cellTypes),'xticklabel',cellTypes);
 ylabel('Pop rate variability in sd (Hz)');
 xlim([0.5 intVarNum+0.5]);
-ylim([0 250]);
+%ylim([0 250]);
 
 %plot normalized
 subplot(2,3,5);cla;

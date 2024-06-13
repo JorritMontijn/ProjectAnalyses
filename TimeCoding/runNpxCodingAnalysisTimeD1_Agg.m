@@ -7,9 +7,10 @@ make plots of IFR distros for real, ISI shuffle, shufftid and uniform
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
 intRunDataType = 1;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
-cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform'};
+cellTypes = {'Real','Poiss','ShuffTid','PoissGain','Shuff','Uniform'};
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
 runHeaderPopTimeCoding;
+vecTimescales = 1/3 * (10.^(-2:0.5:0));
 
 %% go through recs
 tic
@@ -92,6 +93,9 @@ for intRec=1:intRecNum %19 || weird: 11
 	matISIsByType = nan(numel(cellTypes),numel(vecISI_Centers));
 	vecMedianISI = nan(numel(cellTypes),1);
 	vecMeanISI = nan(numel(cellTypes),1);
+	matMu = nan(numel(cellTypes),numel(vecTimescales));
+	matSd = nan(numel(cellTypes),numel(vecTimescales));
+	cellData = cell(numel(cellTypes),numel(vecTimescales));
 	for intType=1:numel(cellTypes)
 		strType = cellTypes{intType};
 		
@@ -121,10 +125,41 @@ for intRec=1:intRecNum %19 || weird: 11
 		matISIsByType(intType,:) = vecCounts;
 		vecMedianISI(intType) = median(vecAllSpikeT);
 		vecMeanISI(intType) = mean(vecAllSpikeT);
+		
+		%% analysis 2: sd at different timescales
+		dblMaxDur = vecPseudoStartT(end)+dblStimDur;
+		for intB = 1:numel(vecTimescales)
+			dblW = vecTimescales(intB);
+			vecE = 0:dblW:dblMaxDur;
+			vecRate = histcounts(vecAllSpikeT,vecE)./dblW;
+			matMu(intType,intB) = mean(vecRate);
+			matSd(intType,intB) = std(vecRate);
+			cellData{intType,intB} = vecRate;
+		end
 	end
-	% plot
+	%% plot
 	matNormISIsByType = (1+matISIsByType) ./ (sum(matISIsByType,2)+1);
-	figure
+	figure;maxfig;
+	for intB = 1:numel(vecTimescales)
+		subplot(2,3,1+intB);hold on
+		vecRateBins = linspace(0,max(cell2vec(cellData(:,intB))),15);
+		%vecRateBins = linspace(0,1500,16);
+		
+		cellLegend = cellTypes;
+		for intType=1:numel(cellTypes)
+			vecRC = histcounts(cellData{intType,intB},vecRateBins);
+			stairs(vecRateBins(2:end)-diff(vecRateBins(1:2))/2,vecRC);
+			
+			cellLegend{intType} = [cellLegend{intType} sprintf(',mu=%.0f,sd=%.0f',matMu(intType,intB),matSd(intType,intB))];
+		end
+		legend(cellLegend)
+		title(sprintf('%.0f ms',1000*vecTimescales(intB)));
+		xlabel('Pop rate (Hz)')
+		ylabel('# of bins');
+	end
+	
+	
+	subplot(2,3,1)
 	plot(vecISI_Centers*1000,1+matISIsByType)
 	set(gca,'yscale','log')
 	xlabel('Inter-spike interval (ms)');
@@ -152,6 +187,10 @@ for intRec=1:intRecNum %19 || weird: 11
 		'matISIsByType',...
 		'strRec',...
 		'dblRemOnset',...
-		'vecLogIntegral');close all;
+		'vecLogIntegral',...
+		'vecTimescales',...
+		'matMu',...
+		'matSd',...
+		'cellData');close all;
 end
 toc

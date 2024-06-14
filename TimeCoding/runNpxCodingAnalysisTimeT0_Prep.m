@@ -14,7 +14,7 @@ q2: How precise are spike times in the natural movie repetitions?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 1;
+intRunDataType = 2;
 strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
 cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform','RandTid','RandTxClass'};
 boolFixSpikeGroupSize = false;

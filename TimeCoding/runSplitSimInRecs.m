@@ -174,7 +174,7 @@ sRec.matConn = matConn;
 save(fullpath(strDataPathSim,strFile),'-struct','sRec');
 
 %% save V1 per rec
-for intRec=[]%1:numel(vecNeuronsPerRec)
+for intRec=1:numel(vecNeuronsPerRec)
 	strFile = [strSimName '_MatchedTo' cellRec{intRec} '.mat'];
 	fprintf('   Saving %d/%d - %s [%s]\n',intRec,numel(vecNeuronsPerRec),strFile,getTime);
 	%select

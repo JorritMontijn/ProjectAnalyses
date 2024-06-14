@@ -155,6 +155,14 @@ for intRec=1:intRecNum %19 || weird: 11
 		%% go through pop spikes and group into sets of 20
 		fprintf('   Collecting n-spike groups and decoding for %s-%s [%s]\n',strRec,strType,getTime);
 		[sSpikeGroup,matSpikeGroupData] = getSpikeGroupData(cellSpikeTimesPerCellPerTrial,intSpikeGroupSize,vecOriIdx,vecStimOnTime,vecTime,vecIFR);
+		
+		%delete outliers
+		dblRemOutliers = 0;%0.05
+		[vecSortedRate,vecSort]=sort(intSpikeGroupSize./[sSpikeGroup.Duration]');
+		vecRem = vecSort([1:round(numel(vecSortedRate)*(dblRemOutliers/2)) round(numel(vecSortedRate)*(1-dblRemOutliers/2)):numel(vecSortedRate)]);
+		sSpikeGroup(vecRem) = [];
+		matSpikeGroupData(vecRem,:) = [];
+		
 		intSpikeGroupNum = numel(sSpikeGroup);
 		if intSpikeGroupNum < intTrialNum,continue;end
 		
@@ -326,10 +334,15 @@ for intRec=1:intRecNum %19 || weird: 11
 		[vecSpikeTimes,vecSort]=sort(vecSpikeTimes);
 		vecSpikeNeuron = vecSpikeNeuron(vecSort);
 		
+		%match local groups to global groups
+		vecGlobalGroups = find(vecSpikeGroupTrialNumber==intPlotTrial);
+		vecGlobalLatencies = vecSpikeGroupLatency(vecGlobalGroups);
+		
 		%assign to spike group
 		intAssignGroups = floor(numel(vecSpikeTimes)/intSpikeGroupSize);
 		vecGroupStart = nan(1,intAssignGroups);
 		vecGroupStop = nan(1,intAssignGroups);
+		vecGroupLatency = nan(1,intAssignGroups);
 		for intGroup=1:intAssignGroups
 			%get data
 			intEndSpike = intGroup*intSpikeGroupSize;
@@ -337,11 +350,16 @@ for intRec=1:intRecNum %19 || weird: 11
 			vecSpikeGroup(vecUseSpikes) = intGroup;
 			vecGroupStart(intGroup) = vecSpikeTimes(vecUseSpikes(1));
 			vecGroupStop(intGroup) = vecSpikeTimes(vecUseSpikes(end));
+			vecGroupLatency(intGroup) = mean(vecSpikeTimes(vecUseSpikes));
 		end
 		vecSpikeGroup(isnan(vecSpikeGroup))=0;
 		
-		%match local groups to global groups
-		vecGlobalGroups = find(vecSpikeGroupTrialNumber==intPlotTrial);
+		%remove groups
+		indRem = ~ismember(vecGroupLatency,vecGlobalLatencies);
+		vecGroupStart(indRem) = [];
+		vecGroupStop(indRem) = [];
+		vecGroupLatency(indRem) = [];
+		intAssignGroups = numel(vecGroupLatency);
 		
 		%calc local ifr
 		[vecT,vecR]=getIFR(vecSpikeTimes,0,1);
@@ -400,7 +418,6 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		% plot example trial
 		strLabelX = 'avg pop rate (Hz)';
-		strLabelY = 'Avg cell tuning (t-stat)';
 		figure;maxfig;
 		
 		%make plot
@@ -439,9 +456,24 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		% plot groups of whole recording
 		%sort
-		[vecSortedIfr,vecSort]=sort(vecSpikeGroupAvgIFR);
+		%[vecSortedIfr,vecSort]=sort(vecSpikeGroupAvgIFR);
+		[vecSortedIfr,vecSort]=sort(intSpikeGroupSize./vecSpikeGroupDuration);
 		vecSortedCorr = vecSpikeGroupCorrect(vecSort);
-		vecSortedTune = vecSpikeGroupAvgTuningOfCells(vecSort);
+		if 0 %tuning
+			strProp = 'Avg cell tuning (t-stat)';
+			vecLimY = [2 12];
+			vecLimX = [0 4000];
+			vecSortedProp = vecSpikeGroupAvgTuningOfCells(vecSort);
+			vecProp = vecSpikeGroupAvgTuningOfCells;
+		else % # cells
+			strProp = '# of contrib cells';
+			vecLimY = [14 17];
+			vecLimX = [0 4000];
+			vecSortedProp = vecSpikeGroupNumOfCells(vecSort);
+			vecProp = vecSpikeGroupNumOfCells;
+		end
+		strLabelY = strProp;
+
 		vecSortedLat = vecSpikeGroupLatency(vecSort);
 		%remove long durs
 		%indRem = vecSortedDur > 0.05;
@@ -449,12 +481,12 @@ for intRec=1:intRecNum %19 || weird: 11
 		indRem = [];
 		vecSortedIfr(indRem) = [];
 		vecSortedCorr(indRem) = [];
-		vecSortedTune(indRem) = [];
+		vecSortedProp(indRem) = [];
 		vecSortedLat(indRem) = [];
 		
 		%calculate confidence per bin of equal size
 		intQuantileNum = 10;
-		[vecMeanIfr,vecSemIfr,vecMeanTune,vecSemTune,vecQuantile]=getQuantiles(vecSortedIfr,vecSortedTune,intQuantileNum);
+		[vecMeanIfr,vecSemIfr,vecMeanProp,vecSemProp,vecQuantile]=getQuantiles(vecSortedIfr,vecSortedProp,intQuantileNum);
 		
 		%calculate accuracy per bin of equal size
 		intSperBin = floor(numel(vecSortedIfr)/intQuantileNum);
@@ -472,33 +504,33 @@ for intRec=1:intRecNum %19 || weird: 11
 			cellValsCorr{intBin} = vecSortedCorr(vecSamples);
 			vecSampleGroup(vecSamples) = intBin;
 		end
-		[r,p]=corr(vecSortedIfr,vecSortedTune);
+		[r,p]=corr(vecSortedIfr,vecSortedProp);
 		[r2,p2]=corr(vecSortedIfr,vecSortedCorr);
 		
 		
-		[bandwidth,density,X,Y]=kde2d([vecSortedIfr vecSortedTune],512);
+		[bandwidth,density,X,Y]=kde2d([vecSortedIfr vecSortedProp],512);
 		h=subplot(2,4,2);
 		imagesc(X(1,1:end),Y(1:end,1),density);colormap(h,flipud(gray(1024)));axis xy;
 		xlabel(sprintf('%d-spike block %s',intSpikeGroupSize,strLabelX));
 		ylabel(strLabelY);
-		xlim([200 1200]);
-		ylim([2 12]);
+		xlim([0 2000]);
+		%ylim(vecLimY);
 		
 		subplot(2,4,6)
 		hold on
-		h=scatter(vecSortedIfr,vecSortedTune,100,[0.2 0.2 0.2],'.');
+		h=scatter(vecSortedIfr,vecSortedProp,100,[0.2 0.2 0.2],'.');
 		h.MarkerFaceAlpha = 0.1;
 		h.MarkerEdgeAlpha = 0.1;
-		h2=scatter(vecSpikeGroupAvgIFR(vecGlobalGroups),vecSpikeGroupAvgTuningOfCells(vecGlobalGroups),200,matCol(2:end,:),'.');
+		h2=scatter(vecSpikeGroupAvgIFR(vecGlobalGroups),vecProp(vecGlobalGroups),200,matCol(2:end,:),'.');
 		hold off
 		xlabel(sprintf('%d-spike block %s',intSpikeGroupSize,strLabelX));
 		ylabel(strLabelY);
-		xlim([200 1200]);
-		ylim([2 12]);
+		xlim(vecLimX);
+		%ylim(vecLimY);
 		title(sprintf('r=%.3f, p=%.3e',r,p));
 		
 		subplot(2,4,8)
-		vecBinsE = 0:20:max(vecSortedIfr);
+		vecBinsE = 0:25:max(vecSortedIfr);
 		vecBinsC = vecBinsE(2:end)-diff(vecBinsE(1:2))/2;
 		[vecCounts,vecMeans,vecSDs] = makeBins(vecSortedIfr,vecSortedCorr,vecBinsE);
 		hold on
@@ -511,8 +543,8 @@ for intRec=1:intRecNum %19 || weird: 11
 		title(sprintf('r=%.3f, p=%.3f',r2,p2));
 		
 		subplot(2,4,4)
-		[vecCounts,vecMeans,vecSDs] = makeBins(vecSortedIfr,vecSortedTune,vecBinsE);
-		indPlot = vecCounts>100;
+		[vecCounts,vecMeans,vecSDs] = makeBins(vecSortedIfr,vecSortedProp,vecBinsE);
+		indPlot = vecCounts>25;
 		hold on
 		plot(vecBinsC(indPlot),vecMeans(indPlot),'color',lines(1));
 		plot(vecBinsC(indPlot),vecMeans(indPlot)+vecSDs(indPlot)./sqrt(vecCounts(indPlot)),'color',lines(1));
@@ -520,8 +552,8 @@ for intRec=1:intRecNum %19 || weird: 11
 		hold off
 		xlabel(sprintf('%d-spike block %s',intSpikeGroupSize,strLabelX));
 		ylabel(strLabelY);
-		title(sprintf('r=%.3f, p=%.3e',r2,p2));
-		xlim([200 1200]);
+		
+		xlim([0 2500]);
 		%ylim([5.5 6.5]);
 		
 		%anova corr
@@ -542,13 +574,15 @@ for intRec=1:intRecNum %19 || weird: 11
 		%anova conf
 		indRemS = vecSampleGroup==0;
 		vecSampleGroup(indRemS) = [];
-		vecSampleConf = vecSortedTune(~indRemS);
+		vecSampleConf = vecSortedProp(~indRemS);
 		[pA2,table2,stats2] = anova1(vecSampleConf,vecSampleGroup,'off');
 		[c2,~,~,gnames2] = multcompare(stats,'CType','bonferroni','display','off');
 		
 		subplot(2,4,3)
 		hold on
-		errorbar(vecMeanIfr,vecMeanTune,vecSemTune,vecSemTune,vecSemIfr,vecSemIfr,'color',lines(1));
+		
+		%errorbar(vecMeanIfr,vecMeanTune,vecSemTune,vecSemTune,vecSemIfr,vecSemIfr,'color',lines(1));
+		errorbar(vecMeanIfr,vecMeanProp,vecSemProp,vecSemProp,vecSemIfr,vecSemIfr,'color',lines(1));
 		hold off
 		xlabel(sprintf('%d-spike block %s',intSpikeGroupSize,strLabelX));
 		ylabel(strLabelY);

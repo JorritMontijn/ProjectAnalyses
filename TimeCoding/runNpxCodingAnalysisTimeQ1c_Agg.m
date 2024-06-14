@@ -35,8 +35,8 @@ for intRec=1:intRecNum %19 || weird: 11
 		%vecNeuronPrefOri = pi-[sLoad.sNeuron.PrefOri];
 		vecNeuronType = [sLoad.sNeuron.Types]; %1=pyr,2=interneuron
 		%swap types to match npx
-		vecSwap = [2 1];
-		vecNeuronType = vecSwap(vecNeuronType);
+		%vecSwap = [2 1];
+		%vecNeuronType = vecSwap(vecNeuronType);
 		intUseMaxRep = 40;
 		indRemTrials = vecTrialRepetition>intUseMaxRep;
 		vecOri180(indRemTrials) = [];
@@ -123,7 +123,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		
 		%% cell type (narrow/broad)
 		%get cell props
-		vecNeuronType = sSource.vecNeuronType(indResp); %1=interneuron/narrow,2=pyramidal/broad
+		vecNeuronType = sSource.vecNeuronType; %1=interneuron/narrow,2=pyramidal/broad
 		vecSupraGranuInfra = sSource.vecSupraGranuInfra;%1=supra,2=granu,3=infra
 		
 		%% build trial-neuron cell matrix
@@ -561,7 +561,7 @@ for intRec=1:intRecNum %19 || weird: 11
 		%%
 		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.tif',strThisRec,strType,strSGS,strOnset)));
 		export_fig(fullpath(strFigurePathSR,sprintf('A1c_PopActDynamics_%s_%s_SGS%s%s.pdf',strThisRec,strType,strSGS,strOnset)));
-		return
+		
 		%% save data
 		save(fullpath(strTargetDataPath,sprintf('Q1cData_%s_%s_SGS%s%s.mat',strThisRec,strType,strSGS,strOnset)),...
 			'vecStimOnTime',...

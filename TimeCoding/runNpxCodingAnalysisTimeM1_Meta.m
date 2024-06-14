@@ -33,7 +33,7 @@ intOnsetType = 0; %normal (0) or rem onset (1)
 cellConnType = {'Least','Most'};
 
 %% define qualifying areas
-boolSaveFig = true;
+boolSaveFig = false;
 cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
@@ -262,10 +262,10 @@ for intConnType=1:numel(cellConnType)
 					[~,~,~,~,~,cellValsSuff_Suff,cellValsVar_Suff]=getQuantiles(vecSuffixSource,vecSource,intQuantileNum);
 					
 					%assign output
-					eval(['cellVals' strSuffix '_' strSuffix ' = cellValsSuff_Suff;']);
-					eval(['cellVals' strVarShort '_' strSuffix ' = cellValsVar_Suff;']);
-					eval(['cellQuantile' strSuffix '_' strSuffix '(intFile,:) = cellValsSuff_Suff;']);
-					eval(['cellQuantile' strVarShort '_' strSuffix '(intFile,:) = cellValsVar_Suff;']);
+					eval(['cellVals' strSuffix '_' strSuffix '_' strType ' = cellValsSuff_Suff;']);
+					eval(['cellVals' strVarShort '_' strSuffix '_' strType ' = cellValsVar_Suff;']);
+					eval(['cellQuantile' strSuffix '_' strSuffix '_' strType '(intFile,:) = cellValsSuff_Suff;']);
+					eval(['cellQuantile' strVarShort '_' strSuffix '_' strType '(intFile,:) = cellValsVar_Suff;']);
 				end
 			end
 		end
@@ -373,12 +373,12 @@ for intConnType=1:numel(cellConnType)
 			strSuffix = cellSuffices{intSuffixIdx};
 			for intVar=1:numel(cellVars)
 				strVar = cellVars{intVar};
-				eval(['cellY = cellQuantile' strVar '_' strSuffix ';']);
+				eval(['cellY = cellQuantile' strVar '_' strSuffix '_' strType ';']);
 				
 				
 				subplot(2,6,intVar)
 				matQuantY = cellfun(@mean,cellY);
-				cellSummaryMatrices{intType,intVar,intSuffixIdx} = matQuantY;
+				cellSummaryMatrices{intType,intVar,intSuffixIdx,intConnType} = matQuantY;
 				
 				matQuantY_Z = zscore(matQuantY,[],2);
 				matX = repmat(1:10,[intRecNum 1]);
@@ -415,8 +415,13 @@ for intConnType=1:numel(cellConnType)
 			end
 		end
 	end
+end
+
+%% plot real and shufftid normalized to uniform
+intPlotType = 3; %dur/conf/ifr => ifr is v1, others are only within v2
+for intConnType=1:numel(cellConnType)
+	strConnType = cellConnType{intConnType};
 	
-	%% plot real and shufftid normalized to uniform
 	%test vs 0
 	intTestVarNum = 6;
 	matP = nan(2,numel(cellVars));
@@ -440,12 +445,9 @@ for intConnType=1:numel(cellConnType)
 		%transform variable names and calculate p
 		for intVar=1:numel(cellVars)
 			strVar = cellVars{intVar};
-			eval(['cellY = cellQuantile' strVar '_' strSuffix ';']);
-			
-			
-			matQuantY_Real = cellSummaryMatrices{1,intVar,i};
-			matQuantY_ShuffTid = cellSummaryMatrices{2,intVar,i};
-			matQuantY_Uniform = cellSummaryMatrices{3,intVar,i};
+			matQuantY_Real = cellSummaryMatrices{1,intVar,i,intConnType};
+			matQuantY_ShuffTid = cellSummaryMatrices{2,intVar,i,intConnType};
+			matQuantY_Uniform = cellSummaryMatrices{3,intVar,i,intConnType};
 			
 			for intRealShuff=1:2
 				if intRealShuff == 1
@@ -470,7 +472,7 @@ for intConnType=1:numel(cellConnType)
 				errorbar(hSummary(intRealShuff),(intVar*2-1),r,r-r_CI(1),r-r_CI(2),strPlot,'color',matCol(intVar,:));
 				
 				%save
-				if i == 3 && intRealShuff==1
+				if i == intPlotType && intRealShuff==1
 					matR(intVar,:,intConnType) = [r r_CI r_SE];
 				end
 			end
@@ -498,7 +500,7 @@ for intConnType=1:numel(cellConnType)
 	
 end
 
-%% plot most/least comparison
+% plot most/least comparison
 matLeastR = matR(:,:,1); %[r rci_lo r_ci_hi r_se]
 matMostR = matR(:,:,2); %[r rci_lo r_ci_hi r_se]
 

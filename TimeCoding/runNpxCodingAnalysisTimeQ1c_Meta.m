@@ -26,7 +26,7 @@ on binning size? What is the optimal time window?
 clear all;%close all;
 cellTypes = {'Real','ShuffTid','Uniform'};%'Real','ShuffTid'};
 cellRunTypes = {'RecTopo','SimDG18'};
-intRunType = 2; %topo or sim
+intRunType = 1; %topo or sim
 
 boolFixedSpikeGroupSize = false;
 intGroupOrDecile = 1;
@@ -149,6 +149,11 @@ for intType=1:numel(cellTypes)
 		%pSpike_IFR_Tune = sLoad.pSpike_IFR_Tune;
 		vecTuningPerCell = sLoad.vecTuningPerCell;
 		vecRatePerCell = sLoad.vecRatePerCell;
+		
+		%delete outliers
+		[vecSortedRate,vecSort]=sort(intSpikeGroupSize./[sSpikeGroup.Duration]');
+		vecRem = vecSort([1:round(numel(vecSortedRate)*0.025) round(numel(vecSortedRate)*0.975):numel(vecSortedRate)]);
+		sSpikeGroup(vecRem) = [];
 		
 		%% create derived variables
 		%put confidence in deciles per recording

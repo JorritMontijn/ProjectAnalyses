@@ -31,18 +31,19 @@ sFiles = dir ([strTargetDataPath strTag '*' strOnset '.mat']);
 intRecNum = numel(sFiles);
 
 %% pre-allocate
-figure;maxfig;
 cellTypes =  {'Real','Poiss','ShuffTid','RandTid','RandTxClass','Uniform'};
-intPlotNum = 2*numel(cellTypes);
-vecH = nan([1 intPlotNum]);
-vecH1_5 = nan([1 intPlotNum]);
-vecH2 = nan([1 intPlotNum]);
-for intType=1:(intPlotNum)
-	vecH(intType) = subplot(3,intPlotNum,intType);hold on;
-	vecH1_5(intType) = subplot(3,intPlotNum,intType+intPlotNum);hold on;
-	vecH2(intType) = subplot(3,intPlotNum,intType+2*intPlotNum);hold on;
+if boolSingleRecPlots
+	figure;maxfig;
+	intPlotNum = 2*numel(cellTypes);
+	vecH = nan([1 intPlotNum]);
+	vecH1_5 = nan([1 intPlotNum]);
+	vecH2 = nan([1 intPlotNum]);
+	for intType=1:(intPlotNum)
+		vecH(intType) = subplot(3,intPlotNum,intType);hold on;
+		vecH1_5(intType) = subplot(3,intPlotNum,intType+intPlotNum);hold on;
+		vecH2(intType) = subplot(3,intPlotNum,intType+2*intPlotNum);hold on;
+	end
 end
-
 
 cellSlopes = {};
 cellR2 = {};
@@ -88,20 +89,13 @@ for intFile=1:intRecNum
 		matSd = sAggData(intUseEntry).matSd;
 		matCV = sAggData(intUseEntry).matCV;
 		
-		vecMeanNoJitter = matMean(1,:);
-		vecMeanFullJitter = matMean(end,:);
-		vecSdNoJitter = matSd(1,:);
-		vecSdFullJitter = matSd(end,:);
-		vecCVNoJitter = matCV(1,:);
-		vecCVFullJitter = matCV(end,:);
-		
 		%singles
 		cellCV_Single{intFile,intType} = sAggData(intUseEntry).mat1CV;
 		cellRootR2_Single{intFile,intType} = sAggData(intUseEntry).mat1R2_Root;
 		cellRootExponent_Single{intFile,intType} = sAggData(intUseEntry).mat1Exponent_Root;
 		
 		%linfit
-		vecUseEntries = 1:numel(vecTimescales);%round(logspace(0,3,15));
+		vecUseEntries = vecTimescales>1;%1:numel(vecTimescales);%round(logspace(0,3,15));
 		intK=1;
 		fLin = fittype('a*x',...
 			'dependent',{'y'},'independent',{'x'},...
@@ -124,59 +118,86 @@ for intFile=1:intRecNum
 		cellLinR2{intFile,intType} = vecLinR2MuSd;
 		cellLinSlope{intFile,intType} = vecLinSlopesMuSd;
 		
+		vecMeanNoJitter = matMean(1,vecUseEntries);
+		vecMeanFullJitter = matMean(end,vecUseEntries);
+		vecSdNoJitter = matSd(1,vecUseEntries);
+		vecSdFullJitter = matSd(end,vecUseEntries);
+		vecCVNoJitter = matCV(1,vecUseEntries);
+		vecCVFullJitter = matCV(end,vecUseEntries);
+		
+		%apply some smoothing
+		%vecSdNoJitter = imfilt(vecSdNoJitter,normpdf(-15:15,0,5)./sum(normpdf(-15:15,0,5)));
+		%vecSdFullJitter = imfilt(vecSdFullJitter,normpdf(-15:15,0,5)./sum(normpdf(-15:15,0,5)));
+		
 		%% plot sd/mean
-		intPlot = (intType-1)*2+1;
-		plot(vecH(intPlot),vecMeanNoJitter,vecSdNoJitter,'color',matCol(intType,:));
-		plot(vecH(intPlot+1),vecMeanFullJitter,vecSdFullJitter,'color',matCol(intType,:));
-		
-		plot(vecH1_5(intPlot),vecMeanNoJitter,vecSdNoJitter.^2,'color',matCol(intType,:));
-		plot(vecH1_5(intPlot+1),vecMeanFullJitter,vecSdFullJitter.^2,'color',matCol(intType,:));
-		
-		%% plot cv/timescale
-		plot(vecH2(intPlot),vecTimescales,vecCVNoJitter,'color',matCol(intType,:));
-		plot(vecH2(intPlot+1),vecTimescales,vecCVFullJitter,'color',matCol(intType,:));
-		
+		if boolSingleRecPlots
+			intPlot = (intType-1)*2+1;
+			plot(vecH(intPlot),vecMeanNoJitter,vecSdNoJitter,'color',matCol(intType,:));
+			xlim(vecH(intPlot),[0 7000]);
+			ylim(vecH(intPlot),[0 max(get(vecH(intPlot),'ylim'))]);
+			
+			plot(vecH(intPlot+1),vecMeanFullJitter,vecSdFullJitter,'color',matCol(intType,:));
+			xlim(vecH(intPlot+1),[0 7000]);
+			ylim(vecH(intPlot+1),[0 max(get(vecH(intPlot+1),'ylim'))]);
+			
+			plot(vecH1_5(intPlot),vecMeanNoJitter,vecSdNoJitter.^2,'color',matCol(intType,:));
+			xlim(vecH1_5(intPlot),[0 7000]);
+			ylim(vecH1_5(intPlot),[0 max(get(vecH1_5(intPlot),'ylim'))]);
+			
+			plot(vecH1_5(intPlot+1),vecMeanFullJitter,vecSdFullJitter.^2,'color',matCol(intType,:));
+			xlim(vecH1_5(intPlot+1),[0 7000]);
+			ylim(vecH1_5(intPlot+1),[0 max(get(vecH1_5(intPlot+1),'ylim'))]);
+			
+			%% plot cv/timescale
+			plot(vecH2(intPlot),vecTimescales(vecUseEntries),vecCVNoJitter,'color',matCol(intType,:));
+			plot(vecH2(intPlot+1),vecTimescales(vecUseEntries),vecCVFullJitter,'color',matCol(intType,:));
+		end
 	end
 end
-
-for intType=1:numel(cellTypes)
-	intPlot = (intType-1)*2+1;
-	%finish plots 1; mean and sd
-	xlabel(vecH(intPlot),'Mean of spike counts');
-	ylabel(vecH(intPlot),'Sd of spike counts');
-	title(vecH(intPlot),sprintf('No jitter, %s',cellTypes{intType}),'interpreter','none');
-	%finish plots 1; mean and sd
-	xlabel(vecH(intPlot+1),'Mean of spike counts');
-	ylabel(vecH(intPlot+1),'Sd of spike counts');
-	title(vecH(intPlot+1),sprintf('Full jitter, %s',cellTypes{intType}),'interpreter','none');
+%%
+if boolSingleRecPlots
+	for intType=1:numel(cellTypes)
+		intPlot = (intType-1)*2+1;
+		%finish plots 1; mean and sd
+		xlabel(vecH(intPlot),'Mean of spike counts');
+		ylabel(vecH(intPlot),'Sd of spike counts');
+		title(vecH(intPlot),sprintf('No jitter, %s',cellTypes{intType}),'interpreter','none');
+		
+		%finish plots 1; mean and sd
+		xlabel(vecH(intPlot+1),'Mean of spike counts');
+		ylabel(vecH(intPlot+1),'Sd of spike counts');
+		title(vecH(intPlot+1),sprintf('Full jitter, %s',cellTypes{intType}),'interpreter','none');
+		
+		
+		%finish plots 1.5; mean and var
+		xlabel(vecH1_5(intPlot),'Mean of spike counts');
+		ylabel(vecH1_5(intPlot),'Var of spike counts');
+		title(vecH1_5(intPlot),sprintf('No jitter, %s',cellTypes{intType}),'interpreter','none');
+		
+		%finish plots 1.5; mean and var
+		xlabel(vecH1_5(intPlot+1),'Mean of spike counts');
+		ylabel(vecH1_5(intPlot+1),'Var of spike counts');
+		title(vecH1_5(intPlot+1),sprintf('Full jitter, %s',cellTypes{intType}),'interpreter','none');
+		
+		
+		%finish plots 2; timescale and cv
+		xlabel(vecH2(intPlot),'Timescale (s)');
+		ylabel(vecH2(intPlot),'CV (sd/mu)');
+		title(vecH2(intPlot),sprintf('No jitter,%s',cellTypes{intType}),'interpreter','none');
+		set(vecH2(intPlot),'ylim',[0 1.2]);
+		%finish plots 2; timescale and cv
+		xlabel(vecH2(intPlot+1),'Timescale (s)');
+		ylabel(vecH2(intPlot+1),'CV (sd/mu)');
+		title(vecH2(intPlot+1),sprintf('Full jitter,%s',cellTypes{intType}),'interpreter','none');
+		set(vecH2(intPlot+1),'ylim',[0 1.2]);
+	end
+	fixfig;
 	
-	%finish plots 1.5; mean and var
-	xlabel(vecH1_5(intPlot),'Mean of spike counts');
-	ylabel(vecH1_5(intPlot),'Var of spike counts');
-	title(vecH1_5(intPlot),sprintf('No jitter, %s',cellTypes{intType}),'interpreter','none');
-	%finish plots 1.5; mean and var
-	xlabel(vecH1_5(intPlot+1),'Mean of spike counts');
-	ylabel(vecH1_5(intPlot+1),'Var of spike counts');
-	title(vecH1_5(intPlot+1),sprintf('Full jitter, %s',cellTypes{intType}),'interpreter','none');
-	
-	%finish plots 2; timescale and cv
-	xlabel(vecH2(intPlot),'Timescale (s)');
-	ylabel(vecH2(intPlot),'CV (sd/mu)');
-	title(vecH2(intPlot),sprintf('No jitter,%s',cellTypes{intType}),'interpreter','none');
-	set(vecH2(intPlot),'ylim',[0 1.2]);
-	%finish plots 2; timescale and cv
-	xlabel(vecH2(intPlot+1),'Timescale (s)');
-	ylabel(vecH2(intPlot+1),'CV (sd/mu)');
-	title(vecH2(intPlot+1),sprintf('Full jitter,%s',cellTypes{intType}),'interpreter','none');
-	set(vecH2(intPlot+1),'ylim',[0 1.2]);
+	drawnow;
+	export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescalesAllPlots.tif')));
+	export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescalesAllPlots.pdf')));
 end
-fixfig;
 
-drawnow;
-export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescalesAllPlots.tif')));
-export_fig(fullpath(strFigurePath,sprintf('Q2c_CV_TimescalesAllPlots.pdf')));
-
-return
 %% plot cv/timescale for real and poiss with/without jitter and for full pop and single neurons [2 x 2 x 2]
 vecTimescales = sAggData(1).vecTimescales;
 vecJitter = sAggData(1).vecJitter;

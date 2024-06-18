@@ -33,7 +33,7 @@ intOnsetType = 0; %normal (0) or rem onset (1)
 cellConnType = {'Least','Most'};
 
 %% define qualifying areas
-boolSaveFig = false;
+boolSaveFig = true;
 cellUseAreas = {...
 	'Primary visual area',...
 	...'posteromedial visual area',...
@@ -418,7 +418,7 @@ for intConnType=1:numel(cellConnType)
 end
 
 %% plot real and shufftid normalized to uniform
-intPlotType = 3; %dur/conf/ifr => ifr is v1, others are only within v2
+intPlotType = 3; %dur/conf/ifr => ifr is v1, others are only within v2, so can only use 3
 for intConnType=1:numel(cellConnType)
 	strConnType = cellConnType{intConnType};
 	
@@ -450,11 +450,13 @@ for intConnType=1:numel(cellConnType)
 			matQuantY_Uniform = cellSummaryMatrices{3,intVar,i,intConnType};
 			
 			for intRealShuff=1:2
+				%strY = sprintf('ShuffTid-norm. r, mean +/- 95 CI (%s/decile)',getGreek('sigma'));
+				strY = sprintf('Raw r with pop act, mean +/- 95 CI (%s/decile)',getGreek('sigma'));
 				if intRealShuff == 1
-					matRelY = matQuantY_Real ./ matQuantY_ShuffTid;
+					matRelY = matQuantY_Real;% ./ matQuantY_ShuffTid;
 					strPlot = 'x';
 				else
-					matRelY = matQuantY_Uniform ./ matQuantY_ShuffTid;
+					matRelY = matQuantY_Uniform;% ./ matQuantY_ShuffTid;
 					strPlot = 'o--';
 				end
 				matQuantY_Z = zscore(matRelY,[],2);
@@ -483,7 +485,7 @@ for intConnType=1:numel(cellConnType)
 			hold(hSummary(intRealShuff),'off');
 			set(hSummary(intRealShuff),'xtick',[1:2:(2*numel(cellVars))],'xticklabel',cellVars);
 			xtickangle(hSummary(intRealShuff),45);
-			ylabel(hSummary(intRealShuff),sprintf('ShuffTid-norm. r, mean +/- 95 CI (%s/decile)',getGreek('sigma')));
+			ylabel(hSummary(intRealShuff),strY);
 			ylim(hSummary(intRealShuff),[-0.4 0.4]);
 			strP = cellStrP{intRealShuff};
 			strTitleType = [strSuffix ', ' cellRealShuff{intRealShuff} ', ' strRunType ', ' strSGS ', O' strOnset];
@@ -535,7 +537,7 @@ vecX = 2:2:(intVar*2);
 set(gca,'xtick',vecX,'xticklabel',cellVars);
 title(strTitle);
 ylim([ -0.4 0.4]);
-ylabel(sprintf('ShuffTid-norm. r, mean +/- 95 CI (%s/decile)',getGreek('sigma')));
+ylabel(strY);
 fixfig
 
 if boolSaveFig

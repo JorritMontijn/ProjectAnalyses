@@ -26,7 +26,7 @@ on binning size? What is the optimal time window?
 clear all;%close all;
 cellTypes = {'Real','ShuffTid','Uniform'};%'Real','ShuffTid'};
 cellRunTypes = {'RecTopo','SimDG18'};
-intRunType = 1; %topo or sim
+intRunType = 2; %topo or sim
 
 boolFixedSpikeGroupSize = false;
 intGroupOrDecile = 1;

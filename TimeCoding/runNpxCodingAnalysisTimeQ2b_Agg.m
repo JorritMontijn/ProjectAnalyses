@@ -9,7 +9,7 @@ runHeaderPopTimeCoding;
 boolMakeFigs = true;
 intSubSampleSize = 100;
 intSampleDist = 1;
-vecTimescales = [0.01:0.01:1.5];
+vecTimescales = [0.1:0.01:1.5]; %0.01
 		
 %% go through recs
 tic

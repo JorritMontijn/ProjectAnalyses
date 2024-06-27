@@ -16,6 +16,8 @@ intPopSize = inf; %24 (smallest pop of all recs) or inf (uses full pop for each 
 
 %% go through recs
 tic
+matAggTuning = [];
+vecSourceRec = [];
 for intRec=1:intRecNum %19 || weird: 11
 	%% prep ABI or Npx data
 	if strcmp(strRunType,'ABI')
@@ -64,27 +66,23 @@ for intRec=1:intRecNum %19 || weird: 11
 	else
 		error impossible
 	end
-	
-	%get ori vars
-	intTunedN = sum(indTuned);
-	intRespN = size(matData,1);
-	intNumN = numel(cellSpikeTimes);
-	intTrialNum = numel(vecOrigStimOnTime);
-	vecOri180 = mod(vecOrientation,180);
-	[vecOriIdx,vecUnique,vecPriorDistribution,cellSelect,vecRepetition] = val2idx(vecOri180);
-	sTuning = getTuningCurves(matData,vecOri180,0);
-	vecNeuronPrefOri = sTuning.matFittedParams(:,1);
-	vecNeuronBandwidth = real(sTuning.matBandwidth);
-	
-	intOriNum = numel(vecUnique);
-	intRepNum = min(vecPriorDistribution);
-	dblStimDur = median(vecStimOffTime - vecOrigStimOnTime);
 	if mean(sum(matData)) < 90%90 / 50
 		fprintf('Avg # of spikes per trial was %.1f for %s; skipping...\n',mean(sum(matData)),strThisRec);
 		continue;
 	else
 		fprintf('Running %s... [%s]\n',strThisRec,getTime);
 	end
+	
+	%get ori vars
+	intTunedN = sum(indTuned);
+	intRespN = size(matData,1);
+	vecOri180 = mod(vecOrientation,180);
+	[matRespNSR,vecStimTypes,vecUniqueDegs] = getStimulusResponses(matData,vecOri180);
+	matMedianR = mean(matRespNSR,3);
+	matAggTuning = cat(1,matAggTuning,matMedianR);
+	vecSourceRec = cat(1,vecSourceRec,intRec*ones(intRespN,1));
+	continue;
+	
 	%% go through types
 	clear sAggData;
 	vecRunTypes = 1:numel(cellTypes);
@@ -113,3 +111,103 @@ for intRec=1:intRecNum %19 || weird: 11
 		'sAggData');
 end
 toc
+
+%%
+vecSourceRec = val2idx(vecSourceRec);
+vecS=sum(matAggTuning);
+dblEquidistanceness = 1-std(vecS)/mean(vecS)
+vecRecs = unique(vecSourceRec);
+matStimMeans = [];
+vecNperR = [];
+vecComboN = [];
+vecComboEquiD = [];
+
+
+
+for i=1:numel(vecRecs)
+	intRec=vecRecs(i)
+	vecN = vecSourceRec==intRec;
+	matThisR = matAggTuning(vecN,:);
+	matStimMeans(i,:) = mean(matThisR);
+	vecNperR(i) = sum(vecN);
+	
+	matAllCombs = nchoosek(vecRecs,i);
+	for j = 1:size(matAllCombs,2)
+		vecChoose = matAllCombs(:,j);
+		vecN = ismember(vecSourceRec,vecChoose);
+		matThisR = matAggTuning(vecN,:);
+		vecStimMeans = mean(matThisR);
+		vecComboN(end+1) = sum(vecN);
+		vecComboEquiD(end+1) = 1 - std(vecStimMeans) ./ mean(vecStimMeans);
+	end
+end
+
+vecEquiD = 1 - std(matStimMeans,[],2) ./ mean(matStimMeans,2);
+
+%
+figure
+vecPlotR = matStimMeans(1,:);
+vecPlotR = sum(matAggTuning);
+%vecPlotR = sum(matStimMeans);
+dblLim = 4000;%700;
+dblExampleEquiD = 1 - std(vecPlotR) ./ mean(vecPlotR);
+subplot(2,3,4)
+polarplot(deg2rad(vecUniqueDegs)*2,vecPlotR);
+
+subplot(2,3,1)
+[x,y]=pol2cart(deg2rad(vecUniqueDegs)*2,vecPlotR);
+matCol = circcol(numel(x));
+colormap(matCol);
+cline([x x(1)],[y y(1)],[1:numel(x) 1]);
+hold on
+[x2,y2]=pol2cart(deg2rad(vecUniqueDegs)*2,ones(size(vecUniqueDegs))*mean(vecPlotR));
+plot([x2 x2(1)],[y2 y2(1)],'--','color',[0.5 0.5 0.5]);
+colorbar
+axis equal
+ylim(dblLim*[-1 1]);
+xlim(dblLim*[-1 1]);
+title(sprintf('%.1f%% equidistance symmetry',100*dblExampleEquiD))
+
+
+subplot(2,3,2)
+scatter(vecComboN,vecComboEquiD);
+[r,p]=corr(vecComboN',vecComboEquiD');
+vecBinsE = 0:50:800;
+vecBinsC = vecBinsE(2:end)-diff(vecBinsE(1:2))/2;
+[vecCounts,vecMeans,vecSDs,cellVals,cellIDs] = makeBins(vecComboN',vecComboEquiD',vecBinsE);
+indRem = isnan(vecMeans);
+vecMeans(indRem) = [];
+vecBinsC(indRem) = [];
+hold on
+plot(vecBinsC,vecMeans);
+
+%fit logistic growth curve
+	%	beta(1) = L (asymptote) [default 1]
+	%	beta(2) = k (slope) [default 1]
+	%	beta(3) = x0 (x-offset) [default 0]
+	%	beta(4) = y0 (y-offset) [default 0]
+
+	sOptions = optimset('Display','iter','TolX',1e-20,'TolFun',1e-20,'MaxIter',1e4,'MaxFunEvals',1e4);
+vecP0 = [0.05 0.01 0 0.9];
+xFit = vecBinsC;
+yFit = vecMeans';
+%xFit = vecComboN;
+%yFit = vecComboEquiD;
+
+vecP = lsqcurvefit(@logisticfitx0, vecP0, xFit, yFit,[0 0 0 0],[1 1e3 0 1e3],sOptions);
+xPlot = 10:10:1000;
+y = logisticfitx0(vecP,xPlot);
+dblCeiling = vecP(1) + vecP(4);
+plot(xPlot,y);
+y2 = logisticfitx0(vecP0,xFit);
+scatter(xFit,y2);
+
+%ylim([0 1]);
+title(sprintf('Across each rec: %.1f%% equidistance symmetry',100*mean(vecEquiD)))
+
+subplot(2,3,3);
+scatter(ones(size(vecEquiD)),vecEquiD);
+ylim([0 1]);
+title(sprintf('Across each rec: %.1f%% equidistance symmetry',100*mean(vecEquiD)))
+hold on
+errorbar(1,mean(vecEquiD),std(vecEquiD)./sqrt(numel(vecEquiD)));

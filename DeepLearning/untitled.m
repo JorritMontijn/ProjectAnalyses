@@ -1,0 +1,3 @@
+%%
+openExample('nnet/TrainABasicConvolutionalNeuralNetworkForClassificationExample')
+%%

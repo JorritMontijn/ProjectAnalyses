@@ -18,6 +18,11 @@ intPopSize = inf; %24 (smallest pop of all recs) or inf (uses full pop for each 
 tic
 matAggTuning = [];
 vecSourceRec = [];
+vecCountN = [];
+vecAggRatio = [];
+vecAggGain = [];
+vecAggOrth = [];
+	
 for intRec=1:intRecNum %19 || weird: 11
 	%% prep ABI or Npx data
 	if strcmp(strRunType,'ABI')
@@ -81,9 +86,33 @@ for intRec=1:intRecNum %19 || weird: 11
 	matMedianR = mean(matRespNSR,3);
 	matAggTuning = cat(1,matAggTuning,matMedianR);
 	vecSourceRec = cat(1,vecSourceRec,intRec*ones(intRespN,1));
-	continue;
+	
+	
+	%project points
+	%vecRef = mean(matMedianR,2);
+	matGain = [];
+	matOrth = [];
+	for i=1:size(matRespNSR,2)
+		matPoints = squeeze(matRespNSR(:,i,:));
+		vecRef = matMedianR(:,i);
+		[vecProjectedLocation,matProjectedPoints,vecProjLocDimNorm] = getProjOnLine(matPoints,vecRef);
+		vecOrthDists = sqrt(sum((matPoints - matProjectedPoints).^2,1));
+		
+		matGain(i,:) = vecProjectedLocation;
+		matOrth(i,:) = vecOrthDists;
+	end
+	vecRatio = mean(matOrth,2)./mean(matGain,2);
+	vecCountN = cat(1,vecCountN,size(matRespNSR,1));
+	vecAggRatio = cat(1,vecAggRatio,median(vecRatio(:)));
+	vecAggGain = cat(1,vecAggGain,median(matGain(:)));
+	vecAggOrth = cat(1,vecAggOrth,median(matOrth(:)));
+	
+	if any(isnan(vecAggRatio))
+		error
+	end
 	
 	%% go through types
+	continue;
 	clear sAggData;
 	vecRunTypes = 1:numel(cellTypes);
 	for intType=vecRunTypes
@@ -211,3 +240,19 @@ ylim([0 1]);
 title(sprintf('Across each rec: %.1f%% equidistance symmetry',100*mean(vecEquiD)))
 hold on
 errorbar(1,mean(vecEquiD),std(vecEquiD)./sqrt(numel(vecEquiD)));
+
+%% gain/orth
+vecCountN;
+vecAggRatio;
+
+subplot(2,3,4);
+scatter(vecCountN,vecAggRatio)
+
+[h,p]=ttest(vecAggGain,vecAggOrth);
+subplot(2,3,5)
+plot(repmat([1 2],[numel(vecAggRatio) 1])',[vecAggGain vecAggOrth]');
+set(gca,'xtick',[1 2],'xticklabel',{'Gain','Orth'});
+xlabel('Neural axis')
+ylabel('Median distance of pop resp (Hz)');
+dblPercGain = 100*(mean(vecAggGain)/(mean(vecAggGain)+mean(vecAggOrth)));
+title(sprintf('Gain noise = %.1f%%; p = %.2e',dblPercGain,p));

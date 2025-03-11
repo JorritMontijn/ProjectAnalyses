@@ -1,7 +1,20 @@
 %clear data
 clearvars -except cellDataTypes intRunDataType strRunType cellTypes strRunStim boolFixSpikeGroupSize sAggABI dblRemOnset;
 
-%set paths
+%% edit paths here
+strSource = 'F:\articles\MontijnHeimel_PopCoding';
+strDataPathABI = 'F:\Data\Processed\AllenBrainVisualEphys';
+strDataPath = 'E:\DataPreProcessed\';
+
+%derived
+strDataPathSim = fullpath(strSource,'');
+strDataPathSimT0 = fullpath(strSource,'\data\');
+strDataPathNora = fullpath(strSource,'\Noradata');
+strFigurePathSR = fullpath(strSource,'\single_recs');
+strFigurePath = fullpath(strSource,'\figures\');
+strTargetDataPath = fullpath(strSource,'\data\');
+
+%% overwrite paths if working in drive
 if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels\')
 	strDataPathABI = '';
 	strDataPathSim = 'F:\Data\Processed\PopTimeCoding\';
@@ -11,16 +24,8 @@ if isfolder('F:\Drive\PopTimeCoding') && isfolder('F:\Data\Processed\Neuropixels
 	strFigurePathSR = 'F:\Drive\PopTimeCoding\single_recs';
 	strFigurePath = 'F:\Drive\PopTimeCoding\figures\';
 	strTargetDataPath = 'F:\Drive\PopTimeCoding\data\';
-else
-	strDataPathABI = 'E:\AllenBrainVisualEphys';
-	strDataPathSim = 'D:\Data\Processed\PopTimeCoding\';
-	strDataPathSimT0 = 'C:\Drive\PopTimeCoding\data\';
-	strDataPath = 'E:\DataPreProcessed\';
-	strDataPathNora = 'D:\Data\Processed\PopTimeCoding\Noradata';
-	strFigurePathSR = 'C:\Drive\PopTimeCoding\single_recs';
-	strFigurePath = 'C:\Drive\PopTimeCoding\figures\';
-	strTargetDataPath = 'C:\Drive\PopTimeCoding\data\';
 end
+
 %% define data
 if ~exist('cellDataTypes','var')
 	cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora

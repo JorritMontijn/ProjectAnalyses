@@ -6,8 +6,8 @@ I.e., are codes equally efficient during high and low rate periods?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 1;
-strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
+intRunDataType = 3;
+strRunStim = 'NS';%DG or NM or NS? => superseded to WS by SWN
 cellTypes = {'Real','ShuffTid','Uniform'};%, 'UniformTrial', 'ShuffTid'};%, 'PoissGain'}; %PoissGain not done
 boolFixSpikeGroupSize = false;
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
@@ -18,7 +18,6 @@ tic
 for intRec=1:intRecNum %19 || weird: 11
 	%% prep ABI or Npx data
 	if strcmp(strRunType,'ABI')
-		error to be updated
 		runRecPrepABI;
 		strThisRec = strRec;
 	elseif strcmp(strRunType,'Sim')

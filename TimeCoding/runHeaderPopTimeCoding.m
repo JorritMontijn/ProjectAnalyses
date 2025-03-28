@@ -3,7 +3,7 @@ clearvars -except cellDataTypes intRunDataType strRunType cellTypes strRunStim b
 
 %% edit paths here
 strSource = 'F:\articles\MontijnHeimel_PopCoding';
-strDataPathABI = 'F:\Data\Processed\AllenBrainVisualEphys';
+strDataPathABI = 'F:\Data\Processed\AllenBrainVisualEphys\nwb_files\visual-behavior-neuropixels-0.5.0\Aggregates';
 strDataPath = 'E:\DataPreProcessed\';
 
 %derived
@@ -58,6 +58,7 @@ if ~exist('dblRemOnset','var')
 end
 if strcmp(strRunType,'ABI')
 	runLoadABI;
+	intRecNum = numel(sAggABI);
 elseif strcmp(strRunType,'Sim')
 	%get prepped sim files
 	sSimRecs = dir(fullpath(strDataPathSim,'SimDG18_MatchedTo*.mat'));

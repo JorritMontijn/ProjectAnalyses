@@ -2,7 +2,7 @@
 sRec = sAggABI(intRec);
 strRecOrig = sRec.Exp;
 strRec = strrep(strRecOrig,'ecephys_session_','ABI');
-fprintf('Preparing %d/%d: %s, area %s [%s]\n',intRec,numel(vecUseRec),strRecOrig,strArea,getTime);
+fprintf('Preparing %d: %s, area %s [%s]\n',intRec,strRecOrig,strArea,getTime);
 
 strField = ['s' strRunStim];
 if strcmp(strRunStim,'DG') && isfield(sRec.structStimAgg,strField)
@@ -42,75 +42,89 @@ elseif strcmp(strRunStim,'NM') && isfield(sRec.structStimAgg,strField)
 	vecStimLabels = (vecFrameIdx/max(vecFrameIdx))*180;
 	vecStimOnTime = flat(vecBinEdges(1:(end-1))' + vecOrigStimOnTime)';
 	vecStimOffTime = vecStimOnTime + dblBinDur;
+elseif strcmp(strRunStim,'NS') && isfield(sRec.structStimAgg,strField)
+	%% NS; natural scenes with task
+	% concatenate stimulus structures
+	structStim = sRec.structStimAgg.sNS; %sDG, sNM, sNS
+	
+	
+	%remove omitted stimuli
+	cellIms = cellfun(@getFlankedBy,structStim.image_name,cellfill('im',size(structStim.image_name)),cellfill('_',size(structStim.image_name)),...
+		'UniformOutput',false);
+	vecIms = str2double(cellIms);
+	structStim.image_nr = vecIms;
+	indRem = isnan(vecIms);
+	cellFields = fieldnames(structStim);
+	for i=1:numel(cellFields)
+		varVals = structStim.(cellFields{i});
+		structStim.(cellFields{i}) = varVals(~indRem);
+	end
+	
+	%transform names
+	vecStimLabels = structStim.image_nr;
+	vecStimOnTime = structStim.start_time(:)';
+	vecStimOffTime = structStim.stop_time(:)';
+	
+	vecStimIsChange = structStim.is_change(:)';
+	vecStimIsRewarded = structStim.rewarded(:)';
+	vecStimTrialId = structStim.trials_id(:)';
+	
+	%remove nans
+	indRem = isnan(vecStimLabels);
+	vecStimLabels(indRem) = [];
+	vecStimOnTime(indRem) = [];
+	vecStimOffTime(indRem) = [];
+	
 end
+
+%check if trials structure exists
+if isfield(sRec.structStimAgg,'sTrials')
+	sTrials = sRec.structStimAgg.sTrials;
+end
+
 %general prep
-[vecStimIdx,vecUniqueStims,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecStimLabels);
-intRepNum = min(vecRepNum);
-indRem2 = vecTrialRepetition>intRepNum;
-vecStimLabels(indRem2) = [];
-vecStimOnTime(indRem2) = [];
-vecStimOffTime(indRem2) = [];
+if ~strcmp(strRunStim,'NS')
+	%equalize reps
+	[vecStimIdx,vecUniqueStims,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecStimLabels);
+	intRepNum = min(vecRepNum);
+	indRem2 = vecTrialRepetition>intRepNum;
+	vecStimLabels(indRem2) = [];
+	vecStimOnTime(indRem2) = [];
+	vecStimOffTime(indRem2) = [];
+end
 [vecStimIdx,vecUniqueStims,vecRepNum,cellSelect,vecTrialRepetition] = val2idx(vecStimLabels);
 intTrialNum = numel(vecStimOnTime);
 intStimNum = numel(vecUniqueStims);
 
-%% remove untuned cells
-%get data matrix
-indArea1Neurons = contains(sRec.cellAreas,strArea,'IgnoreCase',true);
+
+%% get neurons in this area
+indArea1Neurons = strcmp(sRec.cellAreas,strArea);
 intNeuronsInArea = sum(indArea1Neurons);
+intNeuronNum = intNeuronsInArea;
 if intNeuronsInArea==0,return;end
-cellSpikeTimes = sRec.cellSpikes(indArea1Neurons);
+
+%% prep data
+dblMinRate = 0.1;
+
+%get dur
+cellSpikes = {sRec.sNeuron.SpikeTimes};
+cellSpikeTimes = cellSpikes(indArea1Neurons);
 dblDur = median(vecStimOffTime-vecStimOnTime);
-matData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur);
-[matRespNSR,vecStimTypes,vecUnique] = getStimulusResponses(matData,vecStimIdx);
-matAvgR = mean(matRespNSR,3);
-matTrialR = squeeze(mean(matRespNSR,2));
-vecP_A = nan(1,size(matData,1));
-vecP_Z = nan(1,size(matData,1));
-for intN=1:size(matData,1)
-	vecP_A(intN) = anova1(matData(intN,:),vecStimIdx,'off');
-	vecP_Z(intN) = zetatest(cellSpikeTimes{intN},vecStimOnTime,[],[],0);
-end
-vecP = min(vecP_Z,vecP_A);
-
-%remove untuned cells
-sOut = getTuningCurves(matData,vecStimLabels,0);
-dblMinCount = 100;
-indTuned = vecP<0.05;
-indResp = sum(matData,2)'>dblMinCount;
-
-%prep
-cellSpikeTimes(~indResp)=[];
-indTuned(~indResp)=[];
-intRespN = sum(indResp);
-
-dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
-dblPreTime = -dblStartT;%0.3;
-dblPostTime = 0;%0.3;
-dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
-dblBinWidth = 0.05;
-vecBinEdges = 0:dblBinWidth:dblMaxDur;
-vecStimTime = vecBinEdges(2:end)-dblBinWidth/2 - dblPreTime;
-indStimBins = vecStimTime > 0 & vecStimTime < dblStimDur;
-intBinNum = numel(vecBinEdges)-1;
-matBNSR = nan(intBinNum,intRespN,intStimNum,intRepNum);
-matBNT = nan(intBinNum,intRespN,intTrialNum);
-%matBNT_shifted = nan(intBinNum,intRespN,intTrialNum);
+matRawData = getSpikeCounts(cellSpikeTimes,vecStimOnTime,dblDur)./dblDur;
+indResp = sum(matRawData,2)'>(size(matRawData,2)/dblDur)*dblMinRate;
+matData = matRawData;%(indResp,:);
 
 %% check non-stationarity
-vecRepCounter = zeros(1,intStimNum);
 %get spikes per trial per neuron
-cellSpikeTimesPerCellPerTrial = cell(intRespN,intTrialNum);
-vecNonStat = nan(1,intRespN);
-vecViolIdx1ms = nan(1,intRespN);
-vecViolIdx2ms = nan(1,intRespN);
+cellSpikeTimesPerCellPerTrial = cell(numel(cellSpikeTimes),intTrialNum);
+vecNonStat = nan(1,numel(cellSpikeTimes));
 boolDiscardEdges = true;
-for intN=1:intRespN
+for intN=1:numel(cellSpikeTimes)
 	% build pseudo data, stitching stimulus periods
-	[vecPseudoSpikeTimes,vecPseudoEventT] = getPseudoSpikeVectors(cellSpikeTimes{intN},vecStimOnTime-dblPreTime,dblMaxDur,boolDiscardEdges);
+	[vecPseudoSpikeTimes,vecPseudoEventT] = getPseudoSpikeVectors(cellSpikeTimes{intN},vecStimOnTime,dblDur,boolDiscardEdges);
 	
 	%real
-	[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecPseudoSpikeTimes,vecPseudoEventT,dblMaxDur);
+	[vecTrialPerSpike,vecTimePerSpike] = getSpikesInTrial(vecPseudoSpikeTimes,vecPseudoEventT,dblDur);
 	for intTrial=1:intTrialNum
 		vecSpikeT = vecTimePerSpike(vecTrialPerSpike==intTrial);
 		cellSpikeTimesPerCellPerTrial{intN,intTrial} = vecSpikeT;
@@ -133,20 +147,35 @@ vecFiltM = imfilt(vecMeanZ,vecFilt);
 [BF, dblBC] = bimodalitycoeff(vecFiltM);
 dblMaxDevFrac = max(abs(vecFiltM));
 
+dblStimDur = roundi(median(vecStimOffTime - vecStimOnTime),1,'ceil');
+dblPreTime = 0;%0.3;
+dblPostTime = 0;%0.3;
+dblMaxDur = dblStimDur+dblPreTime+dblPostTime;
+
+boolSaveFigs = true;
 if boolSaveFigs
 	figure;maxfig;
 	subplot(1,2,1);
 	imagesc(matDataZ);
+	ylabel(sprintf('Neuron in %s',strArea))
+	xlabel(sprintf('Stimulus # (%s)',strRunStim))
+	title(sprintf('Norm act in %s',strRecOrig),'interpreter','none')
+	
 	fixfig;grid off;
 	subplot(1,2,2);
 	plot(vecFiltM);
+	xlabel(sprintf('Stimulus # (%s)',strRunStim))
+	ylabel(sprintf('Avg norm act (z-score)'))
 	title(sprintf('%s: K-S test,p =%.1e; BC=%.3f; Dev =%.3f',strRecOrig,pKS,dblBC,dblMaxDevFrac),'interpreter','none');
 	drawnow;
 	fixfig;
 	
 	%% save fig
-	export_fig(fullpath(strFigurePathSR,sprintf('BimoCheck%s_%s.tif',strRunStim,strRecOrig)));
-	export_fig(fullpath(strFigurePathSR,sprintf('BimoCheck%s_%s.pdf',strRunStim,strRecOrig)));
+	export_fig(fullpath(strFigurePathSR,sprintf('BimoCheck%s_%s_%s.tif',strRunStim,strArea,strRecOrig)));
+	export_fig(fullpath(strFigurePathSR,sprintf('BimoCheck%s_%s_%s.pdf',strRunStim,strArea,strRecOrig)));
+	
+	%delete fig
+	close;
 end
 
 %if dblBC > dblBimoThreshold || dblMaxDevFrac > dblDevThreshold
@@ -163,7 +192,7 @@ intTypeCV = 2;
 dblUseStartT = 0;
 dblUseMaxDur = dblMaxDur-dblUseStartT;
 intUseMax = inf;
-intRepNum = mean(vecPriorDistribution);
+intRepNum = min(vecPriorDistribution);
 
 %remove zero-variance neurons
 matSpikeCounts_pre = cellfun(@(x) sum(x>dblUseStartT),cellSpikeTimesPerCellPerTrial);
@@ -174,7 +203,7 @@ intQuantiles = 5;
 vecStartTrials = round(intRepNum*linspace(1/intRepNum,(1+1/intRepNum),intQuantiles+1));
 vecStartTrials(end)=[];
 intSplitTrialsPerOri = min(floor(cellfun(@sum,cellSelect)/intQuantiles));
-indZeroVarNeurons = false(intRespN,1);
+indZeroVarNeurons = false(size(matSpikeCounts_pre,1),1);
 for intQ=1:intQuantiles
 	vecUseTrialsTemp = vecStartTrials(intQ):(vecStartTrials(intQ)+intSplitTrialsPerOri-1);
 	for intStim=1:intStimNum
@@ -184,9 +213,11 @@ for intQ=1:intQuantiles
 		indZeroVarNeurons = indZeroVarNeurons | (var(matMeanRate_pre(:,vecQualifyingTrials),[],2) == 0);
 	end
 end
-indZeroVarNeurons = false(size(indZeroVarNeurons));
-vecUseNeurons = find(~indZeroVarNeurons);
-vecRemNeurons = find(indZeroVarNeurons);
+%% remove non-responsive cells
+indTuned = ~indZeroVarNeurons(:) & indResp(:);
+vecUseNeurons = find(indTuned);
+vecRemNeurons = find(~indTuned);
+cellSpikeTimes = cellSpikeTimes(vecUseNeurons);
 cellSpikeTimesPerCellPerTrial(vecRemNeurons,:) = [];
 intNeuronNum = numel(vecUseNeurons);
 intTrialsPerQ = intSplitTrialsPerOri*intStimNum;

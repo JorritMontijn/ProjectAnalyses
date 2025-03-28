@@ -39,7 +39,7 @@ with no inter-trial gray period.
 %% define locations
 strDisk = 'F:';
 strDataSource = '\Data\Processed\AllenBrainVisualEphys\nwb_files\visual-behavior-neuropixels-0.5.0\';
-strDataTarget = strcat(strDisk,strDataSource,'Aggregates',filesep,'AggSes',getDate,'.mat');
+strDataTarget = strcat(strDisk,strDataSource,'Aggregates',filesep);
 %load metadata
 sCSV_behav = loadcsv(strcat(strDisk,strDataSource,'project_metadata\behavior_sessions.csv'));
 sCSV_ephys = loadcsv(strcat(strDisk,strDataSource,'project_metadata\ecephys_sessions.csv'));
@@ -61,27 +61,6 @@ for intSes=1:numel(vecSessions)
 	nwb = nwbRead(strTargetFile);
 	sNWB = ExpandNWB(nwb,[],false);
 	%sNWB2 = PruneStruct(sNWB);
-	
-	%% stimuli, nat scenes
-	if isfield(sNWB.intervals,'natural_scenes_presentations')
-		sNS = sNWB.intervals.natural_scenes_presentations.vectordata;%orientation, SF, TF, etc
-		%remove non-scenes
-		indBlanks = sNS.frame==-1;
-		vecRealScenes = sNS.frame(~indBlanks);
-		intScenes = numel(unique(vecRealScenes));
-		vecNatSceneReps(intSes) = numel(vecRealScenes)/intScenes;
-		fprintf('Ses %d (%s) has %d repetitions of %d unique natural scenes\n',intSes,sprintf(strFormat,vecSessions(intSes)),vecNatSceneReps(intSes),intScenes)
-	end
-	%% stimuli, nat scenes
-	if isfield(sNWB.intervals,'natural_scenes_presentations')
-		sNM = sNWB.intervals.natural_movie_one_presentations.vectordata;%orientation, SF, TF, etc
-		%remove non-scenes; 30fps, 30s long(?)
-		indBlanks = sNM.frame==-1;
-		vecMovieFrames = sNM.frame(~indBlanks);
-		intReps = sum(diff(vecMovieFrames)<0)+1;
-		vecNatSceneReps(intSes) = numel(vecRealScenes)/intScenes;
-		fprintf('Ses %d (%s) has %d repetitions of natural movie one\n',intSes,sprintf(strFormat,vecSessions(intSes)),intReps);
-	end
 	
 	%% get spike times & unit locations
 	unit_ids = sNWB.units.id; % array of unit ids represented within this
@@ -122,15 +101,43 @@ for intSes=1:numel(vecSessions)
 		(vecCluster_AmpC < dblThresh_amplitude_cutoff) & ...
 		(vecCluster_Pres > dblThresh_presence_ratio);
 	
+	%create neuron structure
+	vecUseCells = find(indInclude & contains(cellAreas(:),{'VIS','LP','LG'}));
+	intNeurons = numel(vecUseCells);
+	
+	matWaveforms = sNWB.units.waveform_mean(:,sNWB.units.vectordata.waveform_mean_index);
+	clear sNeuron
+	cellUnitFields = fieldnames(sNWB.units.vectordata);
+	for i=1:numel(vecUseCells)
+		intNeuron = vecUseCells(i);
+		
+		sUnit = struct;
+		sUnit.OrigIdx = intNeuron;
+		sUnit.Area = cellAreas{intNeuron};
+		sUnit.SpikeTimes = cellSpikes{intNeuron};
+		sUnit.Waveform = matWaveforms(:,intNeuron);
+		
+		for j=1:numel(cellUnitFields)
+			strField = cellUnitFields{j};
+			sUnit.(strField) = sNWB.units.vectordata.(strField)(i);
+		end
+		sNeuron(i) = sUnit;
+	end
+	
 	%% subject
 	sSubject = sNWB.general_subject;
+	structStimAgg = struct;
 	
-	%% running
-	vecRunningSpeed = sNWB.processing.running.nwbdatainterface.running_speed.data; %speed (cm/s)
-	vecRunningTime = sNWB.processing.running.nwbdatainterface.running_speed.timestamps; %time (s)
+	%% stimuli, trials
+	if isfield(sNWB,'intervals_trials')
+		sTrials = sNWB.intervals_trials.vectordata;
+		sTrials.start_time = sNWB.intervals_trials.start_time;
+		sTrials.stop_time = sNWB.intervals_trials.stop_time;
+		sTrials.id = sNWB.intervals_trials.id;
+		structStimAgg.sTrials=sTrials;
+	end
 	
 	%% stimuli, DG
-	structStimAgg = struct;
 	vecAllStimTimes = sNWB.processing.stimulus.nwbdatainterface.timestamps.data;
 	if isfield(sNWB.intervals,'drifting_gratings_presentations')
 		strSource = 'drifting_gratings_presentations';
@@ -156,36 +163,41 @@ for intSes=1:numel(vecSessions)
 	end
 	
 	%% stimuli, nat scenes
-	if isfield(sNWB.intervals,'natural_scenes_presentations')
-		strSource = 'natural_movie_one_presentations';
-	else
-		%no gratings
-		strSource = '';
-	end
-	if ~isempty(strSource)
-		sSource = sNWB.intervals.(strSource);
-		sNS = sSource.vectordata;%orientation, SF, TF, etc
-		sNS.Name = strSource;
-		sNS.stimIdx = sNS.frame+1;
-		sNS.startT = sSource.start_time;
-		sNS.stopT = sSource.stop_time;
-		%vecDG_stimT = vecAllStimTimes(vecDG_stimIdx); %same as vecDG_startT
+	cellNatScenes = {'natural_scenes_presentations','Natural_Images_Lum_Matched'};
+	for i=1:numel(cellNatScenes)
+		strCheckVar = cellNatScenes{i};
+		cellFields = fieldnames(sNWB.intervals);
+		intField = find(contains(cellFields,strCheckVar));
+		if isempty(intField),continue;end
+		strField = cellFields{intField};
+		sNS = sNWB.intervals.(strField).vectordata;%orientation, SF, TF, etc
+		sNS.start_time = sNWB.intervals.(strField).start_time;%orientation, SF, TF, etc
+		sNS.stop_time = sNWB.intervals.(strField).stop_time;%orientation, SF, TF, etc
+		%remove non-scenes
+		if isfield(sNS,'frame')
+			indBlanks = sNS.frame==-1;
+			vecRealScenes = sNS.frame(~indBlanks);
+		else
+			indBlanks = sNS.omitted==1;
+			vecRealScenes = val2idx(sNS.image_name(~indBlanks));
+		end
+		intScenes = numel(unique(vecRealScenes));
+		vecNatSceneReps(intSes) = numel(vecRealScenes)/intScenes;
+		fprintf('Ses %d (%s) has %.1f repetitions of %d unique natural scenes\n',intSes,sprintf(strFormat,vecSessions(intSes)),vecNatSceneReps(intSes),intScenes)
 		structStimAgg.sNS = sNS;
 	end
 	
 	%% stimuli, nat movies
 	if isfield(sNWB.intervals,'natural_movie_one_presentations')
-		strSource = 'natural_movie_one_presentations';
-	elseif isfield(sNWB.intervals,'natural_movie_two_presentations')
-		strSource = 'natural_movie_one_presentations';
-	else
-		%no gratings
-		strSource = '';
-	end
-	if ~isempty(strSource)
-		sSource = sNWB.intervals.(strSource);
-		sNM = sSource.vectordata;%orientation, SF, TF, etc
-		sNM.Name = strSource;
+		sNM = sNWB.intervals.natural_movie_one_presentations.vectordata;%orientation, SF, TF, etc
+		%remove non-scenes; 30fps, 30s long(?)
+		indBlanks = sNM.frame==-1;
+		vecMovieFrames = sNM.frame(~indBlanks);
+		intReps = sum(diff(vecMovieFrames)<0)+1;
+		vecNatSceneReps(intSes) = numel(vecRealScenes)/intScenes;
+		fprintf('Ses %d (%s) has %d repetitions of natural movie one\n',intSes,sprintf(strFormat,vecSessions(intSes)),intReps);
+	
+		sNM.Name = 'natural_movie_one_presentations';
 		sNM.stimIdx = sNM.frame+1;
 		sNM.startT = sSource.start_time;
 		sNM.stopT = sSource.stop_time;
@@ -197,43 +209,91 @@ for intSes=1:numel(vecSessions)
 	sRemoveIntervals = sNWB.intervals_invalid_times;
 	
 	%% eye-tracking
-	%not in all sessions!
+	%not in all v1 sessions!
 	vecPupilSize = [];
 	vecPupilT = [];
+	vecPupilBlink = [];
 	matPupilXY = [];
 	if isfield(sNWB.processing,'filtered_gaze_mapping')
+		%% v1
 		vecPupilT = sNWB.processing.filtered_gaze_mapping.nwbdatainterface.pupil_area.timestamps; %sec
 		vecPupilSize = sNWB.processing.filtered_gaze_mapping.nwbdatainterface.pupil_area.data; %pixel^2
 		matPupilXY = sNWB.processing.filtered_gaze_mapping.nwbdatainterface.screen_coordinates.data; %cm
+	elseif isfield(sNWB.acquisition,'EyeTracking')
+		%% v2
+		vecPupilT = sNWB.acquisition.EyeTracking.eye_tracking.timestamps; %sec
+		vecPupilSize = sNWB.acquisition.EyeTracking.pupil_tracking.area; %pixel^2
+		matPupilXY = sNWB.acquisition.EyeTracking.pupil_tracking.data; %m
+		vecPupilBlink = sNWB.acquisition.EyeTracking.likely_blink.data;
+	end
+	
+	%% running
+	if isfield(sNWB.processing.running.nwbdatainterface,'running_speed')
+		%% running, v1
+		vecRunningSpeed = sNWB.processing.running.nwbdatainterface.running_speed.data; %speed (cm/s)
+		vecRunningTime = sNWB.processing.running.nwbdatainterface.running_speed.timestamps; %time (s)
+	else
+		%% behavior, v2
+		vecRunningSpeed = sNWB.processing.running.nwbdatainterface.speed.data; %speed (cm/s)
+		vecRunningTime = sNWB.processing.running.nwbdatainterface.speed.timestamps; %time (s)
+	end
+	
+	%% licking & rewards
+	%already part of sTrials
+% 	vecLickT = [];
+% 	try
+% 		vecLickT = sNWB.processing.licking.nwbdatainterface.licks.timestamps;
+% 	end
+% 	vecRewardT = [];
+% 	try
+% 		vecRewardT = sNWB.processing.rewards.nwbdatainterface.autorewarded.timestamps;
+% 	end
+% 	
+% 	%add to struct stim
+% 	structStimAgg.vecLickT = vecLickT;
+% 	structStimAgg.vecRewardT = vecRewardT;
+% 	
+	%% optotagging
+	vecOptoT = [];
+	vecOptoVal = [];
+	try
+		vecOptoT = sNWB.processing.optotagging.nwbdatainterface.optotagging.timestamps;
+		vecOptoVal = sNWB.processing.optotagging.nwbdatainterface.optotagging.data;
 	end
 	
 	%% get optogenetic modulation
-	%cull cells
-	vecUseCells = find(indInclude & contains(cellAreas(:),'VIS'));
-	intNeurons = numel(vecUseCells);
 	
 	%gather data
-	sSes(intSes).Exp = strDataFile;
-	sSes(intSes).vecUseCells = vecUseCells;
-	sSes(intSes).cellSpikes = cellSpikes(vecUseCells);
-	sSes(intSes).cellAreas = cellAreas(vecUseCells);
+	sSes = struct;
+	sSes.SesId = intSes;
+	sSes.Exp = strDataFile;
+	sSes.vecUseCells = vecUseCells;
+	sSes.cellAreas = cellAreas(vecUseCells); %redundant, but good as a sanity check
 	
-	%stims
-	sSes(intSes).structStimAgg = structStimAgg;
+	%units
+	sSes.sNeuron = sNeuron;
 	
-	%behavior
-	sSes(intSes).vecPupilT = vecPupilT;
-	sSes(intSes).vecPupilSize = vecPupilSize;
-	sSes(intSes).matPupilXY = matPupilXY;
-	sSes(intSes).vecRunningTime = vecRunningTime;
-	sSes(intSes).vecRunningSpeed = vecRunningSpeed;
+	%stims & licking
+	sSes.structStimAgg = structStimAgg;
+	
+	%other behavior
+	sSes.vecPupilT = vecPupilT;
+	sSes.vecPupilBlink = vecPupilBlink;
+	sSes.vecPupilSize = vecPupilSize;
+	sSes.matPupilXY = matPupilXY;
+	sSes.vecRunningTime = vecRunningTime;
+	sSes.vecRunningSpeed = vecRunningSpeed;
+	
+	%opto
+	sSes.vecOptoT = vecOptoT;
+	sSes.vecOptoVal = vecOptoVal;
 	
 	%to-be-removed-interval structure
-	sSes(intSes).sRemoveIntervals = sRemoveIntervals;
+	sSes.sRemoveIntervals = sRemoveIntervals;
+	
+	%% save data
+	strOutputFile = strcat(strDataTarget,'AggSes_',strDataFile,'_ProcDate',getDate,'.mat');
+	fprintf('Saving data to "%s"\n',strOutputFile);
+	save(strOutputFile,'sSes','-v7.3');
+	fprintf('Done.\n');
 end
-
-
-%% saving data
-fprintf('Saving data to "%s"\n',strDataTarget);
-save(strDataTarget,'sSes','-v7.3');
-fprintf('Done.\n');

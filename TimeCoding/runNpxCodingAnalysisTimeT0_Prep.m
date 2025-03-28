@@ -14,8 +14,8 @@ q2: How precise are spike times in the natural movie repetitions?
 
 %% set parameters
 cellDataTypes = {'Npx','Sim','ABI','SWN'};%topo, model, allen, nora
-intRunDataType = 2;
-strRunStim = 'DG';%DG or NM? => superseded to WS by SWN
+intRunDataType = 3;
+strRunStim = 'NS';%DG or NM or NS? => superseded to WS by SWN
 cellTypes = {'Real','Poiss','ShuffTid','Shuff','PoissGain','Uniform','RandTid','RandTxClass'};
 boolFixSpikeGroupSize = false;
 dblRemOnset = 0; %remove onset period in seconds; 0.125 for sim, 0.25 for npx
@@ -31,6 +31,67 @@ for intRec=1:intRecNum
 	if strcmp(strRunType,'ABI')
 		runRecPrepABI;
 		strThisRec = strRec;
+		cellSpikeTimesOrig = cellSpikeTimes;
+		vecSupraGranuInfra = 3*ones(size(cellSpikeTimes));
+		
+		strDataPathT0 = strTargetDataPath;
+		
+		%% is cell an interneuron (fast/narrow spiking) or pyramid (regular/broad spiking)?
+		fprintf('Loading and processing waveforms... [%s]\n',getTime);
+		sThisRec = sRec;
+		sUseNeuron = sRec.sNeuron;
+		
+		%calculate waveform properties
+		dblSampRateIM = 3e4;
+		dblRecDur = max(cellfun(@max,{sUseNeuron.SpikeTimes})) - min(cellfun(@min,{sUseNeuron.SpikeTimes}));
+		vecSpikeRate = cellfun(@numel,{sUseNeuron.SpikeTimes})/dblRecDur;
+		matAreaWaveforms = cell2mat({sUseNeuron.Waveform})'; %[cell x sample]
+		intNeurons=size(matAreaWaveforms,1);
+		vecSpikeDur = nan(1,intNeurons);
+		vecSpikePTR = nan(1,intNeurons);
+		for intNeuron=1:intNeurons
+			%find trough
+			[dblTroughVal,intTrough]=min(matAreaWaveforms(intNeuron,:));
+			[dblPeakVal,intTroughToPeak]=max(matAreaWaveforms(intNeuron,intTrough:end));
+			intPeak = intTrough + intTroughToPeak - 1;
+			
+			dblTroughTime = intTrough/dblSampRateIM;
+			dblTroughToPeakTime = intTroughToPeak/dblSampRateIM;
+			dblPeakTime = intPeak/dblSampRateIM;
+			vecSpikeDur(intNeuron) = dblTroughToPeakTime;
+			vecSpikePTR(intNeuron) = abs(dblPeakVal/dblTroughVal);
+		end
+		dblRatio_PTT = 0.4;
+		dblDur_SWT = 0.4/1000;
+		vecNarrow = vecSpikeDur < dblDur_SWT & vecSpikePTR > dblRatio_PTT; %Ctx BL6
+		vecBroad = vecSpikeDur > dblDur_SWT;% & vecSpikePTR < dblRatio_PTT; %Ctx BL6
+		vecOther = ~vecNarrow & ~vecBroad;
+		vecNeuronType = vecNarrow + vecBroad*2 + vecOther*3;
+		vecNeuronSpikeDur = vecSpikeDur;
+		vecNeuronPeakToTrough = vecSpikePTR;
+		matNeuronWaveform = matAreaWaveforms;
+		cellNeuronTypes = {'Narrow','Broad','Other'};
+		
+		%% plot
+		vecSpikePTR(vecSpikePTR>1.25)=1.25;
+		matCol = [0 0 1;0 1 0;0.5 0.5 0.5];
+		figure;hold on
+		colormap(matCol);
+		scatter(vecSpikePTR(vecNeuronType==1),vecSpikeDur(vecNeuronType==1)*1000,[],matCol(1,:));
+		scatter(vecSpikePTR(vecNeuronType==2),vecSpikeDur(vecNeuronType==2)*1000,[],matCol(2,:));
+		scatter(vecSpikePTR(vecNeuronType==3),vecSpikeDur(vecNeuronType==3)*1000,[],matCol(3,:));
+		xlabel('trough to peak ratio');
+		ylabel('trough to peak dur (ms)');
+		title(strRec,'interpreter','none');
+		legend(cellNeuronTypes,'location','best');
+		fixfig;
+		
+		%%
+		export_fig(fullpath(strFigurePathSR,sprintf('T0_NarrowBroadClassification_%s.tif',strThisRec)));
+		export_fig(fullpath(strFigurePathSR,sprintf('T0_NarrowBroadClassification_%s.pdf',strThisRec)));
+		
+		%% close fig
+		close;
 	elseif strcmp(strRunType,'Sim')
 		%load
 		runRecPrepSim;
@@ -69,6 +130,7 @@ for intRec=1:intRecNum
 		vecNeuronPeakToTrough = [];
 		matNeuronWaveform = [];
 		cellNeuronTypes = {'Narrow','Broad','Other'};
+		
 		
 	elseif strcmp(strRunType,'Npx') || strcmp(strRunType,'SWN')
 		%prep
@@ -162,10 +224,10 @@ for intRec=1:intRecNum
 	%text(vecSupraGranuInfra,vecDepth,cellAreas)
 	for intCortLayer = 4%1:3
 		if intCortLayer == 4
-			indUseNeurons = true(size(indTuned));
+			indUseNeurons = true(size(find(indTuned)));
 			strLayer = '';
 		else
-			indUseNeurons = vecSupraGranuInfra(:)==intCortLayer & true(size(indTuned));
+			indUseNeurons = vecSupraGranuInfra(:)==intCortLayer & true(size(find(indTuned)));
 			strLayer = cellSupraGranuInfra{intCortLayer};
 		end
 		if sum(indUseNeurons) < 5
@@ -241,7 +303,7 @@ for intRec=1:intRecNum
 						cellSpikeTimes{intN} = unique(sort([vecStartSpikes;cell2vec(cellShuffTidTrials);vecEndSpikes]));
 					end
 					
-				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
+				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS') || strcmp(strRunStim,'NS')
 					%create data
 					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildShuffTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur);
 				
@@ -253,7 +315,7 @@ for intRec=1:intRecNum
 				cellSpikeTimes = cell(1,intNumN);
 				if strcmp(strRunStim,'NM')
 					error
-				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
+				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS') || strcmp(strRunStim,'NS')
 					%create data
 					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildRandTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecStimIdx,dblTrialDur);
 				
@@ -265,7 +327,7 @@ for intRec=1:intRecNum
 				cellSpikeTimes = cell(1,intNumN);
 				if strcmp(strRunStim,'NM')
 					error
-				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS')
+				elseif strcmp(strRunStim,'DG') || strcmp(strRunStim,'WS') || strcmp(strRunStim,'NS')
 					%create data
 					vecUseStimIdx = ones(size(vecStimIdx)); %collapse all classes
 					[cellUseSpikeTimesPerCellPerTrial,cellSpikeTimes] = buildRandTidSpikes(cellSpikeTimesReal,vecStimOnTime,vecUseStimIdx,dblTrialDur);
